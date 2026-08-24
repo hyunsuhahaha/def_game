@@ -143,7 +143,7 @@ function Game:keypressed(key)
     if key == "escape" then self.mode = "lobby"; return end
     if self.ended and (key == "r" or key == "return") then self:startRun(self.plan); return end
     if key == "1" and self.food >= 12 then self.food = self.food - 12; self.world:spawnDefender("bio", 1, self); self:setNotice("생체 수호자를 부화했습니다", "food") end
-    if key == "2" and self.ore >= 14 then self.ore = self.ore - 14; self.world.core.damage = self.world.core.damage * 1.2; self.world.core.fireRate = self.world.core.fireRate * 1.05; self:setNotice("포탑 기술을 강화했습니다", "ore") end
+    if key == "2" and self.ore >= 14 then self.ore = self.ore - 14; self.world.core.damage = self.world.core.damage * 1.2; self.world.core.fireRate = self.world.core.fireRate * 1.05; self.world:addTurret("autocannon", 1); self:setNotice("센터 하드포인트에 포탑을 배치했습니다", "ore") end
     if key == "3" and self.food >= 8 and self.ore >= 8 then self.food, self.ore = self.food - 8, self.ore - 8; self.player.gather = self.player.gather * 1.15; self.player.capacity = self.player.capacity + 5; self:setNotice("작업 장비를 개조했습니다", "core") end
     if key == "4" then
         local wall = self.world.wall
@@ -184,7 +184,9 @@ function Game:draw()
     love.graphics.clear(.08, .11, .12); self.camera:attach(); self.world:draw(self.player)
     local left, top, right, bottom = self.camera:visibleBounds()
     love.graphics.setBlendMode("screen", "alphamultiply"); love.graphics.setColor(.25, .34, .22, .13); love.graphics.rectangle("fill", left, top, right - left, bottom - top)
-    love.graphics.setBlendMode("add", "alphamultiply"); love.graphics.setColor(1, 1, 1, 1); love.graphics.draw(self.light, self.player.x, self.player.y, 0, 2.5, 2.5, 256, 256); love.graphics.draw(self.light, self.world.core.x, self.world.core.y, 0, 1.8, 1.8, 256, 256)
+    local coreDx,coreDy=self.player.x-self.world.core.x,self.player.y-self.world.core.y
+    local playerLight=coreDx*coreDx+coreDy*coreDy<400*400 and 1.45 or 2.2
+    love.graphics.setBlendMode("add", "alphamultiply"); love.graphics.setColor(1, 1, 1, 1); love.graphics.draw(self.light, self.player.x, self.player.y, 0, playerLight, playerLight, 256, 256); love.graphics.draw(self.light, self.world.core.x, self.world.core.y, 0, 1.05, 1.05, 256, 256)
     love.graphics.setBlendMode("alpha"); self.camera:detach(); self:drawUI()
     if self.mode == "upgrade" then self.upgrades:drawSelection(self, self.fonts) end
     if self.mode == "results" then self:drawResults() end
@@ -267,9 +269,11 @@ function Game:drawUI()
 
     UI.panel(w / 2 - 105, 16, 210, 44, {.78, .2, .18, 1}, .86)
     love.graphics.setFont(f.body); love.graphics.setColor(1, .82, .72); love.graphics.printf(self.world.spawnTimer > 0 and string.format("다음 웨이브 %.1f초", self.world.spawnTimer) or "웨이브 접근 중", w / 2 - 105, 27, 210, "center")
-    love.graphics.setFont(f.small); love.graphics.setColor(.08, .12, .12, .9); love.graphics.rectangle("fill", w / 2 - 105, 64, 210, 28, 5, 5)
+    love.graphics.setFont(f.small); love.graphics.setColor(.08, .12, .12, .9); love.graphics.rectangle("fill", w / 2 - 105, 64, 210, 50, 5, 5)
     love.graphics.setColor(.52, 1, .63); love.graphics.printf(string.format("생산 레벨 %d   %d/%d", self.runLevel, math.floor(self.runXP), self.runXPNext), w / 2 - 105, 69, 210, "center")
     UI.bar(w / 2 - 105, 89, 210, 4, self.runXP / self.runXPNext, {.45, 1, .58, 1})
+    local droneCount=0; for _,defender in ipairs(self.world.defenders) do if defender.kind=="drone" then droneCount=droneCount+1 end end
+    love.graphics.setColor(.55,.82,.86); love.graphics.printf(string.format("배치 포탑 %d/4   전투 드론 %d",#self.world.turrets,droneCount),w/2-105,96,210,"center")
 
     self:drawMinimap(16, h - 158, 205, 142); self:drawToolBelt(w - 276, h - 158, 260, 142)
     local nextWall = wall.level < wall.maxLevel and self.wallCosts[wall.level + 1] or nil

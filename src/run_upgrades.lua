@@ -81,6 +81,7 @@ function RunUpgrades:choose(index, game)
     if def.id == "cargo_frame" then game.player.capacity = game.player.capacity + 3 end
     if def.id == "field_boots" then game.player.speed = game.player.speed * 1.06 end
     if def.id == "wide_lens" then game.world.core.range = (game.world.core.range or 510) + 45 end
+    if def.id == "rail_turret" then game.world:addTurret("rail", self:level(def.id)) end
     game:setNotice(def.category == "evolution" and ("시스템 진화 — " .. def.name) or (def.name .. " " .. self:level(def.id) .. "단계"), def.color[3] > .8 and "ore" or "core")
     return true
 end

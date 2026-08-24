@@ -22,12 +22,12 @@ function World.new()
     self.wall = {y = 1115, level = 1, maxLevel = 4, hp = 220, maxHp = 220, brokenNotified = false}
     self.images = {
         industrial = image("assets/floor-industrial.png"), farm = image("assets/floor-biofarm.png"), quarry = image("assets/floor-quarry.png"),
-        core = image("assets/supply-core.png"), crop = image("assets/crop-pod.png"), ore = image("assets/ore-node.png"),
+        core = image("assets/supply-core-v2.png"), turret = image("assets/turret-v1.png"), drone = image("assets/combat-drone-v1.png"), crop = image("assets/crop-pod.png"), ore = image("assets/ore-node.png"),
         tree = image("assets/tree-v1.png"), stone = image("assets/stone-v1.png"),
         workerWalk = image("assets/worker-walk-v3.png"), workerActions = image("assets/worker-actions-v1.png"), workerRepair = image("assets/worker-repair-v1.png"),
         machine = image("assets/defense-machine.png"), tanks = image("assets/tank-bank.png")
     }
-    self.nodes, self.props, self.enemies, self.defenders, self.shots = {}, {}, {}, {}, {}
+    self.nodes, self.props, self.enemies, self.defenders, self.turrets, self.shots = {}, {}, {}, {}, {}, {}
     self.particles, self.popups, self.harvestChain, self.harvestChainTime = {}, {}, 0, 0
     self.effectFont = love.graphics.newFont("assets/font-korean.ttf", 18)
     self.spawnTimer, self.wave, self.kills = 3, 0, 0
@@ -125,6 +125,7 @@ end
 
 function World:update(dt, game)
     self:updateEffects(dt, game)
+    for _, turret in ipairs(self.turrets) do turret.flash = math.max(0, (turret.flash or 0) - dt) end
     for _, node in ipairs(self.nodes) do
         if node.kind == "plot" then
             if node.state == "growing" then node.grow = math.max(0, node.grow - dt * (game.upgrades and game.upgrades:cropGrowthMultiplier() or 1)); if node.grow <= 0 then node.state = "ready" end end
@@ -176,9 +177,29 @@ function World:update(dt, game)
     if self.core.cooldown <= 0 then
         local target, best = nil, self.core.range or 510
         for _, e in ipairs(self.enemies) do local dx, dy = e.x - self.core.x, e.y - self.core.y; local d = math.sqrt(dx * dx + dy * dy); if d < best then target, best = e, d end end
-        if target then target.hp = target.hp - self.core.damage; self:applyCombatEffects(target, self.core.damage, game); self.shots[#self.shots + 1] = {x1 = self.core.x, y1 = self.core.y - 70, x2 = target.x, y2 = target.y, life = .12}; self.core.cooldown = 1 / self.core.fireRate end
+        if target then
+            local source = self.turrets[1]
+            local sx, sy = source and source.x or self.core.x, source and source.y - 35 or self.core.y - 70
+            if source then source.flash = .14 end
+            target.hp = target.hp - self.core.damage; self:applyCombatEffects(target, self.core.damage, game); self.shots[#self.shots + 1] = {x1 = sx, y1 = sy, x2 = target.x, y2 = target.y, life = .12}; self.core.cooldown = 1 / self.core.fireRate
+        end
     end
     for i = #self.shots, 1, -1 do self.shots[i].life = self.shots[i].life - dt; if self.shots[i].life <= 0 then table.remove(self.shots, i) end end
+end
+
+local turretSlots = {{x=-61,y=-66},{x=61,y=-66},{x=-61,y=28},{x=61,y=28}}
+
+function World:addTurret(kind, level)
+    if #self.turrets < #turretSlots then
+        local slot = turretSlots[#self.turrets + 1]
+        self.turrets[#self.turrets + 1] = {kind=kind or "autocannon", level=level or 1, x=self.core.x+slot.x, y=self.core.y-50+slot.y, flash=.25}
+        return self.turrets[#self.turrets]
+    end
+    local target = self.turrets[1]
+    for _, turret in ipairs(self.turrets) do if turret.level < target.level then target = turret end end
+    target.level, target.flash = math.min(5, target.level + 1), .3
+    if kind == "rail" then target.kind = "rail" end
+    return target
 end
 
 function World:applyCombatEffects(target, damage, game)
@@ -207,7 +228,11 @@ function World:applyCombatEffects(target, damage, game)
 end
 
 function World:spawnDefender(kind, level, game)
-    self.defenders[#self.defenders + 1] = {kind=kind or "bio", level=level or 1, x=self.core.x+love.math.random(-145,145), y=self.core.y-120-love.math.random(0,70), cooldown=.2}
+    kind = kind or "bio"
+    local x,y
+    if kind == "drone" then x,y=self.core.x+love.math.random(-245,245),self.core.y+85+love.math.random(0,65)
+    else x,y=self.core.x+love.math.random(-145,145),self.core.y-120-love.math.random(0,70) end
+    self.defenders[#self.defenders + 1] = {kind=kind, level=level or 1, x=x, y=y, cooldown=.2}
     if game and game.camera then game.camera.trauma = math.min(1, game.camera.trauma + .16) end
 end
 
@@ -215,8 +240,13 @@ function World:fireRail(game, damage)
     local target
     for _, enemy in ipairs(self.enemies) do if not target or enemy.y > target.y then target = enemy end end
     if not target then return false end
+    local source
+    for _, turret in ipairs(self.turrets) do if turret.kind == "rail" then source = turret; break end end
+    source = source or self.turrets[1]
+    local sx,sy=source and source.x or self.core.x,source and source.y-38 or self.core.y-90
+    if source then source.flash=.22 end
     target.hp = target.hp - damage; self:applyCombatEffects(target, damage, game)
-    self.shots[#self.shots+1]={x1=self.core.x,y1=self.core.y-90,x2=target.x,y2=target.y,life=.24,color={.25,.92,1}}
+    self.shots[#self.shots+1]={x1=sx,y1=sy,x2=target.x,y2=target.y,life=.24,color={.25,.92,1}}
     self.particles[#self.particles+1]={x=target.x,y=target.y,life=.3,maxLife=.3,size=22,color={.25,.92,1},ring=true}
     if game.camera then game.camera.trauma=math.min(1,game.camera.trauma+.24) end
     return true
@@ -408,7 +438,15 @@ function World:draw(player)
     love.graphics.setColor(.06, .075, .085, 1); love.graphics.rectangle("fill", 0, 0, self.width, 55); love.graphics.rectangle("fill", 0, self.height - 55, self.width, 55); love.graphics.rectangle("fill", 0, 0, 55, self.height); love.graphics.rectangle("fill", self.width - 55, 0, 55, self.height)
     local queue = {}
     for _, p in ipairs(self.props) do local prop = p; queue[#queue + 1] = {y = prop.y, draw = function() local img = self.images[prop.kind]; shadow(prop.x, prop.y, img:getWidth() * prop.scale * .38, img:getHeight() * prop.scale * .12, .5); grounded(img, prop.x, prop.y, prop.scale) end} end
-    queue[#queue + 1] = {y = self.core.y, draw = function() shadow(self.core.x, self.core.y, 145, 48, .62); centered(self.images.core, self.core.x, self.core.y - 50, .23) end}
+    queue[#queue + 1] = {y = self.core.y, draw = function() shadow(self.core.x, self.core.y, 145, 48, .5); centered(self.images.core, self.core.x, self.core.y - 50, .23) end}
+    queue[#queue + 1] = {y = self.core.y + 1, draw = function()
+        for _, turret in ipairs(self.turrets) do
+            local pulse = 1 + turret.level * .025 + (turret.flash or 0) * .45
+            shadow(turret.x, turret.y + 25, 28, 9, .35)
+            love.graphics.setColor(1,1,1,1); grounded(self.images.turret, turret.x, turret.y + 30, .058 * pulse)
+            if turret.flash and turret.flash > 0 then love.graphics.setColor(turret.kind=="rail" and {.25,.92,1,turret.flash*4} or {1,.7,.2,turret.flash*4}); love.graphics.circle("fill",turret.x-30,turret.y-22,8+turret.flash*45) end
+        end
+    end}
     queue[#queue + 1] = {y = self.wall.y, draw = function() self:drawWall(player) end}
     for _, n in ipairs(self.nodes) do
         if n.active or n.kind == "plot" then
@@ -431,7 +469,11 @@ function World:draw(player)
             end}
         end
     end
-    for _, d in ipairs(self.defenders) do local defender = d; queue[#queue + 1] = {y = defender.y, draw = function() shadow(defender.x, defender.y, 20, 8, .5); love.graphics.setColor(.25, .9, .38); love.graphics.circle("fill", defender.x, defender.y - 20, 22) end} end
+    for _, d in ipairs(self.defenders) do local defender = d; queue[#queue + 1] = {y = defender.y, draw = function()
+        if defender.kind == "drone" then
+            local bob=math.sin(love.timer.getTime()*4+defender.x*.01)*5; shadow(defender.x,defender.y+8,31,10,.38); love.graphics.setColor(1,1,1); centered(self.images.drone,defender.x,defender.y-34+bob,.052)
+        else shadow(defender.x, defender.y, 20, 8, .42); love.graphics.setColor(.25, .9, .38); love.graphics.circle("fill", defender.x, defender.y - 20, 22) end
+    end} end
     for _, e in ipairs(self.enemies) do local enemy = e; queue[#queue + 1] = {y = enemy.y, draw = function() shadow(enemy.x, enemy.y, 20, 9, .5); love.graphics.setColor(.65, .12, .15); love.graphics.circle("fill", enemy.x, enemy.y - 22, 24); love.graphics.setColor(1, .35, .25); love.graphics.circle("line", enemy.x, enemy.y - 22, 24) end} end
     queue[#queue + 1] = {y = player.y, draw = function() player:draw() end}
     table.sort(queue, function(a, b) return a.y < b.y end); for _, item in ipairs(queue) do item.draw() end

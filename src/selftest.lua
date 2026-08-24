@@ -16,6 +16,10 @@ function SelfTest.run(game)
     assert(game.progression:buy("quick_work") and game.progression:buy("quick_work"), "기초 특성 구매 실패")
     assert(game.progression:buy("cargo_rig"), "연결 특성 구매 실패")
     game:startRun(3)
+    game.ore = 14; game:keypressed("2")
+    assert(#game.world.turrets == 1 and game.world.turrets[1].kind == "autocannon", "포탑 실물 배치 실패")
+    game.world:spawnDefender("drone", 2, game)
+    assert(#game.world.defenders == 1 and game.world.defenders[1].kind == "drone", "전투 드론 실물 생성 실패")
     assert(game.upgrades:choose("auto_farm", game) and game.upgrades:choose("auto_farm", game), "런 시스템 강화 실패")
     assert(game.upgrades:choose("protein_feed", game), "런 보조 강화 실패")
     game.upgrades.levels.auto_farm = 5
@@ -60,7 +64,7 @@ function SelfTest.run(game)
     local afterReward = game.progression.data.currency
     game:finishRun(false)
     assert(game.progression.data.currency == afterReward, "런 보상 중복 지급 방지 실패")
-    print("SELF_TEST_OK: FARM TREE STONE ORE TOOL_SPEED HARVEST_FEEDBACK RUN_LEVELUP THREE_CHOICES AUTOMATION EVOLUTION WALL_UPGRADE WALL_BLOCK HAMMER_REPAIR META_SAVE TRAIT_TREE TRAIT_APPLY RUN_REWARD")
+    print("SELF_TEST_OK: FARM TREE STONE ORE TOOL_SPEED HARVEST_FEEDBACK VISIBLE_TURRET VISIBLE_DRONE RUN_LEVELUP THREE_CHOICES AUTOMATION EVOLUTION WALL_UPGRADE WALL_BLOCK HAMMER_REPAIR META_SAVE TRAIT_TREE TRAIT_APPLY RUN_REWARD")
 end
 
 return SelfTest
