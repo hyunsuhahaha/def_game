@@ -3,12 +3,12 @@ Player.__index = Player
 
 local actionStart = {axe = 1, hoe = 3, pickaxe = 5, water = 7}
 
-function Player.new(x, y, walkSheet, actionSheet)
+function Player.new(x, y, walkSheet, actionSheet, repairSheet)
     local self = setmetatable({
-        x = x, y = y, speed = 260, sheet = walkSheet, actionSheet = actionSheet,
+        x = x, y = y, speed = 260, sheet = walkSheet, actionSheet = actionSheet, repairSheet = repairSheet,
         food = 0, ore = 0, wood = 0, stone = 0, capacity = 18, gather = 1,
         walkClock = 0, actionClock = 0, isMoving = false, facing = 1,
-        interactionTarget = nil, activeTool = nil
+        interactionTarget = nil, activeTool = nil, repairingWall = false
     }, Player)
     local fw, fh = walkSheet:getWidth() / 8, walkSheet:getHeight()
     self.frameWidth, self.frameHeight, self.frames = fw, fh, {}
@@ -16,6 +16,9 @@ function Player.new(x, y, walkSheet, actionSheet)
     local aw, ah = actionSheet:getWidth() / 8, actionSheet:getHeight()
     self.actionFrameWidth, self.actionFrameHeight, self.actionFrames = aw, ah, {}
     for i = 0, 7 do self.actionFrames[i + 1] = love.graphics.newQuad(i * aw, 0, aw, ah, actionSheet:getDimensions()) end
+    local rw, rh = repairSheet:getWidth() / 2, repairSheet:getHeight()
+    self.repairFrameWidth, self.repairFrameHeight, self.repairFrames = rw, rh, {}
+    for i = 0, 1 do self.repairFrames[i + 1] = love.graphics.newQuad(i * rw, 0, rw, rh, repairSheet:getDimensions()) end
     return self
 end
 
@@ -26,13 +29,21 @@ function Player:beginInteraction(node, world, game)
     if dx * dx + dy * dy > 180 * 180 then game:setNotice("대상에 더 가까이 가세요", "core"); return end
     local tool, label = world:getInteraction(node, game)
     if not tool then game:setNotice(label or "지금은 작업할 수 없습니다", "core"); return end
-    self.interactionTarget, self.activeTool, self.actionClock = node, tool, 0
+    self.interactionTarget, self.activeTool, self.actionClock, self.repairingWall = node, tool, 0, false
     self.facing = dx < 0 and -1 or 1
     game:setNotice(label .. " — " .. game.tools[tool].name .. " 자동 사용", tool == "pickaxe" and "ore" or tool == "axe" and "food" or "core")
 end
 
+function Player:beginWallRepair(world, game)
+    if math.abs(self.y - world.wall.y) > 185 then game:setNotice("방어벽에 더 가까이 가세요", "core"); return end
+    if world.wall.hp >= world.wall.maxHp then game:setNotice("방어벽이 이미 완전히 수리되었습니다", "core"); return end
+    self.interactionTarget, self.activeTool, self.actionClock, self.repairingWall = nil, "hammer", 0, true
+    self.facing = 1
+    game:setNotice("나무 수리 망치 자동 사용 — 목재 1 · 돌 1", "core")
+end
+
 function Player:cancelInteraction()
-    self.interactionTarget, self.activeTool, self.actionClock = nil, nil, 0
+    self.interactionTarget, self.activeTool, self.actionClock, self.repairingWall = nil, nil, 0, false
 end
 
 function Player:update(dt, world, game)
@@ -50,6 +61,11 @@ function Player:update(dt, world, game)
         self.x = math.max(75, math.min(world.width - 75, self.x + dx * self.speed * dt))
         self.y = math.max(75, math.min(world.height - 75, self.y + dy * self.speed * dt))
         self.walkClock = self.walkClock + dt * 9
+    elseif self.repairingWall then
+        local cycle = .64 / (game.tools.hammer.speed * self.gather)
+        local before = math.floor(self.actionClock / cycle)
+        self.actionClock = self.actionClock + dt
+        if math.floor(self.actionClock / cycle) > before and not world:repairWall(game) then self:cancelInteraction() end
     elseif self.interactionTarget then
         local node = self.interactionTarget
         local valid = node.kind == "plot" or node.active
@@ -72,7 +88,10 @@ function Player:draw()
     local pulse = self.isMoving and math.sin(self.walkClock * math.pi) or 0
     love.graphics.setColor(0, 0, 0, .5); love.graphics.ellipse("fill", self.x + 4, self.y + 22, 25 - math.abs(pulse) * 2, 10)
     love.graphics.setColor(1, 1, 1)
-    if self.interactionTarget and self.activeTool then
+    if self.repairingWall then
+        local frame = math.floor(self.actionClock / .32) % 2 + 1
+        love.graphics.draw(self.repairSheet, self.repairFrames[frame], self.x, self.y, 0, .145 * self.facing, .145, self.repairFrameWidth / 2, self.repairFrameHeight * .9)
+    elseif self.interactionTarget and self.activeTool then
         local first = actionStart[self.activeTool] or 1
         local frame = first + (math.floor(self.actionClock / .32) % 2)
         love.graphics.draw(self.actionSheet, self.actionFrames[frame], self.x, self.y, 0, .16 * self.facing, .16, self.actionFrameWidth / 2, self.actionFrameHeight * .9)

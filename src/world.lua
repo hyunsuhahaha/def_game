@@ -18,12 +18,13 @@ end
 function World.new()
     local self = setmetatable({}, World)
     self.width, self.height = 3200, 2000
-    self.core = {x = 1600, y = 940, hp = 500, maxHp = 500, damage = 18, fireRate = 1.25, cooldown = 0}
+    self.core = {x = 1600, y = 1325, hp = 500, maxHp = 500, damage = 18, fireRate = 1.25, cooldown = 0}
+    self.wall = {y = 1115, level = 1, maxLevel = 4, hp = 220, maxHp = 220, brokenNotified = false}
     self.images = {
         industrial = image("assets/floor-industrial.png"), farm = image("assets/floor-biofarm.png"), quarry = image("assets/floor-quarry.png"),
         core = image("assets/supply-core.png"), crop = image("assets/crop-pod.png"), ore = image("assets/ore-node.png"),
         tree = image("assets/tree-v1.png"), stone = image("assets/stone-v1.png"),
-        workerWalk = image("assets/worker-walk-v3.png"), workerActions = image("assets/worker-actions-v1.png"),
+        workerWalk = image("assets/worker-walk-v3.png"), workerActions = image("assets/worker-actions-v1.png"), workerRepair = image("assets/worker-repair-v1.png"),
         machine = image("assets/defense-machine.png"), tanks = image("assets/tank-bank.png")
     }
     self.nodes, self.props, self.enemies, self.defenders, self.shots = {}, {}, {}, {}, {}
@@ -70,9 +71,17 @@ function World:update(dt, game)
     end
     for i = #self.enemies, 1, -1 do
         local e = self.enemies[i]
-        local dx, dy = self.core.x - e.x, self.core.y - e.y; local d = math.sqrt(dx * dx + dy * dy)
-        if d > 115 then e.x, e.y = e.x + dx / d * e.speed * dt, e.y + dy / d * e.speed * dt
-        else self.core.hp = self.core.hp - e.hit * dt; if self.core.hp <= 0 then game.ended, game.victory = true, false end end
+        if self.wall.hp > 0 then
+            local targetX, targetY = self.core.x, self.wall.y - 34
+            local dx, dy = targetX - e.x, targetY - e.y; local d = math.sqrt(dx * dx + dy * dy)
+            if d > 28 then e.x, e.y = e.x + dx / d * e.speed * dt, e.y + dy / d * e.speed * dt
+            else
+                self.wall.hp = math.max(0, self.wall.hp - e.hit * dt)
+                if self.wall.hp <= 0 and not self.wall.brokenNotified then self.wall.brokenNotified = true; game:setNotice("방어벽이 무너졌습니다", "ore"); game.ended, game.victory = true, false end
+            end
+        else
+            game.ended, game.victory = true, false
+        end
         if e.hp <= 0 then table.remove(self.enemies, i); self.kills = self.kills + 1 end
     end
     self.core.cooldown = self.core.cooldown - dt
@@ -82,6 +91,30 @@ function World:update(dt, game)
         if target then target.hp = target.hp - self.core.damage; self.shots[#self.shots + 1] = {x1 = self.core.x, y1 = self.core.y - 70, x2 = target.x, y2 = target.y, life = .12}; self.core.cooldown = 1 / self.core.fireRate end
     end
     for i = #self.shots, 1, -1 do self.shots[i].life = self.shots[i].life - dt; if self.shots[i].life <= 0 then table.remove(self.shots, i) end end
+end
+
+function World:upgradeWall()
+    if self.wall.level >= self.wall.maxLevel then return false end
+    local maxHpByLevel = {220, 400, 650, 950}
+    self.wall.level = self.wall.level + 1
+    self.wall.maxHp, self.wall.hp = maxHpByLevel[self.wall.level], maxHpByLevel[self.wall.level]
+    self.wall.brokenNotified = false
+    return true
+end
+
+function World:isWallAt(x, y)
+    return x >= 55 and x <= self.width - 55 and math.abs(y - self.wall.y) <= 58
+end
+
+function World:repairWall(game)
+    local wall = self.wall
+    if wall.hp >= wall.maxHp then game:setNotice("방어벽이 이미 완전히 수리되었습니다", "core"); return false end
+    if game.wood < 1 or game.stone < 1 then game:setNotice("수리 재료가 부족합니다 — 목재 1 · 돌 1", "core"); return false end
+    game.wood, game.stone = game.wood - 1, game.stone - 1
+    wall.hp = math.min(wall.maxHp, wall.hp + 28 + wall.level * 10)
+    wall.brokenNotified = false
+    game:setNotice(string.format("방어벽 수리 +%d", 28 + wall.level * 10), "core")
+    return wall.hp < wall.maxHp
 end
 
 function World:findNodeAt(x, y)
@@ -169,16 +202,53 @@ function World:drawPlot(node)
     end
 end
 
+function World:drawWall(player)
+    local wall, y, level = self.wall, self.wall.y, self.wall.level
+    local integrity = wall.maxHp > 0 and wall.hp / wall.maxHp or 0
+    local alpha = wall.hp > 0 and 1 or .34
+    love.graphics.setColor(0, 0, 0, .48 * alpha); love.graphics.rectangle("fill", 55, y + 18, self.width - 110, 23)
+    for x = 55, self.width - 55, 160 do
+        local segmentW = math.min(156, self.width - 55 - x)
+        if level == 1 then
+            love.graphics.setColor(.19, .22, .22, alpha); love.graphics.rectangle("fill", x, y - 11, segmentW, 26, 3, 3)
+            love.graphics.setColor(.55, .34, .13, alpha); love.graphics.rectangle("fill", x + 4, y - 7, segmentW - 8, 5); love.graphics.rectangle("fill", x + 4, y + 7, segmentW - 8, 5)
+            love.graphics.setColor(.36, .4, .39, alpha); love.graphics.rectangle("fill", x, y - 22, 10, 45, 2, 2); love.graphics.rectangle("fill", x + segmentW - 10, y - 22, 10, 45, 2, 2)
+        elseif level == 2 then
+            love.graphics.setColor(.16, .2, .22, alpha); love.graphics.rectangle("fill", x, y - 25, segmentW, 51, 4, 4)
+            love.graphics.setColor(.31, .37, .39, alpha); love.graphics.polygon("fill", x + 5, y - 20, x + segmentW - 14, y - 20, x + segmentW - 5, y, x + segmentW - 14, y + 20, x + 5, y + 20)
+            love.graphics.setColor(.9, .52, .12, alpha); love.graphics.rectangle("fill", x + 10, y - 3, segmentW - 20, 6)
+            love.graphics.setColor(.65, .7, .7, alpha); for r = 16, segmentW - 16, 42 do love.graphics.circle("fill", x + r, y - 15, 2); love.graphics.circle("fill", x + r, y + 15, 2) end
+        else
+            love.graphics.setColor(.09, .14, .17, alpha); love.graphics.rectangle("fill", x, y - 34, segmentW, 68, 5, 5)
+            love.graphics.setColor(.27, .34, .38, alpha); love.graphics.polygon("fill", x + 7, y - 28, x + segmentW - 20, y - 28, x + segmentW - 7, y - 12, x + segmentW - 7, y + 28, x + 20, y + 28, x + 7, y + 12)
+            love.graphics.setColor(.08, .1, .12, alpha); love.graphics.rectangle("fill", x + 17, y - 20, segmentW - 34, 40, 3, 3)
+            love.graphics.setColor(level == 4 and {.15, .82, 1, alpha} or {1, .56, .12, alpha}); love.graphics.rectangle("fill", x + 20, y - 4, segmentW - 40, 8, 3, 3)
+            love.graphics.circle("fill", x + 14, y, 5); love.graphics.circle("fill", x + segmentW - 14, y, 5)
+        end
+    end
+    if level == 4 and wall.hp > 0 then
+        local pulse = .25 + math.sin(love.timer.getTime() * 4) * .08
+        love.graphics.setColor(.12, .78, 1, pulse); love.graphics.rectangle("fill", 55, y - 45, self.width - 110, 83, 8, 8)
+        love.graphics.setColor(.38, .92, 1, .8); love.graphics.setLineWidth(3); love.graphics.line(55, y - 43, self.width - 55, y - 43)
+    end
+    love.graphics.setColor(0, 0, 0, .75); love.graphics.rectangle("fill", self.core.x - 90, y - 61, 180, 12, 4, 4)
+    love.graphics.setColor(level == 4 and {.18, .86, 1, 1} or {.94, .58, .14, 1}); love.graphics.rectangle("fill", self.core.x - 90, y - 61, 180 * integrity, 12, 4, 4)
+    if player.repairingWall then
+        local pulse = 30 + math.sin(love.timer.getTime() * 8) * 5
+        love.graphics.setColor(1, .78, .2, .95); love.graphics.setLineWidth(3); love.graphics.circle("line", player.x, y, pulse)
+    end
+end
+
 function World:draw(player)
     drawTiled(self.images.industrial, 0, 0, self.width, 1160, 320)
     drawTiled(self.images.farm, 0, 1160, 1260, 840, 320)
     drawTiled(self.images.industrial, 1260, 1160, 680, 840, 320)
     drawTiled(self.images.quarry, 1940, 1160, 1260, 840, 320)
     love.graphics.setColor(.06, .075, .085, 1); love.graphics.rectangle("fill", 0, 0, self.width, 55); love.graphics.rectangle("fill", 0, self.height - 55, self.width, 55); love.graphics.rectangle("fill", 0, 0, 55, self.height); love.graphics.rectangle("fill", self.width - 55, 0, 55, self.height)
-    love.graphics.setColor(.9, .55, .12, .65); love.graphics.rectangle("fill", 55, 1115, self.width - 110, 5)
     local queue = {}
     for _, p in ipairs(self.props) do local prop = p; queue[#queue + 1] = {y = prop.y, draw = function() local img = self.images[prop.kind]; shadow(prop.x, prop.y, img:getWidth() * prop.scale * .38, img:getHeight() * prop.scale * .12, .5); grounded(img, prop.x, prop.y, prop.scale) end} end
     queue[#queue + 1] = {y = self.core.y, draw = function() shadow(self.core.x, self.core.y, 145, 48, .62); centered(self.images.core, self.core.x, self.core.y - 50, .23) end}
+    queue[#queue + 1] = {y = self.wall.y, draw = function() self:drawWall(player) end}
     for _, n in ipairs(self.nodes) do
         if n.active or n.kind == "plot" then
             local node = n

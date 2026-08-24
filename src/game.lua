@@ -25,8 +25,10 @@ function Game.new()
         axe = {name = "나무 도끼", speed = .8, type = "벌목"},
         hoe = {name = "나무 괭이", speed = 1, type = "농사"},
         pickaxe = {name = "나무 곡괭이", speed = .75, type = "채광"},
-        water = {name = "휴대 급수기", speed = 1, type = "농사 보조"}
+        water = {name = "휴대 급수기", speed = 1, type = "농사 보조"},
+        hammer = {name = "나무 수리 망치", speed = 1, type = "방벽 수리"}
     }
+    self.wallCosts = {{wood = 0, stone = 0}, {wood = 12, stone = 8}, {wood = 22, stone = 16}, {wood = 36, stone = 28}}
     self.world = World.new(); self.lobby = Lobby.new(self.world.images, self.fonts)
     self.mode, self.notice, self.noticeKind, self.noticeTime = "lobby", "", "core", 0
     self:resetRun(2); self.mode = "lobby"
@@ -35,10 +37,10 @@ end
 
 function Game:resetRun(plan)
     self.world = World.new()
-    self.player = Player.new(1600, 1530, self.world.images.workerWalk, self.world.images.workerActions)
+    self.player = Player.new(1600, 1470, self.world.images.workerWalk, self.world.images.workerActions, self.world.images.workerRepair)
     self.camera = Camera.new(self.player.x, self.player.y)
     self.food, self.ore, self.wood, self.stone, self.seeds = 0, 0, 0, 0, 8
-    self.time, self.ended, self.victory, self.hoverNode = 15 * 60, false, false, nil
+    self.time, self.ended, self.victory, self.hoverNode, self.hoverWall = 15 * 60, false, false, nil, false
     self.plan = plan or 2
     if self.plan == 1 then self.food, self.seeds = 12, 12; self.world.core.maxHp, self.world.core.hp = 550, 550 end
     if self.plan == 2 then self.ore = 14; self.world.core.damage = self.world.core.damage * 1.15 end
@@ -51,7 +53,7 @@ function Game:setNotice(text, kind) self.notice, self.noticeKind, self.noticeTim
 function Game:update(dt)
     if self.mode == "lobby" then self.lobby:update(dt); return end
     self.noticeTime = math.max(0, self.noticeTime - dt)
-    local wx, wy = self.camera:screenToWorld(love.mouse.getPosition()); self.hoverNode = self.world:findNodeAt(wx, wy)
+    local wx, wy = self.camera:screenToWorld(love.mouse.getPosition()); self.hoverNode, self.hoverWall = self.world:findNodeAt(wx, wy), self.world:isWallAt(wx, wy)
     if self.ended then return end
     self.time = math.max(0, self.time - dt); if self.time <= 0 then self.ended, self.victory = true, true end
     self.player:update(dt, self.world, self); self.world:update(dt, self); self.camera:update(dt, self.player, self.world)
@@ -67,13 +69,23 @@ function Game:keypressed(key)
     if key == "1" and self.food >= 12 then self.food = self.food - 12; self.world.defenders[#self.world.defenders + 1] = {x = self.world.core.x + love.math.random(-110, 110), y = self.world.core.y - 130}; self:setNotice("생체 수호자를 부화했습니다", "food") end
     if key == "2" and self.ore >= 14 then self.ore = self.ore - 14; self.world.core.damage = self.world.core.damage * 1.2; self.world.core.fireRate = self.world.core.fireRate * 1.05; self:setNotice("포탑 기술을 강화했습니다", "ore") end
     if key == "3" and self.food >= 8 and self.ore >= 8 then self.food, self.ore = self.food - 8, self.ore - 8; self.player.gather = self.player.gather * 1.15; self.player.capacity = self.player.capacity + 5; self:setNotice("작업 장비를 개조했습니다", "core") end
-    if key == "4" and self.ore >= 10 then self.ore = self.ore - 10; self.world.core.hp = math.min(self.world.core.maxHp, self.world.core.hp + 85); self:setNotice("거점을 수리했습니다", "ore") end
+    if key == "4" then
+        local wall = self.world.wall
+        if wall.level < wall.maxLevel then
+            local cost = self.wallCosts[wall.level + 1]
+            if self.wood >= cost.wood and self.stone >= cost.stone then
+                self.wood, self.stone = self.wood - cost.wood, self.stone - cost.stone
+                self.world:upgradeWall(); self:setNotice("방어벽 " .. wall.level .. "단계 강화 완료", "core")
+            else self:setNotice(string.format("방어벽 강화 필요: 목재 %d · 돌 %d", cost.wood, cost.stone), "core") end
+        else self:setNotice("방어벽이 최고 단계입니다", "core") end
+    end
 end
 
 function Game:mousepressed(x, y, button)
     if self.mode == "lobby" then local plan = self.lobby:mousepressed(x, y, button); if plan then self:startRun(plan) end; return end
     if button ~= 1 or self.ended then return end
     local wx, wy = self.camera:screenToWorld(x, y)
+    if self.world:isWallAt(wx, wy) then self.player:beginWallRepair(self.world, self); return end
     local node = self.world:findNodeAt(wx, wy)
     if node then self.player:beginInteraction(node, self.world, self) else self.player:cancelInteraction() end
 end
@@ -90,12 +102,16 @@ local function affordable(game, index)
     if index == 1 then return game.food >= 12 end
     if index == 2 then return game.ore >= 14 end
     if index == 3 then return game.food >= 8 and game.ore >= 8 end
-    return game.ore >= 10
+    local wall = game.world.wall
+    if wall.level >= wall.maxLevel then return false end
+    local cost = game.wallCosts[wall.level + 1]
+    return game.wood >= cost.wood and game.stone >= cost.stone
 end
 
 function Game:drawMinimap(x, y, w, h)
     UI.panel(x, y, w, h, {.35, .74, .82, 1}, .9)
     love.graphics.setColor(.55, .24, .19); love.graphics.rectangle("fill", x + 12, y + 26, w - 24, 26)
+    love.graphics.setColor(.94, .58, .14); love.graphics.rectangle("fill", x + 12, y + 53, w - 24, 3)
     love.graphics.setColor(.24, .5, .27); love.graphics.rectangle("fill", x + 12, y + 56, (w - 24) * .39, h - 68)
     love.graphics.setColor(.19, .39, .57); love.graphics.rectangle("fill", x + 12 + (w - 24) * .61, y + 56, (w - 24) * .39, h - 68)
     local function point(wx, wy, color, radius) love.graphics.setColor(color); love.graphics.circle("fill", x + 12 + wx / self.world.width * (w - 24), y + 26 + wy / self.world.height * (h - 38), radius) end
@@ -107,7 +123,7 @@ end
 function Game:drawToolBelt(x, y, w, h)
     UI.panel(x, y, w, h, {.92, .58, .16, 1}, .94)
     love.graphics.setFont(self.fonts.small); love.graphics.setColor(.57, .68, .71); love.graphics.print("기본 도구 · 대상 클릭 시 자동 사용", x + 14, y + 9)
-    local order = {"axe", "hoe", "pickaxe"}
+    local order = {"axe", "hoe", "pickaxe", "hammer"}
     for i, key in ipairs(order) do
         local tool, rowY, active = self.tools[key], y + 35 + (i - 1) * 28, self.player.activeTool == key
         love.graphics.setColor(active and {.95, .62, .18, .95} or {.1, .14, .16, .9}); love.graphics.rectangle("fill", x + 12, rowY, w - 24, 23, 4, 4)
@@ -118,12 +134,14 @@ end
 
 function Game:drawUI()
     local w, h, f = love.graphics.getWidth(), love.graphics.getHeight(), self.fonts
-    UI.panel(16, 16, 382, 116, {.25, .78, .88, 1})
+    UI.panel(16, 16, 382, 142, {.25, .78, .88, 1})
     local m, s = math.floor(self.time / 60), math.floor(self.time % 60)
     love.graphics.setFont(f.big); love.graphics.setColor(1, 1, 1); love.graphics.print(string.format("%02d:%02d", m, s), 32, 27)
     love.graphics.setFont(f.body); love.graphics.setColor(.76, .84, .87); love.graphics.print(string.format("웨이브 %02d   처치 %03d", self.world.wave, self.world.kills), 152, 35)
-    love.graphics.setFont(f.small); love.graphics.print(string.format("보급 거점  %d / %d", math.max(0, math.floor(self.world.core.hp)), self.world.core.maxHp), 32, 72)
-    UI.bar(32, 96, 348, 13, self.world.core.hp / self.world.core.maxHp, {.2, .82, .58, 1})
+    love.graphics.setFont(f.small); love.graphics.setColor(.4, .95, .62); love.graphics.print("보급 센터  가동 중", 32, 72)
+    local wall = self.world.wall
+    love.graphics.setColor(.76, .84, .87); love.graphics.print(string.format("방어벽 %d단계  %d / %d", wall.level, math.floor(wall.hp), wall.maxHp), 32, 98)
+    UI.bar(32, 122, 348, 12, wall.hp / wall.maxHp, wall.level == 4 and {.18, .86, 1, 1} or {.94, .58, .14, 1})
 
     UI.panel(w - 334, 16, 318, 122, {.92, .58, .16, 1})
     love.graphics.setFont(f.small); love.graphics.setColor(.58, .68, .71); love.graphics.print("거점 창고", w - 316, 27)
@@ -137,7 +155,9 @@ function Game:drawUI()
     love.graphics.setFont(f.body); love.graphics.setColor(1, .82, .72); love.graphics.printf(self.world.spawnTimer > 0 and string.format("다음 웨이브 %.1f초", self.world.spawnTimer) or "웨이브 접근 중", w / 2 - 105, 27, 210, "center")
 
     self:drawMinimap(16, h - 158, 205, 142); self:drawToolBelt(w - 276, h - 158, 260, 142)
-    local abilities = {{"1", "수호자", "식량 12"}, {"2", "포탑", "광석 14"}, {"3", "장비", "식량8 광석8"}, {"4", "수리", "광석 10"}}
+    local nextWall = wall.level < wall.maxLevel and self.wallCosts[wall.level + 1] or nil
+    local wallCostText = nextWall and string.format("목%d 돌%d", nextWall.wood, nextWall.stone) or "최고 단계"
+    local abilities = {{"1", "수호자", "식량 12"}, {"2", "포탑", "광석 14"}, {"3", "장비", "식8 광8"}, {"4", "방벽강화", wallCostText}}
     local total, slotW, gap, startX, barY = 552, 132, 8, w / 2 - 276, h - 92
     for i, ability in ipairs(abilities) do
         local x, ready = startX + (i - 1) * (slotW + gap), affordable(self, i)
@@ -148,7 +168,12 @@ function Game:drawUI()
     end
 
     local promptNode = self.player.interactionTarget or self.hoverNode
-    if promptNode then
+    if self.player.repairingWall or self.hoverWall then
+        local distance = math.abs(self.player.y - self.world.wall.y)
+        local text = self.player.repairingWall and "나무 수리 망치 사용 중 · 타격당 목재 1 + 돌 1" or (distance <= 185 and "클릭 — 방어벽 직접 수리" or "방어벽에 더 가까이 이동하세요")
+        UI.panel(w / 2 - 200, h - 142, 400, 40, {.95, .62, .18, 1}, .9)
+        love.graphics.setFont(f.small); love.graphics.setColor(1, 1, 1); love.graphics.printf(text, w / 2 - 200, h - 132, 400, "center")
+    elseif promptNode then
         local tool, label = self.world:getInteraction(promptNode, self)
         local distance = math.sqrt((promptNode.x - self.player.x)^2 + (promptNode.y - self.player.y)^2)
         local text = self.player.interactionTarget and ((self.tools[self.player.activeTool] and self.tools[self.player.activeTool].name or "도구") .. " 사용 중") or (distance <= 180 and ("클릭 — " .. (label or "상호작용")) or "더 가까이 이동하세요")
@@ -158,10 +183,10 @@ function Game:drawUI()
 
     if self.noticeTime > 0 then
         local color = self.noticeKind == "food" and {.36, .95, .44, 1} or self.noticeKind == "ore" and {.36, .78, 1, 1} or {1, .68, .2, 1}
-        love.graphics.setFont(f.body); love.graphics.setColor(0, 0, 0, .7); love.graphics.printf(self.notice, 2, 153, w, "center"); love.graphics.setColor(color); love.graphics.printf(self.notice, 0, 151, w, "center")
+        love.graphics.setFont(f.body); love.graphics.setColor(0, 0, 0, .7); love.graphics.printf(self.notice, 2, 177, w, "center"); love.graphics.setColor(color); love.graphics.printf(self.notice, 0, 175, w, "center")
     end
     if self.ended then
-        love.graphics.setColor(0, 0, 0, .82); love.graphics.rectangle("fill", 0, 0, w, h); love.graphics.setFont(f.title); love.graphics.setColor(1, 1, 1); love.graphics.printf(self.victory and "15분 생존 성공" or "보급 거점 파괴", 0, h / 2 - 60, w, "center"); love.graphics.setFont(f.body); love.graphics.setColor(.72, .8, .82); love.graphics.printf("ENTER를 눌러 다시 시작", 0, h / 2 + 8, w, "center")
+        love.graphics.setColor(0, 0, 0, .82); love.graphics.rectangle("fill", 0, 0, w, h); love.graphics.setFont(f.title); love.graphics.setColor(1, 1, 1); love.graphics.printf(self.victory and "15분 생존 성공" or "방어벽 붕괴", 0, h / 2 - 60, w, "center"); love.graphics.setFont(f.body); love.graphics.setColor(.72, .8, .82); love.graphics.printf("ENTER를 눌러 다시 시작", 0, h / 2 + 8, w, "center")
     end
 end
 

@@ -1,6 +1,6 @@
 local Game
 local game
-local captureFrames = (os.getenv("LAST_HAUL_CAPTURE") or os.getenv("LAST_HAUL_CAPTURE_GAME") or os.getenv("LAST_HAUL_CAPTURE_FARM") or os.getenv("LAST_HAUL_CAPTURE_MINE")) and 30 or nil
+local captureFrames = (os.getenv("LAST_HAUL_CAPTURE") or os.getenv("LAST_HAUL_CAPTURE_GAME") or os.getenv("LAST_HAUL_CAPTURE_FARM") or os.getenv("LAST_HAUL_CAPTURE_MINE") or os.getenv("LAST_HAUL_CAPTURE_WALL") or os.getenv("LAST_HAUL_CAPTURE_REPAIR")) and 30 or nil
 
 function love.load()
     love.graphics.setDefaultFilter("linear", "linear", 4)
@@ -8,8 +8,9 @@ function love.load()
     Game = require("src.game")
     game = Game.new()
     if os.getenv("LAST_HAUL_SELF_TEST") then
-        require("src.selftest").run(game)
-        love.event.quit()
+        local ok, err = pcall(require("src.selftest").run, game)
+        if not ok then print("SELF_TEST_FAIL: " .. tostring(err)); love.event.quit(1); return end
+        love.event.quit(0)
         return
     end
     if os.getenv("LAST_HAUL_CAPTURE_GAME") then game:startRun(3) end
@@ -26,6 +27,21 @@ function love.load()
         game.camera.x, game.camera.y = game.player.x, game.player.y
         local target = game.world:findNodeAt(2140, 1510)
         if target then game.player:beginInteraction(target, game.world, game) end
+    end
+    if os.getenv("LAST_HAUL_CAPTURE_WALL") then
+        game:startRun(3)
+        local targetLevel = tonumber(os.getenv("LAST_HAUL_WALL_LEVEL")) or 3
+        while game.world.wall.level < targetLevel do game.world:upgradeWall() end
+        game.player.x, game.player.y = 1450, 1390
+        game.camera.x, game.camera.y = 1600, 1325
+    end
+    if os.getenv("LAST_HAUL_CAPTURE_REPAIR") then
+        game:startRun(3)
+        game.world.wall.hp = 90
+        game.wood, game.stone = 8, 8
+        game.player.x, game.player.y = 1600, game.world.wall.y + 105
+        game.camera.x, game.camera.y = game.player.x, game.player.y
+        game.player:beginWallRepair(game.world, game)
     end
 end
 
