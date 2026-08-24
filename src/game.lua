@@ -3,6 +3,8 @@ local World = require("src.world")
 local Player = require("src.player")
 local Lobby = require("src.lobby")
 local UI = require("src.ui")
+local Progression = require("src.progression")
+local TraitTree = require("src.trait_tree")
 
 local Game = {}
 Game.__index = Game
@@ -29,7 +31,10 @@ function Game.new()
         hammer = {name = "나무 수리 망치", speed = 1, type = "방벽 수리"}
     }
     self.wallCosts = {{wood = 0, stone = 0}, {wood = 12, stone = 8}, {wood = 22, stone = 16}, {wood = 36, stone = 28}}
+    local temporaryProfile = os.getenv("LAST_HAUL_SELF_TEST") or os.getenv("LAST_HAUL_CAPTURE_META") or os.getenv("LAST_HAUL_CAPTURE_RESULTS")
+    self.progression = Progression.new(temporaryProfile ~= nil)
     self.world = World.new(); self.lobby = Lobby.new(self.world.images, self.fonts)
+    self.traitTree = TraitTree.new(self.progression, self.fonts)
     self.mode, self.notice, self.noticeKind, self.noticeTime = "lobby", "", "core", 0
     self:resetRun(2); self.mode = "lobby"
     return self
@@ -41,28 +46,67 @@ function Game:resetRun(plan)
     self.camera = Camera.new(self.player.x, self.player.y)
     self.food, self.ore, self.wood, self.stone, self.seeds = 0, 0, 0, 0, 8
     self.time, self.ended, self.victory, self.hoverNode, self.hoverWall = 15 * 60, false, false, nil, false
+    self.runStats, self.result = {harvested = 0}, nil
     self.plan = plan or 2
     if self.plan == 1 then self.food, self.seeds = 12, 12; self.world.core.maxHp, self.world.core.hp = 550, 550 end
     if self.plan == 2 then self.ore = 14; self.world.core.damage = self.world.core.damage * 1.15 end
     if self.plan == 3 then self.player.capacity, self.player.gather = 23, 1.15 end
+    local meta = self.progression:effects()
+    self.player.gather = self.player.gather * meta.gather
+    self.player.capacity = self.player.capacity + meta.capacity
+    self.player.speed = self.player.speed * meta.move
+    self.seeds, self.ore = self.seeds + meta.seeds, self.ore + meta.ore
+    self.wood, self.stone = self.wood + meta.materials, self.stone + meta.materials
+    self.world.core.damage = self.world.core.damage * meta.damage
+    self.world.core.fireRate = self.world.core.fireRate * meta.fireRate
+    self.world.wall.hpMultiplier, self.world.wall.damageReduction = meta.wallHp, meta.wallGuard
+    self.world.wall.maxHp = math.floor(self.world.wall.maxHp * meta.wallHp + .5)
+    self.world.wall.hp = self.world.wall.maxHp
+    self.repairBonus, self.rewardMultiplier = meta.repair, meta.reward
 end
 
 function Game:startRun(plan) self:resetRun(plan); self.mode = "playing"; self:setNotice("작전 시작 — 자원을 생산해 거점을 지키세요", "core") end
 function Game:setNotice(text, kind) self.notice, self.noticeKind, self.noticeTime = text, kind or "core", 2.2 end
 
+function Game:finishRun(victory)
+    if self.mode ~= "playing" or self.result then return end
+    self.ended, self.victory = true, victory == true
+    local elapsed = math.floor(15 * 60 - self.time)
+    local survival = math.floor(elapsed / 60)
+    local waves = math.floor(self.world.wave / 5)
+    local kills = math.floor(self.world.kills / 15)
+    local harvest = math.floor((self.runStats.harvested or 0) / 25)
+    local victoryBonus = self.victory and 12 or 0
+    local base = math.max(2, survival + waves + kills + harvest + victoryBonus)
+    local earned = math.floor(base * (self.rewardMultiplier or 1) + .5)
+    self.progression:addCurrency(earned)
+    self.result = {elapsed = elapsed, survival = survival, waves = waves, kills = kills, harvest = harvest, victory = victoryBonus, earned = earned}
+    self.mode = "results"
+end
+
 function Game:update(dt)
     if self.mode == "lobby" then self.lobby:update(dt); return end
+    if self.mode == "meta" then self.traitTree:update(dt); return end
+    if self.mode == "results" then return end
     self.noticeTime = math.max(0, self.noticeTime - dt)
     local wx, wy = self.camera:screenToWorld(love.mouse.getPosition()); self.hoverNode, self.hoverWall = self.world:findNodeAt(wx, wy), self.world:isWallAt(wx, wy)
     if self.ended then return end
-    self.time = math.max(0, self.time - dt); if self.time <= 0 then self.ended, self.victory = true, true end
+    self.time = math.max(0, self.time - dt); if self.time <= 0 then self:finishRun(true); return end
     self.player:update(dt, self.world, self); self.world:update(dt, self); self.camera:update(dt, self.player, self.world)
+    if self.ended then self:finishRun(self.victory) end
 end
 
 function Game:keypressed(key)
     if self.mode == "lobby" then
         if key == "escape" then love.event.quit(); return end
+        if key == "t" then self.mode = "meta"; return end
         local plan = self.lobby:keypressed(key); if plan then self:startRun(plan) end; return
+    end
+    if self.mode == "meta" then if self.traitTree:keypressed(key) == "back" then self.mode = "lobby" end; return end
+    if self.mode == "results" then
+        if key == "t" then self.mode = "meta"
+        elseif key == "return" or key == "escape" then self.mode = "lobby" end
+        return
     end
     if key == "escape" then self.mode = "lobby"; return end
     if self.ended and (key == "r" or key == "return") then self:startRun(self.plan); return end
@@ -82,7 +126,18 @@ function Game:keypressed(key)
 end
 
 function Game:mousepressed(x, y, button)
-    if self.mode == "lobby" then local plan = self.lobby:mousepressed(x, y, button); if plan then self:startRun(plan) end; return end
+    if self.mode == "lobby" then local action = self.lobby:mousepressed(x, y, button); if action == "meta" then self.mode = "meta" elseif action then self:startRun(action) end; return end
+    if self.mode == "meta" then if self.traitTree:mousepressed(x, y, button) == "back" then self.mode = "lobby" end; return end
+    if self.mode == "results" then
+        if button == 1 then
+            local w, h = love.graphics.getDimensions()
+            if y >= h / 2 + 174 and y <= h / 2 + 224 then
+                if x >= w / 2 - 240 and x <= w / 2 - 10 then self.mode = "lobby"
+                elseif x >= w / 2 + 10 and x <= w / 2 + 240 then self.mode = "meta" end
+            end
+        end
+        return
+    end
     if button ~= 1 or self.ended then return end
     local wx, wy = self.camera:screenToWorld(x, y)
     if self.world:isWallAt(wx, wy) then self.player:beginWallRepair(self.world, self); return end
@@ -92,10 +147,34 @@ end
 
 function Game:draw()
     if self.mode == "lobby" then self.lobby:draw(); return end
+    if self.mode == "meta" then self.traitTree:draw(); return end
     love.graphics.clear(.015, .02, .025); self.camera:attach(); self.world:draw(self.player)
     local left, top, right, bottom = self.camera:visibleBounds(); love.graphics.setColor(.015, .025, .035, .12); love.graphics.rectangle("fill", left, top, right - left, bottom - top)
     love.graphics.setBlendMode("add", "alphamultiply"); love.graphics.setColor(1, 1, 1, 1); love.graphics.draw(self.light, self.player.x, self.player.y, 0, 2.5, 2.5, 256, 256); love.graphics.draw(self.light, self.world.core.x, self.world.core.y, 0, 1.8, 1.8, 256, 256)
     love.graphics.setBlendMode("alpha"); self.camera:detach(); self:drawUI()
+    if self.mode == "results" then self:drawResults() end
+end
+
+function Game:drawResults()
+    local w, h, f, r = love.graphics.getWidth(), love.graphics.getHeight(), self.fonts, self.result
+    love.graphics.setColor(0, 0, 0, .84); love.graphics.rectangle("fill", 0, 0, w, h)
+    UI.panel(w / 2 - 310, h / 2 - 245, 620, 490, r and r.victory > 0 and {.35, .94, .55, 1} or {.95, .4, .24, 1}, .98)
+    love.graphics.setFont(f.title); love.graphics.setColor(1, 1, 1); love.graphics.printf(self.victory and "작전 생존 성공" or "방어벽 붕괴", w / 2 - 280, h / 2 - 214, 560, "center")
+    love.graphics.setFont(f.small); love.graphics.setColor(.55, .67, .71); love.graphics.printf("회수 보고서 · 영구 재화 정산", w / 2 - 280, h / 2 - 166, 560, "center")
+    local rows = {
+        {"생존 시간", string.format("%02d:%02d", math.floor(r.elapsed / 60), r.elapsed % 60), r.survival},
+        {"도달 웨이브", tostring(self.world.wave), r.waves}, {"처치", tostring(self.world.kills), r.kills},
+        {"채집량", tostring(self.runStats.harvested), r.harvest}, {"15분 생존 보너스", self.victory and "달성" or "미달성", r.victory}
+    }
+    for i, row in ipairs(rows) do
+        local y = h / 2 - 125 + (i - 1) * 42
+        love.graphics.setColor(i % 2 == 0 and {.06, .085, .095, .8} or {.045, .065, .074, .8}); love.graphics.rectangle("fill", w / 2 - 260, y, 520, 35, 4, 4)
+        love.graphics.setFont(f.small); love.graphics.setColor(.72, .8, .82); love.graphics.print(row[1], w / 2 - 242, y + 8)
+        love.graphics.printf(row[2], w / 2 - 65, y + 8, 135, "right"); love.graphics.setColor(1, .7, .25); love.graphics.printf("+" .. row[3], w / 2 + 90, y + 8, 145, "right")
+    end
+    love.graphics.setFont(f.heading); love.graphics.setColor(1, .75, .25); love.graphics.printf("획득한 유산 부품  " .. r.earned, w / 2 - 260, h / 2 + 100, 520, "center")
+    UI.button(w / 2 - 240, h / 2 + 174, 230, 50, "로비로  [ENTER]", true, f.body)
+    UI.button(w / 2 + 10, h / 2 + 174, 230, 50, "특성 트리  [T]", true, f.body)
 end
 
 local function affordable(game, index)
@@ -184,9 +263,6 @@ function Game:drawUI()
     if self.noticeTime > 0 then
         local color = self.noticeKind == "food" and {.36, .95, .44, 1} or self.noticeKind == "ore" and {.36, .78, 1, 1} or {1, .68, .2, 1}
         love.graphics.setFont(f.body); love.graphics.setColor(0, 0, 0, .7); love.graphics.printf(self.notice, 2, 177, w, "center"); love.graphics.setColor(color); love.graphics.printf(self.notice, 0, 175, w, "center")
-    end
-    if self.ended then
-        love.graphics.setColor(0, 0, 0, .82); love.graphics.rectangle("fill", 0, 0, w, h); love.graphics.setFont(f.title); love.graphics.setColor(1, 1, 1); love.graphics.printf(self.victory and "15분 생존 성공" or "방어벽 붕괴", 0, h / 2 - 60, w, "center"); love.graphics.setFont(f.body); love.graphics.setColor(.72, .8, .82); love.graphics.printf("ENTER를 눌러 다시 시작", 0, h / 2 + 8, w, "center")
     end
 end
 

@@ -6,7 +6,17 @@ local function find(world, kind)
 end
 
 function SelfTest.run(game)
+    local Progression = require("src.progression")
+    local encoded = Progression.encode({currency = 17, levels = {quick_work = 2, wall_base = 1}})
+    local decoded = Progression.decode(encoded)
+    assert(decoded.currency == 17 and decoded.levels.quick_work == 2 and decoded.levels.wall_base == 1, "영구 데이터 직렬화 실패")
+    game.progression.data.currency = 200
+    local blocked = game.progression:buy("cargo_rig")
+    assert(blocked == false, "선행 특성 잠금 실패")
+    assert(game.progression:buy("quick_work") and game.progression:buy("quick_work"), "기초 특성 구매 실패")
+    assert(game.progression:buy("cargo_rig"), "연결 특성 구매 실패")
     game:startRun(3)
+    assert(game.player.gather > 1.28 and game.player.capacity == 26, "영구 특성 런 적용 실패")
     game.player.capacity = 100
     local farm = find(game.world, "plot")
     assert(game.world:workNode(farm, game, game.player, "hoe", 1) == false and farm.state == "planted", "파종 실패")
@@ -34,7 +44,14 @@ function SelfTest.run(game)
     game.player:beginWallRepair(game.world, game)
     game.player:update(.7, game.world, game)
     assert(game.world.wall.hp > damagedHp and game.wood == 9 and game.stone == 9, "망치 직접 수리 실패")
-    print("SELF_TEST_OK: FARM TREE STONE ORE TOOL_SPEED WALL_UPGRADE WALL_BLOCK HAMMER_REPAIR")
+    local beforeReward = game.progression.data.currency
+    game.time, game.world.wave, game.world.kills, game.runStats.harvested = 600, 5, 8, 30
+    game:finishRun(false)
+    assert(game.mode == "results" and game.result.earned > 0 and game.progression.data.currency > beforeReward, "런 종료 영구 재화 정산 실패")
+    local afterReward = game.progression.data.currency
+    game:finishRun(false)
+    assert(game.progression.data.currency == afterReward, "런 보상 중복 지급 방지 실패")
+    print("SELF_TEST_OK: FARM TREE STONE ORE TOOL_SPEED WALL_UPGRADE WALL_BLOCK HAMMER_REPAIR META_SAVE TRAIT_TREE TRAIT_APPLY RUN_REWARD")
 end
 
 return SelfTest

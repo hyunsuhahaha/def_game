@@ -76,7 +76,7 @@ function World:update(dt, game)
             local dx, dy = targetX - e.x, targetY - e.y; local d = math.sqrt(dx * dx + dy * dy)
             if d > 28 then e.x, e.y = e.x + dx / d * e.speed * dt, e.y + dy / d * e.speed * dt
             else
-                self.wall.hp = math.max(0, self.wall.hp - e.hit * dt)
+                self.wall.hp = math.max(0, self.wall.hp - e.hit * dt * (1 - (self.wall.damageReduction or 0)))
                 if self.wall.hp <= 0 and not self.wall.brokenNotified then self.wall.brokenNotified = true; game:setNotice("방어벽이 무너졌습니다", "ore"); game.ended, game.victory = true, false end
             end
         else
@@ -97,7 +97,8 @@ function World:upgradeWall()
     if self.wall.level >= self.wall.maxLevel then return false end
     local maxHpByLevel = {220, 400, 650, 950}
     self.wall.level = self.wall.level + 1
-    self.wall.maxHp, self.wall.hp = maxHpByLevel[self.wall.level], maxHpByLevel[self.wall.level]
+    self.wall.maxHp = math.floor(maxHpByLevel[self.wall.level] * (self.wall.hpMultiplier or 1) + .5)
+    self.wall.hp = self.wall.maxHp
     self.wall.brokenNotified = false
     return true
 end
@@ -111,9 +112,10 @@ function World:repairWall(game)
     if wall.hp >= wall.maxHp then game:setNotice("방어벽이 이미 완전히 수리되었습니다", "core"); return false end
     if game.wood < 1 or game.stone < 1 then game:setNotice("수리 재료가 부족합니다 — 목재 1 · 돌 1", "core"); return false end
     game.wood, game.stone = game.wood - 1, game.stone - 1
-    wall.hp = math.min(wall.maxHp, wall.hp + 28 + wall.level * 10)
+    local amount = 28 + wall.level * 10 + (game.repairBonus or 0)
+    wall.hp = math.min(wall.maxHp, wall.hp + amount)
     wall.brokenNotified = false
-    game:setNotice(string.format("방어벽 수리 +%d", 28 + wall.level * 10), "core")
+    game:setNotice(string.format("방어벽 수리 +%d", amount), "core")
     return wall.hp < wall.maxHp
 end
 
@@ -158,6 +160,7 @@ function World:workNode(node, game, player, tool, dt)
         if node.state == "ready" then
             if cargoSpace(player) < 6 then game:setNotice("가방이 가득 찼습니다", "core"); return false end
             player.food, game.seeds, node.state = player.food + 6, game.seeds + 1, "empty"
+            game.runStats.harvested = game.runStats.harvested + 6
             game:setNotice("작물 +6  씨앗 +1", "food"); return false
         end
         return false
@@ -168,6 +171,7 @@ function World:workNode(node, game, player, tool, dt)
     local amount = node.kind == "tree" and 6 or node.kind == "stone" and 5 or 5
     amount = math.min(amount, cargoSpace(player))
     player[node.kind == "tree" and "wood" or node.kind] = player[node.kind == "tree" and "wood" or node.kind] + amount
+    game.runStats.harvested = game.runStats.harvested + amount
     node.active, node.work, node.respawn = false, 0, node.kind == "tree" and 18 or node.kind == "stone" and 15 or 22
     local label = node.kind == "tree" and "목재" or node.kind == "stone" and "돌" or "광석"
     game:setNotice(label .. " +" .. amount, node.kind == "ore" and "ore" or "core")

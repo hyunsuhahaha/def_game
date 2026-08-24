@@ -33,6 +33,7 @@ function Lobby:mousepressed(x, y, button)
         if x >= cardX and x <= cardX + cardW and y >= cy and y <= cy + cardH then self.selected = i end
     end
     if x >= w / 2 - 150 and x <= w / 2 + 150 and y >= h - 88 and y <= h - 34 then return self.selected end
+    if x >= 34 and x <= 344 and y >= 568 and y <= 620 then return "meta" end
 end
 
 local function tiled(img, w, h)
@@ -67,6 +68,7 @@ function Lobby:draw()
     love.graphics.setColor(.9, .62, .16); love.graphics.circle("fill", 188, 416, 7)
     love.graphics.setColor(.74, .81, .83); love.graphics.print("북쪽: 전투", 72, 389); love.graphics.print("서쪽: 농장·숲", 72, 435); love.graphics.print("동쪽: 채석·광산", 194, 435)
     love.graphics.setColor(.55, .64, .67); love.graphics.print("모든 구역은 하나의 월드로 연결됩니다.", 58, 507)
+    UI.button(34, 568, 310, 52, "영구 특성 관제망  [T]", true, fonts.body)
 
     local cx, groundY = w / 2, h - 112
     love.graphics.setColor(0, 0, 0, .55); love.graphics.ellipse("fill", cx, groundY, 115, 32)

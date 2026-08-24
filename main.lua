@@ -1,6 +1,6 @@
 local Game
 local game
-local captureFrames = (os.getenv("LAST_HAUL_CAPTURE") or os.getenv("LAST_HAUL_CAPTURE_GAME") or os.getenv("LAST_HAUL_CAPTURE_FARM") or os.getenv("LAST_HAUL_CAPTURE_MINE") or os.getenv("LAST_HAUL_CAPTURE_WALL") or os.getenv("LAST_HAUL_CAPTURE_REPAIR")) and 30 or nil
+local captureFrames = (os.getenv("LAST_HAUL_CAPTURE") or os.getenv("LAST_HAUL_CAPTURE_GAME") or os.getenv("LAST_HAUL_CAPTURE_FARM") or os.getenv("LAST_HAUL_CAPTURE_MINE") or os.getenv("LAST_HAUL_CAPTURE_WALL") or os.getenv("LAST_HAUL_CAPTURE_REPAIR") or os.getenv("LAST_HAUL_CAPTURE_META") or os.getenv("LAST_HAUL_CAPTURE_RESULTS")) and 30 or nil
 
 function love.load()
     love.graphics.setDefaultFilter("linear", "linear", 4)
@@ -12,6 +12,12 @@ function love.load()
         if not ok then print("SELF_TEST_FAIL: " .. tostring(err)); love.event.quit(1); return end
         love.event.quit(0)
         return
+    end
+    if os.getenv("LAST_HAUL_CAPTURE_META") then game.progression.data.currency = 42; game.mode = "meta" end
+    if os.getenv("LAST_HAUL_CAPTURE_RESULTS") then
+        game:startRun(3)
+        game.time, game.world.wave, game.world.kills, game.runStats.harvested = 214, 31, 86, 147
+        game:finishRun(false)
     end
     if os.getenv("LAST_HAUL_CAPTURE_GAME") then game:startRun(3) end
     if os.getenv("LAST_HAUL_CAPTURE_FARM") then
