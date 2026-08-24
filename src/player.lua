@@ -30,7 +30,10 @@ function Player:beginInteraction(node, world, game)
     local tool, label = world:getInteraction(node, game)
     if not tool then game:setNotice(label or "지금은 작업할 수 없습니다", "core"); return end
     self.interactionTarget, self.activeTool, self.actionClock, self.repairingWall = node, tool, 0, false
+    self.actionFrameDuration = .32 / ((game.tools[tool].speed or 1) * self.gather)
+    self.nextImpact = .46 / ((game.tools[tool].speed or 1) * self.gather)
     self.facing = dx < 0 and -1 or 1
+    if node.kind ~= "plot" then world:impactNode(node, game, false) end
     game:setNotice(label .. " — " .. game.tools[tool].name .. " 자동 사용", tool == "pickaxe" and "ore" or tool == "axe" and "food" or "core")
 end
 
@@ -43,7 +46,7 @@ function Player:beginWallRepair(world, game)
 end
 
 function Player:cancelInteraction()
-    self.interactionTarget, self.activeTool, self.actionClock, self.repairingWall = nil, nil, 0, false
+    self.interactionTarget, self.activeTool, self.actionClock, self.repairingWall, self.nextImpact = nil, nil, 0, false, nil
 end
 
 function Player:update(dt, world, game)
@@ -72,6 +75,13 @@ function Player:update(dt, world, game)
         if not valid then self:cancelInteraction()
         else
             self.actionClock = self.actionClock + dt
+            if node.kind ~= "plot" and self.nextImpact then
+                local interval = .46 / ((game.tools[self.activeTool].speed or 1) * self.gather)
+                while self.actionClock >= self.nextImpact do
+                    world:impactNode(node, game, false)
+                    self.nextImpact = self.nextImpact + interval
+                end
+            end
             local keepWorking = world:workNode(node, game, self, self.activeTool, dt * self.gather)
             if not keepWorking then self:cancelInteraction() end
         end
@@ -93,7 +103,7 @@ function Player:draw()
         love.graphics.draw(self.repairSheet, self.repairFrames[frame], self.x, self.y, 0, .145 * self.facing, .145, self.repairFrameWidth / 2, self.repairFrameHeight * .9)
     elseif self.interactionTarget and self.activeTool then
         local first = actionStart[self.activeTool] or 1
-        local frame = first + (math.floor(self.actionClock / .32) % 2)
+        local frame = first + (math.floor(self.actionClock / (self.actionFrameDuration or .32)) % 2)
         love.graphics.draw(self.actionSheet, self.actionFrames[frame], self.x, self.y, 0, .16 * self.facing, .16, self.actionFrameWidth / 2, self.actionFrameHeight * .9)
     else
         local frame = self.isMoving and (math.floor(self.walkClock) % 8 + 1) or 2

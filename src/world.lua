@@ -28,9 +28,82 @@ function World.new()
         machine = image("assets/defense-machine.png"), tanks = image("assets/tank-bank.png")
     }
     self.nodes, self.props, self.enemies, self.defenders, self.shots = {}, {}, {}, {}, {}
+    self.particles, self.popups, self.harvestChain, self.harvestChainTime = {}, {}, 0, 0
+    self.effectFont = love.graphics.newFont("assets/font-korean.ttf", 18)
     self.spawnTimer, self.wave, self.kills = 3, 0, 0
     self:build()
     return self
+end
+
+local effectColors = {
+    tree = {.86, .55, .2}, stone = {.78, .84, .88}, ore = {.25, .82, 1}, plot = {.42, 1, .45}
+}
+
+local function effectOrigin(node)
+    if node.kind == "tree" then return node.x, node.y - 75 end
+    if node.kind == "plot" then return node.x, node.y - 18 end
+    return node.x, node.y - 28
+end
+
+function World:addParticle(x, y, color, strong, pickup)
+    local angle = -math.pi * (.16 + love.math.random() * .68)
+    local speed = (strong and 155 or 90) + love.math.random() * (strong and 145 or 75)
+    self.particles[#self.particles + 1] = {
+        x = x, y = y, vx = math.cos(angle) * speed, vy = math.sin(angle) * speed,
+        life = pickup and .72 or (strong and .62 or .38), maxLife = pickup and .72 or (strong and .62 or .38),
+        size = pickup and (5 + love.math.random() * 4) or (2 + love.math.random() * (strong and 5 or 3)),
+        color = color, pickup = pickup
+    }
+end
+
+function World:impactNode(node, game, strong)
+    if not node or node.kind == "plot" or (not node.active and not strong) then return end
+    local x, y = effectOrigin(node)
+    local color = effectColors[node.kind]
+    node.hitFlash, node.hitShake = strong and .2 or .12, strong and .24 or .14
+    for _ = 1, strong and 15 or 6 do self:addParticle(x, y, color, strong, false) end
+    self.particles[#self.particles + 1] = {x = x, y = y, life = .2, maxLife = .2, size = 12, color = color, ring = true}
+    if game.camera then game.camera.trauma = math.min(1, game.camera.trauma + (strong and .36 or .12)) end
+    if game.feedback then game.feedback:play(node.kind, strong) end
+end
+
+function World:harvestBurst(node, game, amount, label)
+    local x, y = effectOrigin(node)
+    local color = effectColors[node.kind] or effectColors.plot
+    self:impactNode(node, game, true)
+    if node.kind == "plot" then
+        node.hitFlash, node.hitShake = .2, .2
+        for _ = 1, 15 do self:addParticle(x, y, color, true, false) end
+        if game.feedback then game.feedback:play("harvest", true) end
+        if game.camera then game.camera.trauma = math.min(1, game.camera.trauma + .2) end
+    end
+    for _ = 1, math.min(12, amount + 3) do self:addParticle(x, y, color, true, true) end
+    self.harvestChain = self.harvestChainTime > 0 and math.min(99, self.harvestChain + 1) or 1
+    self.harvestChainTime = 2.4
+    self.popups[#self.popups + 1] = {x = x, y = y - 78, life = 1.05, maxLife = 1.05, text = "+" .. amount .. " " .. label, color = color, chain = self.harvestChain}
+end
+
+function World:updateEffects(dt, game)
+    self.harvestChainTime = math.max(0, self.harvestChainTime - dt)
+    for _, node in ipairs(self.nodes) do
+        node.hitFlash = math.max(0, (node.hitFlash or 0) - dt)
+        node.hitShake = math.max(0, (node.hitShake or 0) - dt)
+    end
+    for i = #self.particles, 1, -1 do
+        local p = self.particles[i]
+        p.life = p.life - dt
+        if p.pickup and game.player then
+            local dx, dy = game.player.x - p.x, game.player.y - 25 - p.y
+            p.vx, p.vy = p.vx + dx * dt * 12, p.vy + dy * dt * 12
+        elseif not p.ring then p.vy = p.vy + 390 * dt end
+        if not p.ring then p.x, p.y = p.x + p.vx * dt, p.y + p.vy * dt end
+        if p.life <= 0 then table.remove(self.particles, i) end
+    end
+    for i = #self.popups, 1, -1 do
+        local popup = self.popups[i]
+        popup.life, popup.y = popup.life - dt, popup.y - 28 * dt
+        if popup.life <= 0 then table.remove(self.popups, i) end
+    end
 end
 
 function World:build()
@@ -51,6 +124,7 @@ function World:build()
 end
 
 function World:update(dt, game)
+    self:updateEffects(dt, game)
     for _, node in ipairs(self.nodes) do
         if node.kind == "plot" then
             if node.state == "growing" then node.grow = math.max(0, node.grow - dt); if node.grow <= 0 then node.state = "ready" end end
@@ -161,6 +235,7 @@ function World:workNode(node, game, player, tool, dt)
             if cargoSpace(player) < 6 then game:setNotice("가방이 가득 찼습니다", "core"); return false end
             player.food, game.seeds, node.state = player.food + 6, game.seeds + 1, "empty"
             game.runStats.harvested = game.runStats.harvested + 6
+            self:harvestBurst(node, game, 6, "식량")
             game:setNotice("작물 +6  씨앗 +1", "food"); return false
         end
         return false
@@ -174,6 +249,7 @@ function World:workNode(node, game, player, tool, dt)
     game.runStats.harvested = game.runStats.harvested + amount
     node.active, node.work, node.respawn = false, 0, node.kind == "tree" and 18 or node.kind == "stone" and 15 or 22
     local label = node.kind == "tree" and "목재" or node.kind == "stone" and "돌" or "광석"
+    self:harvestBurst(node, game, amount, label)
     game:setNotice(label .. " +" .. amount, node.kind == "ore" and "ore" or "core")
     return false
 end
@@ -257,10 +333,16 @@ function World:draw(player)
         if n.active or n.kind == "plot" then
             local node = n
             queue[#queue + 1] = {y = node.y, draw = function()
-                if node.kind == "plot" then self:drawPlot(node)
-                elseif node.kind == "tree" then shadow(node.x, node.y, 62, 20, .5); grounded(self.images.tree, node.x, node.y, .145)
-                elseif node.kind == "stone" then shadow(node.x, node.y, 54, 16, .48); grounded(self.images.stone, node.x, node.y, .085)
-                else shadow(node.x, node.y, 48, 15, .48); centered(self.images.ore, node.x, node.y - 25, .075) end
+                local shake = (node.hitShake or 0) * 42
+                local ox, oy = (love.math.random() * 2 - 1) * shake, (love.math.random() * 2 - 1) * shake * .35
+                local bump = 1 + (node.hitFlash or 0) * .32
+                if node.hitFlash and node.hitFlash > 0 then
+                    local fx, fy = effectOrigin(node); love.graphics.setColor(1, .9, .42, node.hitFlash * 3.5); love.graphics.circle("fill", fx, fy, 36 + node.hitFlash * 70)
+                end
+                if node.kind == "plot" then love.graphics.push(); love.graphics.translate(ox, oy); self:drawPlot(node); love.graphics.pop()
+                elseif node.kind == "tree" then shadow(node.x, node.y, 62, 20, .42); grounded(self.images.tree, node.x + ox, node.y + oy, .145 * bump)
+                elseif node.kind == "stone" then shadow(node.x, node.y, 54, 16, .4); grounded(self.images.stone, node.x + ox, node.y + oy, .085 * bump)
+                else shadow(node.x, node.y, 48, 15, .4); centered(self.images.ore, node.x + ox, node.y - 25 + oy, .075 * bump) end
                 if player.interactionTarget == node then
                     love.graphics.setColor(1, .7, .18, .9); love.graphics.setLineWidth(3); love.graphics.ellipse("line", node.x, node.y + 8, node.kind == "tree" and 75 or 58, node.kind == "tree" and 25 or 19)
                     if node.kind ~= "plot" then love.graphics.setColor(.08, .1, .1, .9); love.graphics.rectangle("fill", node.x - 35, node.y - 70, 70, 7); love.graphics.setColor(.95, .62, .16); love.graphics.rectangle("fill", node.x - 35, node.y - 70, 70 * node.work / node.workTime, 7) end
@@ -272,6 +354,22 @@ function World:draw(player)
     for _, e in ipairs(self.enemies) do local enemy = e; queue[#queue + 1] = {y = enemy.y, draw = function() shadow(enemy.x, enemy.y, 20, 9, .5); love.graphics.setColor(.65, .12, .15); love.graphics.circle("fill", enemy.x, enemy.y - 22, 24); love.graphics.setColor(1, .35, .25); love.graphics.circle("line", enemy.x, enemy.y - 22, 24) end} end
     queue[#queue + 1] = {y = player.y, draw = function() player:draw() end}
     table.sort(queue, function(a, b) return a.y < b.y end); for _, item in ipairs(queue) do item.draw() end
+    for _, p in ipairs(self.particles) do
+        local alpha = math.max(0, p.life / p.maxLife)
+        love.graphics.setColor(p.color[1], p.color[2], p.color[3], alpha)
+        if p.ring then
+            love.graphics.setLineWidth(3); love.graphics.circle("line", p.x, p.y, p.size + (1 - alpha) * 42)
+        elseif p.pickup then
+            love.graphics.push(); love.graphics.translate(p.x, p.y); love.graphics.rotate((1 - alpha) * 7); love.graphics.rectangle("fill", -p.size, -p.size, p.size * 2, p.size * 2, 2, 2); love.graphics.pop()
+        else love.graphics.circle("fill", p.x, p.y, p.size) end
+    end
+    love.graphics.setFont(self.effectFont)
+    for _, popup in ipairs(self.popups) do
+        local alpha = math.min(1, popup.life * 2.5)
+        love.graphics.setColor(0, 0, 0, alpha * .7); love.graphics.printf(popup.text, popup.x - 99, popup.y + 2, 200, "center")
+        love.graphics.setColor(popup.color[1], popup.color[2], popup.color[3], alpha); love.graphics.printf(popup.text, popup.x - 100, popup.y, 200, "center")
+        if popup.chain >= 2 then love.graphics.setColor(1, .78, .2, alpha); love.graphics.printf("연속 채집 x" .. popup.chain, popup.x - 100, popup.y + 22, 200, "center") end
+    end
     love.graphics.setLineWidth(4); for _, s in ipairs(self.shots) do love.graphics.setColor(.2, .85, 1, s.life / .12); love.graphics.line(s.x1, s.y1, s.x2, s.y2) end
 end
 

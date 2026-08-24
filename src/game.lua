@@ -5,6 +5,7 @@ local Lobby = require("src.lobby")
 local UI = require("src.ui")
 local Progression = require("src.progression")
 local TraitTree = require("src.trait_tree")
+local Feedback = require("src.feedback")
 
 local Game = {}
 Game.__index = Game
@@ -22,7 +23,7 @@ end
 
 function Game.new()
     local self = setmetatable({}, Game)
-    self.fonts, self.light = makeFonts(), radial(512)
+    self.fonts, self.light, self.feedback = makeFonts(), radial(512), Feedback.new()
     self.tools = {
         axe = {name = "나무 도끼", speed = .8, type = "벌목"},
         hoe = {name = "나무 괭이", speed = 1, type = "농사"},
@@ -148,8 +149,9 @@ end
 function Game:draw()
     if self.mode == "lobby" then self.lobby:draw(); return end
     if self.mode == "meta" then self.traitTree:draw(); return end
-    love.graphics.clear(.015, .02, .025); self.camera:attach(); self.world:draw(self.player)
-    local left, top, right, bottom = self.camera:visibleBounds(); love.graphics.setColor(.015, .025, .035, .12); love.graphics.rectangle("fill", left, top, right - left, bottom - top)
+    love.graphics.clear(.08, .11, .12); self.camera:attach(); self.world:draw(self.player)
+    local left, top, right, bottom = self.camera:visibleBounds()
+    love.graphics.setBlendMode("screen", "alphamultiply"); love.graphics.setColor(.25, .34, .22, .13); love.graphics.rectangle("fill", left, top, right - left, bottom - top)
     love.graphics.setBlendMode("add", "alphamultiply"); love.graphics.setColor(1, 1, 1, 1); love.graphics.draw(self.light, self.player.x, self.player.y, 0, 2.5, 2.5, 256, 256); love.graphics.draw(self.light, self.world.core.x, self.world.core.y, 0, 1.8, 1.8, 256, 256)
     love.graphics.setBlendMode("alpha"); self.camera:detach(); self:drawUI()
     if self.mode == "results" then self:drawResults() end

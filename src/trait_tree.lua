@@ -41,9 +41,9 @@ end
 function TraitTree:draw()
     local w, h, fonts = love.graphics.getDimensions()
     fonts = self.fonts
-    love.graphics.clear(.008, .014, .018)
-    love.graphics.setColor(.025, .045, .052); love.graphics.rectangle("fill", 0, 0, w, h)
-    love.graphics.setColor(.12, .22, .24, .28)
+    love.graphics.clear(.025, .06, .065)
+    love.graphics.setColor(.055, .105, .105); love.graphics.rectangle("fill", 0, 0, w, h)
+    love.graphics.setColor(.2, .38, .34, .3)
     for x = 0, w, 48 do love.graphics.line(x, 0, x, h) end
     for y = 0, h, 48 do love.graphics.line(0, y, w, y) end
 

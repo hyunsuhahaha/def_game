@@ -29,6 +29,7 @@ function SelfTest.run(game)
     game.world:workNode(stone, game, game.player, "pickaxe", stone.workTime / game.tools.pickaxe.speed + .1)
     game.world:workNode(ore, game, game.player, "pickaxe", ore.workTime / game.tools.pickaxe.speed + .1)
     assert(game.player.wood == 6 and game.player.stone == 5 and game.player.ore == 5, "벌목/채광 보상 실패")
+    assert(#game.world.particles > 0 and #game.world.popups > 0 and game.camera.trauma > 0, "채집 타격 피드백 실패")
     game.wood, game.stone = 100, 100
     game:keypressed("4"); game:keypressed("4"); game:keypressed("4")
     assert(game.world.wall.level == 4 and game.world.wall.maxHp == 950, "방어벽 강화 실패")
@@ -51,7 +52,7 @@ function SelfTest.run(game)
     local afterReward = game.progression.data.currency
     game:finishRun(false)
     assert(game.progression.data.currency == afterReward, "런 보상 중복 지급 방지 실패")
-    print("SELF_TEST_OK: FARM TREE STONE ORE TOOL_SPEED WALL_UPGRADE WALL_BLOCK HAMMER_REPAIR META_SAVE TRAIT_TREE TRAIT_APPLY RUN_REWARD")
+    print("SELF_TEST_OK: FARM TREE STONE ORE TOOL_SPEED HARVEST_FEEDBACK WALL_UPGRADE WALL_BLOCK HAMMER_REPAIR META_SAVE TRAIT_TREE TRAIT_APPLY RUN_REWARD")
 end
 
 return SelfTest

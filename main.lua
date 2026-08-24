@@ -1,6 +1,6 @@
 local Game
 local game
-local captureFrames = (os.getenv("LAST_HAUL_CAPTURE") or os.getenv("LAST_HAUL_CAPTURE_GAME") or os.getenv("LAST_HAUL_CAPTURE_FARM") or os.getenv("LAST_HAUL_CAPTURE_MINE") or os.getenv("LAST_HAUL_CAPTURE_WALL") or os.getenv("LAST_HAUL_CAPTURE_REPAIR") or os.getenv("LAST_HAUL_CAPTURE_META") or os.getenv("LAST_HAUL_CAPTURE_RESULTS")) and 30 or nil
+local captureFrames = os.getenv("LAST_HAUL_CAPTURE_HARVEST") and 10 or ((os.getenv("LAST_HAUL_CAPTURE") or os.getenv("LAST_HAUL_CAPTURE_GAME") or os.getenv("LAST_HAUL_CAPTURE_FARM") or os.getenv("LAST_HAUL_CAPTURE_MINE") or os.getenv("LAST_HAUL_CAPTURE_WALL") or os.getenv("LAST_HAUL_CAPTURE_REPAIR") or os.getenv("LAST_HAUL_CAPTURE_META") or os.getenv("LAST_HAUL_CAPTURE_RESULTS")) and 30 or nil)
 
 function love.load()
     love.graphics.setDefaultFilter("linear", "linear", 4)
@@ -33,6 +33,13 @@ function love.load()
         game.camera.x, game.camera.y = game.player.x, game.player.y
         local target = game.world:findNodeAt(2140, 1510)
         if target then game.player:beginInteraction(target, game.world, game) end
+    end
+    if os.getenv("LAST_HAUL_CAPTURE_HARVEST") then
+        game:startRun(3)
+        game.player.x, game.player.y = 2210, 1600
+        game.camera.x, game.camera.y = game.player.x, game.player.y
+        local target = game.world:findNodeAt(2140, 1510)
+        if target then target.work = target.workTime - .04; game.player:beginInteraction(target, game.world, game) end
     end
     if os.getenv("LAST_HAUL_CAPTURE_WALL") then
         game:startRun(3)

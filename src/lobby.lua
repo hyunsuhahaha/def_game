@@ -37,7 +37,7 @@ function Lobby:mousepressed(x, y, button)
 end
 
 local function tiled(img, w, h)
-    love.graphics.setColor(.72, .75, .74, 1)
+    love.graphics.setColor(1, 1, 1, 1)
     local size, sx, sy = 300, 300 / img:getWidth(), 300 / img:getHeight()
     for y = 0, h, size do for x = 0, w, size do love.graphics.draw(img, x, y, 0, sx, sy) end end
 end
@@ -45,9 +45,9 @@ end
 function Lobby:draw()
     local w, h = love.graphics.getDimensions()
     local fonts, plan = self.fonts, self.plans[self.selected]
-    love.graphics.clear(.01, .014, .018); tiled(self.images.industrial, w, h)
-    love.graphics.setColor(.01, .015, .02, .52); love.graphics.rectangle("fill", 0, 0, w, h)
-    love.graphics.setColor(.05, .08, .09, .94); love.graphics.rectangle("fill", 0, 0, w, 104)
+    love.graphics.clear(.08, .12, .13); tiled(self.images.industrial, w, h)
+    love.graphics.setBlendMode("screen", "alphamultiply"); love.graphics.setColor(.28, .42, .33, .17); love.graphics.rectangle("fill", 0, 0, w, h); love.graphics.setBlendMode("alpha")
+    love.graphics.setColor(.045, .08, .085, .9); love.graphics.rectangle("fill", 0, 0, w, 104)
     love.graphics.setColor(.9, .56, .12, 1); love.graphics.rectangle("fill", 0, 101, w, 3)
     love.graphics.setFont(fonts.title); love.graphics.setColor(1, 1, 1); love.graphics.print("LAST HAUL", 38, 20)
     love.graphics.setFont(fonts.small); love.graphics.setColor(.57, .67, .7); love.graphics.print("전진 보급 사령부  /  로비 01", 40, 66)

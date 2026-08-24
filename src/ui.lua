@@ -1,9 +1,9 @@
 local UI = {}
 
 function UI.panel(x, y, w, h, accent, alpha)
-    love.graphics.setColor(.018, .026, .034, alpha or .92)
+    love.graphics.setColor(.035, .055, .063, alpha or .9)
     love.graphics.rectangle("fill", x, y, w, h, 8, 8)
-    love.graphics.setColor(.22, .29, .33, .9)
+    love.graphics.setColor(.3, .4, .42, .82)
     love.graphics.rectangle("line", x, y, w, h, 8, 8)
     if accent then love.graphics.setColor(accent); love.graphics.rectangle("fill", x, y, 4, h, 8, 0) end
 end
