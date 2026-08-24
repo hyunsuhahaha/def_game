@@ -33,7 +33,7 @@ function Game.new()
         hammer = {name = "나무 수리 망치", speed = 1, type = "방벽 수리"}
     }
     self.wallCosts = {{wood = 0, stone = 0}, {wood = 12, stone = 8}, {wood = 22, stone = 16}, {wood = 36, stone = 28}}
-    local temporaryProfile = os.getenv("LAST_HAUL_SELF_TEST") or os.getenv("LAST_HAUL_CAPTURE_META") or os.getenv("LAST_HAUL_CAPTURE_RESULTS")
+    local temporaryProfile = os.getenv("LAST_HAUL_SELF_TEST") or os.getenv("LAST_HAUL_CAPTURE_META") or os.getenv("LAST_HAUL_CAPTURE_RESULTS") or os.getenv("LAST_HAUL_CAPTURE_TEST_OPTIONS")
     self.progression = Progression.new(temporaryProfile ~= nil)
     self.world = World.new(); self.lobby = Lobby.new(self.world.images, self.fonts)
     self.traitTree = TraitTree.new(self.progression, self.fonts)
@@ -66,10 +66,49 @@ function Game:resetRun(plan)
     self.world.wall.maxHp = math.floor(self.world.wall.maxHp * meta.wallHp + .5)
     self.world.wall.hp = self.world.wall.maxHp
     self.repairBonus, self.rewardMultiplier = meta.repair, meta.reward
+    if self.testGrantNextRun then self:grantTestRunResources(); self.testGrantNextRun = false end
+    if (self.testLevelsNextRun or 0) > 0 then self:grantTestLevels(self.testLevelsNextRun); self.testLevelsNextRun = 0 end
 end
 
-function Game:startRun(plan) self:resetRun(plan); self.mode = "playing"; self:setNotice("작전 시작 — 자원을 생산해 거점을 지키세요", "core") end
+function Game:startRun(plan)
+    self:resetRun(plan); self.mode = "playing"; self:setNotice("작전 시작 — 자원을 생산해 거점을 지키세요", "core")
+    if self.pendingLevels > 0 then self.upgrades:rollChoices(); self.mode = "upgrade" end
+end
 function Game:setNotice(text, kind) self.notice, self.noticeKind, self.noticeTime = text, kind or "core", 2.2 end
+
+function Game:grantTestRunResources()
+    self.food, self.ore, self.wood, self.stone, self.seeds = self.food + 1000000, self.ore + 1000000, self.wood + 1000000, self.stone + 1000000, self.seeds + 1000000
+end
+
+function Game:grantTestLevels(count)
+    count = math.max(1, math.floor(count or 10))
+    for _ = 1, count do self:addRunXP(math.max(0, self.runXPNext - self.runXP)) end
+end
+
+function Game:openTestOptions(returnMode)
+    self.testReturnMode, self.mode, self.testMessage, self.testResetArmed, self.testResetTime = returnMode or self.mode, "test_options", "테스트 기능은 실제 저장 데이터에 반영됩니다.", false, 0
+end
+
+function Game:closeTestOptions()
+    local target=self.testReturnMode or "lobby"
+    self.mode=target
+    if target=="playing" and self.pendingLevels>0 then self.upgrades:rollChoices(); self.mode="upgrade" end
+end
+
+function Game:useTestOption(index)
+    if index==1 then
+        self.progression:addCurrency(1000000); self.testMessage="유산 부품 1,000,000개를 지급했습니다."
+    elseif index==2 then
+        if self.testReturnMode=="playing" or self.testReturnMode=="upgrade" then self:grantTestRunResources(); self.testMessage="현재 런 자원을 각각 1,000,000개 지급했습니다."
+        else self.testGrantNextRun=true; self.testMessage="다음 런 자원 1,000,000개 지급을 예약했습니다." end
+    elseif index==3 then
+        if self.testReturnMode=="playing" or self.testReturnMode=="upgrade" then self:grantTestLevels(10); self.testMessage="생산 레벨 10회분을 지급했습니다. 메뉴를 닫으면 3택이 시작됩니다."
+        else self.testLevelsNextRun=(self.testLevelsNextRun or 0)+10; self.testMessage="다음 런 생산 레벨 +10을 예약했습니다." end
+    elseif index==4 then
+        if self.testResetArmed and self.testResetTime>0 then self.progression:reset(); self.testResetArmed=false; self.testMessage="영구 재화와 모든 영구 특성을 초기화했습니다."
+        else self.testResetArmed,self.testResetTime=true,4; self.testMessage="초기화하려면 4초 안에 버튼을 한 번 더 누르세요." end
+    end
+end
 
 function Game:depositCargo(message)
     local total = self.player:totalCargo()
@@ -116,6 +155,7 @@ end
 
 function Game:update(dt)
     if self.mode == "lobby" then self.lobby:update(dt); return end
+    if self.mode == "test_options" then self.testResetTime=math.max(0,(self.testResetTime or 0)-dt); if self.testResetTime<=0 then self.testResetArmed=false end; return end
     if self.mode == "meta" then self.traitTree:update(dt); return end
     if self.mode == "results" then return end
     if self.mode == "upgrade" then return end
@@ -128,6 +168,8 @@ function Game:update(dt)
 end
 
 function Game:keypressed(key)
+    if self.mode=="test_options" then if key=="escape" or key=="f10" then self:closeTestOptions() end; return end
+    if key=="f10" then self:openTestOptions(self.mode); return end
     if self.mode == "lobby" then
         if key == "escape" then love.event.quit(); return end
         if key == "t" then self.mode = "meta"; return end
@@ -158,7 +200,20 @@ function Game:keypressed(key)
 end
 
 function Game:mousepressed(x, y, button)
-    if self.mode == "lobby" then local action = self.lobby:mousepressed(x, y, button); if action == "meta" then self.mode = "meta" elseif action then self:startRun(action) end; return end
+    if self.mode=="test_options" then
+        if button==1 then
+            local w=love.graphics.getWidth(); local bx=w/2-290
+            if x>=bx and x<=bx+580 then
+                if y>=220 and y<=278 then self:useTestOption(1)
+                elseif y>=300 and y<=358 then self:useTestOption(2)
+                elseif y>=380 and y<=438 then self:useTestOption(3)
+                elseif y>=460 and y<=518 then self:useTestOption(4)
+                elseif y>=550 and y<=596 then self:closeTestOptions() end
+            end
+        end
+        return
+    end
+    if self.mode == "lobby" then local action = self.lobby:mousepressed(x, y, button); if action == "meta" then self.mode = "meta" elseif action=="test" then self:openTestOptions("lobby") elseif action then self:startRun(action) end; return end
     if self.mode == "meta" then if self.traitTree:mousepressed(x, y, button) == "back" then self.mode = "lobby" end; return end
     if self.mode == "upgrade" then if button == 1 then local index = self.upgrades:choiceAt(x, y); if index then self:selectRunUpgrade(index) end end; return end
     if self.mode == "results" then
@@ -179,6 +234,7 @@ function Game:mousepressed(x, y, button)
 end
 
 function Game:draw()
+    if self.mode=="test_options" then self:drawTestOptions(); return end
     if self.mode == "lobby" then self.lobby:draw(); return end
     if self.mode == "meta" then self.traitTree:draw(); return end
     love.graphics.clear(.08, .11, .12); self.camera:attach(); self.world:draw(self.player)
@@ -190,6 +246,23 @@ function Game:draw()
     love.graphics.setBlendMode("alpha"); self.camera:detach(); self:drawUI()
     if self.mode == "upgrade" then self.upgrades:drawSelection(self, self.fonts) end
     if self.mode == "results" then self:drawResults() end
+end
+
+function Game:drawTestOptions()
+    local w,h,f=love.graphics.getWidth(),love.graphics.getHeight(),self.fonts
+    love.graphics.clear(.055,.11,.105)
+    love.graphics.setColor(.12,.28,.23,.32); for x=0,w,48 do love.graphics.line(x,0,x,h) end; for y=0,h,48 do love.graphics.line(0,y,w,y) end
+    UI.panel(w/2-360,84,720,548,{.42,1,.6,1},.98)
+    love.graphics.setFont(f.title); love.graphics.setColor(1,1,1); love.graphics.printf("테스트 옵션",w/2-330,105,660,"center")
+    love.graphics.setFont(f.small); love.graphics.setColor(.62,.78,.72); love.graphics.printf("개발 중인 특성·생산·방어 시스템을 빠르게 확인하는 메뉴",w/2-330,153,660,"center")
+    love.graphics.setColor(1,.72,.25); love.graphics.printf("보유 유산 부품  "..self.progression.data.currency,w/2-330,181,660,"center")
+    local bx=w/2-290
+    UI.button(bx,220,580,58,"유산 부품 +1,000,000",true,f.heading)
+    UI.button(bx,300,580,58,"런 자원 각 +1,000,000  (식량·광석·목재·돌)",true,f.body)
+    UI.button(bx,380,580,58,"생산 레벨 +10  (런 강화 3택 테스트)",true,f.body)
+    UI.button(bx,460,580,58,self.testResetArmed and "정말 초기화 — 다시 클릭" or "영구 재화·특성 초기화",true,f.body)
+    UI.button(bx,550,580,46,"돌아가기  [F10 / ESC]",true,f.body)
+    love.graphics.setColor(self.testResetArmed and {1,.42,.25} or {.68,.82,.76}); love.graphics.printf(self.testMessage or "",w/2-315,525,630,"center")
 end
 
 function Game:drawResults()

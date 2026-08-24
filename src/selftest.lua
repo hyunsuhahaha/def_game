@@ -10,12 +10,27 @@ function SelfTest.run(game)
     local encoded = Progression.encode({currency = 17, levels = {quick_work = 2, wall_base = 1}})
     local decoded = Progression.decode(encoded)
     assert(decoded.currency == 17 and decoded.levels.quick_work == 2 and decoded.levels.wall_base == 1, "영구 데이터 직렬화 실패")
+    game.progression.data.currency = 99
+    game.progression.data.levels.quick_work = 3
+    game.progression:reset()
+    assert(game.progression.data.currency == 0 and game.progression:getLevel("quick_work") == 0, "테스트 영구 데이터 초기화 실패")
+    game:useTestOption(1)
+    assert(game.progression.data.currency == 1000000, "테스트 영구 재화 지급 실패")
+    game.progression:reset()
     game.progression.data.currency = 200
     local blocked = game.progression:buy("cargo_rig")
     assert(blocked == false, "선행 특성 잠금 실패")
     assert(game.progression:buy("quick_work") and game.progression:buy("quick_work"), "기초 특성 구매 실패")
     assert(game.progression:buy("cargo_rig"), "연결 특성 구매 실패")
     game:startRun(3)
+    local food, oreBeforeGrant, wood, stoneBeforeGrant, seeds = game.food, game.ore, game.wood, game.stone, game.seeds
+    game:grantTestRunResources()
+    assert(game.food == food + 1000000 and game.ore == oreBeforeGrant + 1000000 and game.wood == wood + 1000000 and game.stone == stoneBeforeGrant + 1000000 and game.seeds == seeds + 1000000, "테스트 런 자원 지급 실패")
+    game.food, game.ore, game.wood, game.stone, game.seeds = food, oreBeforeGrant, wood, stoneBeforeGrant, seeds
+    local level, xp, nextXP, pending = game.runLevel, game.runXP, game.runXPNext, game.pendingLevels
+    game:grantTestLevels(2)
+    assert(game.runLevel == level + 2 and game.pendingLevels == pending + 2, "테스트 생산 레벨 지급 실패")
+    game.runLevel, game.runXP, game.runXPNext, game.pendingLevels = level, xp, nextXP, pending
     game.ore = 14; game:keypressed("2")
     assert(#game.world.turrets == 1 and game.world.turrets[1].kind == "autocannon", "포탑 실물 배치 실패")
     game.world:spawnDefender("drone", 2, game)
@@ -64,7 +79,7 @@ function SelfTest.run(game)
     local afterReward = game.progression.data.currency
     game:finishRun(false)
     assert(game.progression.data.currency == afterReward, "런 보상 중복 지급 방지 실패")
-    print("SELF_TEST_OK: FARM TREE STONE ORE TOOL_SPEED HARVEST_FEEDBACK VISIBLE_TURRET VISIBLE_DRONE RUN_LEVELUP THREE_CHOICES AUTOMATION EVOLUTION WALL_UPGRADE WALL_BLOCK HAMMER_REPAIR META_SAVE TRAIT_TREE TRAIT_APPLY RUN_REWARD")
+    print("SELF_TEST_OK: FARM TREE STONE ORE TOOL_SPEED HARVEST_FEEDBACK VISIBLE_TURRET VISIBLE_DRONE RUN_LEVELUP THREE_CHOICES AUTOMATION EVOLUTION WALL_UPGRADE WALL_BLOCK HAMMER_REPAIR META_SAVE TRAIT_TREE TRAIT_APPLY RUN_REWARD TEST_CURRENCY TEST_RESOURCES TEST_LEVELS TEST_RESET")
 end
 
 return SelfTest

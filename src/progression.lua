@@ -89,6 +89,11 @@ function Progression:addCurrency(amount)
     return amount
 end
 
+function Progression:reset()
+    self.data = defaults()
+    self:save()
+end
+
 function Progression:effects()
     local e = {gather = 1, capacity = 0, seeds = 0, move = 1, wallHp = 1, repair = 0, materials = 0, wallGuard = 0, damage = 1, fireRate = 1, ore = 0, reward = 1}
     e.gather = 1 + self:getLevel("quick_work") * .06
