@@ -87,11 +87,7 @@ function Player:update(dt, world, game)
         end
     end
     local cx, cy = world.core.x - self.x, world.core.y - self.y
-    if cx * cx + cy * cy < 145 * 145 and self:totalCargo() > 0 then
-        game.food, game.ore, game.wood, game.stone = game.food + self.food, game.ore + self.ore, game.wood + self.wood, game.stone + self.stone
-        self.food, self.ore, self.wood, self.stone = 0, 0, 0, 0
-        game:setNotice("모든 자원을 거점에 납품했습니다", "core")
-    end
+    if cx * cx + cy * cy < 145 * 145 then game:depositCargo() end
 end
 
 function Player:draw()

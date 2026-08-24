@@ -6,6 +6,7 @@ local UI = require("src.ui")
 local Progression = require("src.progression")
 local TraitTree = require("src.trait_tree")
 local Feedback = require("src.feedback")
+local RunUpgrades = require("src.run_upgrades")
 
 local Game = {}
 Game.__index = Game
@@ -48,6 +49,7 @@ function Game:resetRun(plan)
     self.food, self.ore, self.wood, self.stone, self.seeds = 0, 0, 0, 0, 8
     self.time, self.ended, self.victory, self.hoverNode, self.hoverWall = 15 * 60, false, false, nil, false
     self.runStats, self.result = {harvested = 0}, nil
+    self.upgrades, self.runLevel, self.runXP, self.runXPNext, self.pendingLevels = RunUpgrades.new(), 1, 0, 18, 0
     self.plan = plan or 2
     if self.plan == 1 then self.food, self.seeds = 12, 12; self.world.core.maxHp, self.world.core.hp = 550, 550 end
     if self.plan == 2 then self.ore = 14; self.world.core.damage = self.world.core.damage * 1.15 end
@@ -69,8 +71,35 @@ end
 function Game:startRun(plan) self:resetRun(plan); self.mode = "playing"; self:setNotice("작전 시작 — 자원을 생산해 거점을 지키세요", "core") end
 function Game:setNotice(text, kind) self.notice, self.noticeKind, self.noticeTime = text, kind or "core", 2.2 end
 
+function Game:depositCargo(message)
+    local total = self.player:totalCargo()
+    if total <= 0 then return false end
+    self.food, self.ore, self.wood, self.stone = self.food + self.player.food, self.ore + self.player.ore, self.wood + self.player.wood, self.stone + self.player.stone
+    self.player.food, self.player.ore, self.player.wood, self.player.stone = 0, 0, 0, 0
+    self:setNotice(message or "모든 자원을 거점에 납품했습니다", "core")
+    return true
+end
+
+function Game:addRunXP(amount)
+    self.runXP = self.runXP + math.max(0, amount or 0)
+    while self.runXP >= self.runXPNext do
+        self.runXP = self.runXP - self.runXPNext
+        self.runLevel, self.pendingLevels = self.runLevel + 1, self.pendingLevels + 1
+        self.runXPNext = 18 + (self.runLevel - 1) * 10
+    end
+    if self.pendingLevels > 0 and self.mode == "playing" and not os.getenv("LAST_HAUL_SELF_TEST") then
+        self.upgrades:rollChoices(); self.mode = "upgrade"
+    end
+end
+
+function Game:selectRunUpgrade(index)
+    if self.mode ~= "upgrade" or not self.upgrades:choose(index, self) then return end
+    self.pendingLevels = math.max(0, self.pendingLevels - 1)
+    if self.pendingLevels > 0 then self.upgrades:rollChoices() else self.mode = "playing" end
+end
+
 function Game:finishRun(victory)
-    if self.mode ~= "playing" or self.result then return end
+    if (self.mode ~= "playing" and self.mode ~= "upgrade") or self.result then return end
     self.ended, self.victory = true, victory == true
     local elapsed = math.floor(15 * 60 - self.time)
     local survival = math.floor(elapsed / 60)
@@ -89,11 +118,12 @@ function Game:update(dt)
     if self.mode == "lobby" then self.lobby:update(dt); return end
     if self.mode == "meta" then self.traitTree:update(dt); return end
     if self.mode == "results" then return end
+    if self.mode == "upgrade" then return end
     self.noticeTime = math.max(0, self.noticeTime - dt)
     local wx, wy = self.camera:screenToWorld(love.mouse.getPosition()); self.hoverNode, self.hoverWall = self.world:findNodeAt(wx, wy), self.world:isWallAt(wx, wy)
     if self.ended then return end
     self.time = math.max(0, self.time - dt); if self.time <= 0 then self:finishRun(true); return end
-    self.player:update(dt, self.world, self); self.world:update(dt, self); self.camera:update(dt, self.player, self.world)
+    self.player:update(dt, self.world, self); self.upgrades:update(dt, self); self.world:update(dt, self); self.camera:update(dt, self.player, self.world)
     if self.ended then self:finishRun(self.victory) end
 end
 
@@ -104,6 +134,7 @@ function Game:keypressed(key)
         local plan = self.lobby:keypressed(key); if plan then self:startRun(plan) end; return
     end
     if self.mode == "meta" then if self.traitTree:keypressed(key) == "back" then self.mode = "lobby" end; return end
+    if self.mode == "upgrade" then if key == "1" or key == "2" or key == "3" then self:selectRunUpgrade(tonumber(key)) end; return end
     if self.mode == "results" then
         if key == "t" then self.mode = "meta"
         elseif key == "return" or key == "escape" then self.mode = "lobby" end
@@ -111,7 +142,7 @@ function Game:keypressed(key)
     end
     if key == "escape" then self.mode = "lobby"; return end
     if self.ended and (key == "r" or key == "return") then self:startRun(self.plan); return end
-    if key == "1" and self.food >= 12 then self.food = self.food - 12; self.world.defenders[#self.world.defenders + 1] = {x = self.world.core.x + love.math.random(-110, 110), y = self.world.core.y - 130}; self:setNotice("생체 수호자를 부화했습니다", "food") end
+    if key == "1" and self.food >= 12 then self.food = self.food - 12; self.world:spawnDefender("bio", 1, self); self:setNotice("생체 수호자를 부화했습니다", "food") end
     if key == "2" and self.ore >= 14 then self.ore = self.ore - 14; self.world.core.damage = self.world.core.damage * 1.2; self.world.core.fireRate = self.world.core.fireRate * 1.05; self:setNotice("포탑 기술을 강화했습니다", "ore") end
     if key == "3" and self.food >= 8 and self.ore >= 8 then self.food, self.ore = self.food - 8, self.ore - 8; self.player.gather = self.player.gather * 1.15; self.player.capacity = self.player.capacity + 5; self:setNotice("작업 장비를 개조했습니다", "core") end
     if key == "4" then
@@ -129,6 +160,7 @@ end
 function Game:mousepressed(x, y, button)
     if self.mode == "lobby" then local action = self.lobby:mousepressed(x, y, button); if action == "meta" then self.mode = "meta" elseif action then self:startRun(action) end; return end
     if self.mode == "meta" then if self.traitTree:mousepressed(x, y, button) == "back" then self.mode = "lobby" end; return end
+    if self.mode == "upgrade" then if button == 1 then local index = self.upgrades:choiceAt(x, y); if index then self:selectRunUpgrade(index) end end; return end
     if self.mode == "results" then
         if button == 1 then
             local w, h = love.graphics.getDimensions()
@@ -154,6 +186,7 @@ function Game:draw()
     love.graphics.setBlendMode("screen", "alphamultiply"); love.graphics.setColor(.25, .34, .22, .13); love.graphics.rectangle("fill", left, top, right - left, bottom - top)
     love.graphics.setBlendMode("add", "alphamultiply"); love.graphics.setColor(1, 1, 1, 1); love.graphics.draw(self.light, self.player.x, self.player.y, 0, 2.5, 2.5, 256, 256); love.graphics.draw(self.light, self.world.core.x, self.world.core.y, 0, 1.8, 1.8, 256, 256)
     love.graphics.setBlendMode("alpha"); self.camera:detach(); self:drawUI()
+    if self.mode == "upgrade" then self.upgrades:drawSelection(self, self.fonts) end
     if self.mode == "results" then self:drawResults() end
 end
 
@@ -234,6 +267,9 @@ function Game:drawUI()
 
     UI.panel(w / 2 - 105, 16, 210, 44, {.78, .2, .18, 1}, .86)
     love.graphics.setFont(f.body); love.graphics.setColor(1, .82, .72); love.graphics.printf(self.world.spawnTimer > 0 and string.format("다음 웨이브 %.1f초", self.world.spawnTimer) or "웨이브 접근 중", w / 2 - 105, 27, 210, "center")
+    love.graphics.setFont(f.small); love.graphics.setColor(.08, .12, .12, .9); love.graphics.rectangle("fill", w / 2 - 105, 64, 210, 28, 5, 5)
+    love.graphics.setColor(.52, 1, .63); love.graphics.printf(string.format("생산 레벨 %d   %d/%d", self.runLevel, math.floor(self.runXP), self.runXPNext), w / 2 - 105, 69, 210, "center")
+    UI.bar(w / 2 - 105, 89, 210, 4, self.runXP / self.runXPNext, {.45, 1, .58, 1})
 
     self:drawMinimap(16, h - 158, 205, 142); self:drawToolBelt(w - 276, h - 158, 260, 142)
     local nextWall = wall.level < wall.maxLevel and self.wallCosts[wall.level + 1] or nil

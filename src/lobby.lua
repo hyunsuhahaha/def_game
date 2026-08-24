@@ -77,10 +77,10 @@ function Lobby:draw()
     love.graphics.setColor(1, 1, 1)
     love.graphics.draw(self.images.workerWalk, self.frames[frame], cx, groundY + 8, 0, .38, .38, self.frameWidth / 2, self.images.workerWalk:getHeight() * .9)
     love.graphics.setFont(fonts.heading); love.graphics.setColor(1, 1, 1); love.graphics.printf("회수 기술자", cx - 180, 138, 360, "center")
-    love.graphics.setFont(fonts.small); love.graphics.setColor(plan.color); love.graphics.printf("시작 빌드: " .. plan.name, cx - 180, 169, 360, "center")
+    love.graphics.setFont(fonts.small); love.graphics.setColor(plan.color); love.graphics.printf("초기 보급: " .. plan.name, cx - 180, 169, 360, "center")
 
     local cardX, cardW, cardH, gap = w - 355, 315, 96, 12
-    love.graphics.setFont(fonts.heading); love.graphics.setColor(1, 1, 1); love.graphics.print("시작 빌드 선택", cardX, 143)
+    love.graphics.setFont(fonts.heading); love.graphics.setColor(1, 1, 1); love.graphics.print("초기 보급 선택", cardX, 143)
     for i, item in ipairs(self.plans) do
         local y = 190 + (i - 1) * (cardH + gap)
         UI.panel(cardX, y, cardW, cardH, i == self.selected and item.color or {.22, .27, .29, 1}, i == self.selected and .97 or .82)
@@ -90,7 +90,7 @@ function Lobby:draw()
         love.graphics.setColor(.62, .69, .71); love.graphics.print(item.desc, cardX + 18, y + 58)
     end
     UI.button(w / 2 - 150, h - 88, 300, 54, "작전 투입  [ENTER]", true, fonts.heading)
-    love.graphics.setFont(fonts.small); love.graphics.setColor(.62, .69, .71); love.graphics.printf("A / D로 시작 빌드 선택", 0, h - 27, w, "center")
+    love.graphics.setFont(fonts.small); love.graphics.setColor(.62, .69, .71); love.graphics.printf("초기 보급은 시작 자원만 바꿉니다 · 런 강화는 자유롭게 조합", 0, h - 27, w, "center")
 end
 
 return Lobby

@@ -18,7 +18,7 @@ end
 function World.new()
     local self = setmetatable({}, World)
     self.width, self.height = 3200, 2000
-    self.core = {x = 1600, y = 1325, hp = 500, maxHp = 500, damage = 18, fireRate = 1.25, cooldown = 0}
+    self.core = {x = 1600, y = 1325, hp = 500, maxHp = 500, damage = 18, fireRate = 1.25, range = 510, cooldown = 0}
     self.wall = {y = 1115, level = 1, maxLevel = 4, hp = 220, maxHp = 220, brokenNotified = false}
     self.images = {
         industrial = image("assets/floor-industrial.png"), farm = image("assets/floor-biofarm.png"), quarry = image("assets/floor-quarry.png"),
@@ -127,7 +127,7 @@ function World:update(dt, game)
     self:updateEffects(dt, game)
     for _, node in ipairs(self.nodes) do
         if node.kind == "plot" then
-            if node.state == "growing" then node.grow = math.max(0, node.grow - dt); if node.grow <= 0 then node.state = "ready" end end
+            if node.state == "growing" then node.grow = math.max(0, node.grow - dt * (game.upgrades and game.upgrades:cropGrowthMultiplier() or 1)); if node.grow <= 0 then node.state = "ready" end end
         elseif not node.active then
             node.respawn = node.respawn - dt
             if node.respawn <= 0 then node.active, node.work = true, 0 end
@@ -136,6 +136,7 @@ function World:update(dt, game)
     self.spawnTimer = self.spawnTimer - dt
     if self.spawnTimer <= 0 and not game.ended then
         self.wave = self.wave + 1
+        game:addRunXP(3 + math.floor(self.wave / 5))
         local count = math.min(15, 2 + math.floor(self.wave * .55))
         for i = 1, count do
             local lane = ({780, 1600, 2420})[((i - 1) % 3) + 1]
@@ -156,15 +157,93 @@ function World:update(dt, game)
         else
             game.ended, game.victory = true, false
         end
-        if e.hp <= 0 then table.remove(self.enemies, i); self.kills = self.kills + 1 end
+        if e.hp <= 0 then table.remove(self.enemies, i); self.kills = self.kills + 1; game:addRunXP(1) end
+    end
+    for _, defender in ipairs(self.defenders) do
+        defender.cooldown = (defender.cooldown or 0) - dt
+        if defender.cooldown <= 0 then
+            local target, best = nil, defender.kind == "drone" and 520 or 390
+            for _, enemy in ipairs(self.enemies) do local dx, dy = enemy.x - defender.x, enemy.y - defender.y; local d = math.sqrt(dx*dx+dy*dy); if d < best then target, best = enemy, d end end
+            if target then
+                local damage = (defender.kind == "drone" and 10 or 7) + (defender.level or 1) * 3
+                target.hp = target.hp - damage; self:applyCombatEffects(target, damage, game)
+                self.shots[#self.shots + 1] = {x1=defender.x,y1=defender.y-20,x2=target.x,y2=target.y,life=.14,color=defender.kind=="drone" and {.3,.85,1} or {.45,1,.38}}
+                defender.cooldown = (defender.kind == "drone" and .85 or 1.15) / (1 + (game.upgrades and game.upgrades:level("protein_feed") or 0) * .08)
+            end
+        end
     end
     self.core.cooldown = self.core.cooldown - dt
     if self.core.cooldown <= 0 then
-        local target, best = nil, 510
+        local target, best = nil, self.core.range or 510
         for _, e in ipairs(self.enemies) do local dx, dy = e.x - self.core.x, e.y - self.core.y; local d = math.sqrt(dx * dx + dy * dy); if d < best then target, best = e, d end end
-        if target then target.hp = target.hp - self.core.damage; self.shots[#self.shots + 1] = {x1 = self.core.x, y1 = self.core.y - 70, x2 = target.x, y2 = target.y, life = .12}; self.core.cooldown = 1 / self.core.fireRate end
+        if target then target.hp = target.hp - self.core.damage; self:applyCombatEffects(target, self.core.damage, game); self.shots[#self.shots + 1] = {x1 = self.core.x, y1 = self.core.y - 70, x2 = target.x, y2 = target.y, life = .12}; self.core.cooldown = 1 / self.core.fireRate end
     end
     for i = #self.shots, 1, -1 do self.shots[i].life = self.shots[i].life - dt; if self.shots[i].life <= 0 then table.remove(self.shots, i) end end
+end
+
+function World:applyCombatEffects(target, damage, game)
+    if not game.upgrades then return end
+    local explosion = game.upgrades:level("explosive_payload")
+    if explosion > 0 then
+        local radius = 55 + explosion * 12
+        for _, enemy in ipairs(self.enemies) do
+            if enemy ~= target then local dx,dy=enemy.x-target.x,enemy.y-target.y; if dx*dx+dy*dy <= radius*radius then enemy.hp = enemy.hp - damage * (.18 + explosion * .04) end end
+        end
+        self.particles[#self.particles+1] = {x=target.x,y=target.y-20,life=.22,maxLife=.22,size=18,color={1,.38,.14},ring=true}
+    end
+    local chain = game.upgrades:level("chain_coil")
+    if chain > 0 then
+        local chained = 0
+        for _, enemy in ipairs(self.enemies) do
+            if enemy ~= target and chained < math.min(3, chain) then
+                local dx,dy=enemy.x-target.x,enemy.y-target.y
+                if dx*dx+dy*dy <= (145+chain*15)^2 then
+                    enemy.hp=enemy.hp-damage*(.2+chain*.03); chained=chained+1
+                    self.shots[#self.shots+1]={x1=target.x,y1=target.y,x2=enemy.x,y2=enemy.y,life=.1,color={.48,.78,1}}
+                end
+            end
+        end
+    end
+end
+
+function World:spawnDefender(kind, level, game)
+    self.defenders[#self.defenders + 1] = {kind=kind or "bio", level=level or 1, x=self.core.x+love.math.random(-145,145), y=self.core.y-120-love.math.random(0,70), cooldown=.2}
+    if game and game.camera then game.camera.trauma = math.min(1, game.camera.trauma + .16) end
+end
+
+function World:fireRail(game, damage)
+    local target
+    for _, enemy in ipairs(self.enemies) do if not target or enemy.y > target.y then target = enemy end end
+    if not target then return false end
+    target.hp = target.hp - damage; self:applyCombatEffects(target, damage, game)
+    self.shots[#self.shots+1]={x1=self.core.x,y1=self.core.y-90,x2=target.x,y2=target.y,life=.24,color={.25,.92,1}}
+    self.particles[#self.particles+1]={x=target.x,y=target.y,life=.3,maxLife=.3,size=22,color={.25,.92,1},ring=true}
+    if game.camera then game.camera.trauma=math.min(1,game.camera.trauma+.24) end
+    return true
+end
+
+function World:bladeBurst(game, damage)
+    local hits = 0
+    for _, enemy in ipairs(self.enemies) do
+        if hits < 5 and enemy.y > self.wall.y - 520 then enemy.hp=enemy.hp-damage; hits=hits+1; self.shots[#self.shots+1]={x1=self.core.x-180,y1=self.wall.y-25,x2=enemy.x,y2=enemy.y,life=.18,color={1,.62,.18}} end
+    end
+    if hits > 0 and game.camera then game.camera.trauma=math.min(1,game.camera.trauma+.13) end
+end
+
+function World:sporeBurst(game, damage)
+    local crops = 0
+    for _, node in ipairs(self.nodes) do if node.kind=="plot" and (node.state=="growing" or node.state=="ready") then crops=crops+1 end end
+    if crops == 0 then return end
+    local hits=0
+    for _,enemy in ipairs(self.enemies) do if hits<math.min(6,crops) then enemy.hp=enemy.hp+0-damage*(1+crops*.04); hits=hits+1; self.shots[#self.shots+1]={x1=650,y1=1350,x2=enemy.x,y2=enemy.y,life=.2,color={.45,1,.35}} end end
+end
+
+function World:resourcePulse(game, kind, amount, label)
+    local color=effectColors[kind] or effectColors.plot
+    local x,y=self.core.x,self.core.y-105
+    for _=1,math.min(10,amount+2) do self:addParticle(x,y,color,true,true) end
+    self.popups[#self.popups+1]={x=x,y=y-55,life=1,maxLife=1,text="+"..amount.." "..label,color=color,chain=0}
+    if game.feedback then game.feedback:play(kind=="plot" and "harvest" or kind, false) end
 end
 
 function World:upgradeWall()
@@ -233,10 +312,11 @@ function World:workNode(node, game, player, tool, dt)
         if node.state == "planted" then node.state, node.grow = "growing", node.growMax; game:setNotice("물을 주었습니다 — 성장을 시작합니다", "core"); return false end
         if node.state == "ready" then
             if cargoSpace(player) < 6 then game:setNotice("가방이 가득 찼습니다", "core"); return false end
-            player.food, game.seeds, node.state = player.food + 6, game.seeds + 1, "empty"
-            game.runStats.harvested = game.runStats.harvested + 6
-            self:harvestBurst(node, game, 6, "식량")
-            game:setNotice("작물 +6  씨앗 +1", "food"); return false
+            local amount = game.upgrades and game.upgrades:duplicateAmount(6) or 6
+            amount=math.min(amount,cargoSpace(player)); player.food, game.seeds, node.state = player.food + amount, game.seeds + 1, "empty"
+            game.runStats.harvested = game.runStats.harvested + amount; game:addRunXP(amount)
+            self:harvestBurst(node, game, amount, "식량")
+            game:setNotice("작물 +"..amount.."  씨앗 +1", "food"); return false
         end
         return false
     end
@@ -244,9 +324,10 @@ function World:workNode(node, game, player, tool, dt)
     node.work = node.work + speed * dt
     if node.work < node.workTime then return true end
     local amount = node.kind == "tree" and 6 or node.kind == "stone" and 5 or 5
+    if game.upgrades then amount = game.upgrades:duplicateAmount(amount) end
     amount = math.min(amount, cargoSpace(player))
     player[node.kind == "tree" and "wood" or node.kind] = player[node.kind == "tree" and "wood" or node.kind] + amount
-    game.runStats.harvested = game.runStats.harvested + amount
+    game.runStats.harvested = game.runStats.harvested + amount; game.runStats[node.kind] = (game.runStats[node.kind] or 0) + amount; game:addRunXP(amount)
     node.active, node.work, node.respawn = false, 0, node.kind == "tree" and 18 or node.kind == "stone" and 15 or 22
     local label = node.kind == "tree" and "목재" or node.kind == "stone" and "돌" or "광석"
     self:harvestBurst(node, game, amount, label)
@@ -370,7 +451,7 @@ function World:draw(player)
         love.graphics.setColor(popup.color[1], popup.color[2], popup.color[3], alpha); love.graphics.printf(popup.text, popup.x - 100, popup.y, 200, "center")
         if popup.chain >= 2 then love.graphics.setColor(1, .78, .2, alpha); love.graphics.printf("연속 채집 x" .. popup.chain, popup.x - 100, popup.y + 22, 200, "center") end
     end
-    love.graphics.setLineWidth(4); for _, s in ipairs(self.shots) do love.graphics.setColor(.2, .85, 1, s.life / .12); love.graphics.line(s.x1, s.y1, s.x2, s.y2) end
+    love.graphics.setLineWidth(4); for _, s in ipairs(self.shots) do local c=s.color or {.2,.85,1}; love.graphics.setColor(c[1],c[2],c[3],math.min(1,s.life/.12)); love.graphics.line(s.x1,s.y1,s.x2,s.y2) end
 end
 
 return World

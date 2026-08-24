@@ -16,6 +16,14 @@ function SelfTest.run(game)
     assert(game.progression:buy("quick_work") and game.progression:buy("quick_work"), "기초 특성 구매 실패")
     assert(game.progression:buy("cargo_rig"), "연결 특성 구매 실패")
     game:startRun(3)
+    assert(game.upgrades:choose("auto_farm", game) and game.upgrades:choose("auto_farm", game), "런 시스템 강화 실패")
+    assert(game.upgrades:choose("protein_feed", game), "런 보조 강화 실패")
+    game.upgrades.levels.auto_farm = 5
+    assert(game.upgrades:isEvolutionReady(game.upgrades:get("eternal_farm")) and game.upgrades:choose("eternal_farm", game), "런 진화 조합 실패")
+    game.upgrades:rollChoices(); assert(#game.upgrades.choices == 3, "런 3택 생성 실패")
+    local foodBeforeAutomation = game.food
+    game.upgrades:update(10, game)
+    assert(game.food > foodBeforeAutomation, "자동 생산 시스템 작동 실패")
     assert(game.player.gather > 1.28 and game.player.capacity == 26, "영구 특성 런 적용 실패")
     game.player.capacity = 100
     local farm = find(game.world, "plot")
@@ -52,7 +60,7 @@ function SelfTest.run(game)
     local afterReward = game.progression.data.currency
     game:finishRun(false)
     assert(game.progression.data.currency == afterReward, "런 보상 중복 지급 방지 실패")
-    print("SELF_TEST_OK: FARM TREE STONE ORE TOOL_SPEED HARVEST_FEEDBACK WALL_UPGRADE WALL_BLOCK HAMMER_REPAIR META_SAVE TRAIT_TREE TRAIT_APPLY RUN_REWARD")
+    print("SELF_TEST_OK: FARM TREE STONE ORE TOOL_SPEED HARVEST_FEEDBACK RUN_LEVELUP THREE_CHOICES AUTOMATION EVOLUTION WALL_UPGRADE WALL_BLOCK HAMMER_REPAIR META_SAVE TRAIT_TREE TRAIT_APPLY RUN_REWARD")
 end
 
 return SelfTest
