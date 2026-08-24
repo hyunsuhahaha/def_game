@@ -1,0 +1,17 @@
+# Runtime output and local verification captures
+*.log
+capture.png
+*-capture.png
+korean-lobby.png
+farming-system.png
+mining-system.png
+
+# Unused generation drafts kept only on the original workstation
+assets/worker.png
+assets/worker-walk-v2.png
+
+# OS/editor files
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
