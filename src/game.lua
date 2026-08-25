@@ -239,7 +239,7 @@ function Game:keypressed(key)
         return
     end
     if self.mode == "clearcut_select" then
-        if key=="1" or key=="2" or key=="3" then self:chooseClearcutCharacter(tonumber(key))
+        if key=="1" or key=="2" or key=="3" or key=="4" then self:chooseClearcutCharacter(tonumber(key))
         elseif key=="escape" then self.mode="lobby" end
         return
     end
@@ -678,8 +678,10 @@ function Game:drawClearcutSelect()
     love.graphics.setFont(f.title); love.graphics.setColor(1, .82, .3); love.graphics.printf("캐릭터 선택 — 숲 전멸 실험실", 0, 66, w, "center")
     love.graphics.setFont(f.small); love.graphics.setColor(.72, .88, .76); love.graphics.printf("선택한 캐릭터의 기본 공격 방식이 이번 런 내내 유지됩니다", 0, 112, w, "center")
     local characters = ClearcutMode.characters
-    local gap, cardW, cardH = 24, math.min(320, (w - 96) / 3), 400
-    local startX, cardY = w / 2 - (cardW * 3 + gap * 2) / 2, 165
+    local count = #characters
+    local gap = 20
+    local cardW, cardH = math.min(320, (w - 64 - gap * (count - 1)) / count), 400
+    local startX, cardY = w / 2 - (cardW * count + gap * (count - 1)) / 2, 165
     self.clearcutCharBoxes = {}
     for i, c in ipairs(characters) do
         local x, y = startX + (i - 1) * (cardW + gap), cardY
@@ -697,7 +699,9 @@ function Game:drawClearcutSelect()
         love.graphics.setFont(f.body); love.graphics.setColor(.72, .82, .77); love.graphics.printf(c.tagline, x + 24, y + 232, cardW - 48, "center")
         love.graphics.setFont(f.small); love.graphics.setColor(.58, .68, .64); love.graphics.printf(c.detail, x + 24, y + 300, cardW - 48, "center")
     end
-    love.graphics.setFont(f.small); love.graphics.setColor(.7, .78, .72); love.graphics.printf("숫자키 1/2/3 또는 클릭으로 선택  ·  ESC로 취소", 0, cardY + cardH + 24, w, "center")
+    local numHint = {}
+    for i = 1, count do numHint[i] = tostring(i) end
+    love.graphics.setFont(f.small); love.graphics.setColor(.7, .78, .72); love.graphics.printf("숫자키 " .. table.concat(numHint, "/") .. " 또는 클릭으로 선택  ·  ESC로 취소", 0, cardY + cardH + 24, w, "center")
 end
 
 function Game:clearcutCharAt(x, y)

@@ -3,15 +3,16 @@ local UI = require("src.ui")
 local ClearcutMode = {}
 ClearcutMode.__index = ClearcutMode
 
-local trackLabels = {destroy = "파괴력", spread = "확산력", suppress = "억제력"}
+local trackLabels = {destroy = "파괴력", spread = "확산력", suppress = "억제력", develop = "개발력"}
 
 -- 시그니처 업그레이드를 처음 고르면 1차 전직이 확정되고 기본 공격 자체가 바뀐다.
-local jobFor = {berserker = "physical", molotov = "fire", toxic_rain = "toxic"}
-local jobNames = {physical = "생계형 나무꾼", fire = "흡연자", toxic = "비건 단체 회장"}
+local jobFor = {berserker = "physical", molotov = "fire", toxic_rain = "toxic", heavy_machinery = "developer"}
+local jobNames = {physical = "생계형 나무꾼", fire = "흡연자", toxic = "비건 단체 회장", developer = "부동산 개발업자"}
 local jobDesc = {
     physical = "그냥 오늘 할당량을 채우러 왔을 뿐이다. 대출은 갚아야 하니까.",
     fire = "기본 공격이 도끼질 대신 마우스 위치에 담배꽁초를 튕기는 것으로 바뀝니다. 숲이 마른 건 내 탓이 아니다.",
-    toxic = "기본 공격이 도끼질 대신 마우스 위치에 '친환경' 제초제를 살포하는 것으로 바뀝니다. 숲을 지키기 위해 숲을 없앤다."
+    toxic = "기본 공격이 도끼질 대신 마우스 위치에 '친환경' 제초제를 살포하는 것으로 바뀝니다. 숲을 지키기 위해 숲을 없앤다.",
+    developer = "기본 공격이 도끼질 대신 마우스 방향으로 중장비 돌진하는 것으로 바뀝니다. 여기에 아파트 지으면 됨."
 }
 
 -- job이 있는 카드는 해당 전직에서만 뜨는 전직 전용 카드다. job이 없으면 모든 전직에 공용으로 뜬다.
@@ -30,7 +31,12 @@ local definitions = {
     {id="herbicide", track="suppress", name="제초제", desc="벤 자리는 숲이 다시 자라지 않는 죽은 땅이 될 확률이 있습니다.", max=3, color={.62,.4,.85}},
     {id="root_cutting", track="suppress", name="뿌리 절단", desc="나무를 벨 때마다 숲의 재생력이 약해집니다.", max=3, color={.5,.62,.9}},
     {id="toxic_rain", track="suppress", name="친환경 제초 캠페인", desc="맹독 공격의 범위와 피해가 늘어나고, 평소에도 주변에 약하게 지속 피해를 줍니다.", max=3, color={.55,.85,.45}, job="toxic"},
-    {id="forced_growth", track="suppress", name="강제 성장", desc="숲의 재생 속도가 크게 빨라지지만, 목재 경험치 획득량도 크게 늘어납니다.", max=3, color={.85,.7,.25}}
+    {id="forced_growth", track="suppress", name="강제 성장", desc="숲의 재생 속도가 크게 빨라지지만, 목재 경험치 획득량도 크게 늘어납니다.", max=3, color={.85,.7,.25}},
+    -- 개발력 (develop) — 말뚝 → 중장비 → 폭파 [부동산 개발업자 전용]
+    {id="pile_driving", track="develop", name="말뚝 박기", desc="돌진 사거리가 늘어나고 재사용 대기시간이 줄어듭니다.", max=3, color={.7,.62,.4}, job="developer"},
+    {id="heavy_machinery", track="develop", name="중장비 투입", desc="돌진 경로의 폭이 넓어져 더 많은 나무를 밀어버립니다.", max=3, color={1,.72,.15}, job="developer"},
+    {id="demolition", track="develop", name="철거 폭파", desc="돌진이 끝나는 지점에서 폭발이 일어나 주변 나무에도 피해를 줍니다.", max=3, color={1,.45,.15}, job="developer"},
+    {id="site_clearance", track="develop", name="부지 정지 작업", desc="돌진이 지나간 자리는 다시는 나무가 자라지 않는 부지가 됩니다.", max=3, color={.55,.5,.55}, job="developer"}
 }
 
 local milestones = {
@@ -65,7 +71,7 @@ function ClearcutMode.new()
         rootHazards={}, rootedTimer=0, rootedCount=0,
         bees={}, beeSlow=false, beeSwarmsTriggered=0, beehiveTotal=0,
         streak=0, lastHitAt=-10, molotovTimer=0, wildfireTimer=0, toxicTimer=0, evolutions={}, molotovs={},
-        job=nil, attackCooldown=0,
+        job=nil, attackCooldown=0, dashing=nil, dashTrail={},
         hp=100, maxHp=100, invulnTimer=0, dead=false,
         enemies={}, projectiles={}, bossTelegraphs={}, waveFired={}, worldTreeSpawned=false, readyToFinish=false, activeBoss=nil, kills=0,
         chests={}, chestPending=false, molotovShots=0, wildburstTimer=10, plagued={}, dodges=0
@@ -129,6 +135,11 @@ function ClearcutMode:update(dt, game)
     self:updateBossTelegraphs(dt, game)
     self:updateChests(dt, game)
     self:updatePlague(dt, game)
+    for i = #self.dashTrail, 1, -1 do
+        local dtr = self.dashTrail[i]
+        dtr.life = dtr.life - dt
+        if dtr.life <= 0 then table.remove(self.dashTrail, i) end
+    end
     if self.elapsed - self.lastHitAt > .9 then self.streak = 0 end
     self.regrowFlash = math.max(0, self.regrowFlash - dt)
     self.rootedTimer = math.max(0, self.rootedTimer - dt)
@@ -264,7 +275,7 @@ end
 function ClearcutMode:spawnEnemy(kind, x, y)
     local def = enemyDefs[kind]
     if not def then return end
-    local e = {kind = kind, def = def, x = x, y = y, hp = def.hp, maxHp = def.hp, hitTimer = 0, fireTimer = def.fireInterval, slamTimer = def.slamInterval, summonTimer = def.summonInterval}
+    local e = {kind = kind, def = def, x = x, y = y, hp = def.hp, maxHp = def.hp, hitTimer = 0, fireTimer = def.fireInterval, slamTimer = def.slamInterval, summonTimer = def.summonInterval, seed = love.math.random() * 10}
     self.enemies[#self.enemies + 1] = e
     if def.boss then self.activeBoss = e end
     return e
@@ -686,6 +697,7 @@ end
 function ClearcutMode:updateHeldAxe(dt, game, heldOverride)
     if self.job == "fire" then return self:updateFireAttack(dt, game, heldOverride) end
     if self.job == "toxic" then return self:updateToxicAttack(dt, game, heldOverride) end
+    if self.job == "developer" then return self:updateDeveloperAttack(dt, game, heldOverride) end
     return self:updatePhysicalAttack(dt, game, heldOverride)
 end
 
@@ -779,6 +791,130 @@ function ClearcutMode:updateToxicAttack(dt, game, heldOverride)
     return true
 end
 
+function ClearcutMode:updateDeveloperAttack(dt, game, heldOverride)
+    if self.dashing then
+        self:updateDash(dt, game)
+        return true
+    end
+    local held = heldOverride
+    if held == nil then held = love.mouse.isDown(1) end
+    self.attackCooldown = math.max(0, self.attackCooldown - dt)
+    local maxRange = 460
+    local tx, ty = self:aimPoint(game, maxRange)
+    self.aimX, self.aimY = tx, ty
+    self.aimRadius = 55 + self:levelOf("heavy_machinery") * 20
+    if not held or self.attackCooldown > 0 then return false end
+    self:startDash(tx, ty, game)
+    return true
+end
+
+function ClearcutMode:startDash(tx, ty, game)
+    local dx, dy = tx - game.player.x, ty - game.player.y
+    local dist = math.sqrt(dx*dx + dy*dy)
+    if dist < 1 then return end
+    local pileLevel = self:levelOf("pile_driving")
+    local heavyLevel = self:levelOf("heavy_machinery")
+    local width = 55 + heavyLevel * 20
+    local megaProject = heavyLevel >= 3 and love.math.random() < .2
+    if megaProject then width = width * 2.2 end
+    self.dashing = {
+        dx = dx / dist, dy = dy / dist,
+        remaining = 200 + pileLevel * 70,
+        width = width,
+        hitSet = {}
+    }
+    game:setNotice(megaProject and "초고층 프로젝트 — 중장비 투입 만렙 특수효과!" or "돌진!", "food")
+    if game.camera then game.camera.trauma = math.min(1, game.camera.trauma + .2) end
+end
+
+function ClearcutMode:updateDash(dt, game)
+    local d = self.dashing
+    local speed = 720
+    local moveDist = math.min(d.remaining, speed * dt)
+    local px, py = game.player.x, game.player.y
+    game.player.x, game.player.y = game.player.x + d.dx * moveDist, game.player.y + d.dy * moveDist
+    d.remaining = d.remaining - moveDist
+    self.dashTrail[#self.dashTrail + 1] = {x = px, y = py, life = .3, maxLife = .3}
+    for _, node in ipairs(game.world.nodes) do
+        if node.rushTree and node.active and not d.hitSet[node] then
+            local segX, segY = game.player.x - px, game.player.y - py
+            local segLen2 = segX*segX + segY*segY
+            local proj = segLen2 > 0 and math.max(0, math.min(1, ((node.x-px)*segX + (node.y-py)*segY) / segLen2)) or 0
+            local closeX, closeY = px + segX*proj, py + segY*proj
+            local ddx, ddy = node.x - closeX, node.y - closeY
+            if ddx*ddx + ddy*ddy <= d.width * d.width then
+                d.hitSet[node] = true
+                node.rushHp = 0
+                game.world:impactNode(node, game, true)
+                if self:fellTree(node, game) then
+                    local siteLevel = self:levelOf("site_clearance")
+                    if siteLevel >= 3 or (siteLevel > 0 and love.math.random() < siteLevel * .3) then node.sterile = true end
+                end
+            end
+        end
+    end
+    self:damageEnemiesInRadius((px + game.player.x) / 2, (py + game.player.y) / 2, d.width + 20, 12, game)
+    if d.remaining <= 0 then
+        self.dashing = nil
+        if self:levelOf("demolition") > 0 then self:demolitionBlast(game.player.x, game.player.y, game) end
+        if self.evolutions.newtown then
+            local radius = 160
+            for _, node in ipairs(game.world.nodes) do
+                if node.rushTree then
+                    local dx, dy = node.x - game.player.x, node.y - game.player.y
+                    if dx*dx + dy*dy <= radius*radius then node.sterile = true end
+                end
+            end
+            game.world:toxicPulseFx(game.player.x, game.player.y, radius)
+        end
+        local pileLevel = self:levelOf("pile_driving")
+        self.attackCooldown = math.max(1, 3.2 - pileLevel * .7)
+        if pileLevel >= 3 and love.math.random() < .25 then
+            self.attackCooldown = 0
+            game:setNotice("기초 공사 완료 — 말뚝 박기 만렙 특수효과!", "food")
+        end
+    end
+end
+
+function ClearcutMode:demolitionBlast(x, y, game)
+    local demoLevel = self:levelOf("demolition")
+    local radius = 90 + demoLevel * 30
+    game.world:igniteFx(x, y, true)
+    if game.camera then game.camera.trauma = math.min(1, game.camera.trauma + .35) end
+    self:damageEnemiesInRadius(x, y, radius, 22, game)
+    local felled = {}
+    for _, node in ipairs(game.world.nodes) do
+        if node.rushTree and node.active then
+            local dx, dy = node.x - x, node.y - y
+            if dx*dx + dy*dy <= radius*radius then
+                node.rushHp = 0
+                game.world:impactNode(node, game, true)
+                if self:fellTree(node, game) then felled[#felled+1] = node end
+            end
+        end
+    end
+    if demoLevel >= 3 and #felled > 0 then
+        local second = felled[love.math.random(#felled)]
+        self:demolitionEcho(second.x, second.y, game)
+    end
+end
+
+function ClearcutMode:demolitionEcho(x, y, game)
+    local radius = 70
+    game.world:igniteFx(x, y, false)
+    self:damageEnemiesInRadius(x, y, radius, 14, game)
+    for _, node in ipairs(game.world.nodes) do
+        if node.rushTree and node.active then
+            local dx, dy = node.x - x, node.y - y
+            if dx*dx + dy*dy <= radius*radius then
+                node.rushHp = 0
+                game.world:impactNode(node, game, true)
+                self:fellTree(node, game)
+            end
+        end
+    end
+end
+
 function ClearcutMode:checkMilestones(game)
     local pct = self:destructionPct()
     for _, m in ipairs(milestones) do
@@ -835,6 +971,10 @@ function ClearcutMode:checkEvolutions(game)
     if not self.evolutions.necrosis and self:levelOf("toxic_rain") >= 3 and self:levelOf("root_cutting") >= 3 then
         self.evolutions.necrosis = true
         game:setNotice("융합 스킬 — 생태계 다이어트! 맹독이 닿은 땅은 그 자리에서 불모지가 된다.", "ore")
+    end
+    if not self.evolutions.newtown and self:levelOf("heavy_machinery") >= 3 and self:levelOf("site_clearance") >= 3 then
+        self.evolutions.newtown = true
+        game:setNotice("융합 스킬 — 뉴타운 계획! 돌진이 끝난 자리 주변까지 통째로 불모지가 된다.", "ore")
     end
 end
 
@@ -1152,27 +1292,37 @@ local leafIconRows = {
 }
 local leafIconPalette = {O={.1,.24,.08,1}, G={.32,.65,.2,1}, V={.2,.45,.13,1}}
 
+local hardhatIconRows = {
+    "........",
+    "..OOOO..",
+    ".OYYYYO.",
+    "OYYWYYYO",
+    "OYYYYYYO",
+    "OOOOOOOO",
+    "..O..O..",
+    "........",
+}
+local hardhatIconPalette = {O={.25,.17,.02,1}, Y={1,.78,.12,1}, W={1,.96,.72,1}}
+
 ClearcutMode.icons = {
     axe = {rows = axeIconRows, palette = axeIconPalette},
     cigarette = {rows = cigaretteIconRows, palette = cigaretteIconPalette},
     leaf = {rows = leafIconRows, palette = leafIconPalette},
+    hardhat = {rows = hardhatIconRows, palette = hardhatIconPalette},
 }
 ClearcutMode.drawPixelGrid = drawPixelGrid
 
 local function drawEnemy(e, t)
     local def = e.def
     local walking = def.speed > 0 and (e.moving or false)
-    local bob = walking and math.abs(math.sin(t * 10 + e.x)) * def.radius * .12 or (def.boss and math.sin(t * 1.6 + e.x) * def.radius * .04 or 0)
+    local seed = e.seed or 0
+    local bob = walking and math.abs(math.sin(t * 6 + seed)) * def.radius * .05 or (def.boss and math.sin(t * 1.6 + seed) * def.radius * .03 or 0)
     local sprite = enemySprites[e.kind]
     love.graphics.setColor(0, 0, 0, .32)
     love.graphics.ellipse("fill", e.x, e.y + def.radius * .8, def.radius * .95, def.radius * .3)
     if sprite then
         local px = (def.radius * 2.1) / #sprite.rows[1]
-        if walking then
-            love.graphics.push(); love.graphics.rotate(math.sin(t * 10 + e.x) * .05)
-        end
         drawPixelGrid(sprite.rows, sprite.palette, e.x, e.y - bob, px)
-        if walking then love.graphics.pop() end
     end
     if e.plagueMarked then
         love.graphics.setColor(.5, .9, .35, .3 + math.sin(t * 8) * .12)
@@ -1203,6 +1353,8 @@ function ClearcutMode:drawWorldOverlay(game)
         drawPixelGrid(leafIconRows, leafIconPalette, px, py + bob, 2.4)
     elseif self.job == "physical" then
         drawPixelGrid(axeIconRows, axeIconPalette, px, py, 2.2)
+    elseif self.job == "developer" then
+        drawPixelGrid(hardhatIconRows, hardhatIconPalette, px, py, 2.4)
     end
     if (self.job == "fire" or self.job == "toxic") and self.aimX then
         local ringColor = self.job == "fire" and {1, .5, .15} or {.55, .85, .45}
@@ -1212,6 +1364,34 @@ function ClearcutMode:drawWorldOverlay(game)
         love.graphics.setLineWidth(1.5)
         love.graphics.line(self.aimX - 10, self.aimY, self.aimX - 4, self.aimY); love.graphics.line(self.aimX + 4, self.aimY, self.aimX + 10, self.aimY)
         love.graphics.line(self.aimX, self.aimY - 10, self.aimX, self.aimY - 4); love.graphics.line(self.aimX, self.aimY + 4, self.aimX, self.aimY + 10)
+    elseif self.job == "developer" and self.aimX and not self.dashing then
+        local dx, dy = self.aimX - game.player.x, self.aimY - game.player.y
+        local dist = math.sqrt(dx*dx + dy*dy)
+        if dist > 1 then
+            local nx, ny = dx / dist, dy / dist
+            local perpx, perpy = -ny, nx
+            local hw = self.aimRadius
+            local ax, ay = game.player.x + nx * hw * .4, game.player.y + ny * hw * .4
+            local bx, by = self.aimX, self.aimY
+            love.graphics.setColor(1, .74, .1, .18)
+            love.graphics.polygon("fill",
+                ax + perpx * hw, ay + perpy * hw,
+                bx + perpx * hw, by + perpy * hw,
+                bx - perpx * hw, by - perpy * hw,
+                ax - perpx * hw, ay - perpy * hw)
+            love.graphics.setLineWidth(2); love.graphics.setColor(1, .74, .1, .8)
+            love.graphics.line(ax + perpx * hw, ay + perpy * hw, bx + perpx * hw, by + perpy * hw)
+            love.graphics.line(ax - perpx * hw, ay - perpy * hw, bx - perpx * hw, by - perpy * hw)
+            love.graphics.setLineWidth(1.5)
+            love.graphics.line(bx - 8, by - 8, bx + 8, by + 8); love.graphics.line(bx - 8, by + 8, bx + 8, by - 8)
+        end
+    end
+    if self.job == "developer" and #self.dashTrail > 0 then
+        for _, tr in ipairs(self.dashTrail) do
+            local a = math.max(0, tr.life / tr.maxLife)
+            love.graphics.setColor(1, .74, .1, a * .35)
+            love.graphics.circle("fill", tr.x, tr.y, 26 * a + 6)
+        end
     end
     for _, node in ipairs(game.world.nodes) do
         if node.rushTree and node.active and node.beehive then
@@ -1343,6 +1523,7 @@ function ClearcutMode:drawHUD(game,fonts)
     if self.evolutions.deadGround then evoNames[#evoNames+1] = "죽은 땅" end
     if self.evolutions.frenzy then evoNames[#evoNames+1] = "무한 야근" end
     if self.evolutions.necrosis then evoNames[#evoNames+1] = "생태계 다이어트" end
+    if self.evolutions.newtown then evoNames[#evoNames+1] = "뉴타운 계획" end
     if #evoNames > 0 then
         love.graphics.setColor(1, .82, .3); love.graphics.print("진화: " .. table.concat(evoNames, " · "), 32, 146)
     end
@@ -1429,7 +1610,10 @@ ClearcutMode.characters = {
         detail="마우스 위치에 무심코 꽁초를 튕깁니다. 숲이 마른 건 내 탓이 아니다. 붙은 불은 알아서 번지고 퍼집니다."},
     {id="toxic", name="비건 단체 회장", icon="leaf", color={.55,.85,.45},
         tagline="나무도 생명이지만... 일단 먹어야 한다.",
-        detail="마우스 위치에 '친환경' 제초제를 살포합니다. 숲을 지키기 위해 숲을 없앱니다. 화력은 약하지만 재생력 자체를 짓누릅니다."}
+        detail="마우스 위치에 '친환경' 제초제를 살포합니다. 숲을 지키기 위해 숲을 없앱니다. 화력은 약하지만 재생력 자체를 짓누릅니다."},
+    {id="developer", name="부동산 개발업자", icon="hardhat", color={1,.74,.1},
+        tagline="여기에 아파트 지으면 됨.",
+        detail="조준 방향으로 직접 돌진하며 경로상의 모든 것을 밀어버립니다. 넓은 범위를 순식간에 밀어내지만 재사용까지 잠깐 숨을 고릅니다."}
 }
 
 return ClearcutMode

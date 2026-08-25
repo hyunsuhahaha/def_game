@@ -1,6 +1,6 @@
 local Game
 local game
-local captureFrames = os.getenv("LAST_HAUL_CAPTURE_TURRET_FIRE") and 3 or (os.getenv("LAST_HAUL_CAPTURE_DRILL") and 2 or ((os.getenv("LAST_HAUL_CAPTURE_RUSH") or os.getenv("LAST_HAUL_CAPTURE_LOBBY") or os.getenv("LAST_HAUL_CAPTURE_CLEARCUT") or os.getenv("LAST_HAUL_CAPTURE_CLEARCUT_UPGRADE") or os.getenv("LAST_HAUL_CAPTURE_CLEARCUT_RESULTS") or os.getenv("LAST_HAUL_CAPTURE_CLEARCUT_THREATS") or os.getenv("LAST_HAUL_CAPTURE_CLEARCUT_BUILDS") or os.getenv("LAST_HAUL_CAPTURE_CLEARCUT_CHAR_SELECT") or os.getenv("LAST_HAUL_CAPTURE_CLEARCUT_FIREJOB") or os.getenv("LAST_HAUL_CAPTURE_CLEARCUT_COMBAT") or os.getenv("LAST_HAUL_CAPTURE_CLEARCUT_DEFEAT") or os.getenv("LAST_HAUL_CAPTURE_CLEARCUT_MILESTONE")) and 6 or (os.getenv("LAST_HAUL_CAPTURE_HARVEST") and 10 or ((os.getenv("LAST_HAUL_CAPTURE") or os.getenv("LAST_HAUL_CAPTURE_GAME") or os.getenv("LAST_HAUL_CAPTURE_FARM") or os.getenv("LAST_HAUL_CAPTURE_MINE") or os.getenv("LAST_HAUL_CAPTURE_WALL") or os.getenv("LAST_HAUL_CAPTURE_REPAIR") or os.getenv("LAST_HAUL_CAPTURE_META") or os.getenv("LAST_HAUL_CAPTURE_RESULTS") or os.getenv("LAST_HAUL_CAPTURE_UPGRADE") or os.getenv("LAST_HAUL_CAPTURE_UNITS") or os.getenv("LAST_HAUL_CAPTURE_TEST_OPTIONS") or os.getenv("LAST_HAUL_CAPTURE_TURRET_PROMPT") or os.getenv("LAST_HAUL_CAPTURE_TURRET_PLACEMENT") or os.getenv("LAST_HAUL_CAPTURE_TURRET_UPGRADE")) and 30 or nil))))
+local captureFrames = os.getenv("LAST_HAUL_CAPTURE_TURRET_FIRE") and 3 or (os.getenv("LAST_HAUL_CAPTURE_DRILL") and 2 or ((os.getenv("LAST_HAUL_CAPTURE_RUSH") or os.getenv("LAST_HAUL_CAPTURE_LOBBY") or os.getenv("LAST_HAUL_CAPTURE_CLEARCUT") or os.getenv("LAST_HAUL_CAPTURE_CLEARCUT_UPGRADE") or os.getenv("LAST_HAUL_CAPTURE_CLEARCUT_RESULTS") or os.getenv("LAST_HAUL_CAPTURE_CLEARCUT_THREATS") or os.getenv("LAST_HAUL_CAPTURE_CLEARCUT_BUILDS") or os.getenv("LAST_HAUL_CAPTURE_CLEARCUT_CHAR_SELECT") or os.getenv("LAST_HAUL_CAPTURE_CLEARCUT_FIREJOB") or os.getenv("LAST_HAUL_CAPTURE_CLEARCUT_DEVJOB") or os.getenv("LAST_HAUL_CAPTURE_CLEARCUT_COMBAT") or os.getenv("LAST_HAUL_CAPTURE_CLEARCUT_DEFEAT") or os.getenv("LAST_HAUL_CAPTURE_CLEARCUT_MILESTONE")) and 6 or (os.getenv("LAST_HAUL_CAPTURE_HARVEST") and 10 or ((os.getenv("LAST_HAUL_CAPTURE") or os.getenv("LAST_HAUL_CAPTURE_GAME") or os.getenv("LAST_HAUL_CAPTURE_FARM") or os.getenv("LAST_HAUL_CAPTURE_MINE") or os.getenv("LAST_HAUL_CAPTURE_WALL") or os.getenv("LAST_HAUL_CAPTURE_REPAIR") or os.getenv("LAST_HAUL_CAPTURE_META") or os.getenv("LAST_HAUL_CAPTURE_RESULTS") or os.getenv("LAST_HAUL_CAPTURE_UPGRADE") or os.getenv("LAST_HAUL_CAPTURE_UNITS") or os.getenv("LAST_HAUL_CAPTURE_TEST_OPTIONS") or os.getenv("LAST_HAUL_CAPTURE_TURRET_PROMPT") or os.getenv("LAST_HAUL_CAPTURE_TURRET_PLACEMENT") or os.getenv("LAST_HAUL_CAPTURE_TURRET_UPGRADE")) and 30 or nil))))
 
 function love.load()
     love.graphics.setDefaultFilter("linear", "linear", 4)
@@ -117,6 +117,50 @@ function love.load()
         love.mouse.setPosition(love.graphics.getWidth() / 2 + 220, love.graphics.getHeight() / 2 - 60)
         game.clearcut:updateHeldAxe(0, game, true)
     end
+    if os.getenv("LAST_HAUL_CAPTURE_CLEARCUT_DEVJOB") then
+        game:startClearcut("developer")
+        local c = game.clearcut
+        c.levels = {pile_driving=3, heavy_machinery=3, demolition=3, site_clearance=3}
+        c:checkEvolutions(game)
+        -- exercise the dash attack path, all four Lv3 effects, and the newtown fusion once each
+        for run = 1, 6 do
+            local nearest, best = nil, math.huge
+            for _, node in ipairs(game.world.nodes) do
+                if node.rushTree and node.active then
+                    local dx, dy = node.x - game.player.x, node.y - game.player.y
+                    local d2 = dx*dx + dy*dy
+                    if d2 < best then nearest, best = node, d2 end
+                end
+            end
+            if not nearest then break end
+            game.camera.x, game.camera.y = nearest.x, nearest.y
+            love.mouse.setPosition(love.graphics.getWidth()/2, love.graphics.getHeight()/2)
+            c.attackCooldown = 0
+            c:updateDeveloperAttack(0, game, true)
+            for step = 1, 40 do
+                if not c.dashing then break end
+                c:updateDash(1/30, game)
+            end
+        end
+        c:damageEnemiesInRadius(game.player.x, game.player.y, 500, 999, game)
+        c:spawnBoss("ent", game)
+        c.activeBoss.hp = 0
+        c:updateEnemies(0.02, game)
+        c:updateChests(0, game)
+        game.player.x, game.player.y = c.chests[1] and c.chests[1].x or game.player.x, c.chests[1] and c.chests[1].y or game.player.y
+        c:updateChests(0, game)
+        if c.chestPending then c:choose(1, game) end
+        print("DEVJOB_SMOKE_TEST_OK job=" .. tostring(c.job) .. " destructionPct=" .. string.format("%.1f", c:destructionPct()) .. " newtown=" .. tostring(c.evolutions.newtown) .. " chests=" .. #c.chests .. " dashTrail=" .. #c.dashTrail)
+        game.mode = "playing"
+        if os.getenv("LAST_HAUL_CLEARCUT_DEVJOB_VIEW") then
+            c.dashTrail = {}
+            c.enemies, c.chests = {}, {}
+            game.camera.x, game.camera.y, game.camera.zoom = game.player.x + 40, game.player.y - 10, 1.4
+            love.mouse.setPosition(love.graphics.getWidth()/2 + 160, love.graphics.getHeight()/2 - 30)
+            c.attackCooldown = 0
+            c:updateDeveloperAttack(0, game, false)
+        end
+    end
     if os.getenv("LAST_HAUL_CAPTURE_CLEARCUT_MILESTONE") then
         game:startClearcut(os.getenv("LAST_HAUL_CLEARCUT_JOB") or "physical")
         local c = game.clearcut
@@ -148,6 +192,15 @@ function love.load()
                 c:updateToxicAttack(0, game, true)
                 c.attackCooldown = 0
                 c:updateToxicAttack(0, game, true)
+            elseif c.job == "developer" then
+                game.camera.x, game.camera.y = nearest.x, nearest.y
+                love.mouse.setPosition(love.graphics.getWidth()/2, love.graphics.getHeight()/2)
+                c.attackCooldown = 0
+                c:updateDeveloperAttack(0, game, true)
+                for step = 1, 40 do
+                    if not c.dashing then break end
+                    c:updateDash(1/30, game)
+                end
             else
                 c.axeCooldown = 0
                 c:hitTree(nearest, game)
