@@ -1,6 +1,6 @@
 local Game
 local game
-local captureFrames = os.getenv("LAST_HAUL_CAPTURE_TURRET_FIRE") and 3 or (os.getenv("LAST_HAUL_CAPTURE_DRILL") and 2 or ((os.getenv("LAST_HAUL_CAPTURE_RUSH") or os.getenv("LAST_HAUL_CAPTURE_LOBBY") or os.getenv("LAST_HAUL_CAPTURE_CLEARCUT") or os.getenv("LAST_HAUL_CAPTURE_CLEARCUT_UPGRADE") or os.getenv("LAST_HAUL_CAPTURE_CLEARCUT_RESULTS") or os.getenv("LAST_HAUL_CAPTURE_CLEARCUT_THREATS") or os.getenv("LAST_HAUL_CAPTURE_CLEARCUT_BUILDS") or os.getenv("LAST_HAUL_CAPTURE_CLEARCUT_CHAR_SELECT") or os.getenv("LAST_HAUL_CAPTURE_CLEARCUT_FIREJOB") or os.getenv("LAST_HAUL_CAPTURE_CLEARCUT_COMBAT") or os.getenv("LAST_HAUL_CAPTURE_CLEARCUT_DEFEAT")) and 6 or (os.getenv("LAST_HAUL_CAPTURE_HARVEST") and 10 or ((os.getenv("LAST_HAUL_CAPTURE") or os.getenv("LAST_HAUL_CAPTURE_GAME") or os.getenv("LAST_HAUL_CAPTURE_FARM") or os.getenv("LAST_HAUL_CAPTURE_MINE") or os.getenv("LAST_HAUL_CAPTURE_WALL") or os.getenv("LAST_HAUL_CAPTURE_REPAIR") or os.getenv("LAST_HAUL_CAPTURE_META") or os.getenv("LAST_HAUL_CAPTURE_RESULTS") or os.getenv("LAST_HAUL_CAPTURE_UPGRADE") or os.getenv("LAST_HAUL_CAPTURE_UNITS") or os.getenv("LAST_HAUL_CAPTURE_TEST_OPTIONS") or os.getenv("LAST_HAUL_CAPTURE_TURRET_PROMPT") or os.getenv("LAST_HAUL_CAPTURE_TURRET_PLACEMENT") or os.getenv("LAST_HAUL_CAPTURE_TURRET_UPGRADE")) and 30 or nil))))
+local captureFrames = os.getenv("LAST_HAUL_CAPTURE_TURRET_FIRE") and 3 or (os.getenv("LAST_HAUL_CAPTURE_DRILL") and 2 or ((os.getenv("LAST_HAUL_CAPTURE_RUSH") or os.getenv("LAST_HAUL_CAPTURE_LOBBY") or os.getenv("LAST_HAUL_CAPTURE_CLEARCUT") or os.getenv("LAST_HAUL_CAPTURE_CLEARCUT_UPGRADE") or os.getenv("LAST_HAUL_CAPTURE_CLEARCUT_RESULTS") or os.getenv("LAST_HAUL_CAPTURE_CLEARCUT_THREATS") or os.getenv("LAST_HAUL_CAPTURE_CLEARCUT_BUILDS") or os.getenv("LAST_HAUL_CAPTURE_CLEARCUT_CHAR_SELECT") or os.getenv("LAST_HAUL_CAPTURE_CLEARCUT_FIREJOB") or os.getenv("LAST_HAUL_CAPTURE_CLEARCUT_COMBAT") or os.getenv("LAST_HAUL_CAPTURE_CLEARCUT_DEFEAT") or os.getenv("LAST_HAUL_CAPTURE_CLEARCUT_MILESTONE")) and 6 or (os.getenv("LAST_HAUL_CAPTURE_HARVEST") and 10 or ((os.getenv("LAST_HAUL_CAPTURE") or os.getenv("LAST_HAUL_CAPTURE_GAME") or os.getenv("LAST_HAUL_CAPTURE_FARM") or os.getenv("LAST_HAUL_CAPTURE_MINE") or os.getenv("LAST_HAUL_CAPTURE_WALL") or os.getenv("LAST_HAUL_CAPTURE_REPAIR") or os.getenv("LAST_HAUL_CAPTURE_META") or os.getenv("LAST_HAUL_CAPTURE_RESULTS") or os.getenv("LAST_HAUL_CAPTURE_UPGRADE") or os.getenv("LAST_HAUL_CAPTURE_UNITS") or os.getenv("LAST_HAUL_CAPTURE_TEST_OPTIONS") or os.getenv("LAST_HAUL_CAPTURE_TURRET_PROMPT") or os.getenv("LAST_HAUL_CAPTURE_TURRET_PLACEMENT") or os.getenv("LAST_HAUL_CAPTURE_TURRET_UPGRADE")) and 30 or nil))))
 
 function love.load()
     love.graphics.setDefaultFilter("linear", "linear", 4)
@@ -117,6 +117,44 @@ function love.load()
         love.mouse.setPosition(love.graphics.getWidth() / 2 + 220, love.graphics.getHeight() / 2 - 60)
         game.clearcut:updateHeldAxe(0, game, true)
     end
+    if os.getenv("LAST_HAUL_CAPTURE_CLEARCUT_MILESTONE") then
+        game:startClearcut(os.getenv("LAST_HAUL_CLEARCUT_JOB") or "physical")
+        local c = game.clearcut
+        -- fell trees via the REAL per-job attack path (not direct function calls) until the 10% wave should fire
+        local need = math.ceil(c.initialTrees * .1) + 1
+        for i = 1, need do
+            local nearest, best = nil, math.huge
+            for _, node in ipairs(game.world.nodes) do
+                if node.rushTree and node.active then
+                    local dx, dy = node.x - game.player.x, node.y - game.player.y
+                    local d2 = dx*dx + dy*dy
+                    if d2 < best then nearest, best = node, d2 end
+                end
+            end
+            if not nearest then break end
+            game.player.x, game.player.y = nearest.x + 40, nearest.y
+            nearest.rushHp = 1
+            if c.job == "fire" then
+                love.mouse.setPosition(love.graphics.getWidth()/2, love.graphics.getHeight()/2)
+                c.attackCooldown = 0
+                local tx, ty = nearest.x, nearest.y
+                c:hurlMolotovAt(tx, ty, game)
+                c:updateMolotovs(10, game)
+                c:updateFire(10, game)
+            elseif c.job == "toxic" then
+                game.camera.x, game.camera.y = nearest.x, nearest.y
+                love.mouse.setPosition(love.graphics.getWidth()/2, love.graphics.getHeight()/2)
+                c.attackCooldown = 0
+                c:updateToxicAttack(0, game, true)
+                c.attackCooldown = 0
+                c:updateToxicAttack(0, game, true)
+            else
+                c.axeCooldown = 0
+                c:hitTree(nearest, game)
+            end
+        end
+        print("MILESTONE_TEST job=" .. tostring(c.job) .. " destructionPct=" .. string.format("%.1f", c:destructionPct()) .. " enemies=" .. #c.enemies .. " milestoneFired10=" .. tostring(c.milestoneFired[10]))
+    end
     if os.getenv("LAST_HAUL_CAPTURE_CLEARCUT_COMBAT") then
         game:startClearcut("physical")
         local c = game.clearcut
@@ -134,6 +172,16 @@ function love.load()
         c:updateEnemies(0.02, game)
         c:damagePlayer(30, game)
         print("COMBAT_SMOKE_TEST_OK hp=" .. c.hp .. " enemies=" .. #c.enemies .. " boss=" .. tostring(c.activeBoss and c.activeBoss.def.name) .. " worldtree=" .. tostring(c.worldTreeSpawned))
+        if os.getenv("LAST_HAUL_CLEARCUT_COMBAT_VIEW") then
+            c.enemies, c.chests, c.worldTree, c.activeBoss, c.worldTreeSpawned, c.pending = {}, {}, nil, nil, false, 0
+            local a1 = c:spawnEnemy("squirrel", game.player.x - 90, game.player.y - 40)
+            local a2 = c:spawnEnemy("boar", game.player.x + 70, game.player.y - 60)
+            local a3 = c:spawnEnemy("turret", game.player.x - 20, game.player.y - 140)
+            local a4 = c:spawnEnemy("ent", game.player.x + 160, game.player.y - 20)
+            local a5 = c:spawnEnemy("worldtree", game.player.x - 40, game.player.y - 320)
+            game.camera.x, game.camera.y, game.camera.zoom = game.player.x + 20, game.player.y - 120, .55
+            game.mode = "playing"
+        end
     end
     if os.getenv("LAST_HAUL_CAPTURE_CLEARCUT_DEFEAT") then
         game:startClearcut("physical")
@@ -142,23 +190,35 @@ function love.load()
     if os.getenv("LAST_HAUL_CAPTURE_CLEARCUT_BUILDS") then
         game:startClearcut()
         local c = game.clearcut
-        c.levels = {wide_blade=2, berserker=2, shockwave=2, domino=2, molotov=3, dry_forest=2, oil_drum=3, embers=2, herbicide=3, root_cutting=3, toxic_rain=2, forced_growth=1}
+        c.levels = {wide_blade=3, berserker=3, shockwave=3, domino=2, molotov=3, dry_forest=3, oil_drum=3, embers=3, herbicide=3, root_cutting=3, toxic_rain=3, forced_growth=1}
         c:checkEvolutions(game)
         c.elapsed = 46
-        c.streak = 6
+        c.streak = 12
         -- exercise every new subsystem once to smoke-test for errors
         local a, b = game.world.nodes[1], game.world.nodes[2]
         a.rushHp, a.fallDir = 1, 1
-        c:hitTree(a, game)
+        c:hitTree(a, game)              -- exercises megaCleave chance, frenzy, shockwave double-ring
+        c:megaCleave(a, game)
         b.burning, b.burnTimer = true, 5
-        c:updateFire(0.02, game)
+        c:updateFire(0.02, game)        -- exercises oil_drum guaranteed burst, embers landing burst, dry_forest wildburst path
+        c.wildburstTimer = 0; c:updateFire(0.02, game)
         c:updateToxicRain(10, game)
+        c:updatePlague(0.7, game)
         c:regrowPulse(game)
         c.job = "fire"; c:updateHeldAxe(0.02, game, true)
         c:updateMolotovs(2, game)
-        c.job = "toxic"; c:updateHeldAxe(0.02, game, true)
+        c:trackMolotovBarrage(game); c:trackMolotovBarrage(game); c:trackMolotovBarrage(game)
+        c.job = "toxic"; c:updateHeldAxe(0.02, game, true)  -- exercises necrosis
+        c:damagePlayer(50, game)        -- exercises berserker dodge (streak>=10, berserker>=3)
+        c:spawnBoss("ent", game)
+        c.enemies[1].hp = 0
+        c:updateEnemies(0.02, game)     -- exercises chest drop
+        c:updateChests(0, game)         -- won't collect (player not near), then force it
+        game.player.x, game.player.y = c.chests[1].x, c.chests[1].y
+        c:updateChests(0, game)         -- exercises openChest -> chestPending flow
+        if c.chestPending then c:choose(1, game) end
         c.job = "physical"
-        print("BUILD_SMOKE_TEST_OK")
+        print("BUILD_SMOKE_TEST_OK dodges=" .. c.dodges .. " frenzy=" .. tostring(c.evolutions.frenzy) .. " necrosis=" .. tostring(c.evolutions.necrosis) .. " chests=" .. #c.chests)
         game.mode = "playing"
     end
     if os.getenv("LAST_HAUL_CAPTURE_CLEARCUT_THREATS") then

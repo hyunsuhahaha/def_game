@@ -67,7 +67,8 @@ function ClearcutMode.new()
         streak=0, lastHitAt=-10, molotovTimer=0, wildfireTimer=0, toxicTimer=0, evolutions={}, molotovs={},
         job=nil, attackCooldown=0,
         hp=100, maxHp=100, invulnTimer=0, dead=false,
-        enemies={}, projectiles={}, bossTelegraphs={}, waveFired={}, worldTreeSpawned=false, readyToFinish=false, activeBoss=nil, kills=0
+        enemies={}, projectiles={}, bossTelegraphs={}, waveFired={}, worldTreeSpawned=false, readyToFinish=false, activeBoss=nil, kills=0,
+        chests={}, chestPending=false, molotovShots=0, wildburstTimer=10, plagued={}, dodges=0
     }, ClearcutMode)
 end
 
@@ -126,6 +127,8 @@ function ClearcutMode:update(dt, game)
     self:updateEnemies(dt, game)
     self:updateProjectiles(dt, game)
     self:updateBossTelegraphs(dt, game)
+    self:updateChests(dt, game)
+    self:updatePlague(dt, game)
     if self.elapsed - self.lastHitAt > .9 then self.streak = 0 end
     self.regrowFlash = math.max(0, self.regrowFlash - dt)
     self.rootedTimer = math.max(0, self.rootedTimer - dt)
@@ -231,6 +234,13 @@ end
 
 function ClearcutMode:damagePlayer(amount, game)
     if self.dead or self.invulnTimer > 0 or amount <= 0 then return end
+    if self:levelOf("berserker") >= 3 and self.streak >= 10 then
+        self.dodges = self.dodges + 1
+        self.invulnTimer = .2
+        game:setNotice("불멸의 분노 — 회피!", "food")
+        for _ = 1, 6 do game.world:addParticle(game.player.x, game.player.y - 20, {1, .85, .3}, true, false) end
+        return
+    end
     self.hp = math.max(0, self.hp - amount)
     self.invulnTimer = .35
     if game.camera then game.camera.trauma = math.min(1, game.camera.trauma + .3) end
@@ -334,7 +344,41 @@ function ClearcutMode:onEnemyDefeated(e, game)
         self.readyToFinish = true
         game:setNotice("세계수를 쓰러뜨렸다 — 숲이 완전히 멈췄다.", "food")
     end
+    if e.def.boss and not e.def.finalBoss then
+        self.chests[#self.chests + 1] = {x = e.x, y = e.y, collected = false}
+        game:setNotice(e.def.name .. "가 보물상자를 떨어뜨렸다!", "ore")
+    end
     if e == self.activeBoss then self.activeBoss = nil end
+end
+
+function ClearcutMode:updateChests(dt, game)
+    for _, c in ipairs(self.chests) do
+        if not c.collected then
+            local dx, dy = game.player.x - c.x, game.player.y - c.y
+            if dx*dx + dy*dy <= 46*46 then
+                c.collected = true
+                self:openChest(game)
+            end
+        end
+    end
+end
+
+function ClearcutMode:openChest(game)
+    local pool = {}
+    for _, def in ipairs(definitions) do
+        if def.job == self.job and self:levelOf(def.id) < def.max then pool[#pool + 1] = def end
+    end
+    if #pool == 0 then
+        self:onWood(40, game)
+        game:setNotice("보물상자 — 전직 스킬을 이미 전부 마스터했다! 목재 +40", "food")
+        return
+    end
+    for i = #pool, 2, -1 do local j = love.math.random(i); pool[i], pool[j] = pool[j], pool[i] end
+    self.choices = {}
+    for i = 1, math.min(3, #pool) do self.choices[i] = pool[i] end
+    self.chestPending = true
+    game.mode = "clearcut_upgrade"
+    game:setNotice("보물상자 — 전직 전용 스킬을 하나 고르세요!", "food")
 end
 
 function ClearcutMode:updateEnemies(dt, game)
@@ -355,9 +399,13 @@ function ClearcutMode:updateEnemies(dt, game)
             local dist = math.sqrt(dx*dx + dy*dy)
             if dist > def.radius + 20 then
                 e.x, e.y = e.x + dx / dist * def.speed * dt, e.y + dy / dist * def.speed * dt
-            elseif e.hitTimer <= 0 then
-                e.hitTimer = def.hitCooldown
-                self:damagePlayer(def.damage, game)
+                e.moving = true
+            else
+                e.moving = false
+                if e.hitTimer <= 0 then
+                    e.hitTimer = def.hitCooldown
+                    self:damagePlayer(def.damage, game)
+                end
             end
         end
         if def.slamInterval then
@@ -414,14 +462,29 @@ function ClearcutMode:throwMolotov(game)
         x0=game.player.x, y0=game.player.y-40, x1=target.x, y1=target.y,
         t=0, dur=math.max(.28, dist/900), target=target
     }
+    self:trackMolotovBarrage(game)
 end
 
-function ClearcutMode:hurlMolotovAt(tx, ty, game)
+function ClearcutMode:trackMolotovBarrage(game)
+    if self:levelOf("molotov") < 3 then return end
+    self.molotovShots = self.molotovShots + 1
+    if self.molotovShots % 3 == 0 then
+        game:setNotice("융단 폭격 — 화염병 만렙 특수효과!", "food")
+        for _ = 1, 2 do
+            local a = love.math.random() * math.pi * 2
+            local r = 60 + love.math.random() * 100
+            self:hurlMolotovAt(game.player.x + math.cos(a) * (200 + r), game.player.y + math.sin(a) * (200 + r), game, true)
+        end
+    end
+end
+
+function ClearcutMode:hurlMolotovAt(tx, ty, game, isBarrage)
     local dist = math.sqrt((tx-game.player.x)^2 + (ty-game.player.y)^2)
     self.molotovs[#self.molotovs+1] = {
         x0=game.player.x, y0=game.player.y-40, x1=tx, y1=ty,
         t=0, dur=math.max(.2, dist/1100), manual=true, radius=90 + self:levelOf("molotov") * 20
     }
+    if not isBarrage then self:trackMolotovBarrage(game) end
 end
 
 function ClearcutMode:updateMolotovs(dt, game)
@@ -446,7 +509,8 @@ end
 
 function ClearcutMode:onTreeBurnedDown(node, game)
     local oilLevel = self:levelOf("oil_drum")
-    if oilLevel > 0 and love.math.random() < oilLevel * .15 then
+    local oilChance = oilLevel >= 3 and 1 or oilLevel * .15
+    if oilLevel > 0 and love.math.random() < oilChance then
         self:igniteNear(node, game, 90 + oilLevel * 30, 99)
         game.world:igniteFx(node.x, node.y, true)
     end
@@ -462,9 +526,11 @@ function ClearcutMode:onTreeBurnedDown(node, game)
         end
         table.sort(far, function(a, b) return a.d2 > b.d2 end)
         for i = 1, math.min(emberLevel, #far) do
-            far[i].node.burning, far[i].node.burnTimer, far[i].node.emberChained = true, 0, true
-            far[i].node.spreadDepth, far[i].node.fireTickTimer = (node.spreadDepth or 0) + 1, 0
-            game.world:igniteFx(far[i].node.x, far[i].node.y, false)
+            local target = far[i].node
+            target.burning, target.burnTimer, target.emberChained = true, 0, true
+            target.spreadDepth, target.fireTickTimer = (node.spreadDepth or 0) + 1, 0
+            game.world:igniteFx(target.x, target.y, false)
+            if emberLevel >= 3 then self:igniteNear(target, game, 90, 2, target.spreadDepth) end
         end
     end
 end
@@ -490,6 +556,18 @@ function ClearcutMode:updateFire(dt, game)
     local spreadChancePerSec = .12 + dryLevel * .14
     local spreadRadius = 130 + dryLevel * 45
     local burnDuration = math.max(2.2, 3.6 - dryLevel * .35)
+    if dryLevel >= 3 then
+        self.wildburstTimer = self.wildburstTimer - dt
+        if self.wildburstTimer <= 0 then
+            self.wildburstTimer = 10
+            local burning = {}
+            for _, node in ipairs(game.world.nodes) do if node.rushTree and node.active and node.burning then burning[#burning+1] = node end end
+            if #burning > 0 then
+                game:setNotice("들불 — 마른 숲 만렙 특수효과!", "food")
+                for _, source in ipairs(burning) do self:igniteNear(source, game, spreadRadius * 1.4, 2) end
+            end
+        end
+    end
     for _, node in ipairs(game.world.nodes) do
         if node.rushTree and node.active and node.burning then
             node.burnTimer = node.burnTimer + dt
@@ -529,6 +607,36 @@ function ClearcutMode:updateToxicRain(dt, game)
         end
     end
     game.world:toxicPulseFx(game.player.x, game.player.y, radius)
+end
+
+function ClearcutMode:updatePlague(dt, game)
+    for i = #self.plagued, 1, -1 do
+        local p = self.plagued[i]
+        p.timer = p.timer - dt
+        p.tickTimer = (p.tickTimer or 0) - dt
+        local alive
+        if p.kind == "tree" then
+            alive = p.ref.rushTree and p.ref.active
+            if alive and p.tickTimer <= 0 then
+                p.tickTimer = .6
+                game.world:addParticle(p.ref.x, p.ref.y - 60, {.5, .85, .35}, false, false)
+                p.ref.rushHp = (p.ref.rushHp or p.ref.rushMaxHp) - 1
+                game.world:impactNode(p.ref, game, false)
+                if p.ref.rushHp <= 0 then self:fellTree(p.ref, game) end
+            end
+        else
+            alive = p.ref.hp > 0
+            if alive and p.tickTimer <= 0 then
+                p.tickTimer = .6
+                p.ref.hp = p.ref.hp - 2
+                game.world:addParticle(p.ref.x, p.ref.y - 10, {.5, .85, .35}, false, false)
+            end
+        end
+        if not alive or p.timer <= 0 then
+            if p.ref then p.ref.plagueMarked = nil end
+            table.remove(self.plagued, i)
+        end
+    end
 end
 
 function ClearcutMode:onTreeFallen(node, game)
@@ -633,13 +741,33 @@ function ClearcutMode:updateToxicAttack(dt, game, heldOverride)
     self.aimX, self.aimY, self.aimRadius = tx, ty, 90 + self:levelOf("toxic_rain") * 25
     if not held or self.attackCooldown > 0 then return false end
     local dmg = 2 + self:levelOf("toxic_rain")
+    local plagueLv3 = self:levelOf("toxic_rain") >= 3
     for _, node in ipairs(game.world.nodes) do
-        if node.rushTree and node.active then
+        if node.rushTree then
             local dx, dy = node.x - tx, node.y - ty
             if dx*dx + dy*dy <= self.aimRadius * self.aimRadius then
-                node.rushHp = (node.rushHp or node.rushMaxHp) - dmg
-                game.world:impactNode(node, game, true)
-                if node.rushHp <= 0 then self:fellTree(node, game) end
+                if self.evolutions.necrosis and not node.sterile then
+                    node.sterile = true
+                    game.world:addParticle(node.x, node.y - 30, {.55, .35, .25}, false, false)
+                end
+                if node.active then
+                    node.rushHp = (node.rushHp or node.rushMaxHp) - dmg
+                    game.world:impactNode(node, game, true)
+                    if node.rushHp <= 0 then self:fellTree(node, game)
+                    elseif plagueLv3 and not node.plagueMarked then
+                        node.plagueMarked = true
+                        self.plagued[#self.plagued+1] = {kind="tree", ref=node, timer=4, tickTimer=0}
+                    end
+                end
+            end
+        end
+    end
+    if plagueLv3 then
+        for _, e in ipairs(self.enemies) do
+            local dx, dy = e.x - tx, e.y - ty
+            if dx*dx + dy*dy <= self.aimRadius * self.aimRadius and not e.plagueMarked then
+                e.plagueMarked = true
+                self.plagued[#self.plagued+1] = {kind="enemy", ref=e, timer=4, tickTimer=0}
             end
         end
     end
@@ -700,6 +828,14 @@ function ClearcutMode:checkEvolutions(game)
         self.evolutions.deadGround = true
         game:setNotice("진화 — 죽은 땅! 한 번 벤 땅은 다시는 자라지 않는다.", "ore")
     end
+    if not self.evolutions.frenzy and self:levelOf("berserker") >= 3 and self:levelOf("shockwave") >= 3 then
+        self.evolutions.frenzy = true
+        game:setNotice("융합 스킬 — 광란 충격! 콤보가 절정에 달하면 모든 타격이 충격파를 뿜는다.", "ore")
+    end
+    if not self.evolutions.necrosis and self:levelOf("toxic_rain") >= 3 and self:levelOf("root_cutting") >= 3 then
+        self.evolutions.necrosis = true
+        game:setNotice("융합 스킬 — 괴사의 비! 맹독이 닿은 땅은 그 자리에서 불모지가 된다.", "ore")
+    end
 end
 
 function ClearcutMode:choose(index, game)
@@ -737,7 +873,27 @@ function ClearcutMode:fellTree(node, game)
         self.beeSwarmsTriggered = self.beeSwarmsTriggered + 1
         game:setNotice("벌집을 건드렸다 — 벌떼가 쫓아온다!", "ore")
     end
+    self:checkMilestones(game)
     return true
+end
+
+function ClearcutMode:megaCleave(primary, game)
+    local radius = 380
+    game:setNotice("광역 참격 — 넓은 날 만렙 특수효과!", "food")
+    if game.camera then game.camera.trauma = math.min(1, game.camera.trauma + .5) end
+    self:damageEnemiesInRadius(primary.x, primary.y, radius, 30, game)
+    game.world:igniteFx(primary.x, primary.y, true)
+    local hit = 0
+    for _, node in ipairs(game.world.nodes) do
+        if node.rushTree and node.active and hit < 40 then
+            local dx, dy = node.x - primary.x, node.y - primary.y
+            if dx*dx + dy*dy <= radius*radius then
+                node.rushHp = 0
+                game.world:impactNode(node, game, true)
+                if self:fellTree(node, game) then hit = hit + 1 end
+            end
+        end
+    end
 end
 
 function ClearcutMode:hitTree(primary, game)
@@ -748,6 +904,7 @@ function ClearcutMode:hitTree(primary, game)
     local radius = 75 + wideLevel * 45
     local targetCount = 1 + wideLevel * 2
     self:damageEnemiesInRadius(primary.x, primary.y, radius, 9 + self:levelOf("berserker") * 2, game)
+    if wideLevel >= 3 and love.math.random() < .15 then self:megaCleave(primary, game) end
     local candidates={}
     for _,node in ipairs(game.world.nodes) do
         if node.rushTree and node.active then
@@ -760,16 +917,21 @@ function ClearcutMode:hitTree(primary, game)
     local felled={}
     local hits=math.min(targetCount,#candidates)
     self.maxMulti=math.max(self.maxMulti,hits)
+    local frenzyActive = self.evolutions.frenzy and self.streak >= 10
     for i=1,hits do
         local node=candidates[i].node
         node.rushHp=(node.rushHp or node.rushMaxHp)-1
         game.world:impactNode(node,game,false)
         if node.rushHp<=0 and self:fellTree(node,game) then felled[#felled+1]=node end
+        if frenzyActive then
+            self:damageEnemiesInRadius(node.x, node.y, 65, 4, game)
+            game.world:addParticle(node.x, node.y - 40, {1, .82, .25}, false, false)
+        end
     end
     local shockLevel = self:levelOf("shockwave")
     if shockLevel > 0 and #felled > 0 then
         local shockRadius = 70 + shockLevel * 25
-        local hitSet, chainCount = {}, 0
+        local hitSet, chainCount, shockFelled = {}, 0, {}
         for _, source in ipairs(felled) do
             for _, node in ipairs(game.world.nodes) do
                 if node.rushTree and node.active and not hitSet[node] then
@@ -778,7 +940,23 @@ function ClearcutMode:hitTree(primary, game)
                         hitSet[node] = true
                         node.rushHp = (node.rushHp or node.rushMaxHp) - shockLevel
                         game.world:impactNode(node, game, true)
-                        if node.rushHp <= 0 and self:fellTree(node, game) then chainCount = chainCount + 1 end
+                        if node.rushHp <= 0 and self:fellTree(node, game) then chainCount = chainCount + 1; shockFelled[#shockFelled+1] = node end
+                    end
+                end
+            end
+        end
+        if shockLevel >= 3 and #shockFelled > 0 then
+            local r2 = shockRadius * .7
+            for _, source in ipairs(shockFelled) do
+                for _, node in ipairs(game.world.nodes) do
+                    if node.rushTree and node.active and not hitSet[node] then
+                        local dx, dy = node.x - source.x, node.y - source.y
+                        if dx*dx + dy*dy <= r2 * r2 then
+                            hitSet[node] = true
+                            node.rushHp = (node.rushHp or node.rushMaxHp) - math.ceil(shockLevel / 2)
+                            game.world:impactNode(node, game, true)
+                            if node.rushHp <= 0 and self:fellTree(node, game) then chainCount = chainCount + 1 end
+                        end
                     end
                 end
             end
@@ -827,40 +1005,142 @@ local function drawBeehive(x, y, t)
     end
 end
 
+-- 픽셀 그리드 스프라이트: 문자 하나 = 픽셀 한 칸. '.'은 투명.
+local function drawPixelGrid(rows, palette, cx, cy, px)
+    local gh, gw = #rows, #rows[1]
+    local ox, oy = gw * px / 2, gh * px / 2
+    for ry = 1, gh do
+        local row = rows[ry]
+        for rx = 1, gw do
+            local col = palette[row:sub(rx, rx)]
+            if col then
+                love.graphics.setColor(col)
+                love.graphics.rectangle("fill", math.floor(cx - ox + (rx - 1) * px), math.floor(cy - oy + (ry - 1) * px), px + 1, px + 1)
+            end
+        end
+    end
+end
+
+local squirrelRows = {
+    "..OO....",
+    ".OBBO.TT",
+    "OBBBBOTT",
+    "OBEOBEOT",
+    "OBBBBBO.",
+    ".OBBBO..",
+    "..OLOL..",
+    "..OO.OO.",
+}
+local squirrelPalette = {O={.15,.09,.05,1}, B={.72,.4,.14,1}, E={1,.16,.1,1}, T={.5,.28,.11,1}, L={.4,.22,.09,1}}
+
+local boarRows = {
+    "..OOOOOO..",
+    ".ODDDDDDO.",
+    "ODDDDDDDDO",
+    "ODEDDDDEDO",
+    "ODDDDDDDDO",
+    "OWO....OWO",
+    ".OL.OO.LO.",
+    "..O....O.",
+}
+local boarPalette = {O={.14,.08,.05,1}, D={.42,.26,.16,1}, E={.05,.03,.02,1}, W={.92,.86,.72,1}, L={.28,.16,.09,1}}
+
+local turretRows = {
+    "..OOOO..",
+    ".OCCCCO.",
+    "OCCwCCCO",
+    "OCCCwCCO",
+    "OCCCCCCO",
+    "..OSSO..",
+    "..OSSO..",
+    "..OOOO..",
+}
+local turretPalette = {O={.16,.05,.13,1}, C={.72,.28,.5,1}, w={.96,.82,.9,1}, S={.72,.62,.48,1}}
+
+local entRows = {
+    "..OOOOOOOO..",
+    ".OGGGGGGGGO.",
+    "OGGgGGGgGGGO",
+    "OGGGGGGGGGGO",
+    ".OGGGGGGGGO.",
+    "..OOBBBBOO..",
+    "...OBEBEOO..",
+    "...OBBBBOO..",
+    "...OBBBBOO..",
+    "..OOBBBBOO..",
+    ".OO.OBBO.OO.",
+    "OO..OBBO..OO",
+    "....OLO.OLO.",
+    "....OO...OO.",
+}
+local entPalette = {O={.1,.07,.03,1}, G={.2,.42,.14,1}, g={.28,.55,.2,1}, B={.42,.27,.14,1}, E={1,.82,.2,1}, L={.24,.15,.07,1}}
+
+local worldTreeRows = {
+    "...OOOOOOOOOOO...",
+    "..OGGGGGGGGGGGO..",
+    ".OGGgGGGGGgGGGGO.",
+    "OGGGGGGgGGGGGGGGO",
+    "OGGgGGGGGGGgGGGGO",
+    ".OGGGGGGGGGGGGGO.",
+    "..OGGGGGGGGGGGO..",
+    "...OOBBBBBBBOO...",
+    "....OBBYYYBBOO...",
+    "....OBBYYYBBOO...",
+    "....OBBBBBBBOO...",
+    "...OOBB.BBBOO....",
+    "..OO.BB.BB.OO....",
+    ".OO..BB.BB..OO...",
+    "OO...OO.OO...OO..",
+    "O....O...O....O..",
+}
+local worldTreePalette = {O={.08,.05,.02,1}, G={.18,.4,.16,1}, g={.26,.56,.24,1}, B={.32,.2,.1,1}, Y={1,.9,.45,1}}
+
+local enemySprites = {
+    squirrel = {rows = squirrelRows, palette = squirrelPalette},
+    boar = {rows = boarRows, palette = boarPalette},
+    turret = {rows = turretRows, palette = turretPalette},
+    ent = {rows = entRows, palette = entPalette},
+    worldtree = {rows = worldTreeRows, palette = worldTreePalette},
+}
+
+local chestRows = {
+    "..OOOOOO..",
+    ".OGGGGGGO.",
+    "OGGGGGGGGO",
+    "OOOOOOOOOO",
+    "OWWWKWWWWO",
+    "OWWWKWWWWO",
+    "OWWWKWWWWO",
+    ".OOOOOOOO.",
+}
+local chestPalette = {O={.16,.1,.04,1}, G={.85,.68,.28,1}, W={.5,.3,.13,1}, K={1,.92,.4,1}}
+
 local function drawEnemy(e, t)
     local def = e.def
-    local bob = def.speed > 0 and math.sin(t * 8 + e.x) * 2 or 0
-    love.graphics.setColor(0, 0, 0, .32); love.graphics.ellipse("fill", e.x, e.y + def.radius * .55, def.radius * .95, def.radius * .38)
-    love.graphics.setColor(def.color); love.graphics.circle("fill", e.x, e.y + bob, def.radius)
-    love.graphics.setColor(def.color[1] * .45, def.color[2] * .45, def.color[3] * .45, 1); love.graphics.setLineWidth(2.4)
-    love.graphics.circle("line", e.x, e.y + bob, def.radius)
-    if e.kind == "squirrel" then
-        love.graphics.setColor(def.color); love.graphics.polygon("fill", e.x - def.radius * .6, e.y + bob, e.x - def.radius * 1.6, e.y + bob - def.radius, e.x - def.radius * .3, e.y + bob - def.radius * .3)
-    elseif e.kind == "boar" then
-        love.graphics.setColor(1, .96, .85, 1)
-        love.graphics.polygon("fill", e.x - def.radius * .5, e.y + bob + def.radius * .3, e.x - def.radius * .9, e.y + bob + def.radius * .55, e.x - def.radius * .3, e.y + bob + def.radius * .5)
-        love.graphics.polygon("fill", e.x + def.radius * .5, e.y + bob + def.radius * .3, e.x + def.radius * .9, e.y + bob + def.radius * .55, e.x + def.radius * .3, e.y + bob + def.radius * .5)
-    elseif e.kind == "turret" then
-        love.graphics.setColor(1, 1, 1, .9)
-        for i = -2, 2 do love.graphics.circle("fill", e.x + i * def.radius * .32, e.y + bob - def.radius * .3, def.radius * .13) end
-    elseif def.finalBoss then
-        love.graphics.setColor(.2, .4, .16, 1); love.graphics.setLineWidth(5)
-        for i = 1, 5 do
-            local a = i / 5 * math.pi * 2 + t * .3
-            love.graphics.line(e.x, e.y, e.x + math.cos(a) * def.radius * 1.3, e.y + math.sin(a) * def.radius * .6)
+    local walking = def.speed > 0 and (e.moving or false)
+    local bob = walking and math.abs(math.sin(t * 10 + e.x)) * def.radius * .12 or (def.boss and math.sin(t * 1.6 + e.x) * def.radius * .04 or 0)
+    local sprite = enemySprites[e.kind]
+    love.graphics.setColor(0, 0, 0, .32)
+    love.graphics.ellipse("fill", e.x, e.y + def.radius * .8, def.radius * .95, def.radius * .3)
+    if sprite then
+        local px = (def.radius * 2.1) / #sprite.rows[1]
+        if walking then
+            love.graphics.push(); love.graphics.rotate(math.sin(t * 10 + e.x) * .05)
         end
-    elseif def.boss then
-        love.graphics.setColor(.5, .35, .18, .9); love.graphics.setLineWidth(3)
-        love.graphics.line(e.x - def.radius * .5, e.y - def.radius * .3, e.x - def.radius * .9, e.y - def.radius * .9)
-        love.graphics.line(e.x + def.radius * .5, e.y - def.radius * .3, e.x + def.radius * .9, e.y - def.radius * .9)
+        drawPixelGrid(sprite.rows, sprite.palette, e.x, e.y - bob, px)
+        if walking then love.graphics.pop() end
     end
-    love.graphics.setColor(1, .25, .18, 1)
-    love.graphics.circle("fill", e.x - def.radius * .3, e.y + bob - def.radius * .15, def.radius * .13)
-    love.graphics.circle("fill", e.x + def.radius * .3, e.y + bob - def.radius * .15, def.radius * .13)
+    if e.plagueMarked then
+        love.graphics.setColor(.5, .9, .35, .3 + math.sin(t * 8) * .12)
+        love.graphics.rectangle("fill", e.x - def.radius, e.y - bob - def.radius, def.radius * 2, def.radius * 2)
+    end
     local hpPct = math.max(0, e.hp / e.maxHp)
-    local barW = def.radius * 2
-    love.graphics.setColor(0, 0, 0, .65); love.graphics.rectangle("fill", e.x - barW / 2, e.y - def.radius - 14, barW, 5)
-    love.graphics.setColor(hpPct > .5 and 1 or 1, hpPct > .5 and .3 or .15, .2, 1); love.graphics.rectangle("fill", e.x - barW / 2, e.y - def.radius - 14, barW * hpPct, 5)
+    local barW = def.radius * 2.2
+    love.graphics.setColor(0, 0, 0, .7); love.graphics.rectangle("fill", math.floor(e.x - barW/2), math.floor(e.y - def.radius - 16), math.floor(barW), 6)
+    love.graphics.setColor(hpPct > .3 and 1 or 1, hpPct > .3 and .3 or .12, .16, 1)
+    love.graphics.rectangle("fill", math.floor(e.x - barW/2), math.floor(e.y - def.radius - 16), math.floor(barW * hpPct), 6)
+    love.graphics.setColor(1, 1, 1, .5); love.graphics.setLineWidth(1)
+    love.graphics.rectangle("line", math.floor(e.x - barW/2), math.floor(e.y - def.radius - 16), math.floor(barW), 6)
 end
 
 function ClearcutMode:drawWorldOverlay(game)
@@ -878,6 +1158,14 @@ function ClearcutMode:drawWorldOverlay(game)
     for _, node in ipairs(game.world.nodes) do
         if node.rushTree and node.active and node.beehive then
             drawBeehive(node.x, node.y - 150, t)
+        end
+    end
+    for _, c in ipairs(self.chests) do
+        if not c.collected then
+            local bob = math.sin(t * 2.4 + c.x) * 4
+            love.graphics.setColor(1, .85, .3, .18 + math.sin(t * 3) * .08)
+            love.graphics.circle("fill", c.x, c.y + bob, 34)
+            drawPixelGrid(chestRows, chestPalette, c.x, c.y + bob, 4.2)
         end
     end
     for _, hazard in ipairs(self.rootHazards) do
@@ -995,6 +1283,8 @@ function ClearcutMode:drawHUD(game,fonts)
     if self.evolutions.wildfire then evoNames[#evoNames+1] = "산불" end
     if self.evolutions.collapse then evoNames[#evoNames+1] = "벌목 붕괴" end
     if self.evolutions.deadGround then evoNames[#evoNames+1] = "죽은 땅" end
+    if self.evolutions.frenzy then evoNames[#evoNames+1] = "광란 충격" end
+    if self.evolutions.necrosis then evoNames[#evoNames+1] = "괴사의 비" end
     if #evoNames > 0 then
         love.graphics.setColor(1, .82, .3); love.graphics.print("진화: " .. table.concat(evoNames, " · "), 32, 146)
     end
