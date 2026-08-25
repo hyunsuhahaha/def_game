@@ -463,7 +463,7 @@ end
 
 local function affordable(game, index)
     if index == 1 then return game.food >= 12 end
-    if index == 2 then return game.ore >= 14 end
+    if index == 2 then return game.ore >= 6 end
     if index == 3 then return game.food >= 8 and game.ore >= 8 end
     if index == 5 then return true end
     local wall = game.world.wall
@@ -549,7 +549,7 @@ function Game:drawUI()
     self:drawMinimap(16, h - 158, 205, 142); self:drawToolBelt(w - 276, h - 158, 260, 142)
     local nextWall = wall.level < wall.maxLevel and self.wallCosts[wall.level + 1] or nil
     local wallCostText = nextWall and string.format("목%d 돌%d", nextWall.wood, nextWall.stone) or "최고 단계"
-    local abilities = {{"1", "수호자", "식량 12"}, {"2", "포탑", "광석 14"}, {"3", "장비", "식8 광8"}, {"4", "방벽강화", wallCostText}, {"5", "건설", "건물 배치"}}
+    local abilities = {{"1", "수호자", "식량 12"}, {"2", "포탑", "광석 6"}, {"3", "장비", "식8 광8"}, {"4", "방벽강화", wallCostText}, {"5", "건설", "건물 배치"}}
     local total, slotW, gap, startX, barY = 692, 132, 8, w / 2 - 346, h - 92
     for i, ability in ipairs(abilities) do
         local x, ready = startX + (i - 1) * (slotW + gap), affordable(self, i)
