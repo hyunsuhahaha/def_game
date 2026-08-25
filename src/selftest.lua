@@ -97,6 +97,12 @@ function SelfTest.run(game)
         assert(game.world:addBuilding("auto_farm", 1070 + (i - 1) * 60, 1180), "자동 농기계 건설 실패")
     end
     assert(#game.world.buildings == 7, "건설된 생산 시설 개수 불일치")
+    local miningDrone = game.world:addBuilding("mining_drone", 1390, 1180)
+    assert(miningDrone, "채굴 드론 건설 실패")
+    local drillBefore = miningDrone.drillAngle or 0
+    miningDrone.timer = 0
+    game.world:updateBuildings(.05, game)
+    assert((miningDrone.drillAngle or 0) > drillBefore and (miningDrone.drillBurst or 0) > 0, "채굴 드론 회전·채굴 분진 효과 실패")
     local combatSlot = game.world:firstAvailableTurretSlot()
     local combatTurret = game.world:addBuilding("autocannon_turret", combatSlot.x, combatSlot.y, combatSlot.index)
     assert(combatTurret and combatTurret.level == 0, "포탑 초기 레벨 실패")
@@ -115,14 +121,25 @@ function SelfTest.run(game)
     game:tryOpenTurretUpgrade(combatTurret)
     game:cancelTurretUpgrade()
     assert(game.mode == "playing" and combatTurret.level == 1, "포탑 강화 취소 실패")
-    combatTurret.mods, combatTurret.level = {multishot = 1, double_tap = 1}, 2
+    combatTurret.mods, combatTurret.level = {multishot = 1, double_tap = 1, rapid_coil = 1, heavy_shell = 1}, 4
     local turretDef = game.world:defFor("autocannon_turret")
     for i = 1, 4 do game.world.enemies[#game.world.enemies + 1] = {x = combatTurret.x + i * 10, y = combatTurret.y, hp = 500, speed = 0, hit = 0} end
     combatTurret.timer = 0
     game.world:updateBuildings(.01, game)
     assert(#game.world.bullets >= 4 and #game.world.muzzleFlashes > 0, "가시 탄환·총구 섬광 생성 실패")
     assert(combatTurret.aimAngle > .5, "포탑 목표 방향 회전 실패")
-    for _ = 1, 12 do game.world:updateProjectiles(.05, game) end
+    local sawChain, sawExplosion, effectsRendered = false, false, false
+    for _ = 1, 12 do
+        game.world:updateProjectiles(.05, game)
+        sawChain = sawChain or #game.world.chainArcs > 0
+        sawExplosion = sawExplosion or #game.world.explosions > 0
+        if not effectsRendered and #game.world.chainArcs > 0 and #game.world.explosions > 0 then
+            local drawOk, drawError = pcall(game.draw, game)
+            assert(drawOk, "전투 이펙트 렌더 실패: " .. tostring(drawError))
+            effectsRendered = true
+        end
+    end
+    assert(sawChain and sawExplosion and effectsRendered, "연쇄 코일·폭발 탄두 시각 효과 실패")
     local totalDamage = 0
     for _, e in ipairs(game.world.enemies) do totalDamage = totalDamage + (500 - e.hp) end
     assert(totalDamage >= turretDef.damage * 4, "다중공격·이중발사 배수 적용 실패")
@@ -242,7 +259,7 @@ function SelfTest.run(game)
     local afterReward = game.progression.data.currency
     game:finishRun(false)
     assert(game.progression.data.currency == afterReward, "런 보상 중복 지급 방지 실패")
-    print("SELF_TEST_OK: LOBBY_SINGLE_START LOBBY_AUX_NAV SETTINGS BIG_TREE_SINGLE TREE_PER_HIT_DROP TREE_PROXIMITY_PICKUP QUARRY_GROUNDED QUARRY_PER_HIT_DROP QUARRY_ORE_RATIO QUARRY_PROXIMITY_PICKUP FARM TREE QUARRY_INFINITE TOOL_SPEED IMPACT_SYNC HARVEST_FEEDBACK VISIBLE_TURRET VISIBLE_DRONE VISIBLE_REPAIR_STATION RUN_LEVELUP THREE_CHOICES AUTOMATION EVOLUTION WALL_UPGRADE WALL_BLOCK HAMMER_REPAIR CRIT_CHANCE PRESTIGE_RUN MOVE_WHILE_FARM TURRET_SLOT_BASE TURRET_SLOT_TRAIT TURRET_SLOT_OCCUPIED TURRET_NEARBY TURRET_F_INTERACT TURRET_UPGRADE TURRET_AIM VISIBLE_BULLET MUZZLE_FLASH META_SAVE TRAIT_TREE TRAIT_APPLY RUN_REWARD TEST_CURRENCY TEST_RESOURCES TEST_LEVELS TEST_RESET")
+    print("SELF_TEST_OK: LOBBY_SINGLE_START LOBBY_AUX_NAV SETTINGS BIG_TREE_SINGLE TREE_PER_HIT_DROP TREE_PROXIMITY_PICKUP QUARRY_GROUNDED QUARRY_PER_HIT_DROP QUARRY_ORE_RATIO QUARRY_PROXIMITY_PICKUP FARM TREE QUARRY_INFINITE TOOL_SPEED IMPACT_SYNC HARVEST_FEEDBACK VISIBLE_TURRET VISIBLE_DRONE VISIBLE_REPAIR_STATION MINING_DRILL_VFX RUN_LEVELUP THREE_CHOICES AUTOMATION EVOLUTION WALL_UPGRADE WALL_BLOCK HAMMER_REPAIR CRIT_CHANCE PRESTIGE_RUN MOVE_WHILE_FARM TURRET_SLOT_BASE TURRET_SLOT_TRAIT TURRET_SLOT_OCCUPIED TURRET_NEARBY TURRET_F_INTERACT TURRET_UPGRADE TURRET_AIM VISIBLE_BULLET MUZZLE_FLASH CHAIN_COIL_VFX EXPLOSIVE_SHELL_VFX META_SAVE TRAIT_TREE TRAIT_APPLY RUN_REWARD TEST_CURRENCY TEST_RESOURCES TEST_LEVELS TEST_RESET")
 end
 
 return SelfTest

@@ -1,6 +1,6 @@
 local Game
 local game
-local captureFrames = os.getenv("LAST_HAUL_CAPTURE_TURRET_FIRE") and 1 or (os.getenv("LAST_HAUL_CAPTURE_HARVEST") and 10 or ((os.getenv("LAST_HAUL_CAPTURE") or os.getenv("LAST_HAUL_CAPTURE_GAME") or os.getenv("LAST_HAUL_CAPTURE_FARM") or os.getenv("LAST_HAUL_CAPTURE_MINE") or os.getenv("LAST_HAUL_CAPTURE_WALL") or os.getenv("LAST_HAUL_CAPTURE_REPAIR") or os.getenv("LAST_HAUL_CAPTURE_META") or os.getenv("LAST_HAUL_CAPTURE_RESULTS") or os.getenv("LAST_HAUL_CAPTURE_UPGRADE") or os.getenv("LAST_HAUL_CAPTURE_UNITS") or os.getenv("LAST_HAUL_CAPTURE_TEST_OPTIONS") or os.getenv("LAST_HAUL_CAPTURE_TURRET_PROMPT") or os.getenv("LAST_HAUL_CAPTURE_TURRET_PLACEMENT") or os.getenv("LAST_HAUL_CAPTURE_TURRET_UPGRADE")) and 30 or nil))
+local captureFrames = os.getenv("LAST_HAUL_CAPTURE_TURRET_FIRE") and 3 or (os.getenv("LAST_HAUL_CAPTURE_DRILL") and 2 or (os.getenv("LAST_HAUL_CAPTURE_HARVEST") and 10 or ((os.getenv("LAST_HAUL_CAPTURE") or os.getenv("LAST_HAUL_CAPTURE_GAME") or os.getenv("LAST_HAUL_CAPTURE_FARM") or os.getenv("LAST_HAUL_CAPTURE_MINE") or os.getenv("LAST_HAUL_CAPTURE_WALL") or os.getenv("LAST_HAUL_CAPTURE_REPAIR") or os.getenv("LAST_HAUL_CAPTURE_META") or os.getenv("LAST_HAUL_CAPTURE_RESULTS") or os.getenv("LAST_HAUL_CAPTURE_UPGRADE") or os.getenv("LAST_HAUL_CAPTURE_UNITS") or os.getenv("LAST_HAUL_CAPTURE_TEST_OPTIONS") or os.getenv("LAST_HAUL_CAPTURE_TURRET_PROMPT") or os.getenv("LAST_HAUL_CAPTURE_TURRET_PLACEMENT") or os.getenv("LAST_HAUL_CAPTURE_TURRET_UPGRADE")) and 30 or nil)))
 
 function love.load()
     love.graphics.setDefaultFilter("linear", "linear", 4)
@@ -58,10 +58,18 @@ function love.load()
         game.player.x, game.player.y = turret.x + 80, turret.y + 80
         game.camera.x, game.camera.y = turret.x - 20, turret.y - 140
         game.world.enemies = {
-            {x=turret.x,y=turret.y-300,hp=800,speed=0,hit=0},
-            {x=turret.x-90,y=turret.y-315,hp=800,speed=0,hit=0}
+            {x=turret.x,y=turret.y-155,hp=800,speed=0,hit=0},
+            {x=turret.x-70,y=turret.y-175,hp=800,speed=0,hit=0},
+            {x=turret.x+75,y=turret.y-190,hp=800,speed=0,hit=0}
         }
-        turret.mods, turret.timer = {multishot=1}, 0
+        turret.mods, turret.timer = {rapid_coil=2,heavy_shell=1}, 0
+    end
+    if os.getenv("LAST_HAUL_CAPTURE_DRILL") then
+        game:startRun()
+        local drone = game.world:addBuilding("mining_drone", 1780, 1450)
+        drone.timer = 0
+        game.player.x, game.player.y = 1680, 1520
+        game.camera.x, game.camera.y = drone.x, drone.y
     end
     if os.getenv("LAST_HAUL_CAPTURE_TURRET_PLACEMENT") then
         game.progression.data.levels.turret_slots = tonumber(os.getenv("LAST_HAUL_TURRET_SLOT_LEVEL")) or 0

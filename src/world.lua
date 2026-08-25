@@ -14,8 +14,8 @@ end
 local turretMods = {
     {id="multishot", name="다중 조준", desc="한 번에 공격하는 대상 수가 늘어납니다.", color={1,.55,.2,1}},
     {id="double_tap", name="이중 발사", desc="공격 사이클마다 한 번 더 발사합니다.", color={.35,.85,1,1}},
-    {id="heavy_shell", name="강화 탄두", desc="공격력이 크게 증가합니다.", color={1,.3,.3,1}},
-    {id="rapid_coil", name="연사 코일", desc="공격 속도가 빨라집니다.", color={1,.85,.25,1}},
+    {id="heavy_shell", name="폭발 탄두", desc="명중 지점이 폭발해 주변 적에게도 피해를 줍니다.", color={1,.3,.3,1}},
+    {id="rapid_coil", name="연쇄 코일", desc="공격 속도가 빨라지고 전격이 가까운 적에게 연쇄됩니다.", color={.28,.78,1,1}},
     {id="long_barrel", name="확장 포신", desc="사거리가 늘어납니다.", color={.55,1,.6,1}}
 }
 local turretMaxLevel = 8
@@ -69,7 +69,7 @@ function World.new()
     self.buildingIcons = {}
     for _, def in ipairs(buildingDefs) do self.buildingIcons[def.id] = image(def.icon or ("assets/upgrades/" .. def.id .. ".png")) end
     self.nodes, self.enemies, self.defenders, self.turrets, self.buildings, self.shots, self.drops, self.helpers = {}, {}, {}, {}, {}, {}, {}, {}
-    self.bullets, self.muzzleFlashes, self.impactFlashes = {}, {}, {}
+    self.bullets, self.muzzleFlashes, self.impactFlashes, self.chainArcs, self.explosions = {}, {}, {}, {}, {}
     self.particles, self.popups, self.harvestChain, self.harvestChainTime = {}, {}, 0, 0
     self.effectFont = love.graphics.newFont("assets/font-korean.ttf", 18)
     self.quarryVisual = {shadowX = 5, shadowY = 7, shadowRx = 104, shadowRy = 11, shadowAlpha = .22, frontBias = 130}
@@ -468,7 +468,9 @@ function World:updateBuildings(dt, game)
     for _, b in ipairs(self.buildings) do
         b.flash = math.max(0, (b.flash or 0) - dt)
         b.recoil = math.max(0, (b.recoil or 0) - dt * 5.5)
+        b.drillBurst = math.max(0, (b.drillBurst or 0) - dt)
         local def = buildingById[b.kind]
+        if b.kind == "mining_drone" then b.drillAngle = (b.drillAngle or 0) + dt * (8 + (b.drillBurst or 0) * 48) end
         if def.behavior == "turret" then self:updateTurretAim(b, def, dt) end
         if def.fuelRadius then
             local dx, dy = game.player.x - b.x, game.player.y - b.y
@@ -486,6 +488,13 @@ function World:updateBuildings(dt, game)
             elseif def.behavior == "produce" then
                 self:spawnDrop(def.resource, def.amount + (game.metaProduceBonus or 0), b.x, b.y + 44, 50, 40)
                 b.flash = .3
+                if b.kind == "mining_drone" then
+                    b.drillBurst = .5
+                    for _ = 1, 13 do
+                        local p = {x=b.x+love.math.random(-14,14),y=b.y+20,vx=love.math.random(-105,105),vy=love.math.random(-90,-20),life=.42,maxLife=.42,size=love.math.random(2,5),color=love.math.random()<.35 and {.25,.82,1} or {.62,.68,.72}}
+                        self.particles[#self.particles+1] = p
+                    end
+                end
             elseif def.behavior == "spawn" then
                 local affordable = true
                 for res, amt in pairs(def.spawnCost) do if (game[res] or 0) < amt then affordable = false end end
@@ -694,7 +703,9 @@ function World:spawnAutocannonRound(building, target, damage, game)
     local muzzleY = building.y - 64 + math.sin(angle) * 90 + math.cos(angle) * side
     self.bullets[#self.bullets + 1] = {
         x = muzzleX, y = muzzleY, previousX = muzzleX, previousY = muzzleY,
-        target = target, damage = damage, speed = 820, life = 1.4, angle = angle
+        target = target, damage = damage, speed = 820, life = 1.4, angle = angle,
+        chainLevel = (building.mods and building.mods.rapid_coil) or 0,
+        explosiveLevel = (building.mods and building.mods.heavy_shell) or 0
     }
     self.muzzleFlashes[#self.muzzleFlashes + 1] = {x = muzzleX, y = muzzleY, angle = angle, life = .13, maxLife = .13}
     for _ = 1, 5 do
@@ -707,6 +718,60 @@ function World:spawnAutocannonRound(building, target, damage, game)
     end
     building.flash, building.recoil = .16, .16
     if game.camera then game.camera.trauma = math.min(1, game.camera.trauma + .045) end
+end
+
+function World:createChainArc(from, to, damage, level, game)
+    local points, segments = {}, 8
+    local dx, dy = to.x - from.x, to.y - from.y
+    local length = math.max(1, math.sqrt(dx * dx + dy * dy))
+    local nx, ny = -dy / length, dx / length
+    for i = 0, segments do
+        local t = i / segments
+        local jitter = (i == 0 or i == segments) and 0 or love.math.random(-11, 11)
+        points[#points + 1] = from.x + dx * t + nx * jitter
+        points[#points + 1] = from.y + dy * t + ny * jitter
+    end
+    self.chainArcs[#self.chainArcs + 1] = {points=points,life=.23,maxLife=.23}
+    to.hp = to.hp - damage
+    self:applyCombatEffects(to, damage, game)
+    for _ = 1, 5 do self:addParticle(to.x, to.y, {.3,.82,1}, false, false) end
+end
+
+function World:triggerRoundEffects(bullet, primary, game)
+    local explosiveLevel = bullet.explosiveLevel or 0
+    if explosiveLevel > 0 then
+        local radius = 72 + explosiveLevel * 12
+        self.explosions[#self.explosions + 1] = {x=primary.x,y=primary.y,life=.48,maxLife=.48,radius=radius}
+        for _, enemy in ipairs(self.enemies) do
+            if enemy ~= primary and enemy.hp > 0 then
+                local dx, dy = enemy.x - primary.x, enemy.y - primary.y
+                if dx * dx + dy * dy <= radius * radius then
+                    local splash = bullet.damage * (.38 + explosiveLevel * .12)
+                    enemy.hp = enemy.hp - splash
+                    self:applyCombatEffects(enemy, splash, game)
+                end
+            end
+        end
+        for _ = 1, 22 do self:addParticle(primary.x, primary.y, love.math.random()<.35 and {1,.88,.38} or {1,.3,.08}, true, false) end
+        if game.camera then game.camera.trauma = math.min(1, game.camera.trauma + .22) end
+    end
+    local chainLevel = bullet.chainLevel or 0
+    if chainLevel > 0 then
+        local current, used = primary, {[primary]=true}
+        for _ = 1, math.min(3, chainLevel) do
+            local nextTarget, bestDistance2
+            for _, enemy in ipairs(self.enemies) do
+                if enemy.hp > 0 and not used[enemy] then
+                    local dx, dy = enemy.x - current.x, enemy.y - current.y
+                    local distance2 = dx * dx + dy * dy
+                    if distance2 <= 185 * 185 and (not bestDistance2 or distance2 < bestDistance2) then nextTarget, bestDistance2 = enemy, distance2 end
+                end
+            end
+            if not nextTarget then break end
+            self:createChainArc(current, nextTarget, bullet.damage * (.42 + chainLevel * .08), chainLevel, game)
+            used[nextTarget], current = true, nextTarget
+        end
+    end
 end
 
 function World:turretFire(building, game, damage, range, targetCount)
@@ -735,6 +800,14 @@ function World:updateProjectiles(dt, game)
         effect.life = effect.life - dt
         if effect.life <= 0 then table.remove(self.impactFlashes, i) end
     end
+    for i = #self.chainArcs, 1, -1 do
+        self.chainArcs[i].life = self.chainArcs[i].life - dt
+        if self.chainArcs[i].life <= 0 then table.remove(self.chainArcs, i) end
+    end
+    for i = #self.explosions, 1, -1 do
+        self.explosions[i].life = self.explosions[i].life - dt
+        if self.explosions[i].life <= 0 then table.remove(self.explosions, i) end
+    end
     for i = #self.bullets, 1, -1 do
         local bullet = self.bullets[i]
         bullet.life = bullet.life - dt
@@ -750,6 +823,7 @@ function World:updateProjectiles(dt, game)
                 bullet.x, bullet.y = target.x, target.y
                 target.hp = target.hp - bullet.damage
                 self:applyCombatEffects(target, bullet.damage, game)
+                self:triggerRoundEffects(bullet, target, game)
                 self.impactFlashes[#self.impactFlashes + 1] = {x = target.x, y = target.y, life = .18, maxLife = .18}
                 for _ = 1, 8 do self:addParticle(target.x, target.y, {1, .52, .12}, true, false) end
                 if game.camera then game.camera.trauma = math.min(1, game.camera.trauma + .07) end
@@ -957,6 +1031,24 @@ function World:drawWall(player)
     end
 end
 
+function World:drawMiningDrill(building)
+    local phase = building.drillAngle or 0
+    local burst = math.min(1, (building.drillBurst or 0) * 3)
+    local x, y = building.x, building.y + 1
+    love.graphics.setColor(.08,.1,.12,.9); love.graphics.rectangle("fill",x-7,y-2,14,12,3,3)
+    love.graphics.setColor(.72,.76,.78,1); love.graphics.polygon("fill",x-10,y+8,x+10,y+8,x+3,y+39,x,y+45,x-3,y+39)
+    love.graphics.setColor(.22,.25,.27,1); love.graphics.polygon("line",x-10,y+8,x+10,y+8,x+3,y+39,x,y+45,x-3,y+39)
+    for i = 0, 3 do
+        local py = y + 12 + i * 8
+        local offset = math.sin(phase + i * 1.65) * (8 - i * 1.4)
+        love.graphics.setLineWidth(3.5)
+        love.graphics.setColor(.12,.15,.17,.95); love.graphics.line(x-8+i*1.3,py,x+8-i*1.3,py+4)
+        love.graphics.setLineWidth(2)
+        love.graphics.setColor(.95,.66,.18,.85); love.graphics.line(x+offset-4,py+1,x+offset+4,py+3)
+    end
+    love.graphics.setColor(.25,.82,1,.38+burst*.35); love.graphics.ellipse("line",x,y+42,12+burst*10,4+burst*3)
+end
+
 function World:draw(player)
     drawTiled(self.images.industrial, 0, 0, self.width, 1160, 320)
     drawTiled(self.images.farm, 0, 1160, 1260, 840, 320)
@@ -998,6 +1090,7 @@ function World:draw(player)
             love.graphics.draw(head, building.x - math.cos(angle) * recoil, building.y - 64 - math.sin(angle) * recoil,
                 angle - math.pi, headScale, headScale, 1012, 512)
         elseif icon then
+            if building.kind == "mining_drone" then self:drawMiningDrill(building) end
             love.graphics.setColor(1, 1, 1, 1)
             local scale = 78 / math.max(icon:getWidth(), icon:getHeight())
             grounded(icon, building.x, building.y + 12, scale * (1 + flash * .08))
@@ -1092,7 +1185,41 @@ function World:draw(player)
     for _, e in ipairs(self.enemies) do local enemy = e; queue[#queue + 1] = {y = enemy.y, draw = function() shadow(enemy.x, enemy.y, 20, 9, .5); love.graphics.setColor(.65, .12, .15); love.graphics.circle("fill", enemy.x, enemy.y - 22, 24); love.graphics.setColor(1, .35, .25); love.graphics.circle("line", enemy.x, enemy.y - 22, 24) end} end
     queue[#queue + 1] = {y = player.y, draw = function() player:draw() end}
     table.sort(queue, function(a, b) return a.y < b.y end); for _, item in ipairs(queue) do item.draw() end
+    love.graphics.setBlendMode("alpha")
+    for _, explosion in ipairs(self.explosions) do
+        local alpha = math.max(0, explosion.life / explosion.maxLife)
+        local progress = 1 - alpha
+        for i = 1, 7 do
+            local a = i * .897 + .35
+            local spread = explosion.radius * (.12 + progress * .32)
+            local size = explosion.radius * (.13 + (i % 3) * .025 + progress * .08)
+            love.graphics.setColor(.1,.085,.075,alpha*.42)
+            love.graphics.circle("fill",explosion.x+math.cos(a)*spread,explosion.y+math.sin(a)*spread*.7,size)
+        end
+    end
     love.graphics.setBlendMode("add", "alphamultiply")
+    for _, explosion in ipairs(self.explosions) do
+        local alpha = math.max(0, explosion.life / explosion.maxLife)
+        local progress = 1 - alpha
+        local radius = explosion.radius * (.25 + progress * .75)
+        love.graphics.setColor(1,.16,.02,alpha*.22); love.graphics.circle("fill",explosion.x,explosion.y,radius)
+        for i = 1, 8 do
+            local a = i * .785 + .2
+            local lobeRadius = radius * (.24 + (i % 2) * .08)
+            love.graphics.setColor(1,i%2==0 and .28 or .58,.03,alpha*.46)
+            love.graphics.circle("fill",explosion.x+math.cos(a)*radius*.34,explosion.y+math.sin(a)*radius*.26,lobeRadius)
+        end
+        love.graphics.setColor(1,.55,.08,alpha*.6); love.graphics.setLineWidth(12*(1-progress)+2); love.graphics.circle("line",explosion.x,explosion.y,radius)
+        love.graphics.setColor(1,.95,.62,alpha); love.graphics.setLineWidth(3); love.graphics.circle("line",explosion.x,explosion.y,radius*.72)
+        if progress < .45 then love.graphics.setColor(1,1,.9,(.45-progress)*1.8); love.graphics.circle("fill",explosion.x,explosion.y,26+progress*38) end
+    end
+    for _, arc in ipairs(self.chainArcs) do
+        local alpha = math.max(0, arc.life / arc.maxLife)
+        love.graphics.setLineWidth(11); love.graphics.setColor(.05,.28,1,alpha*.18); love.graphics.line(unpack(arc.points))
+        love.graphics.setLineWidth(5); love.graphics.setColor(.15,.7,1,alpha*.75); love.graphics.line(unpack(arc.points))
+        love.graphics.setLineWidth(1.8); love.graphics.setColor(.88,.98,1,alpha); love.graphics.line(unpack(arc.points))
+        for i = 1, #arc.points, 4 do love.graphics.circle("fill",arc.points[i],arc.points[i+1],2.6) end
+    end
     for _, bullet in ipairs(self.bullets) do
         local tail = 34
         local tx, ty = bullet.x - math.cos(bullet.angle) * tail, bullet.y - math.sin(bullet.angle) * tail
