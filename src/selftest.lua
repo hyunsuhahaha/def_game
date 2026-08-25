@@ -87,7 +87,7 @@ function SelfTest.run(game)
     assert(game.world:isTurretBuilding("autocannon_turret") and not game.world:isTurretBuilding("auto_farm"), "포탑 판정 실패")
     local costBefore, oreBefore = game.world:turretUpgradeCost(combatTurret), game.ore
     game.player.x, game.player.y = combatTurret.x, combatTurret.y
-    game.nearTurret = game.world:nearestTurretBuilding(game.player.x, game.player.y, 200)
+    game.nearTurret = game:getNearbyTurret()
     assert(game.nearTurret == combatTurret, "근처 포탑 감지 실패")
     game:keypressed("f")
     assert(game.mode == "turret_upgrade" and #game.turretUpgradeChoices == 3, "F키 포탑 강화 선택지 생성 실패")

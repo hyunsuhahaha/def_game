@@ -187,7 +187,7 @@ function Game:update(dt)
     if self.ended then return end
     self.time = math.max(0, self.time - dt); if self.time <= 0 then self:finishRun(true); return end
     self.player:update(dt, self.world, self)
-    self.nearTurret = self.world:nearestTurretBuilding(self.player.x, self.player.y, 200)
+    self.nearTurret = self:getNearbyTurret()
     self.upgrades:update(dt, self); self.world:update(dt, self); self.camera:update(dt, self.player, self.world)
     if self.ended then self:finishRun(self.victory) end
 end
@@ -218,7 +218,12 @@ function Game:keypressed(key)
     if key == "escape" then self.mode = "lobby"; return end
     if self.ended and (key == "r" or key == "return") then self:startRun(); return end
     if key == "p" then self:prestigeRun(); return end
-    if key == "f" and self.nearTurret then self:tryOpenTurretUpgrade(self.nearTurret); return end
+    if key == "f" then
+        local turret = self:getNearbyTurret()
+        if turret then self:tryOpenTurretUpgrade(turret)
+        else self:setNotice("강화할 포탑 가까이에서 F를 누르세요", "ore") end
+        return
+    end
     if key == "1" or key == "2" or key == "3" or key == "4" or key == "5" then self:useAbility(tonumber(key)) end
 end
 
@@ -337,8 +342,9 @@ function Game:mousepressed(x, y, button)
     end
     if button ~= 1 then return end
     local hw, hh = love.graphics.getDimensions()
-    if self.nearTurret and x >= hw / 2 - 210 and x <= hw / 2 + 210 and y >= hh - 146 and y <= hh - 102 then
-        self:tryOpenTurretUpgrade(self.nearTurret); return
+    local nearbyTurret = self:getNearbyTurret()
+    if nearbyTurret and x >= hw / 2 - 210 and x <= hw / 2 + 210 and y >= hh - 146 and y <= hh - 102 then
+        self:tryOpenTurretUpgrade(nearbyTurret); return
     end
     if x >= hw / 2 - 105 and x <= hw / 2 + 105 and y >= 118 and y <= 150 then self:prestigeRun(); return end
     local slotW, gap, startX, barY = 132, 8, hw / 2 - 346, hh - 92
@@ -374,10 +380,15 @@ function Game:buildCardAt(x, y)
     end
 end
 
+function Game:getNearbyTurret()
+    if not self.world or not self.player then return nil end
+    return self.world:nearestTurretBuilding(self.player.x, self.player.y, 280)
+end
+
 function Game:tryOpenTurretUpgrade(building)
     if not self.world:isTurretBuilding(building.kind) then self:setNotice("이 건물은 강화할 수 없습니다", "core"); return end
     local dx, dy = building.x - self.player.x, building.y - self.player.y
-    if dx * dx + dy * dy > 200 * 200 then self:setNotice("포탑에 더 가까이 가세요", "core"); return end
+    if dx * dx + dy * dy > 280 * 280 then self:setNotice("포탑에 더 가까이 가세요", "core"); return end
     if (building.level or 0) >= self.world:turretMaxLevel() then self:setNotice("이미 최고 단계입니다", "ore"); return end
     local cost = self.world:turretUpgradeCost(building)
     if (self.ore or 0) < cost then self:setNotice("광석 부족 — 필요: 광석 " .. cost, "ore"); return end
@@ -500,6 +511,14 @@ function Game:draw()
     local playerLight=coreDx*coreDx+coreDy*coreDy<400*400 and 1.45 or 2.2
     love.graphics.setBlendMode("add", "alphamultiply"); love.graphics.setColor(1, 1, 1, 1); love.graphics.draw(self.light, self.player.x, self.player.y, 0, playerLight, playerLight, 256, 256); love.graphics.draw(self.light, self.world.core.x, self.world.core.y, 0, 1.05, 1.05, 256, 256)
     love.graphics.setBlendMode("alpha")
+    local nearbyTurret = self:getNearbyTurret()
+    self.nearTurret = nearbyTurret
+    if nearbyTurret and self.mode == "playing" then
+        local labelY = nearbyTurret.y - 116
+        love.graphics.setColor(.02, .055, .06, .94); love.graphics.rectangle("fill", nearbyTurret.x - 54, labelY, 108, 30, 7, 7)
+        love.graphics.setColor(1, .68, .18, 1); love.graphics.setLineWidth(2); love.graphics.rectangle("line", nearbyTurret.x - 54, labelY, 108, 30, 7, 7)
+        love.graphics.setFont(self.fonts.small); love.graphics.setColor(1, 1, 1, 1); love.graphics.printf("[F] 강화", nearbyTurret.x - 54, labelY + 5, 108, "center")
+    end
     if self.placingBuilding then
         local def = self.placingBuilding
         local wx, wy = self.camera:screenToWorld(love.mouse.getPosition())
@@ -689,7 +708,7 @@ function Game:drawUI()
     end
 
     local promptNode = self.player.interactionTarget or self.hoverNode
-    local promptTurret = self.nearTurret or (self.hoverBuilding and self.world:isTurretBuilding(self.hoverBuilding.kind) and self.hoverBuilding or nil)
+    local promptTurret = self:getNearbyTurret() or (self.hoverBuilding and self.world:isTurretBuilding(self.hoverBuilding.kind) and self.hoverBuilding or nil)
     if promptTurret then
         local level = promptTurret.level or 0
         local maxed = level >= self.world:turretMaxLevel()
