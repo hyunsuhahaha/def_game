@@ -35,7 +35,24 @@ local byId = {}
 for _, definition in ipairs(definitions) do byId[definition.id] = definition end
 
 function RunUpgrades.new()
-    return setmetatable({levels={}, choices={}, systemCount=0, passiveCount=0, timers={}, maxSystems=6, maxPassives=6}, RunUpgrades)
+    local icons = {}
+    for _, def in ipairs(definitions) do
+        local path = "assets/upgrades/" .. def.id .. ".png"
+        if love.filesystem.getInfo(path) then
+            icons[def.id] = love.graphics.newImage(path)
+            icons[def.id]:setFilter("linear", "linear", 4)
+        end
+    end
+    local lightBackgroundShader = love.graphics.newShader([[
+        vec4 effect(vec4 color, Image texture, vec2 textureCoords, vec2 screenCoords) {
+            vec4 pixel = Texel(texture, textureCoords);
+            float hi = max(pixel.r, max(pixel.g, pixel.b));
+            float lo = min(pixel.r, min(pixel.g, pixel.b));
+            if (pixel.a > .99 && lo > .88 && hi - lo < .035) pixel.a = 0.0;
+            return pixel * color;
+        }
+    ]])
+    return setmetatable({levels={}, choices={}, systemCount=0, passiveCount=0, timers={}, icons=icons, lightBackgroundShader=lightBackgroundShader, maxSystems=6, maxPassives=6}, RunUpgrades)
 end
 
 function RunUpgrades:level(id) return self.levels[id] or 0 end
@@ -82,6 +99,7 @@ function RunUpgrades:choose(index, game)
     if def.id == "field_boots" then game.player.speed = game.player.speed * 1.06 end
     if def.id == "wide_lens" then game.world.core.range = (game.world.core.range or 510) + 45 end
     if def.id == "rail_turret" then game.world:addTurret("rail", self:level(def.id)) end
+    if def.id == "repair_station" then game.world:addStructure("repair_station", self:level(def.id)) end
     game:setNotice(def.category == "evolution" and ("시스템 진화 — " .. def.name) or (def.name .. " " .. self:level(def.id) .. "단계"), def.color[3] > .8 and "ore" or "core")
     return true
 end
@@ -140,6 +158,7 @@ function RunUpgrades:update(dt, game)
     if repair > 0 and game.world.wall.hp < game.world.wall.maxHp and game.wood >= 1 and game.stone >= 1 and timerReady(self, "repair_station", dt, math.max(2, 5.5 - repair * .55)) then
         game.wood, game.stone = game.wood - 1, game.stone - 1
         game.world.wall.hp = math.min(game.world.wall.maxHp, game.world.wall.hp + 15 + repair * 9)
+        local station = game.world:getStructure("repair_station"); if station then station.flash = .45 end
         game.world:resourcePulse(game, "plot", 15 + repair * 9, "자동 수리")
     end
     local carrier = self:level("carrier_drone")
@@ -154,25 +173,58 @@ end
 
 function RunUpgrades:drawSelection(game, fonts)
     local w, h = love.graphics.getDimensions()
-    love.graphics.setColor(.04, .08, .075, .82); love.graphics.rectangle("fill", 0, 0, w, h)
-    love.graphics.setFont(fonts.title); love.graphics.setColor(1,1,1); love.graphics.printf("생산 시스템 강화", 0, 62, w, "center")
-    love.graphics.setFont(fonts.body); love.graphics.setColor(.75,.88,.82); love.graphics.printf("레벨 " .. game.runLevel .. " · 하나를 선택하세요", 0, 110, w, "center")
-    love.graphics.setFont(fonts.small); love.graphics.setColor(.6,.72,.7); love.graphics.printf(string.format("시스템 %d/%d   ·   보조 %d/%d", self.systemCount, self.maxSystems, self.passiveCount, self.maxPassives), 0, 141, w, "center")
-    local cardW, cardH, gap = 300, 360, 24
-    local startX, y = w / 2 - (cardW * 3 + gap * 2) / 2, 190
+    love.graphics.setColor(.035, .085, .075, .78); love.graphics.rectangle("fill", 0, 0, w, h)
+    love.graphics.setColor(.95, .75, .28, .1); love.graphics.circle("fill", w / 2, 0, math.max(w, h) * .52)
+    love.graphics.setColor(.025, .065, .055, .9); love.graphics.rectangle("fill", 0, 0, w, 124)
+    love.graphics.setFont(fonts.small); love.graphics.setColor(.98, .78, .3); love.graphics.printf("PRODUCTION LEVEL  " .. game.runLevel, 0, 34, w, "center")
+    love.graphics.setFont(fonts.title); love.graphics.setColor(.98, 1, .96); love.graphics.printf("새 설비를 선택하세요", 0, 58, w, "center")
+    love.graphics.setFont(fonts.small); love.graphics.setColor(.78,.9,.83); love.graphics.printf(string.format("시스템 %d/%d     보조 %d/%d", self.systemCount, self.maxSystems, self.passiveCount, self.maxPassives), 0, 105, w, "center")
+    local gap = math.max(16, math.min(24, w * .018))
+    local cardW = math.min(332, (w - 72 - gap * 2) / 3)
+    local cardH, y = math.min(470, h - 164), 132
+    local startX = w / 2 - (cardW * 3 + gap * 2) / 2
+    local mx, my = love.mouse.getPosition()
     self.choiceBoxes = {}
     for i, def in ipairs(self.choices) do
         local x, level = startX + (i - 1) * (cardW + gap), self:level(def.id)
+        local hovered = mx >= x and mx <= x + cardW and my >= y and my <= y + cardH
         self.choiceBoxes[i] = {x=x,y=y,w=cardW,h=cardH}
-        UI.panel(x, y, cardW, cardH, {def.color[1],def.color[2],def.color[3],1}, .97)
-        love.graphics.setColor(def.color); love.graphics.circle("fill", x + cardW / 2, y + 66, 38)
-        love.graphics.setFont(fonts.heading); love.graphics.setColor(.035,.06,.06); love.graphics.printf(def.category == "evolution" and "진화" or (def.category == "passive" and "보조" or "시스템"), x + cardW/2 - 45, y + 55, 90, "center")
-        love.graphics.setFont(fonts.heading); love.graphics.setColor(1,1,1); love.graphics.printf("["..i.."]  " .. def.name, x + 18, y + 122, cardW - 36, "center")
-        love.graphics.setFont(fonts.small); love.graphics.setColor(def.color); love.graphics.printf(table.concat(def.tags, "  ·  "), x + 18, y + 159, cardW - 36, "center")
-        love.graphics.setColor(.76,.84,.82); love.graphics.printf(def.desc, x + 32, y + 205, cardW - 64, "center")
-        local nextText = def.category == "evolution" and "최종 진화" or string.format("Lv.%d → Lv.%d / %d", level, level + 1, def.max)
-        love.graphics.setColor(.08,.14,.14,.92); love.graphics.rectangle("fill", x+28, y+292, cardW-56, 42, 6,6)
-        love.graphics.setColor(1,.82,.35); love.graphics.printf(nextText, x+28, y+303, cardW-56, "center")
+        love.graphics.setColor(0, 0, 0, .28); love.graphics.rectangle("fill", x + 5, y + 8, cardW, cardH, 12, 12)
+        love.graphics.setColor(hovered and {.98, .97, .88, 1} or {.91, .91, .83, .98}); love.graphics.rectangle("fill", x, y, cardW, cardH, 12, 12)
+        love.graphics.setColor(def.color); love.graphics.rectangle("fill", x, y, cardW, 7, 12, 12)
+        love.graphics.setLineWidth(hovered and 3 or 1.5); love.graphics.setColor(def.color[1], def.color[2], def.color[3], hovered and 1 or .58); love.graphics.rectangle("line", x, y, cardW, cardH, 12, 12)
+
+        love.graphics.setColor(.12, .18, .17, 1); love.graphics.rectangle("fill", x + 18, y + 18, 38, 32, 8, 8)
+        love.graphics.setFont(fonts.heading); love.graphics.setColor(1, 1, 1); love.graphics.printf(tostring(i), x + 18, y + 20, 38, "center")
+        local category = def.category == "evolution" and "최종 진화" or (def.category == "passive" and "보조 장비" or "생산 설비")
+        love.graphics.setFont(fonts.small); love.graphics.setColor(.18, .26, .24); love.graphics.printf(category, x + cardW - 108, y + 27, 88, "right")
+
+        local icon = self.icons[def.id]
+        if icon then
+            local maxSize = math.min(196, cardW * .6)
+            local scale = math.min(maxSize / icon:getWidth(), maxSize / icon:getHeight())
+            if def.id == "recycler" or def.id == "super_magnet" then love.graphics.setShader(self.lightBackgroundShader) end
+            love.graphics.setColor(1, 1, 1, 1); love.graphics.draw(icon, x + cardW / 2, y + 146, 0, scale, scale, icon:getWidth() / 2, icon:getHeight() / 2)
+            love.graphics.setShader()
+        else
+            love.graphics.setColor(def.color[1], def.color[2], def.color[3], .2); love.graphics.circle("fill", x + cardW / 2, y + 135, 52)
+            love.graphics.setColor(def.color); love.graphics.setLineWidth(5); love.graphics.circle("line", x + cardW / 2, y + 135, 32)
+        end
+
+        love.graphics.setFont(fonts.heading); love.graphics.setColor(.1, .16, .15); love.graphics.printf(def.name, x + 20, y + 244, cardW - 40, "center")
+        love.graphics.setFont(fonts.small); love.graphics.setColor(def.color[1] * .55, def.color[2] * .55, def.color[3] * .55); love.graphics.printf(table.concat(def.tags, "  ·  "), x + 20, y + 278, cardW - 40, "center")
+        love.graphics.setColor(.28, .34, .32); love.graphics.printf(def.desc, x + 30, y + 315, cardW - 60, "center")
+
+        local nextLevel = def.category == "evolution" and 1 or level + 1
+        local dotY, dotGap = y + cardH - 46, 18
+        local dotStart = x + cardW / 2 - (def.max - 1) * dotGap / 2
+        for dot = 1, def.max do
+            love.graphics.setColor(dot <= nextLevel and def.color or {.62, .64, .59, .45})
+            love.graphics.circle("fill", dotStart + (dot - 1) * dotGap, dotY, dot <= level and 5 or 4)
+        end
+        love.graphics.setFont(fonts.small); love.graphics.setColor(.24, .3, .28)
+        local nextText = def.category == "evolution" and "진화 확정" or string.format("Lv.%d  →  Lv.%d", level, level + 1)
+        love.graphics.printf(nextText, x + 20, dotY + 12, cardW - 40, "center")
     end
 end
 

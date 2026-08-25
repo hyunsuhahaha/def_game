@@ -22,7 +22,12 @@ function SelfTest.run(game)
     assert(blocked == false, "선행 특성 잠금 실패")
     assert(game.progression:buy("quick_work") and game.progression:buy("quick_work"), "기초 특성 구매 실패")
     assert(game.progression:buy("cargo_rig"), "연결 특성 구매 실패")
-    game:startRun(3)
+    game.lobby.startBox = {x = 10, y = 10, w = 100, h = 50}
+    game.lobby.traitsBox = {x = 120, y = 10, w = 100, h = 50}
+    game.lobby.settingsBox = {x = 230, y = 10, w = 100, h = 50}
+    assert(game.lobby:keypressed("return") == "start" and game.lobby:mousepressed(30, 30, 1) == "start", "로비 단일 시작 버튼 실패")
+    assert(game.lobby:mousepressed(140, 30, 1) == "meta" and game.lobby:mousepressed(250, 30, 1) == "settings", "로비 보조 메뉴 진입 실패")
+    game:startRun()
     local food, oreBeforeGrant, wood, stoneBeforeGrant, seeds = game.food, game.ore, game.wood, game.stone, game.seeds
     game:grantTestRunResources()
     assert(game.food == food + 1000000 and game.ore == oreBeforeGrant + 1000000 and game.wood == wood + 1000000 and game.stone == stoneBeforeGrant + 1000000 and game.seeds == seeds + 1000000, "테스트 런 자원 지급 실패")
@@ -35,6 +40,10 @@ function SelfTest.run(game)
     assert(#game.world.turrets == 1 and game.world.turrets[1].kind == "autocannon", "포탑 실물 배치 실패")
     game.world:spawnDefender("drone", 2, game)
     assert(#game.world.defenders == 1 and game.world.defenders[1].kind == "drone", "전투 드론 실물 생성 실패")
+    assert(game.upgrades:choose("repair_station", game), "자동 수리소 선택 실패")
+    local repairStation = game.world:getStructure("repair_station")
+    assert(repairStation and repairStation.level == 1, "자동 수리소 월드 오브젝트 생성 실패")
+    assert(game.upgrades:choose("repair_station", game) and game.world:getStructure("repair_station") == repairStation and repairStation.level == 2, "자동 수리소 강화 시 중복 생성 방지 실패")
     assert(game.upgrades:choose("auto_farm", game) and game.upgrades:choose("auto_farm", game), "런 시스템 강화 실패")
     assert(game.upgrades:choose("protein_feed", game), "런 보조 강화 실패")
     game.upgrades.levels.auto_farm = 5
@@ -43,7 +52,7 @@ function SelfTest.run(game)
     local foodBeforeAutomation = game.food
     game.upgrades:update(10, game)
     assert(game.food > foodBeforeAutomation, "자동 생산 시스템 작동 실패")
-    assert(game.player.gather > 1.28 and game.player.capacity == 26, "영구 특성 런 적용 실패")
+    assert(game.player.gather > 1.11 and game.player.capacity == 21, "영구 특성 런 적용 실패")
     game.player.capacity = 100
     local farm = find(game.world, "plot")
     assert(game.world:workNode(farm, game, game.player, "hoe", 1) == false and farm.state == "planted", "파종 실패")
@@ -51,11 +60,35 @@ function SelfTest.run(game)
     game.world:update(13, game)
     assert(farm.state == "ready", "작물 성장 실패")
     assert(game.world:workNode(farm, game, game.player, "hoe", 1) == false and farm.state == "empty" and game.player.food == 6, "수확 실패")
-    local tree, stone, ore = find(game.world, "tree"), find(game.world, "stone"), find(game.world, "ore")
-    game.world:workNode(tree, game, game.player, "axe", tree.workTime / game.tools.axe.speed + .1)
-    game.world:workNode(stone, game, game.player, "pickaxe", stone.workTime / game.tools.pickaxe.speed + .1)
-    game.world:workNode(ore, game, game.player, "pickaxe", ore.workTime / game.tools.pickaxe.speed + .1)
-    assert(game.player.wood == 6 and game.player.stone == 5 and game.player.ore == 5, "벌목/채광 보상 실패")
+    local tree, quarry, treeCount = find(game.world, "tree"), find(game.world, "quarry"), 0
+    for _, node in ipairs(game.world.nodes) do if node.kind == "tree" then treeCount = treeCount + 1 end end
+    assert(treeCount == 1 and tree.x < game.world.core.x and quarry.x > game.world.core.x, "단일 대형 나무·거점·채석장 배치 실패")
+    local quarryVisual = game.world.quarryVisual
+    assert(quarryVisual and quarryVisual.shadowRx <= 110 and quarryVisual.shadowRy <= 14 and quarryVisual.shadowAlpha <= .26, "채석장 접지 그림자가 과도함")
+    local originalImpact, impactCount = game.world.impactNode, 0
+    game.world.impactNode = function() impactCount = impactCount + 1 end
+    game.player.x, game.player.y = tree.x + 100, tree.y
+    game.player:beginInteraction(tree, game.world, game)
+    assert(impactCount == 0, "도구 타격 전에 이펙트 발생")
+    game.player:update(game.player.actionFrameDuration - .01, game.world, game)
+    assert(impactCount == 0, "도구 타격 프레임 전에 이펙트 발생")
+    game.player:update(.02, game.world, game)
+    assert(impactCount == 1, "도구 타격 프레임과 이펙트 불일치")
+    game.player:cancelInteraction()
+    game.world.impactNode = originalImpact
+    game.player.wood = 0
+    game.world:harvestHit(tree, game, game.player)
+    assert(game.player.wood == 1 and tree.active, "벌목 즉시 지급 실패")
+    game.world:harvestHit(tree, game, game.player)
+    assert(game.player.wood == 2, "벌목 반복 타격 지급 실패")
+    local quarryDx, quarryDy = quarry.x - game.world.core.x, quarry.y - game.world.core.y
+    assert(quarryDx * quarryDx + quarryDy * quarryDy <= 520 * 520, "채석장이 거점에서 너무 멀리 배치됨")
+    for _ = 1, 4 do game.world:harvestHit(quarry, game, game.player) end
+    assert(game.player.stone == 4 and game.player.ore == 0, "채석 즉시 지급 실패")
+    game.world:harvestHit(quarry, game, game.player)
+    assert(game.player.ore == 1, "채석 광석 비율 실패")
+    for _ = 1, 5 do game.world:harvestHit(quarry, game, game.player) end
+    assert(game.player.stone == 8 and game.player.ore == 2 and quarry.active, "채석 반복 타격 지급 실패")
     assert(#game.world.particles > 0 and #game.world.popups > 0 and game.camera.trauma > 0, "채집 타격 피드백 실패")
     game.wood, game.stone = 100, 100
     game:keypressed("4"); game:keypressed("4"); game:keypressed("4")
@@ -79,7 +112,7 @@ function SelfTest.run(game)
     local afterReward = game.progression.data.currency
     game:finishRun(false)
     assert(game.progression.data.currency == afterReward, "런 보상 중복 지급 방지 실패")
-    print("SELF_TEST_OK: FARM TREE STONE ORE TOOL_SPEED HARVEST_FEEDBACK VISIBLE_TURRET VISIBLE_DRONE RUN_LEVELUP THREE_CHOICES AUTOMATION EVOLUTION WALL_UPGRADE WALL_BLOCK HAMMER_REPAIR META_SAVE TRAIT_TREE TRAIT_APPLY RUN_REWARD TEST_CURRENCY TEST_RESOURCES TEST_LEVELS TEST_RESET")
+    print("SELF_TEST_OK: LOBBY_SINGLE_START LOBBY_AUX_NAV SETTINGS BIG_TREE_SINGLE TREE_INSTANT_HARVEST QUARRY_GROUNDED QUARRY_INSTANT_HARVEST QUARRY_ORE_RATIO FARM TREE QUARRY_INFINITE TOOL_SPEED IMPACT_SYNC HARVEST_FEEDBACK VISIBLE_TURRET VISIBLE_DRONE VISIBLE_REPAIR_STATION RUN_LEVELUP THREE_CHOICES AUTOMATION EVOLUTION WALL_UPGRADE WALL_BLOCK HAMMER_REPAIR META_SAVE TRAIT_TREE TRAIT_APPLY RUN_REWARD TEST_CURRENCY TEST_RESOURCES TEST_LEVELS TEST_RESET")
 end
 
 return SelfTest

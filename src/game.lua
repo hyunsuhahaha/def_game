@@ -25,6 +25,7 @@ end
 function Game.new()
     local self = setmetatable({}, Game)
     self.fonts, self.light, self.feedback = makeFonts(), radial(512), Feedback.new()
+    self.settings = {fullscreen = love.window.getFullscreen(), screenShake = true}
     self.tools = {
         axe = {name = "나무 도끼", speed = .8, type = "벌목"},
         hoe = {name = "나무 괭이", speed = 1, type = "농사"},
@@ -38,22 +39,20 @@ function Game.new()
     self.world = World.new(); self.lobby = Lobby.new(self.world.images, self.fonts)
     self.traitTree = TraitTree.new(self.progression, self.fonts)
     self.mode, self.notice, self.noticeKind, self.noticeTime = "lobby", "", "core", 0
-    self:resetRun(2); self.mode = "lobby"
+    self:resetRun(); self.mode = "lobby"
     return self
 end
 
-function Game:resetRun(plan)
+function Game:resetRun()
     self.world = World.new()
     self.player = Player.new(1600, 1470, self.world.images.workerWalk, self.world.images.workerActions, self.world.images.workerRepair)
     self.camera = Camera.new(self.player.x, self.player.y)
+    self.camera.shakeScale = self.settings.screenShake and 1 or 0
     self.food, self.ore, self.wood, self.stone, self.seeds = 0, 0, 0, 0, 8
     self.time, self.ended, self.victory, self.hoverNode, self.hoverWall = 15 * 60, false, false, nil, false
     self.runStats, self.result = {harvested = 0}, nil
     self.upgrades, self.runLevel, self.runXP, self.runXPNext, self.pendingLevels = RunUpgrades.new(), 1, 0, 18, 0
-    self.plan = plan or 2
-    if self.plan == 1 then self.food, self.seeds = 12, 12; self.world.core.maxHp, self.world.core.hp = 550, 550 end
-    if self.plan == 2 then self.ore = 14; self.world.core.damage = self.world.core.damage * 1.15 end
-    if self.plan == 3 then self.player.capacity, self.player.gather = 23, 1.15 end
+    self.runXPVisual, self.runXPPulse, self.lastXPGain = 0, 0, 0
     local meta = self.progression:effects()
     self.player.gather = self.player.gather * meta.gather
     self.player.capacity = self.player.capacity + meta.capacity
@@ -70,8 +69,8 @@ function Game:resetRun(plan)
     if (self.testLevelsNextRun or 0) > 0 then self:grantTestLevels(self.testLevelsNextRun); self.testLevelsNextRun = 0 end
 end
 
-function Game:startRun(plan)
-    self:resetRun(plan); self.mode = "playing"; self:setNotice("작전 시작 — 자원을 생산해 거점을 지키세요", "core")
+function Game:startRun()
+    self:resetRun(); self.mode = "playing"; self:setNotice("작전 시작 — 자원을 생산해 거점을 지키세요", "core")
     if self.pendingLevels > 0 then self.upgrades:rollChoices(); self.mode = "upgrade" end
 end
 function Game:setNotice(text, kind) self.notice, self.noticeKind, self.noticeTime = text, kind or "core", 2.2 end
@@ -120,7 +119,9 @@ function Game:depositCargo(message)
 end
 
 function Game:addRunXP(amount)
-    self.runXP = self.runXP + math.max(0, amount or 0)
+    amount = math.max(0, amount or 0)
+    self.runXP = self.runXP + amount
+    if amount > 0 then self.runXPPulse, self.lastXPGain = 1, amount end
     while self.runXP >= self.runXPNext do
         self.runXP = self.runXP - self.runXPNext
         self.runLevel, self.pendingLevels = self.runLevel + 1, self.pendingLevels + 1
@@ -155,9 +156,12 @@ end
 
 function Game:update(dt)
     if self.mode == "lobby" then self.lobby:update(dt); return end
+    if self.mode == "settings" then self.lobby:update(dt); return end
     if self.mode == "test_options" then self.testResetTime=math.max(0,(self.testResetTime or 0)-dt); if self.testResetTime<=0 then self.testResetArmed=false end; return end
     if self.mode == "meta" then self.traitTree:update(dt); return end
     if self.mode == "results" then return end
+    self.runXPVisual = self.runXPVisual + (self.runXP - self.runXPVisual) * (1 - math.exp(-dt * 9))
+    self.runXPPulse = math.max(0, self.runXPPulse - dt * 1.35)
     if self.mode == "upgrade" then return end
     self.noticeTime = math.max(0, self.noticeTime - dt)
     local wx, wy = self.camera:screenToWorld(love.mouse.getPosition()); self.hoverNode, self.hoverWall = self.world:findNodeAt(wx, wy), self.world:isWallAt(wx, wy)
@@ -173,8 +177,9 @@ function Game:keypressed(key)
     if self.mode == "lobby" then
         if key == "escape" then love.event.quit(); return end
         if key == "t" then self.mode = "meta"; return end
-        local plan = self.lobby:keypressed(key); if plan then self:startRun(plan) end; return
+        if self.lobby:keypressed(key) == "start" then self:startRun() end; return
     end
+    if self.mode == "settings" then if key == "escape" then self.mode = "lobby" end; return end
     if self.mode == "meta" then if self.traitTree:keypressed(key) == "back" then self.mode = "lobby" end; return end
     if self.mode == "upgrade" then if key == "1" or key == "2" or key == "3" then self:selectRunUpgrade(tonumber(key)) end; return end
     if self.mode == "results" then
@@ -183,7 +188,7 @@ function Game:keypressed(key)
         return
     end
     if key == "escape" then self.mode = "lobby"; return end
-    if self.ended and (key == "r" or key == "return") then self:startRun(self.plan); return end
+    if self.ended and (key == "r" or key == "return") then self:startRun(); return end
     if key == "1" and self.food >= 12 then self.food = self.food - 12; self.world:spawnDefender("bio", 1, self); self:setNotice("생체 수호자를 부화했습니다", "food") end
     if key == "2" and self.ore >= 14 then self.ore = self.ore - 14; self.world.core.damage = self.world.core.damage * 1.2; self.world.core.fireRate = self.world.core.fireRate * 1.05; self.world:addTurret("autocannon", 1); self:setNotice("센터 하드포인트에 포탑을 배치했습니다", "ore") end
     if key == "3" and self.food >= 8 and self.ore >= 8 then self.food, self.ore = self.food - 8, self.ore - 8; self.player.gather = self.player.gather * 1.15; self.player.capacity = self.player.capacity + 5; self:setNotice("작업 장비를 개조했습니다", "core") end
@@ -213,7 +218,28 @@ function Game:mousepressed(x, y, button)
         end
         return
     end
-    if self.mode == "lobby" then local action = self.lobby:mousepressed(x, y, button); if action == "meta" then self.mode = "meta" elseif action=="test" then self:openTestOptions("lobby") elseif action then self:startRun(action) end; return end
+    if self.mode == "lobby" then
+        local action = self.lobby:mousepressed(x, y, button)
+        if action == "start" then self:startRun()
+        elseif action == "meta" then self.mode = "meta"
+        elseif action == "settings" then self.mode = "settings" end
+        return
+    end
+    if self.mode == "settings" then
+        if button == 1 then
+            local w = love.graphics.getWidth()
+            if x >= 28 and x <= 176 and y >= 25 and y <= 67 then self.mode = "lobby"
+            elseif x >= w / 2 - 220 and x <= w / 2 + 220 and y >= 260 and y <= 316 then
+                self.settings.screenShake = not self.settings.screenShake
+                self.camera.shakeScale = self.settings.screenShake and 1 or 0
+            elseif x >= w / 2 - 220 and x <= w / 2 + 220 and y >= 334 and y <= 390 then
+                local nextValue = not self.settings.fullscreen
+                local ok = love.window.setFullscreen(nextValue, "desktop")
+                if ok ~= false then self.settings.fullscreen = nextValue end
+            end
+        end
+        return
+    end
     if self.mode == "meta" then if self.traitTree:mousepressed(x, y, button) == "back" then self.mode = "lobby" end; return end
     if self.mode == "upgrade" then if button == 1 then local index = self.upgrades:choiceAt(x, y); if index then self:selectRunUpgrade(index) end end; return end
     if self.mode == "results" then
@@ -236,6 +262,7 @@ end
 function Game:draw()
     if self.mode=="test_options" then self:drawTestOptions(); return end
     if self.mode == "lobby" then self.lobby:draw(); return end
+    if self.mode == "settings" then self:drawSettings(); return end
     if self.mode == "meta" then self.traitTree:draw(); return end
     love.graphics.clear(.08, .11, .12); self.camera:attach(); self.world:draw(self.player)
     local left, top, right, bottom = self.camera:visibleBounds()
@@ -246,6 +273,20 @@ function Game:draw()
     love.graphics.setBlendMode("alpha"); self.camera:detach(); self:drawUI()
     if self.mode == "upgrade" then self.upgrades:drawSelection(self, self.fonts) end
     if self.mode == "results" then self:drawResults() end
+end
+
+function Game:drawSettings()
+    local w, h, f = love.graphics.getWidth(), love.graphics.getHeight(), self.fonts
+    self.lobby:drawBackground(w, h)
+    love.graphics.setColor(.018, .042, .034, .84); love.graphics.rectangle("fill", 0, 0, w, h)
+    UI.button(28, 25, 148, 42, "← 로비", true, f.body)
+    love.graphics.setFont(f.title); love.graphics.setColor(.98, .98, .92); love.graphics.printf("설정", 0, 88, w, "center")
+    love.graphics.setFont(f.small); love.graphics.setColor(.75, .83, .75); love.graphics.printf("플레이 환경", 0, 137, w, "center")
+    local x, boxW = w / 2 - 220, 440
+    UI.button(x, 260, boxW, 56, "화면 흔들림  ·  " .. (self.settings.screenShake and "켜짐" or "꺼짐"), true, f.body)
+    UI.button(x, 334, boxW, 56, "화면 모드  ·  " .. (self.settings.fullscreen and "전체 화면" or "창 모드"), true, f.body)
+    love.graphics.setFont(f.small); love.graphics.setColor(.72, .8, .73)
+    love.graphics.printf("ESC로 로비로 돌아갑니다.", 0, math.min(h - 52, 424), w, "center")
 end
 
 function Game:drawTestOptions()
@@ -343,8 +384,7 @@ function Game:drawUI()
     UI.panel(w / 2 - 105, 16, 210, 44, {.78, .2, .18, 1}, .86)
     love.graphics.setFont(f.body); love.graphics.setColor(1, .82, .72); love.graphics.printf(self.world.spawnTimer > 0 and string.format("다음 웨이브 %.1f초", self.world.spawnTimer) or "웨이브 접근 중", w / 2 - 105, 27, 210, "center")
     love.graphics.setFont(f.small); love.graphics.setColor(.08, .12, .12, .9); love.graphics.rectangle("fill", w / 2 - 105, 64, 210, 50, 5, 5)
-    love.graphics.setColor(.52, 1, .63); love.graphics.printf(string.format("생산 레벨 %d   %d/%d", self.runLevel, math.floor(self.runXP), self.runXPNext), w / 2 - 105, 69, 210, "center")
-    UI.bar(w / 2 - 105, 89, 210, 4, self.runXP / self.runXPNext, {.45, 1, .58, 1})
+    love.graphics.setColor(.52, 1, .63); love.graphics.printf(string.format("생산 레벨 %d", self.runLevel), w / 2 - 105, 74, 210, "center")
     local droneCount=0; for _,defender in ipairs(self.world.defenders) do if defender.kind=="drone" then droneCount=droneCount+1 end end
     love.graphics.setColor(.55,.82,.86); love.graphics.printf(string.format("배치 포탑 %d/4   전투 드론 %d",#self.world.turrets,droneCount),w/2-105,96,210,"center")
 
@@ -379,6 +419,21 @@ function Game:drawUI()
         local color = self.noticeKind == "food" and {.36, .95, .44, 1} or self.noticeKind == "ore" and {.36, .78, 1, 1} or {1, .68, .2, 1}
         love.graphics.setFont(f.body); love.graphics.setColor(0, 0, 0, .7); love.graphics.printf(self.notice, 2, 177, w, "center"); love.graphics.setColor(color); love.graphics.printf(self.notice, 0, 175, w, "center")
     end
+
+    local xpRatio = math.max(0, math.min(1, self.runXPVisual / self.runXPNext))
+    love.graphics.setColor(.025, .07, .08, .96); love.graphics.rectangle("fill", 0, h - 7, w, 7)
+    love.graphics.setColor(.3, .92, .58, 1); love.graphics.rectangle("fill", 0, h - 6, w * xpRatio, 6)
+    love.graphics.setColor(.74, 1, .66, .8); love.graphics.rectangle("fill", 0, h - 6, w * xpRatio, 2)
+    if self.runXPPulse > 0 then
+        local headX = w * xpRatio
+        love.graphics.setBlendMode("add", "alphamultiply")
+        love.graphics.setColor(.45, 1, .67, self.runXPPulse); love.graphics.circle("fill", headX, h - 4, 10 + 8 * self.runXPPulse)
+        love.graphics.setBlendMode("alpha")
+        love.graphics.setFont(f.small); love.graphics.setColor(.78, 1, .72, self.runXPPulse)
+        love.graphics.printf("+" .. math.floor(self.lastXPGain) .. " XP", math.max(4, math.min(w - 72, headX - 34)), h - 28, 68, "center")
+    end
+    love.graphics.setFont(f.small); love.graphics.setColor(.9, 1, .92, .88)
+    love.graphics.printf(string.format("생산 Lv.%d   %d / %d", self.runLevel, math.floor(self.runXP), self.runXPNext), w / 2 - 100, h - 27, 200, "center")
 end
 
 return Game

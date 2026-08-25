@@ -15,6 +15,8 @@ local function plot(x, y)
     return {kind = "plot", x = x, y = y, state = "empty", grow = 0, growMax = 12, active = true}
 end
 
+local function cargoSpace(player) return player.capacity - player:totalCargo() end
+
 function World.new()
     local self = setmetatable({}, World)
     self.width, self.height = 3200, 2000
@@ -23,24 +25,27 @@ function World.new()
     self.images = {
         industrial = image("assets/floor-industrial.png"), farm = image("assets/floor-biofarm.png"), quarry = image("assets/floor-quarry.png"),
         core = image("assets/supply-core-v2.png"), turret = image("assets/turret-v1.png"), drone = image("assets/combat-drone-v1.png"), crop = image("assets/crop-pod.png"), ore = image("assets/ore-node.png"),
+        repairStation = image("assets/upgrades/repair_station.png"),
         tree = image("assets/tree-v1.png"), stone = image("assets/stone-v1.png"),
-        workerWalk = image("assets/worker-walk-v3.png"), workerActions = image("assets/worker-actions-v1.png"), workerRepair = image("assets/worker-repair-v1.png"),
-        machine = image("assets/defense-machine.png"), tanks = image("assets/tank-bank.png")
+        workerWalk = image("assets/worker-walk-v3.png"), workerActions = image("assets/worker-actions-v1.png"), workerRepair = image("assets/worker-repair-v1.png")
     }
-    self.nodes, self.props, self.enemies, self.defenders, self.turrets, self.shots = {}, {}, {}, {}, {}, {}
+    self.nodes, self.enemies, self.defenders, self.turrets, self.structures, self.shots = {}, {}, {}, {}, {}, {}
     self.particles, self.popups, self.harvestChain, self.harvestChainTime = {}, {}, 0, 0
     self.effectFont = love.graphics.newFont("assets/font-korean.ttf", 18)
+    self.quarryVisual = {shadowX = 5, shadowY = 7, shadowRx = 104, shadowRy = 11, shadowAlpha = .22, frontBias = 130}
+    self.treeVisual = {scale = .28, shadowX = 4, shadowY = 9, shadowRx = 92, shadowRy = 12, shadowAlpha = .22, frontBias = 120}
     self.spawnTimer, self.wave, self.kills = 3, 0, 0
     self:build()
     return self
 end
 
 local effectColors = {
-    tree = {.86, .55, .2}, stone = {.78, .84, .88}, ore = {.25, .82, 1}, plot = {.42, 1, .45}
+    tree = {.86, .55, .2}, wood = {.76, .48, .2}, stone = {.78, .84, .88}, ore = {.25, .82, 1}, quarry = {.65, .78, .86}, plot = {.42, 1, .45}
 }
 
 local function effectOrigin(node)
-    if node.kind == "tree" then return node.x, node.y - 75 end
+    if node.kind == "tree" then return node.x, node.y - 145 end
+    if node.kind == "quarry" then return node.x, node.y - 105 end
     if node.kind == "plot" then return node.x, node.y - 18 end
     return node.x, node.y - 28
 end
@@ -106,26 +111,38 @@ function World:updateEffects(dt, game)
     end
 end
 
+function World:harvestHit(node, game, player)
+    if cargoSpace(player) <= 0 then game:setNotice("가방이 가득 찼습니다", "core"); return end
+    if node.kind == "tree" then
+        local amount = math.min(game.upgrades and game.upgrades:duplicateAmount(1) or 1, cargoSpace(player))
+        if amount <= 0 then return end
+        player.wood = player.wood + amount
+        game.runStats.harvested = game.runStats.harvested + amount; game.runStats.wood = (game.runStats.wood or 0) + amount
+        game:addRunXP(amount)
+        self:harvestBurst(node, game, amount, "목재")
+    elseif node.kind == "quarry" then
+        node.oreCounter = (node.oreCounter or 0) + 1
+        local isOre = node.oreCounter % 5 == 0
+        local kind, label = isOre and "ore" or "stone", isOre and "광석" or "돌"
+        local amount = math.min(game.upgrades and game.upgrades:duplicateAmount(1) or 1, cargoSpace(player))
+        if amount <= 0 then return end
+        player[kind] = player[kind] + amount
+        game.runStats.harvested = game.runStats.harvested + amount; game.runStats[kind] = (game.runStats[kind] or 0) + amount
+        game:addRunXP(amount)
+        self:harvestBurst(node, game, amount, label)
+    end
+end
+
 function World:build()
-    for row = 0, 2 do for col = 0, 3 do self.nodes[#self.nodes + 1] = plot(470 + col * 175, 1290 + row * 185) end end
-    local trees = {{145, 1270}, {215, 1530}, {160, 1840}, {1110, 1260}, {1125, 1570}, {1050, 1860}, {430, 1900}, {760, 1910}}
-    for _, p in ipairs(trees) do self.nodes[#self.nodes + 1] = resource("tree", p[1], p[2], 3.5) end
-    local stones = {{2070, 1300}, {2310, 1290}, {2140, 1540}, {2390, 1740}, {2110, 1880}}
-    for _, p in ipairs(stones) do self.nodes[#self.nodes + 1] = resource("stone", p[1], p[2], 3) end
-    local ores = {{2650, 1270}, {2920, 1320}, {2720, 1540}, {3020, 1640}, {2630, 1840}, {2900, 1880}}
-    for _, p in ipairs(ores) do self.nodes[#self.nodes + 1] = resource("ore", p[1], p[2], 5.5) end
-    local placements = {
-        {"machine", 410, 310, .18}, {"machine", 960, 320, .18}, {"machine", 2240, 320, .18}, {"machine", 2790, 310, .18},
-        {"tanks", 560, 680, .17}, {"tanks", 2640, 680, .17}, {"machine", 860, 690, .16}, {"machine", 2340, 690, .16},
-        {"tanks", 430, 1070, .15}, {"tanks", 2770, 1070, .15}, {"machine", 1320, 1370, .13}, {"machine", 1880, 1370, .13},
-        {"tanks", 1320, 1740, .12}, {"tanks", 1880, 1740, .12}
-    }
-    for _, p in ipairs(placements) do self.props[#self.props + 1] = {kind = p[1], x = p[2], y = p[3], scale = p[4]} end
+    for row = 0, 2 do for col = 0, 3 do self.nodes[#self.nodes + 1] = plot(1320 + col * 160, 1580 + row * 175) end end
+    self.nodes[#self.nodes + 1] = resource("tree", 1110, 1420, 4.5)
+    self.nodes[#self.nodes + 1] = resource("quarry", 2070, 1420, 4.5)
 end
 
 function World:update(dt, game)
     self:updateEffects(dt, game)
     for _, turret in ipairs(self.turrets) do turret.flash = math.max(0, (turret.flash or 0) - dt) end
+    for _, structure in ipairs(self.structures) do structure.flash = math.max(0, (structure.flash or 0) - dt) end
     for _, node in ipairs(self.nodes) do
         if node.kind == "plot" then
             if node.state == "growing" then node.grow = math.max(0, node.grow - dt * (game.upgrades and game.upgrades:cropGrowthMultiplier() or 1)); if node.grow <= 0 then node.state = "ready" end end
@@ -188,6 +205,19 @@ function World:update(dt, game)
 end
 
 local turretSlots = {{x=-61,y=-66},{x=61,y=-66},{x=-61,y=28},{x=61,y=28}}
+
+function World:getStructure(kind)
+    for _, structure in ipairs(self.structures) do if structure.kind == kind then return structure end end
+end
+
+function World:addStructure(kind, level)
+    local existing = self:getStructure(kind)
+    if existing then existing.level, existing.flash = level or existing.level, .35; return existing end
+    if kind ~= "repair_station" then return nil end
+    local structure = {kind=kind, level=level or 1, x=self.core.x+220, y=self.core.y+135, flash=.45}
+    self.structures[#self.structures + 1] = structure
+    return structure
+end
 
 function World:addTurret(kind, level)
     if #self.turrets < #turretSlots then
@@ -307,10 +337,11 @@ function World:findNodeAt(x, y)
     for _, node in ipairs(self.nodes) do
         if node.active or node.kind == "plot" then
             local rx, ry, centerY = 72, 52, node.y
-            if node.kind == "tree" then rx, ry, centerY = 105, 125, node.y - 82 end
+            if node.kind == "tree" then rx, ry, centerY = 188, 228, node.y - 150 end
             if node.kind == "plot" then rx, ry = 82, 42 end
             if node.kind == "stone" then rx, ry, centerY = 78, 62, node.y - 28 end
             if node.kind == "ore" then rx, ry, centerY = 68, 58, node.y - 24 end
+            if node.kind == "quarry" then rx, ry, centerY = 190, 145, node.y - 92 end
             local dx, dy = (x - node.x) / rx, (y - centerY) / ry
             local score = dx * dx + dy * dy
             if score <= 1 and (not bestScore or score < bestScore) then best, bestScore = node, score end
@@ -324,13 +355,12 @@ function World:getInteraction(node, game)
     if node.kind == "tree" then return "axe", "나무 베기" end
     if node.kind == "stone" then return "pickaxe", "돌 캐기" end
     if node.kind == "ore" then return "pickaxe", "광석 캐기" end
+    if node.kind == "quarry" then return "pickaxe", "채석장 채굴" end
     if node.state == "empty" then return game.seeds > 0 and "hoe" or nil, game.seeds > 0 and "씨앗 심기" or "씨앗이 없습니다" end
     if node.state == "planted" then return "water", "물 주기" end
     if node.state == "growing" then return nil, string.format("성장 중 %.0f초", node.grow) end
     if node.state == "ready" then return "hoe", "작물 수확" end
 end
-
-local function cargoSpace(player) return player.capacity - player:totalCargo() end
 
 function World:workNode(node, game, player, tool, dt)
     local speed = game.tools[tool] and game.tools[tool].speed or 1
@@ -351,9 +381,10 @@ function World:workNode(node, game, player, tool, dt)
         return false
     end
     if cargoSpace(player) <= 0 then game:setNotice("가방이 가득 찼습니다", "core"); return false end
+    if node.kind == "quarry" or node.kind == "tree" then return true end
     node.work = node.work + speed * dt
     if node.work < node.workTime then return true end
-    local amount = node.kind == "tree" and 6 or node.kind == "stone" and 5 or 5
+    local amount = node.kind == "stone" and 5 or 5
     if game.upgrades then amount = game.upgrades:duplicateAmount(amount) end
     amount = math.min(amount, cargoSpace(player))
     player[node.kind == "tree" and "wood" or node.kind] = player[node.kind == "tree" and "wood" or node.kind] + amount
@@ -437,7 +468,6 @@ function World:draw(player)
     drawTiled(self.images.quarry, 1940, 1160, 1260, 840, 320)
     love.graphics.setColor(.06, .075, .085, 1); love.graphics.rectangle("fill", 0, 0, self.width, 55); love.graphics.rectangle("fill", 0, self.height - 55, self.width, 55); love.graphics.rectangle("fill", 0, 0, 55, self.height); love.graphics.rectangle("fill", self.width - 55, 0, 55, self.height)
     local queue = {}
-    for _, p in ipairs(self.props) do local prop = p; queue[#queue + 1] = {y = prop.y, draw = function() local img = self.images[prop.kind]; shadow(prop.x, prop.y, img:getWidth() * prop.scale * .38, img:getHeight() * prop.scale * .12, .5); grounded(img, prop.x, prop.y, prop.scale) end} end
     queue[#queue + 1] = {y = self.core.y, draw = function() shadow(self.core.x, self.core.y, 145, 48, .5); centered(self.images.core, self.core.x, self.core.y - 50, .23) end}
     queue[#queue + 1] = {y = self.core.y + 1, draw = function()
         for _, turret in ipairs(self.turrets) do
@@ -447,11 +477,18 @@ function World:draw(player)
             if turret.flash and turret.flash > 0 then love.graphics.setColor(turret.kind=="rail" and {.25,.92,1,turret.flash*4} or {1,.7,.2,turret.flash*4}); love.graphics.circle("fill",turret.x-30,turret.y-22,8+turret.flash*45) end
         end
     end}
+    for _, value in ipairs(self.structures) do local structure = value; queue[#queue + 1] = {y = structure.y, draw = function()
+        local flash = structure.flash or 0
+        shadow(structure.x, structure.y + 10, 72, 22, .42)
+        if flash > 0 then love.graphics.setColor(.35, 1, .62, flash * 1.8); love.graphics.circle("fill", structure.x, structure.y - 45, 60 + flash * 55) end
+        love.graphics.setColor(1, 1, 1, 1); grounded(self.images.repairStation, structure.x, structure.y + 12, .13 * (1 + flash * .08))
+    end} end
     queue[#queue + 1] = {y = self.wall.y, draw = function() self:drawWall(player) end}
     for _, n in ipairs(self.nodes) do
         if n.active or n.kind == "plot" then
             local node = n
-            queue[#queue + 1] = {y = node.y, draw = function()
+            local sortY = node.kind == "quarry" and (node.y - self.quarryVisual.frontBias) or node.kind == "tree" and (node.y - self.treeVisual.frontBias) or node.y
+            queue[#queue + 1] = {y = sortY, draw = function()
                 local shake = (node.hitShake or 0) * 42
                 local ox, oy = (love.math.random() * 2 - 1) * shake, (love.math.random() * 2 - 1) * shake * .35
                 local bump = 1 + (node.hitFlash or 0) * .32
@@ -459,12 +496,27 @@ function World:draw(player)
                     local fx, fy = effectOrigin(node); love.graphics.setColor(1, .9, .42, node.hitFlash * 3.5); love.graphics.circle("fill", fx, fy, 36 + node.hitFlash * 70)
                 end
                 if node.kind == "plot" then love.graphics.push(); love.graphics.translate(ox, oy); self:drawPlot(node); love.graphics.pop()
-                elseif node.kind == "tree" then shadow(node.x, node.y, 62, 20, .42); grounded(self.images.tree, node.x + ox, node.y + oy, .145 * bump)
+                elseif node.kind == "tree" then
+                    local visual = self.treeVisual
+                    love.graphics.setColor(0, 0, 0, visual.shadowAlpha)
+                    love.graphics.ellipse("fill", node.x + visual.shadowX, node.y + visual.shadowY, visual.shadowRx, visual.shadowRy)
+                    grounded(self.images.tree, node.x + ox, node.y + oy, visual.scale * bump)
+                elseif node.kind == "quarry" then
+                    local visual = self.quarryVisual
+                    love.graphics.setColor(0, 0, 0, visual.shadowAlpha)
+                    love.graphics.ellipse("fill", node.x + visual.shadowX, node.y + visual.shadowY, visual.shadowRx, visual.shadowRy)
+                    grounded(self.images.stone, node.x + ox, node.y + oy, .285 * bump)
+                    love.graphics.setColor(.25, .82, 1, .82); centered(self.images.ore, node.x + 68 + ox, node.y - 112 + oy, .055 * bump)
                 elseif node.kind == "stone" then shadow(node.x, node.y, 54, 16, .4); grounded(self.images.stone, node.x + ox, node.y + oy, .085 * bump)
                 else shadow(node.x, node.y, 48, 15, .4); centered(self.images.ore, node.x + ox, node.y - 25 + oy, .075 * bump) end
                 if player.interactionTarget == node then
-                    love.graphics.setColor(1, .7, .18, .9); love.graphics.setLineWidth(3); love.graphics.ellipse("line", node.x, node.y + 8, node.kind == "tree" and 75 or 58, node.kind == "tree" and 25 or 19)
-                    if node.kind ~= "plot" then love.graphics.setColor(.08, .1, .1, .9); love.graphics.rectangle("fill", node.x - 35, node.y - 70, 70, 7); love.graphics.setColor(.95, .62, .16); love.graphics.rectangle("fill", node.x - 35, node.y - 70, 70 * node.work / node.workTime, 7) end
+                    love.graphics.setColor(1, .7, .18, .9); love.graphics.setLineWidth(3); love.graphics.ellipse("line", node.x, node.y + 8, node.kind == "quarry" and 175 or (node.kind == "tree" and 128 or 58), node.kind == "quarry" and 52 or (node.kind == "tree" and 36 or 19))
+                    if node.kind ~= "plot" and node.kind ~= "tree" and node.kind ~= "quarry" then
+                        local barWidth = 70
+                        local barY = node.y - 70
+                        love.graphics.setColor(.08, .1, .1, .9); love.graphics.rectangle("fill", node.x - barWidth / 2, barY, barWidth, 7)
+                        love.graphics.setColor(.95, .62, .16); love.graphics.rectangle("fill", node.x - barWidth / 2, barY, barWidth * node.work / node.workTime, 7)
+                    end
                 end
             end}
         end

@@ -2,7 +2,7 @@ local Camera = {}
 Camera.__index = Camera
 
 function Camera.new(x, y)
-    return setmetatable({x = x, y = y, zoom = 1, trauma = 0}, Camera)
+    return setmetatable({x = x, y = y, zoom = 1, trauma = 0, shakeScale = 1}, Camera)
 end
 
 function Camera:update(dt, target, world)
@@ -18,7 +18,7 @@ end
 
 function Camera:attach()
     local w, h = love.graphics.getDimensions()
-    local shake = self.trauma * self.trauma * 9
+    local shake = self.trauma * self.trauma * 9 * (self.shakeScale or 0)
     love.graphics.push()
     love.graphics.translate(w / 2 + love.math.random(-shake, shake), h / 2 + love.math.random(-shake, shake))
     love.graphics.scale(self.zoom)
