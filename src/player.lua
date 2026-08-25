@@ -58,20 +58,24 @@ function Player:update(dt, world, game)
     local len = math.sqrt(dx * dx + dy * dy)
     self.isMoving = len > 0
     if self.isMoving then
-        self:cancelInteraction()
         dx, dy = dx / len, dy / len
         if dx ~= 0 then self.facing = dx < 0 and -1 or 1 end
         self.x = math.max(75, math.min(world.width - 75, self.x + dx * self.speed * dt))
         self.y = math.max(75, math.min(world.height - 75, self.y + dy * self.speed * dt))
         self.walkClock = self.walkClock + dt * 9
-    elseif self.repairingWall then
-        local cycle = .64 / (game.tools.hammer.speed * self.gather)
-        local before = math.floor(self.actionClock / cycle)
-        self.actionClock = self.actionClock + dt
-        if math.floor(self.actionClock / cycle) > before and not world:repairWall(game) then self:cancelInteraction() end
+    end
+    if self.repairingWall then
+        if math.abs(self.y - world.wall.y) > 210 then self:cancelInteraction()
+        else
+            local cycle = .64 / (game.tools.hammer.speed * self.gather)
+            local before = math.floor(self.actionClock / cycle)
+            self.actionClock = self.actionClock + dt
+            if math.floor(self.actionClock / cycle) > before and not world:repairWall(game) then self:cancelInteraction() end
+        end
     elseif self.interactionTarget then
         local node = self.interactionTarget
-        local valid = node.kind == "plot" or node.active
+        local ndx, ndy = node.x - self.x, node.y - self.y
+        local valid = (node.kind == "plot" or node.active) and ndx * ndx + ndy * ndy <= 210 * 210
         if not valid then self:cancelInteraction()
         else
             self.actionClock = self.actionClock + dt

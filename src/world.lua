@@ -233,12 +233,21 @@ function World:update(dt, game)
     if self.spawnTimer <= 0 and not game.ended then
         self.wave = self.wave + 1
         game:addRunXP(3 + math.floor(self.wave / 5))
-        local count = math.min(15, 2 + math.floor(self.wave * .55))
+        local isSurge = self.wave % 6 == 0
+        local baseCount = 2 + math.floor(self.wave * .85)
+        local count = math.min(90, isSurge and math.floor(baseCount * 1.7) or baseCount)
+        local laneCount = math.min(7, 3 + math.floor(self.wave / 10))
+        local xMin, xMax = 220, self.width - 220
         for i = 1, count do
-            local lane = ({780, 1600, 2420})[((i - 1) % 3) + 1]
-            self.enemies[#self.enemies + 1] = {x = lane + love.math.random(-55, 55), y = 90 - i * 35, hp = 22 + self.wave * 4, speed = 48 + self.wave * 1.4, hit = 5 + self.wave * .65}
+            local laneIndex, row = (i - 1) % laneCount, math.floor((i - 1) / laneCount)
+            local laneX = laneCount == 1 and (xMin + xMax) / 2 or xMin + (laneIndex / (laneCount - 1)) * (xMax - xMin)
+            self.enemies[#self.enemies + 1] = {x = laneX + love.math.random(-45, 45), y = 90 - row * 34, hp = 22 + self.wave * 4, speed = 48 + self.wave * 1.4, hit = 5 + self.wave * .65}
         end
-        self.spawnTimer = math.max(5.5, 11 - self.wave * .12)
+        self.spawnTimer = math.max(3.2, 11 - self.wave * .2)
+        if isSurge then
+            game:setNotice("적 대량 출현!", "wave")
+            if game.camera then game.camera.trauma = math.min(1, game.camera.trauma + .45) end
+        end
     end
     for i = #self.enemies, 1, -1 do
         local e = self.enemies[i]
