@@ -1,6 +1,6 @@
 local Game
 local game
-local captureFrames = os.getenv("LAST_HAUL_CAPTURE_TURRET_FIRE") and 3 or (os.getenv("LAST_HAUL_CAPTURE_DRILL") and 2 or ((os.getenv("LAST_HAUL_CAPTURE_RUSH") or os.getenv("LAST_HAUL_CAPTURE_LOBBY")) and 6 or (os.getenv("LAST_HAUL_CAPTURE_HARVEST") and 10 or ((os.getenv("LAST_HAUL_CAPTURE") or os.getenv("LAST_HAUL_CAPTURE_GAME") or os.getenv("LAST_HAUL_CAPTURE_FARM") or os.getenv("LAST_HAUL_CAPTURE_MINE") or os.getenv("LAST_HAUL_CAPTURE_WALL") or os.getenv("LAST_HAUL_CAPTURE_REPAIR") or os.getenv("LAST_HAUL_CAPTURE_META") or os.getenv("LAST_HAUL_CAPTURE_RESULTS") or os.getenv("LAST_HAUL_CAPTURE_UPGRADE") or os.getenv("LAST_HAUL_CAPTURE_UNITS") or os.getenv("LAST_HAUL_CAPTURE_TEST_OPTIONS") or os.getenv("LAST_HAUL_CAPTURE_TURRET_PROMPT") or os.getenv("LAST_HAUL_CAPTURE_TURRET_PLACEMENT") or os.getenv("LAST_HAUL_CAPTURE_TURRET_UPGRADE")) and 30 or nil))))
+local captureFrames = os.getenv("LAST_HAUL_CAPTURE_TURRET_FIRE") and 3 or (os.getenv("LAST_HAUL_CAPTURE_DRILL") and 2 or ((os.getenv("LAST_HAUL_CAPTURE_RUSH") or os.getenv("LAST_HAUL_CAPTURE_LOBBY") or os.getenv("LAST_HAUL_CAPTURE_CLEARCUT") or os.getenv("LAST_HAUL_CAPTURE_CLEARCUT_UPGRADE") or os.getenv("LAST_HAUL_CAPTURE_CLEARCUT_RESULTS") or os.getenv("LAST_HAUL_CAPTURE_CLEARCUT_THREATS") or os.getenv("LAST_HAUL_CAPTURE_CLEARCUT_BUILDS")) and 6 or (os.getenv("LAST_HAUL_CAPTURE_HARVEST") and 10 or ((os.getenv("LAST_HAUL_CAPTURE") or os.getenv("LAST_HAUL_CAPTURE_GAME") or os.getenv("LAST_HAUL_CAPTURE_FARM") or os.getenv("LAST_HAUL_CAPTURE_MINE") or os.getenv("LAST_HAUL_CAPTURE_WALL") or os.getenv("LAST_HAUL_CAPTURE_REPAIR") or os.getenv("LAST_HAUL_CAPTURE_META") or os.getenv("LAST_HAUL_CAPTURE_RESULTS") or os.getenv("LAST_HAUL_CAPTURE_UPGRADE") or os.getenv("LAST_HAUL_CAPTURE_UNITS") or os.getenv("LAST_HAUL_CAPTURE_TEST_OPTIONS") or os.getenv("LAST_HAUL_CAPTURE_TURRET_PROMPT") or os.getenv("LAST_HAUL_CAPTURE_TURRET_PLACEMENT") or os.getenv("LAST_HAUL_CAPTURE_TURRET_UPGRADE")) and 30 or nil))))
 
 function love.load()
     love.graphics.setDefaultFilter("linear", "linear", 4)
@@ -90,6 +90,66 @@ function love.load()
             {x=2640,y=game.world.wall.y-150,hp=120,speed=0,hit=0}
         }
     end
+    if os.getenv("LAST_HAUL_CAPTURE_CLEARCUT") then
+        game:startClearcut()
+        game.clearcut.levels.wide_blade,game.clearcut.levels.shockwave,game.clearcut.levels.berserker=2,2,1
+        local target,best=game.world.nodes[1],math.huge
+        for _,node in ipairs(game.world.nodes) do
+            local dx,dy=node.x-game.player.x,node.y-game.player.y
+            if dx*dx+dy*dy<best then target,best=node,dx*dx+dy*dy end
+        end
+        game.player.x,game.player.y=target.x+90,target.y+55
+        game.camera.x,game.camera.y=target.x,target.y-30
+        target.rushHp=1; game.clearcut:hitTree(target,game)
+        game.clearcut:onWood(95,game); game.clearcut.pending=0; game.mode="playing"
+        if os.getenv("LAST_HAUL_CAPTURE_CLEARCUT_JUICE") then
+            local second,best2=nil,math.huge
+            for _,node in ipairs(game.world.nodes) do
+                local dx,dy=node.x-game.player.x,node.y-game.player.y
+                if node~=target and dx*dx+dy*dy<best2 then second,best2=node,dx*dx+dy*dy end
+            end
+            if second then second.rushHp=1; game.clearcut:hitTree(second,game); game.world:spawnFallImpact(second,game) end
+        end
+    end
+    if os.getenv("LAST_HAUL_CAPTURE_CLEARCUT_BUILDS") then
+        game:startClearcut()
+        local c = game.clearcut
+        c.levels = {wide_blade=2, berserker=2, shockwave=2, domino=2, molotov=3, dry_forest=2, oil_drum=3, embers=2, herbicide=3, root_cutting=3, toxic_rain=2, forced_growth=1}
+        c:checkEvolutions(game)
+        c.elapsed = 46
+        c.streak = 6
+        -- exercise every new subsystem once to smoke-test for errors
+        local a, b = game.world.nodes[1], game.world.nodes[2]
+        a.rushHp, a.fallDir = 1, 1
+        c:hitTree(a, game)
+        b.burning, b.burnTimer = true, 5
+        c:updateFire(0.02, game)
+        c:updateToxicRain(10, game)
+        c:regrowPulse(game)
+        print("BUILD_SMOKE_TEST_OK")
+        game.mode = "playing"
+    end
+    if os.getenv("LAST_HAUL_CAPTURE_CLEARCUT_THREATS") then
+        game:startClearcut()
+        game.clearcut.elapsed = 46
+        game.clearcut:regrowPulse(game)
+        game.clearcut.bees[#game.clearcut.bees+1] = {x=game.player.x+90,y=game.player.y-30,speed=150,life=7}
+        game.clearcut.beeSlow = true
+        game.clearcut.rootHazards[#game.clearcut.rootHazards+1] = {x=game.player.x-70,y=game.player.y+40,phase="warn",timer=.4,radius=95}
+        game.camera.x,game.camera.y = game.player.x,game.player.y
+    end
+    if os.getenv("LAST_HAUL_CAPTURE_CLEARCUT_UPGRADE") then
+        game:startClearcut(); game.clearcut.level = 5
+        game.clearcut:rollChoices()
+        game.mode = "clearcut_upgrade"
+    end
+    if os.getenv("LAST_HAUL_CAPTURE_CLEARCUT_RESULTS") then
+        game:startClearcut()
+        game.clearcut.elapsed, game.clearcut.totalWood, game.clearcut.treesFelled = 247, 3820, game.clearcut.initialTrees
+        game.clearcut.maxMulti, game.clearcut.maxChain, game.clearcut.level, game.clearcut.remainingTrees = 9, 14, 12, 0
+        game.clearcut.regrowPulses, game.clearcut.treesRevived, game.clearcut.rootedCount, game.clearcut.beeSwarmsTriggered = 6, 41, 3, 4
+        game.clearcut:finish(game)
+    end
     if os.getenv("LAST_HAUL_CAPTURE_TURRET_PLACEMENT") then
         game.progression.data.levels.turret_slots = tonumber(os.getenv("LAST_HAUL_TURRET_SLOT_LEVEL")) or 0
         game:startRun(); game.ore = 100
@@ -140,6 +200,7 @@ end
 function love.update(dt)
     game:update(math.min(dt, 1 / 20))
     if os.getenv("LAST_HAUL_CAPTURE_RUSH") and game.rush and game.mode=="playing" then game.rush:updateHeldAxe(0,game,true) end
+    if os.getenv("LAST_HAUL_CAPTURE_CLEARCUT") and game.clearcut and game.mode=="playing" then game.clearcut:updateHeldAxe(0,game,true) end
     if captureFrames then captureFrames = captureFrames - 1 end
 end
 function love.draw()

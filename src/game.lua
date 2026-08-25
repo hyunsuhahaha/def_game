@@ -8,6 +8,7 @@ local TraitTree = require("src.trait_tree")
 local Feedback = require("src.feedback")
 local RunUpgrades = require("src.run_upgrades")
 local RushMode = require("src.rush_mode")
+local ClearcutMode = require("src.clearcut_mode")
 local Buildings = require("src.buildings")
 local resourceLabels = {wood = "목재", stone = "돌", ore = "광석", food = "식량"}
 
@@ -47,7 +48,7 @@ function Game.new()
 end
 
 function Game:resetRun()
-    self.runType, self.rush = nil, nil
+    self.runType, self.rush, self.clearcut = nil, nil, nil
     self.world = World.new()
     self.player = Player.new(1600, 1470, self.world.images.workerWalk, self.world.images.workerActions, self.world.images.workerRepair)
     self.camera = Camera.new(self.player.x, self.player.y)
@@ -97,6 +98,13 @@ function Game:startRush()
     self.rush:setup(self)
     self.mode="playing"
 end
+
+function Game:startClearcut()
+    self:resetRun()
+    self.clearcut=ClearcutMode.new()
+    self.clearcut:setup(self)
+    self.mode="playing"
+end
 function Game:setNotice(text, kind) self.notice, self.noticeKind, self.noticeTime = text, kind or "core", 2.2 end
 
 function Game:grantTestRunResources()
@@ -143,7 +151,7 @@ function Game:depositCargo(message)
 end
 
 function Game:addRunXP(amount)
-    if self.runType=="rush" then return end
+    if self.runType=="rush" or self.runType=="clearcut" then return end
     amount = math.max(0, amount or 0)
     self.runXP = self.runXP + amount
     if amount > 0 then self.runXPPulse, self.lastXPGain = 1, amount end
@@ -190,11 +198,11 @@ function Game:update(dt)
     if self.mode == "settings" then self.lobby:update(dt); return end
     if self.mode == "test_options" then self.testResetTime=math.max(0,(self.testResetTime or 0)-dt); if self.testResetTime<=0 then self.testResetArmed=false end; return end
     if self.mode == "meta" then self.traitTree:update(dt); return end
-    if self.mode == "results" or self.mode == "rush_results" then return end
+    if self.mode == "results" or self.mode == "rush_results" or self.mode == "clearcut_results" then return end
     if self.mode == "build_select" then return end
     self.runXPVisual = self.runXPVisual + (self.runXP - self.runXPVisual) * (1 - math.exp(-dt * 9))
     self.runXPPulse = math.max(0, self.runXPPulse - dt * 1.35)
-    if self.mode == "upgrade" or self.mode == "rush_upgrade" then return end
+    if self.mode == "upgrade" or self.mode == "rush_upgrade" or self.mode == "clearcut_upgrade" then return end
     if self.mode == "turret_upgrade" then return end
     self.noticeTime = math.max(0, self.noticeTime - dt)
     local wx, wy = self.camera:screenToWorld(love.mouse.getPosition())
@@ -202,15 +210,20 @@ function Game:update(dt)
     if self.ended then return end
     self.time = math.max(0, self.time - dt)
     if self.time <= 0 then
-        if self.runType=="rush" then self.rush:finish(self,true) else self:finishRun(true) end
+        if self.runType=="rush" then self.rush:finish(self,true)
+        elseif self.runType~="clearcut" then self:finishRun(true) end
         return
     end
     self.player:update(dt, self.world, self)
     self.nearTurret = self:getNearbyTurret()
     self.upgrades:update(dt, self)
     if self.rush then self.rush:update(dt,self) end
+    if self.clearcut then self.clearcut:update(dt,self) end
     self.world:update(dt, self); self.camera:update(dt, self.player, self.world)
-    if self.ended then if self.rush then self.rush:finish(self,self.victory) else self:finishRun(self.victory) end end
+    if self.clearcut and self.clearcut.remainingTrees <= 0 and not self.ended then self.clearcut:finish(self) end
+    if self.ended and not self.clearcut then
+        if self.rush then self.rush:finish(self,self.victory) else self:finishRun(self.victory) end
+    end
 end
 
 function Game:keypressed(key)
@@ -220,13 +233,14 @@ function Game:keypressed(key)
         if key == "escape" then love.event.quit(); return end
         if key == "t" then self.mode = "meta"; return end
         local action=self.lobby:keypressed(key)
-        if action=="start" then self:startRun() elseif action=="rush" then self:startRush() end
+        if action=="start" then self:startRun() elseif action=="rush" then self:startRush() elseif action=="clearcut" then self:startClearcut() end
         return
     end
     if self.mode == "settings" then if key == "escape" then self.mode = "lobby" end; return end
     if self.mode == "meta" then if self.traitTree:keypressed(key) == "back" then self.mode = "lobby" end; return end
     if self.mode == "upgrade" then if key == "1" or key == "2" or key == "3" then self:selectRunUpgrade(tonumber(key)) end; return end
     if self.mode == "rush_upgrade" then if key=="1" or key=="2" or key=="3" then self.rush:choose(tonumber(key),self) end; return end
+    if self.mode == "clearcut_upgrade" then if key=="1" or key=="2" or key=="3" then self.clearcut:choose(tonumber(key),self) end; return end
     if self.mode == "build_select" then if key == "escape" then self.mode = "playing" end; return end
     if self.mode == "turret_upgrade" then
         if key == "escape" then self:cancelTurretUpgrade()
@@ -237,6 +251,10 @@ function Game:keypressed(key)
         if key=="return" or key=="r" then self:startRush() elseif key=="escape" then self.mode="lobby" end
         return
     end
+    if self.mode == "clearcut_results" then
+        if key=="return" or key=="r" then self:startClearcut() elseif key=="escape" then self.mode="lobby" end
+        return
+    end
     if self.mode == "results" then
         if key == "t" then self.mode = "meta"
         elseif key == "return" or key == "escape" then self.mode = "lobby" end
@@ -245,8 +263,8 @@ function Game:keypressed(key)
     if key == "escape" and self.placingBuilding then self.placingBuilding = nil; self:setNotice("건설을 취소했습니다", "core"); return end
     if key == "escape" then self.mode = "lobby"; return end
     if self.ended and (key == "r" or key == "return") then self:startRun(); return end
-    if key == "p" and self.runType~="rush" then self:prestigeRun(); return end
-    if self.runType=="rush" then return end
+    if key == "p" and self.runType~="rush" and self.runType~="clearcut" then self:prestigeRun(); return end
+    if self.runType=="rush" or self.runType=="clearcut" then return end
     if key == "f" then
         local turret = self:getNearbyTurret()
         if turret then self:tryOpenTurretUpgrade(turret)
@@ -293,6 +311,7 @@ function Game:mousepressed(x, y, button)
         local action = self.lobby:mousepressed(x, y, button)
         if action == "start" then self:startRun()
         elseif action == "rush" then self:startRush()
+        elseif action == "clearcut" then self:startClearcut()
         elseif action == "meta" then self.mode = "meta"
         elseif action == "settings" then self.mode = "settings" end
         return
@@ -317,6 +336,7 @@ function Game:mousepressed(x, y, button)
     if self.mode == "meta" then if self.traitTree:mousepressed(x, y, button) == "back" then self.mode = "lobby" end; return end
     if self.mode == "upgrade" then if button == 1 then local index = self.upgrades:choiceAt(x, y); if index then self:selectRunUpgrade(index) end end; return end
     if self.mode == "rush_upgrade" then if button==1 then local index=self.rush:choiceAt(x,y); if index then self.rush:choose(index,self) end end; return end
+    if self.mode == "clearcut_upgrade" then if button==1 then local index=self.clearcut:choiceAt(x,y); if index then self.clearcut:choose(index,self) end end; return end
     if self.mode == "build_select" then
         if button == 1 then
             if x >= 28 and x <= 176 and y >= 25 and y <= 67 then self.mode = "playing"; return end
@@ -338,6 +358,10 @@ function Game:mousepressed(x, y, button)
         if button==1 then local w,h=love.graphics.getDimensions(); if y>=h/2+196 and y<=h/2+244 then if x>=w/2-250 and x<=w/2-10 then self.mode="lobby" elseif x>=w/2+10 and x<=w/2+250 then self:startRush() end end end
         return
     end
+    if self.mode == "clearcut_results" then
+        if button==1 then local w,h=love.graphics.getDimensions(); if y>=h/2+236 and y<=h/2+284 then if x>=w/2-250 and x<=w/2-10 then self.mode="lobby" elseif x>=w/2+10 and x<=w/2+250 then self:startClearcut() end end end
+        return
+    end
     if self.mode == "results" then
         if button == 1 then
             local w, h = love.graphics.getDimensions()
@@ -349,9 +373,9 @@ function Game:mousepressed(x, y, button)
         return
     end
     if self.ended then return end
-    if self.runType=="rush" then
-        -- 벌목 러시는 개별 나무를 클릭하지 않는다. 버튼을 누르는 동안
-        -- RushMode가 플레이어 주변의 나무를 자동 포착한다.
+    if self.runType=="rush" or self.runType=="clearcut" then
+        -- 벌목 러시/숲 전멸 모드는 개별 나무를 클릭하지 않는다. 버튼을 누르는 동안
+        -- 해당 모드가 플레이어 주변의 나무를 자동 포착한다.
         return
     end
     if self.placingBuilding then
@@ -645,10 +669,12 @@ function Game:draw()
     if self.mode == "build_select" then self:drawBuildSelect(); return end
     love.graphics.clear(.08, .11, .12); self.camera:attach(); self.world:draw(self.player)
     local left, top, right, bottom = self.camera:visibleBounds()
-    love.graphics.setBlendMode("screen", "alphamultiply"); love.graphics.setColor(.25, .34, .22, .13); love.graphics.rectangle("fill", left, top, right - left, bottom - top)
-    local coreDx,coreDy=self.player.x-self.world.core.x,self.player.y-self.world.core.y
-    local playerLight=coreDx*coreDx+coreDy*coreDy<400*400 and 1.45 or 2.2
-    love.graphics.setBlendMode("add", "alphamultiply"); love.graphics.setColor(1, 1, 1, 1); love.graphics.draw(self.light, self.player.x, self.player.y, 0, playerLight, playerLight, 256, 256); love.graphics.draw(self.light, self.world.core.x, self.world.core.y, 0, 1.05, 1.05, 256, 256)
+    if self.runType ~= "rush" then
+        love.graphics.setBlendMode("screen", "alphamultiply"); love.graphics.setColor(.25, .34, .22, .13); love.graphics.rectangle("fill", left, top, right - left, bottom - top)
+        local coreDx,coreDy=self.player.x-self.world.core.x,self.player.y-self.world.core.y
+        local playerLight=coreDx*coreDx+coreDy*coreDy<400*400 and 1.45 or 2.2
+        love.graphics.setBlendMode("add", "alphamultiply"); love.graphics.setColor(1, 1, 1, 1); love.graphics.draw(self.light, self.player.x, self.player.y, 0, playerLight, playerLight, 256, 256); love.graphics.draw(self.light, self.world.core.x, self.world.core.y, 0, 1.05, 1.05, 256, 256)
+    end
     love.graphics.setBlendMode("alpha")
     local nearbyTurret = self:getNearbyTurret()
     self.nearTurret = nearbyTurret
@@ -684,12 +710,15 @@ function Game:draw()
             love.graphics.draw(icon, previewX, previewY + 12, 0, scale, scale, icon:getWidth() / 2, icon:getHeight() * .91)
         end
     end
+    if self.clearcut then self.clearcut:drawWorldOverlay(self) end
     self.camera:detach(); self:drawUI()
     if self.mode == "upgrade" then self.upgrades:drawSelection(self, self.fonts) end
     if self.mode == "rush_upgrade" then self.rush:drawSelection(self,self.fonts) end
+    if self.mode == "clearcut_upgrade" then self.clearcut:drawSelection(self,self.fonts) end
     if self.mode == "turret_upgrade" then self:drawTurretUpgrade() end
     if self.mode == "results" then self:drawResults() end
     if self.mode == "rush_results" then self.rush:drawResults(self,self.fonts) end
+    if self.mode == "clearcut_results" then self.clearcut:drawResults(self,self.fonts) end
     if self.placingBuilding then
         local w = love.graphics.getWidth()
         local def, f = self.placingBuilding, self.fonts
@@ -798,6 +827,7 @@ end
 function Game:drawUI()
     local w, h, f = love.graphics.getWidth(), love.graphics.getHeight(), self.fonts
     if self.runType=="rush" then self.rush:drawHUD(self,f); return end
+    if self.runType=="clearcut" then self.clearcut:drawHUD(self,f); return end
     UI.panel(16, 16, 382, 142, {.25, .78, .88, 1})
     local m, s = math.floor(self.time / 60), math.floor(self.time % 60)
     love.graphics.setFont(f.big); love.graphics.setColor(1, 1, 1); love.graphics.print(string.format("%02d:%02d", m, s), 32, 27)

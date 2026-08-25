@@ -46,6 +46,7 @@ local function plot(x, y)
 end
 
 local function cargoSpace(player) return player.capacity - player:totalCargo() end
+local function activeChopper(game) return game.rush or game.clearcut end
 
 function World.new()
     local self = setmetatable({}, World)
@@ -103,6 +104,65 @@ function World:addParticle(x, y, color, strong, pickup)
     }
 end
 
+function World:addLeafParticle(x, y)
+    local angle = -math.pi * (.2 + love.math.random() * .6)
+    local speed = 55 + love.math.random() * 85
+    local mix = love.math.random()
+    local life = .85 + love.math.random() * .55
+    self.particles[#self.particles + 1] = {
+        x = x, y = y, vx = math.cos(angle) * speed, vy = math.sin(angle) * speed,
+        life = life, maxLife = life, size = 3.5 + love.math.random() * 3,
+        color = {.32 + mix * .3, .58 + mix * .22, .16 + mix * .12},
+        leaf = true, wobbleSeed = love.math.random() * 10, wobbleFreq = 2.6 + love.math.random() * 3
+    }
+end
+
+function World:spawnFallImpact(node, game)
+    local gx, gy = node.x, node.y + 6
+    for _ = 1, 12 do
+        local a = love.math.random() * math.pi * 2
+        local speed = 14 + love.math.random() * 34
+        local life = .6 + love.math.random() * .4
+        self.particles[#self.particles + 1] = {
+            x = gx, y = gy, vx = math.cos(a) * speed, vy = math.sin(a) * speed * .3 - 16,
+            life = life, maxLife = life, size = 7 + love.math.random() * 9, color = {.42, .36, .26}, dust = true
+        }
+    end
+    if game.camera then game.camera.trauma = math.min(1, game.camera.trauma + .22) end
+    local chopper = activeChopper(game)
+    if chopper and chopper.onTreeFallen then chopper:onTreeFallen(node, game) end
+end
+
+function World:igniteFx(x, y, big)
+    self.impactFlashes[#self.impactFlashes + 1] = {x = x, y = y, life = big and .4 or .22, maxLife = big and .4 or .22}
+    for _ = 1, big and 20 or 8 do
+        local a = love.math.random() * math.pi * 2
+        local speed = 40 + love.math.random() * (big and 160 or 90)
+        local life = .4 + love.math.random() * .4
+        self.particles[#self.particles + 1] = {
+            x = x, y = y, vx = math.cos(a) * speed, vy = math.sin(a) * speed - 30,
+            life = life, maxLife = life, size = 3 + love.math.random() * 4, color = {1, .5 + love.math.random() * .3, .1}, ember = true
+        }
+    end
+    if big then self.explosions[#self.explosions + 1] = {x = x, y = y, life = .5, maxLife = .5, radius = 110} end
+end
+
+function World:toxicPulseFx(x, y, radius)
+    self.particles[#self.particles + 1] = {x = x, y = y, life = .5, maxLife = .5, size = radius * .3, color = {.55, .85, .35}, ring = true}
+    self.particles[#self.particles + 1] = {x = x, y = y, life = .65, maxLife = .65, size = radius * .55, color = {.4, .7, .28}, ring = true}
+    for _ = 1, 16 do
+        local a = love.math.random() * math.pi * 2
+        local r = love.math.random() * radius
+        local life = .6 + love.math.random() * .5
+        self.particles[#self.particles + 1] = {
+            x = x + math.cos(a) * r, y = y + math.sin(a) * r * .5,
+            vx = math.cos(a) * 6, vy = -14 - love.math.random() * 14,
+            life = life, maxLife = life, size = 3 + love.math.random() * 4,
+            color = {.45 + love.math.random() * .2, .8, .3}, dust = true
+        }
+    end
+end
+
 function World:impactNode(node, game, strong)
     if not node or node.kind == "plot" or (not node.active and not strong) then return end
     local x, y = effectOrigin(node)
@@ -110,6 +170,11 @@ function World:impactNode(node, game, strong)
     node.hitFlash, node.hitShake = strong and .2 or .12, strong and .24 or .14
     for _ = 1, strong and 15 or 6 do self:addParticle(x, y, color, strong, false) end
     self.particles[#self.particles + 1] = {x = x, y = y, life = .2, maxLife = .2, size = 12, color = color, ring = true}
+    if node.kind == "tree" and game.player then
+        local dir = (node.x - game.player.x) >= 0 and 1 or -1
+        node.swayVel = (node.swayVel or 0) + dir * (strong and 3.4 or 1.7)
+        for _ = 1, strong and 10 or 4 do self:addLeafParticle(x, y) end
+    end
     if game.camera then game.camera.trauma = math.min(1, game.camera.trauma + (strong and .36 or .12)) end
     if game.feedback then game.feedback:play(node.kind, strong) end
 end
@@ -128,6 +193,12 @@ function World:harvestBurst(node, game, amount, label)
     self.harvestChain = self.harvestChainTime > 0 and math.min(99, self.harvestChain + 1) or 1
     self.harvestChainTime = 2.4
     self.popups[#self.popups + 1] = {x = x, y = y - 78, life = 1.05, maxLife = 1.05, text = "+" .. amount .. " " .. label, color = color, chain = self.harvestChain}
+    if node.rushTree then
+        local sway = node.swayAngle or 0
+        node.fallT, node.fallDur = 0, .46
+        node.fallDir = sway > 0 and 1 or sway < 0 and -1 or (love.math.random() < .5 and 1 or -1)
+        for _ = 1, 10 do self:addLeafParticle(x, y) end
+    end
 end
 
 function World:updateEffects(dt, game)
@@ -135,6 +206,24 @@ function World:updateEffects(dt, game)
     for _, node in ipairs(self.nodes) do
         node.hitFlash = math.max(0, (node.hitFlash or 0) - dt)
         node.hitShake = math.max(0, (node.hitShake or 0) - dt)
+        if node.kind == "tree" then
+            local vel = (node.swayVel or 0) + (-(node.swayAngle or 0) * 46 - (node.swayVel or 0) * 7.5) * dt
+            node.swayVel = vel
+            node.swayAngle = math.max(-.5, math.min(.5, (node.swayAngle or 0) + vel * dt))
+            if node.burning and love.math.random() < dt * 7 then
+                local life = .6 + love.math.random() * .4
+                self.particles[#self.particles + 1] = {
+                    x = node.x + (love.math.random() * 2 - 1) * 14, y = node.y - 30,
+                    vx = (love.math.random() * 2 - 1) * 12, vy = -40 - love.math.random() * 30,
+                    life = life, maxLife = life, size = 2.4 + love.math.random() * 2.4, color = {1, .55 + love.math.random() * .3, .1}, ember = true
+                }
+            end
+        end
+        if node.fallT and node.fallT < node.fallDur then
+            local before = node.fallT
+            node.fallT = math.min(node.fallDur, node.fallT + dt)
+            if node.fallT >= node.fallDur and before < node.fallDur then self:spawnFallImpact(node, game) end
+        end
     end
     for i = #self.particles, 1, -1 do
         local p = self.particles[i]
@@ -142,8 +231,18 @@ function World:updateEffects(dt, game)
         if p.pickup and game.player then
             local dx, dy = game.player.x - p.x, game.player.y - 25 - p.y
             p.vx, p.vy = p.vx + dx * dt * 12, p.vy + dy * dt * 12
+        elseif p.leaf then
+            p.vy = p.vy + 70 * dt
+            p.vx = p.vx * math.exp(-dt * 1.2)
+        elseif p.dust then
+            p.vx, p.vy = p.vx * math.exp(-dt * 2.4), p.vy * math.exp(-dt * 2.4) - 4 * dt
         elseif not p.ring then p.vy = p.vy + 390 * dt end
-        if not p.ring then p.x, p.y = p.x + p.vx * dt, p.y + p.vy * dt end
+        if p.leaf then
+            p.x = p.x + (p.vx + math.sin(love.timer.getTime() * p.wobbleFreq + p.wobbleSeed) * 46) * dt
+            p.y = p.y + p.vy * dt
+        elseif not p.ring then
+            p.x, p.y = p.x + p.vx * dt, p.y + p.vy * dt
+        end
         if p.life <= 0 then table.remove(self.particles, i) end
     end
     for i = #self.popups, 1, -1 do
@@ -169,13 +268,14 @@ end
 
 function World:updateDrops(dt, game)
     local player = game.player
-    local pickupRadius = game.rush and game.rush:pickupRadius() or 80
-    local pickupSpeed = game.rush and game.rush:pickupSpeed() or 12
+    local chopper = activeChopper(game)
+    local pickupRadius = chopper and chopper:pickupRadius() or 80
+    local pickupSpeed = chopper and chopper:pickupSpeed() or 12
     for i = #self.drops, 1, -1 do
         local drop = self.drops[i]
         local dx, dy = player.x - drop.x, player.y - drop.y
         local distance = math.sqrt(dx * dx + dy * dy)
-        if drop.height <= (game.rush and 18 or 0) and distance <= pickupRadius and cargoSpace(player) > 0 then drop.magnet = true end
+        if drop.height <= (chopper and 18 or 0) and distance <= pickupRadius and cargoSpace(player) > 0 then drop.magnet = true end
         if drop.magnet then
             local pull = math.min(1, dt * pickupSpeed)
             drop.x, drop.y = drop.x + dx * pull, drop.y + dy * pull
@@ -187,7 +287,7 @@ function World:updateDrops(dt, game)
                     player[drop.kind] = player[drop.kind] + amount
                     game.runStats.harvested = game.runStats.harvested + amount
                     game.runStats[drop.kind] = (game.runStats[drop.kind] or 0) + amount
-                    if game.rush and drop.kind=="wood" then game.rush:onWood(amount,game) else game:addRunXP(amount) end
+                    if chopper and drop.kind=="wood" then chopper:onWood(amount,game) else game:addRunXP(amount) end
                     local label = drop.kind == "stone" and "돌" or drop.kind == "wood" and "목재" or drop.kind == "food" and "식량" or "광석"
                     local color = effectColors[drop.kind]
                     self.popups[#self.popups + 1] = {x=drop.x,y=drop.y-32,life=.8,maxLife=.8,text="+"..amount.." "..label,color=color,chain=0}
@@ -248,7 +348,8 @@ function World:harvestChipBurst(x, y, kind, power, game, isCrit)
 end
 
 function World:harvestHit(node, game, player)
-    if game.rush and node.rushTree then game.rush:hitTree(node,game); return end
+    local chopper = activeChopper(game)
+    if chopper and node.rushTree then chopper:hitTree(node,game); return end
     self:impactNode(node, game, false)
     local ex, ey = effectOrigin(node)
     local critChance = game.upgrades and game.upgrades.resourcePct.critChance or 0
@@ -987,11 +1088,14 @@ end
 local function shadow(x, y, rx, ry, alpha) love.graphics.setColor(0, 0, 0, alpha or .38); love.graphics.ellipse("fill", x + 8, y + 14, rx, ry) end
 local function centered(img, x, y, scale) love.graphics.setColor(1, 1, 1, 1); love.graphics.draw(img, x, y, 0, scale, scale, img:getWidth() / 2, img:getHeight() / 2) end
 local function grounded(img, x, y, scale) love.graphics.setColor(1, 1, 1, 1); love.graphics.draw(img, x, y, 0, scale, scale, img:getWidth() / 2, img:getHeight() * .91) end
+local function groundedRotated(img, x, y, scale, angle) love.graphics.setColor(1, 1, 1, 1); love.graphics.draw(img, x, y, angle, scale, scale, img:getWidth() / 2, img:getHeight() * .91) end
 
 function World:drawForestGround()
-    love.graphics.setColor(.33, .51, .12, 1)
+    love.graphics.setColor(.36, .53, .13, 1)
     love.graphics.rectangle("fill", 0, 0, self.width, self.height)
-    drawMirroredTiled(self.images.forestGround, 0, 0, self.width, self.height, 768, .9)
+    drawMirroredTiled(self.images.forestGround, 0, 0, self.width, self.height, 768, .3)
+    drawMirroredTiled(self.images.forestGround, -384, -384, self.width + 768, self.height + 768, 768, .18)
+    if self.hideBase then return end
 
     -- 방벽 앞은 적과 투사체가 읽히는 밝은 초원 전선으로 남긴다.
     love.graphics.setColor(.16, .31, .09, .14)
@@ -1165,19 +1269,21 @@ function World:draw(player)
         love.graphics.setColor(.06, .075, .085, 1); love.graphics.rectangle("fill", 0, 0, self.width, 55); love.graphics.rectangle("fill", 0, self.height - 55, self.width, 55); love.graphics.rectangle("fill", 0, 0, 55, self.height); love.graphics.rectangle("fill", self.width - 55, 0, 55, self.height)
     end
     local queue = {}
-    for i = 1, self.turretSlotLimit do
-        local slot = self.turretSlots[i]
-        queue[#queue + 1] = {y = slot.y - 1, draw = function() self:drawTurretSlot(slot) end}
-    end
-    queue[#queue + 1] = {y = self.core.y, draw = function() shadow(self.core.x, self.core.y, 145, 48, .5); centered(self.images.core, self.core.x, self.core.y - 50, .23) end}
-    queue[#queue + 1] = {y = self.core.y + 1, draw = function()
-        for _, turret in ipairs(self.turrets) do
-            local pulse = 1 + turret.level * .025 + (turret.flash or 0) * .45
-            shadow(turret.x, turret.y + 25, 28, 9, .35)
-            love.graphics.setColor(1,1,1,1); grounded(self.images.turret, turret.x, turret.y + 30, .058 * pulse)
-            if turret.flash and turret.flash > 0 then love.graphics.setColor(turret.kind=="rail" and {.25,.92,1,turret.flash*4} or {1,.7,.2,turret.flash*4}); love.graphics.circle("fill",turret.x-30,turret.y-22,8+turret.flash*45) end
+    if not self.hideBase then
+        for i = 1, self.turretSlotLimit do
+            local slot = self.turretSlots[i]
+            queue[#queue + 1] = {y = slot.y - 1, draw = function() self:drawTurretSlot(slot) end}
         end
-    end}
+        queue[#queue + 1] = {y = self.core.y, draw = function() shadow(self.core.x, self.core.y, 145, 48, .5); centered(self.images.core, self.core.x, self.core.y - 50, .23) end}
+        queue[#queue + 1] = {y = self.core.y + 1, draw = function()
+            for _, turret in ipairs(self.turrets) do
+                local pulse = 1 + turret.level * .025 + (turret.flash or 0) * .45
+                shadow(turret.x, turret.y + 25, 28, 9, .35)
+                love.graphics.setColor(1,1,1,1); grounded(self.images.turret, turret.x, turret.y + 30, .058 * pulse)
+                if turret.flash and turret.flash > 0 then love.graphics.setColor(turret.kind=="rail" and {.25,.92,1,turret.flash*4} or {1,.7,.2,turret.flash*4}); love.graphics.circle("fill",turret.x-30,turret.y-22,8+turret.flash*45) end
+            end
+        end}
+    end
     for _, value in ipairs(self.buildings) do local building = value; queue[#queue + 1] = {y = building.y, draw = function()
         local flash, icon = building.flash or 0, self.buildingIcons[building.kind]
         local def = buildingById[building.kind]
@@ -1239,7 +1345,7 @@ function World:draw(player)
             end
         end
     end} end
-    queue[#queue + 1] = {y = self.wall.y, draw = function() self:drawWall(player) end}
+    if not self.hideBase then queue[#queue + 1] = {y = self.wall.y, draw = function() self:drawWall(player) end} end
     for _, n in ipairs(self.nodes) do
         if n.active or n.kind == "plot" or n.rushTree then
             local node = n
@@ -1248,7 +1354,17 @@ function World:draw(player)
                 local shake = (node.hitShake or 0) * 42
                 local ox, oy = (love.math.random() * 2 - 1) * shake, (love.math.random() * 2 - 1) * shake * .35
                 local bump = 1 + (node.hitFlash or 0) * .32
-                if not node.active and node.rushTree then
+                if node.fallT and node.fallT < node.fallDur then
+                    local visual = self.treeVisual
+                    local ft = node.fallT / node.fallDur
+                    local ease = 1 - (1 - ft) * (1 - ft)
+                    local angle = ease * math.pi * .42 * node.fallDir
+                    if ft > .82 then angle = angle + math.sin((ft - .82) / .18 * math.pi) * .05 * node.fallDir end
+                    love.graphics.setColor(0, 0, 0, visual.shadowAlpha * (1 - ft * .4))
+                    love.graphics.ellipse("fill", node.x + visual.shadowX + ease * 30 * node.fallDir, node.y + visual.shadowY, visual.shadowRx * (1 + ease * .5), visual.shadowRy)
+                    groundedRotated(self.images.tree, node.x, node.y, visual.scale, angle)
+                    return
+                elseif not node.active and node.rushTree then
                     self:drawRushStump(node)
                     return
                 elseif node.hitFlash and node.hitFlash > 0 then
@@ -1259,14 +1375,23 @@ function World:draw(player)
                     local visual = self.treeVisual
                     love.graphics.setColor(0, 0, 0, visual.shadowAlpha)
                     love.graphics.ellipse("fill", node.x + visual.shadowX, node.y + visual.shadowY, visual.shadowRx, visual.shadowRy)
-                    if node.rushTree then
-                        local pdx, pdy = node.x - player.x, node.y - player.y
-                        local distance = math.sqrt(pdx*pdx + pdy*pdy)
-                        local alpha = distance < 125 and .32 or distance < 205 and (.32 + (distance - 125) / 80 * .68) or 1
-                        love.graphics.setColor(1, 1, 1, alpha)
-                        love.graphics.draw(self.images.tree, node.x + ox, node.y + oy, 0, visual.scale * bump, visual.scale * bump, self.images.tree:getWidth() / 2, self.images.tree:getHeight() * .91)
-                    else
-                        grounded(self.images.tree, node.x + ox, node.y + oy, visual.scale * bump)
+                    groundedRotated(self.images.tree, node.x + ox, node.y + oy, visual.scale * bump, node.swayAngle or 0)
+                    if node.burning then
+                        local ft = love.timer.getTime()
+                        local flicker = .7 + math.sin(ft * 20 + node.x) * .3
+                        love.graphics.setColor(1, .5, .15, .32 * flicker); love.graphics.circle("fill", node.x, node.y - 24, 50)
+                        for i = 1, 3 do
+                            local fx = node.x + math.sin(ft * 9 + node.x + i * 2.1) * 16
+                            local fy = node.y - 20 - i * 20 + math.sin(ft * 7 + i) * 4
+                            local size = (26 - i * 6) * flicker
+                            love.graphics.setColor(1, .32 + i * .06, .04, .88)
+                            love.graphics.polygon("fill", fx, fy - size, fx - size * .55, fy + size * .55, fx + size * .55, fy + size * .55)
+                            love.graphics.setColor(.55, .12, .02, .8); love.graphics.setLineWidth(1.4)
+                            love.graphics.polygon("line", fx, fy - size, fx - size * .55, fy + size * .55, fx + size * .55, fy + size * .55)
+                            love.graphics.setColor(1, .8, .3, .75)
+                            love.graphics.polygon("fill", fx, fy - size * .5, fx - size * .25, fy + size * .3, fx + size * .25, fy + size * .3)
+                        end
+                        love.graphics.setColor(1, 1, .8, .9 * flicker); love.graphics.circle("fill", node.x, node.y - 52, 6)
                     end
                 elseif node.kind == "quarry" then
                     local visual = self.quarryVisual
@@ -1366,8 +1491,34 @@ function World:draw(player)
         if p.ring then
             love.graphics.setLineWidth(3); love.graphics.circle("line", p.x, p.y, p.size + (1 - alpha) * 42)
         elseif p.pickup then
-            love.graphics.push(); love.graphics.translate(p.x, p.y); love.graphics.rotate((1 - alpha) * 7); love.graphics.rectangle("fill", -p.size, -p.size, p.size * 2, p.size * 2, 2, 2); love.graphics.pop()
-        else love.graphics.circle("fill", p.x, p.y, p.size) end
+            love.graphics.push(); love.graphics.translate(p.x, p.y); love.graphics.rotate((1 - alpha) * 7)
+            love.graphics.rectangle("fill", -p.size, -p.size, p.size * 2, p.size * 2, 2, 2)
+            love.graphics.setColor(p.color[1] * .5, p.color[2] * .5, p.color[3] * .5, alpha); love.graphics.setLineWidth(1)
+            love.graphics.rectangle("line", -p.size, -p.size, p.size * 2, p.size * 2, 2, 2)
+            love.graphics.pop()
+        elseif p.leaf then
+            love.graphics.push(); love.graphics.translate(p.x, p.y); love.graphics.rotate(love.timer.getTime() * p.wobbleFreq + p.wobbleSeed)
+            love.graphics.ellipse("fill", 0, 0, p.size, p.size * .48)
+            love.graphics.setColor(p.color[1] * .45, p.color[2] * .45, p.color[3] * .45, alpha); love.graphics.setLineWidth(1)
+            love.graphics.ellipse("line", 0, 0, p.size, p.size * .48)
+            love.graphics.pop()
+        elseif p.dust then
+            local grow = 1 + (1 - alpha) * 1.8
+            love.graphics.setColor(p.color[1], p.color[2], p.color[3], alpha * .4)
+            love.graphics.circle("fill", p.x, p.y, p.size * grow)
+            love.graphics.setColor(p.color[1] * .5, p.color[2] * .5, p.color[3] * .5, alpha * .5); love.graphics.setLineWidth(1)
+            love.graphics.circle("line", p.x, p.y, p.size * grow)
+        elseif p.ember then
+            local flick = .75 + math.sin(love.timer.getTime() * 30 + p.x) * .25
+            love.graphics.setColor(.7, .18, .02, alpha * .9); love.graphics.setLineWidth(1)
+            love.graphics.circle("line", p.x, p.y, p.size * flick + 1)
+            love.graphics.setColor(1, .5, .08, alpha); love.graphics.circle("fill", p.x, p.y, p.size * flick)
+            love.graphics.setColor(1, .92, .58, alpha * .95); love.graphics.circle("fill", p.x, p.y, p.size * flick * .42)
+        else
+            love.graphics.circle("fill", p.x, p.y, p.size)
+            love.graphics.setColor(p.color[1] * .5, p.color[2] * .5, p.color[3] * .5, alpha * .8); love.graphics.setLineWidth(1)
+            love.graphics.circle("line", p.x, p.y, p.size)
+        end
     end
     love.graphics.setFont(self.effectFont)
     for _, popup in ipairs(self.popups) do
