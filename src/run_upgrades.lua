@@ -26,7 +26,8 @@ local definitions = {
     {id="ore_refine", name="정제 효율 강화", category="passive", max=5, color={.4,.43,.46}, tags={"자원","채광"}, resource="ore", resourceLabel="광석", desc="광석 획득량이 증가합니다."},
     {id="food_gain", name="수확 효율 강화", category="passive", max=5, color={.4,.43,.46}, tags={"자원","농업"}, resource="food", resourceLabel="식량", desc="식량 획득량이 증가합니다."},
     {id="farm_speed", name="속성 재배 기술", category="passive", max=5, color={.4,.43,.46}, tags={"농업","속도"}, resource="farmSpeed", resourceLabel="작물 성장 속도", desc="작물 성장 속도가 증가합니다."},
-    {id="fuel_efficiency", name="연료 효율 강화", category="passive", max=5, color={.4,.43,.46}, tags={"포탑","연료"}, resource="fuelEfficiency", resourceLabel="포탑 연료 효율", desc="포탑류 건물의 연료 소모가 줄고 재충전이 빨라집니다."}
+    {id="fuel_efficiency", name="연료 효율 강화", category="passive", max=5, color={.4,.43,.46}, tags={"포탑","연료"}, resource="fuelEfficiency", resourceLabel="포탑 연료 효율", desc="포탑류 건물의 연료 소모가 줄고 재충전이 빨라집니다."},
+    {id="crit_chance", name="정밀 타격 훈련", category="passive", max=5, color={1,.85,.25}, tags={"채집","치명타"}, resource="critChance", resourceLabel="치명타 확률", desc="채집 시 치명타가 발생할 확률이 증가합니다."}
 }
 
 local byId = {}
@@ -70,7 +71,7 @@ function RunUpgrades.new()
             return pixel * color;
         }
     ]])
-    return setmetatable({levels={}, choices={}, passiveCount=0, timers={}, icons=icons, lightBackgroundShader=lightBackgroundShader, maxPassives=9, resourcePct={wood=0, stone=0, ore=0, food=0, farmSpeed=0, fuelEfficiency=0}}, RunUpgrades)
+    return setmetatable({levels={}, choices={}, passiveCount=0, timers={}, icons=icons, lightBackgroundShader=lightBackgroundShader, maxPassives=9, resourcePct={wood=0, stone=0, ore=0, food=0, farmSpeed=0, fuelEfficiency=0, critChance=0}}, RunUpgrades)
 end
 
 function RunUpgrades:level(id) return self.levels[id] or 0 end
@@ -105,6 +106,7 @@ local function cloneWithRarity(def, rarity)
         local percentText = math.floor(rarity.percent * 100)
         choice.desc = def.resource == "farmSpeed" and string.format("작물 성장 속도가 %d%% 증가합니다.", percentText)
             or def.resource == "fuelEfficiency" and string.format("포탑 연료 효율이 %d%% 증가합니다 (소모 감소·재충전 증가).", percentText)
+            or def.resource == "critChance" and string.format("채집 치명타 확률이 %d%%p 증가합니다.", percentText)
             or string.format("%s 획득량이 %d%% 증가합니다.", def.resourceLabel, percentText)
     end
     return choice

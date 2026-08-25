@@ -174,30 +174,38 @@ function World:harvestPower(game, kind)
     return 1 + math.min(pct, 2.5)
 end
 
-function World:harvestChipBurst(x, y, kind, power, game)
+function World:harvestChipBurst(x, y, kind, power, game, isCrit)
     local color = effectColors[kind] or {1, 1, 1}
     local count = math.floor(3 + (power - 1) * 10)
     for _ = 1, count do self:addParticle(x, y, color, power > 1.25, true) end
     if power > 1.15 then
         self.particles[#self.particles + 1] = {x = x, y = y, life = .22, maxLife = .22, size = 10 + power * 8, color = color, ring = true}
     end
-    if game.camera then game.camera.trauma = math.min(1, game.camera.trauma + .06 + power * .05) end
+    if isCrit then
+        self.particles[#self.particles + 1] = {x = x, y = y, life = .32, maxLife = .32, size = 28, color = {1, .92, .4}, ring = true}
+        for _ = 1, 10 do self:addParticle(x, y, {1, .9, .4}, true, true) end
+        self.popups[#self.popups + 1] = {x = x, y = y - 44, life = .8, maxLife = .8, text = "치명타!", color = {1, .85, .25}, chain = 0}
+    end
+    if game.camera then game.camera.trauma = math.min(1, game.camera.trauma + .06 + power * .05 + (isCrit and .15 or 0)) end
 end
 
 function World:harvestHit(node, game, player)
     self:impactNode(node, game, false)
     local ex, ey = effectOrigin(node)
+    local critChance = game.upgrades and game.upgrades.resourcePct.critChance or 0
+    local isCrit = love.math.random() < math.min(critChance, 1)
+    local critAmount = isCrit and 3 or 1
     if node.kind == "tree" then
-        local power = self:harvestPower(game, "wood")
-        self:harvestChipBurst(ex, ey, "wood", power, game)
-        self:spawnDrop("wood", 1, node.x + 160, node.y + 70, 130, 100, power)
+        local power = self:harvestPower(game, "wood") + (isCrit and 1.2 or 0)
+        self:harvestChipBurst(ex, ey, "wood", power, game, isCrit)
+        self:spawnDrop("wood", critAmount, node.x + 160, node.y + 70, 130, 100, power)
     elseif node.kind == "quarry" then
         node.oreCounter = (node.oreCounter or 0) + 1
         local isOre = node.oreCounter % 5 == 0
         local kind = isOre and "ore" or "stone"
-        local power = self:harvestPower(game, kind)
-        self:harvestChipBurst(ex, ey, kind, power, game)
-        self:spawnDrop(kind, 1, node.x - 160, node.y + 70, 130, 100, power)
+        local power = self:harvestPower(game, kind) + (isCrit and 1.2 or 0)
+        self:harvestChipBurst(ex, ey, kind, power, game, isCrit)
+        self:spawnDrop(kind, critAmount, node.x - 160, node.y + 70, 130, 100, power)
     end
 end
 

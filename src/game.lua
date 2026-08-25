@@ -52,7 +52,7 @@ function Game:resetRun()
     self.camera.shakeScale = self.settings.screenShake and 1 or 0
     self.food, self.ore, self.wood, self.stone, self.seeds = 0, 0, 0, 0, 8
     self.time, self.ended, self.victory, self.hoverNode, self.hoverWall = 15 * 60, false, false, nil, false
-    self.runStats, self.result = {harvested = 0}, nil
+    self.runStats, self.result, self.prestiged = {harvested = 0}, nil, false
     self.upgrades, self.runLevel, self.runXP, self.runXPNext, self.pendingLevels = RunUpgrades.new(), 1, 0, 18, 0
     self.runXPVisual, self.runXPPulse, self.lastXPGain = 0, 0, 0
     local meta = self.progression:effects()
@@ -164,6 +164,12 @@ function Game:finishRun(victory)
     self.mode = "results"
 end
 
+function Game:prestigeRun()
+    if self.mode ~= "playing" or self.ended or self.result then return end
+    self.prestiged = true
+    self:finishRun(false)
+end
+
 function Game:update(dt)
     if self.mode == "lobby" then self.lobby:update(dt); return end
     if self.mode == "settings" then self.lobby:update(dt); return end
@@ -202,6 +208,7 @@ function Game:keypressed(key)
     if key == "escape" and self.placingBuilding then self.placingBuilding = nil; self:setNotice("건설을 취소했습니다", "core"); return end
     if key == "escape" then self.mode = "lobby"; return end
     if self.ended and (key == "r" or key == "return") then self:startRun(); return end
+    if key == "p" then self:prestigeRun(); return end
     if key == "1" or key == "2" or key == "3" or key == "4" or key == "5" then self:useAbility(tonumber(key)) end
 end
 
@@ -311,6 +318,7 @@ function Game:mousepressed(x, y, button)
     end
     if button ~= 1 then return end
     local hw, hh = love.graphics.getDimensions()
+    if x >= hw / 2 - 105 and x <= hw / 2 + 105 and y >= 118 and y <= 150 then self:prestigeRun(); return end
     local slotW, gap, startX, barY = 132, 8, hw / 2 - 346, hh - 92
     for i = 1, 5 do
         local sx = startX + (i - 1) * (slotW + gap)
@@ -460,8 +468,10 @@ end
 function Game:drawResults()
     local w, h, f, r = love.graphics.getWidth(), love.graphics.getHeight(), self.fonts, self.result
     love.graphics.setColor(0, 0, 0, .84); love.graphics.rectangle("fill", 0, 0, w, h)
-    UI.panel(w / 2 - 310, h / 2 - 245, 620, 490, r and r.victory > 0 and {.35, .94, .55, 1} or {.95, .4, .24, 1}, .98)
-    love.graphics.setFont(f.title); love.graphics.setColor(1, 1, 1); love.graphics.printf(self.victory and "작전 생존 성공" or "방어벽 붕괴", w / 2 - 280, h / 2 - 214, 560, "center")
+    local panelColor = (r and r.victory > 0) and {.35, .94, .55, 1} or (self.prestiged and {.95, .74, .22, 1} or {.95, .4, .24, 1})
+    UI.panel(w / 2 - 310, h / 2 - 245, 620, 490, panelColor, .98)
+    local title = self.victory and "작전 생존 성공" or (self.prestiged and "명예로운 철수" or "방어벽 붕괴")
+    love.graphics.setFont(f.title); love.graphics.setColor(1, 1, 1); love.graphics.printf(title, w / 2 - 280, h / 2 - 214, 560, "center")
     love.graphics.setFont(f.small); love.graphics.setColor(.55, .67, .71); love.graphics.printf("회수 보고서 · 영구 재화 정산", w / 2 - 280, h / 2 - 166, 560, "center")
     local rows = {
         {"생존 시간", string.format("%02d:%02d", math.floor(r.elapsed / 60), r.elapsed % 60), r.survival},
@@ -563,6 +573,7 @@ function Game:drawUI()
     local droneCount=0; for _,defender in ipairs(self.world.defenders) do if defender.kind=="drone" then droneCount=droneCount+1 end end
     local turretCount=0; for _,b in ipairs(self.world.buildings) do if b.kind=="autocannon_turret" or b.kind=="rail_turret" or b.kind=="blade_turret" then turretCount=turretCount+1 end end
     love.graphics.setColor(.55,.82,.86); love.graphics.printf(string.format("배치 포탑 %d   전투 드론 %d",turretCount,droneCount),w/2-105,96,210,"center")
+    UI.button(w / 2 - 105, 118, 210, 32, "[P] 조기 철수 — 재화 정산", true, f.small)
 
     self:drawMinimap(16, h - 158, 205, 142); self:drawToolBelt(w - 276, h - 158, 260, 142)
     local nextWall = wall.level < wall.maxLevel and self.wallCosts[wall.level + 1] or nil

@@ -141,6 +141,11 @@ function SelfTest.run(game)
     woodDrop.x, woodDrop.y, woodDrop.height, woodDrop.vx, woodDrop.vy, woodDrop.vz = game.player.x, game.player.y, 0, 0, 0, 0
     game.world:updateDrops(.1, game)
     assert(game.player.wood == 1 and #game.world.drops == 0, "목재 근접 흡수 실패")
+    game.upgrades.resourcePct.critChance = 1
+    game.world:harvestHit(tree, game, game.player)
+    assert(#game.world.drops == 3, "치명타 확정 시 드롭 개수 증가 실패")
+    game.world.drops = {}
+    game.upgrades.resourcePct.critChance = 0
     local quarryDx, quarryDy = quarry.x - game.world.core.x, quarry.y - game.world.core.y
     assert(quarryDx * quarryDx + quarryDy * quarryDy <= 520 * 520, "채석장이 거점에서 너무 멀리 배치됨")
     for _ = 1, 5 do game.world:harvestHit(quarry, game, game.player) end
@@ -173,6 +178,12 @@ function SelfTest.run(game)
     game.player:beginWallRepair(game.world, game)
     game.player:update(.7, game.world, game)
     assert(game.world.wall.hp > damagedHp and game.wood == 9 and game.stone == 9, "망치 직접 수리 실패")
+    game:startRun()
+    local prestigeBefore = game.progression.data.currency
+    game.time, game.world.wave, game.world.kills, game.runStats.harvested = 500, 3, 4, 20
+    game:prestigeRun()
+    assert(game.prestiged == true and game.mode == "results" and game.result.earned > 0 and game.progression.data.currency > prestigeBefore, "조기 철수 명예 정산 실패")
+    game:startRun()
     local beforeReward = game.progression.data.currency
     game.time, game.world.wave, game.world.kills, game.runStats.harvested = 600, 5, 8, 30
     game:finishRun(false)
@@ -180,7 +191,7 @@ function SelfTest.run(game)
     local afterReward = game.progression.data.currency
     game:finishRun(false)
     assert(game.progression.data.currency == afterReward, "런 보상 중복 지급 방지 실패")
-    print("SELF_TEST_OK: LOBBY_SINGLE_START LOBBY_AUX_NAV SETTINGS BIG_TREE_SINGLE TREE_PER_HIT_DROP TREE_PROXIMITY_PICKUP QUARRY_GROUNDED QUARRY_PER_HIT_DROP QUARRY_ORE_RATIO QUARRY_PROXIMITY_PICKUP FARM TREE QUARRY_INFINITE TOOL_SPEED IMPACT_SYNC HARVEST_FEEDBACK VISIBLE_TURRET VISIBLE_DRONE VISIBLE_REPAIR_STATION RUN_LEVELUP THREE_CHOICES AUTOMATION EVOLUTION WALL_UPGRADE WALL_BLOCK HAMMER_REPAIR META_SAVE TRAIT_TREE TRAIT_APPLY RUN_REWARD TEST_CURRENCY TEST_RESOURCES TEST_LEVELS TEST_RESET")
+    print("SELF_TEST_OK: LOBBY_SINGLE_START LOBBY_AUX_NAV SETTINGS BIG_TREE_SINGLE TREE_PER_HIT_DROP TREE_PROXIMITY_PICKUP QUARRY_GROUNDED QUARRY_PER_HIT_DROP QUARRY_ORE_RATIO QUARRY_PROXIMITY_PICKUP FARM TREE QUARRY_INFINITE TOOL_SPEED IMPACT_SYNC HARVEST_FEEDBACK VISIBLE_TURRET VISIBLE_DRONE VISIBLE_REPAIR_STATION RUN_LEVELUP THREE_CHOICES AUTOMATION EVOLUTION WALL_UPGRADE WALL_BLOCK HAMMER_REPAIR CRIT_CHANCE PRESTIGE_RUN META_SAVE TRAIT_TREE TRAIT_APPLY RUN_REWARD TEST_CURRENCY TEST_RESOURCES TEST_LEVELS TEST_RESET")
 end
 
 return SelfTest
