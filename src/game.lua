@@ -36,7 +36,7 @@ function Game.new()
         hammer = {name = "나무 수리 망치", speed = 1, type = "방벽 수리"}
     }
     self.wallCosts = {{wood = 0, stone = 0}, {wood = 12, stone = 8}, {wood = 22, stone = 16}, {wood = 36, stone = 28}}
-    local temporaryProfile = os.getenv("LAST_HAUL_SELF_TEST") or os.getenv("LAST_HAUL_CAPTURE_META") or os.getenv("LAST_HAUL_CAPTURE_RESULTS") or os.getenv("LAST_HAUL_CAPTURE_TEST_OPTIONS")
+    local temporaryProfile = os.getenv("LAST_HAUL_SELF_TEST") or os.getenv("LAST_HAUL_CAPTURE_META") or os.getenv("LAST_HAUL_CAPTURE_RESULTS") or os.getenv("LAST_HAUL_CAPTURE_TEST_OPTIONS") or os.getenv("LAST_HAUL_CAPTURE_TURRET_PROMPT")
     self.progression = Progression.new(temporaryProfile ~= nil)
     self.world = World.new(); self.lobby = Lobby.new(self.world.images, self.fonts)
     self.traitTree = TraitTree.new(self.progression, self.fonts, self.world.images, self.world.buildingIcons)
@@ -51,7 +51,7 @@ function Game:resetRun()
     self.camera = Camera.new(self.player.x, self.player.y)
     self.camera.shakeScale = self.settings.screenShake and 1 or 0
     self.food, self.ore, self.wood, self.stone, self.seeds = 0, 0, 0, 0, 8
-    self.time, self.ended, self.victory, self.hoverNode, self.hoverWall = 15 * 60, false, false, nil, false
+    self.time, self.ended, self.victory, self.hoverNode, self.hoverWall, self.hoverBuilding, self.nearTurret = 15 * 60, false, false, nil, false, nil, nil
     self.runStats, self.result, self.prestiged = {harvested = 0}, nil, false
     self.upgrades, self.runLevel, self.runXP, self.runXPNext, self.pendingLevels = RunUpgrades.new(), 1, 0, 18, 0
     self.runXPVisual, self.runXPPulse, self.lastXPGain = 0, 0, 0
@@ -182,10 +182,13 @@ function Game:update(dt)
     if self.mode == "upgrade" then return end
     if self.mode == "turret_upgrade" then return end
     self.noticeTime = math.max(0, self.noticeTime - dt)
-    local wx, wy = self.camera:screenToWorld(love.mouse.getPosition()); self.hoverNode, self.hoverWall = self.world:findNodeAt(wx, wy), self.world:isWallAt(wx, wy)
+    local wx, wy = self.camera:screenToWorld(love.mouse.getPosition())
+    self.hoverNode, self.hoverWall, self.hoverBuilding = self.world:findNodeAt(wx, wy), self.world:isWallAt(wx, wy), self.world:buildingAt(wx, wy)
     if self.ended then return end
     self.time = math.max(0, self.time - dt); if self.time <= 0 then self:finishRun(true); return end
-    self.player:update(dt, self.world, self); self.upgrades:update(dt, self); self.world:update(dt, self); self.camera:update(dt, self.player, self.world)
+    self.player:update(dt, self.world, self)
+    self.nearTurret = self.world:nearestTurretBuilding(self.player.x, self.player.y, 200)
+    self.upgrades:update(dt, self); self.world:update(dt, self); self.camera:update(dt, self.player, self.world)
     if self.ended then self:finishRun(self.victory) end
 end
 
@@ -215,6 +218,7 @@ function Game:keypressed(key)
     if key == "escape" then self.mode = "lobby"; return end
     if self.ended and (key == "r" or key == "return") then self:startRun(); return end
     if key == "p" then self:prestigeRun(); return end
+    if key == "f" and self.nearTurret then self:tryOpenTurretUpgrade(self.nearTurret); return end
     if key == "1" or key == "2" or key == "3" or key == "4" or key == "5" then self:useAbility(tonumber(key)) end
 end
 
@@ -333,6 +337,9 @@ function Game:mousepressed(x, y, button)
     end
     if button ~= 1 then return end
     local hw, hh = love.graphics.getDimensions()
+    if self.nearTurret and x >= hw / 2 - 210 and x <= hw / 2 + 210 and y >= hh - 146 and y <= hh - 102 then
+        self:tryOpenTurretUpgrade(self.nearTurret); return
+    end
     if x >= hw / 2 - 105 and x <= hw / 2 + 105 and y >= 118 and y <= 150 then self:prestigeRun(); return end
     local slotW, gap, startX, barY = 132, 8, hw / 2 - 346, hh - 92
     for i = 1, 5 do
@@ -682,7 +689,18 @@ function Game:drawUI()
     end
 
     local promptNode = self.player.interactionTarget or self.hoverNode
-    if self.player.repairingWall or self.hoverWall then
+    local promptTurret = self.nearTurret or (self.hoverBuilding and self.world:isTurretBuilding(self.hoverBuilding.kind) and self.hoverBuilding or nil)
+    if promptTurret then
+        local level = promptTurret.level or 0
+        local maxed = level >= self.world:turretMaxLevel()
+        local cost = self.world:turretUpgradeCost(promptTurret)
+        local inRange = promptTurret == self.nearTurret
+        local text
+        if not inRange then text = "포탑에 더 가까이 가세요"
+        elseif maxed then text = string.format("[F] 포탑 최고 단계 · Lv.%d", level)
+        else text = string.format("[F] 포탑 강화 · 광석 %d · Lv.%d", cost, level) end
+        UI.button(w / 2 - 210, h - 146, 420, 44, text, inRange and not maxed and self.ore >= cost, f.body)
+    elseif self.player.repairingWall or self.hoverWall then
         local distance = math.abs(self.player.y - self.world.wall.y)
         local text = self.player.repairingWall and "나무 수리 망치 사용 중 · 타격당 목재 1 + 돌 1" or (distance <= 185 and "클릭 — 방어벽 직접 수리" or "방어벽에 더 가까이 이동하세요")
         UI.panel(w / 2 - 200, h - 142, 400, 40, {.95, .62, .18, 1}, .9)

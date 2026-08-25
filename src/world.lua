@@ -357,6 +357,20 @@ function World:buildingAt(x, y)
     end
 end
 
+function World:nearestTurretBuilding(x, y, maxDistance)
+    local nearest, bestDistance2 = nil, (maxDistance or 200) ^ 2
+    for _, building in ipairs(self.buildings) do
+        if self:isTurretBuilding(building.kind) then
+            local dx, dy = building.x - x, building.y - y
+            local distance2 = dx * dx + dy * dy
+            if distance2 <= bestDistance2 then
+                nearest, bestDistance2 = building, distance2
+            end
+        end
+    end
+    return nearest
+end
+
 function World:turretUpgradeCost(building)
     local level = building.level or 0
     return math.floor(6 + level * level * 4 + .5)

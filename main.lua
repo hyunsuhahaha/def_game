@@ -1,6 +1,6 @@
 local Game
 local game
-local captureFrames = os.getenv("LAST_HAUL_CAPTURE_HARVEST") and 10 or ((os.getenv("LAST_HAUL_CAPTURE") or os.getenv("LAST_HAUL_CAPTURE_GAME") or os.getenv("LAST_HAUL_CAPTURE_FARM") or os.getenv("LAST_HAUL_CAPTURE_MINE") or os.getenv("LAST_HAUL_CAPTURE_WALL") or os.getenv("LAST_HAUL_CAPTURE_REPAIR") or os.getenv("LAST_HAUL_CAPTURE_META") or os.getenv("LAST_HAUL_CAPTURE_RESULTS") or os.getenv("LAST_HAUL_CAPTURE_UPGRADE") or os.getenv("LAST_HAUL_CAPTURE_UNITS") or os.getenv("LAST_HAUL_CAPTURE_TEST_OPTIONS")) and 30 or nil)
+local captureFrames = os.getenv("LAST_HAUL_CAPTURE_HARVEST") and 10 or ((os.getenv("LAST_HAUL_CAPTURE") or os.getenv("LAST_HAUL_CAPTURE_GAME") or os.getenv("LAST_HAUL_CAPTURE_FARM") or os.getenv("LAST_HAUL_CAPTURE_MINE") or os.getenv("LAST_HAUL_CAPTURE_WALL") or os.getenv("LAST_HAUL_CAPTURE_REPAIR") or os.getenv("LAST_HAUL_CAPTURE_META") or os.getenv("LAST_HAUL_CAPTURE_RESULTS") or os.getenv("LAST_HAUL_CAPTURE_UPGRADE") or os.getenv("LAST_HAUL_CAPTURE_UNITS") or os.getenv("LAST_HAUL_CAPTURE_TEST_OPTIONS") or os.getenv("LAST_HAUL_CAPTURE_TURRET_PROMPT")) and 30 or nil)
 
 function love.load()
     love.graphics.setDefaultFilter("linear", "linear", 4)
@@ -32,6 +32,13 @@ function love.load()
         game:startRun(); game.camera.x,game.camera.y=game.world.core.x,game.world.core.y-30
         game.world:addTurret("autocannon",1); game.world:addTurret("rail",2); game.world:addTurret("autocannon",1)
         game.world:spawnDefender("drone",2,game); game.world:spawnDefender("drone",3,game); game.world:spawnDefender("drone",1,game)
+    end
+    if os.getenv("LAST_HAUL_CAPTURE_TURRET_PROMPT") then
+        game:startRun()
+        local turret = game.world:addBuilding("autocannon_turret", game.world.core.x + 190, game.world.core.y + 120)
+        game.ore = 100
+        game.player.x, game.player.y = turret.x + 75, turret.y + 55
+        game.camera.x, game.camera.y = game.world.core.x, game.world.core.y + 60
     end
     if os.getenv("LAST_HAUL_CAPTURE_GAME") then game:startRun() end
     if os.getenv("LAST_HAUL_CAPTURE_FARM") then

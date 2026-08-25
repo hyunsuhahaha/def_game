@@ -87,8 +87,10 @@ function SelfTest.run(game)
     assert(game.world:isTurretBuilding("autocannon_turret") and not game.world:isTurretBuilding("auto_farm"), "포탑 판정 실패")
     local costBefore, oreBefore = game.world:turretUpgradeCost(combatTurret), game.ore
     game.player.x, game.player.y = combatTurret.x, combatTurret.y
-    game:tryOpenTurretUpgrade(combatTurret)
-    assert(game.mode == "turret_upgrade" and #game.turretUpgradeChoices == 3, "포탑 강화 선택지 생성 실패")
+    game.nearTurret = game.world:nearestTurretBuilding(game.player.x, game.player.y, 200)
+    assert(game.nearTurret == combatTurret, "근처 포탑 감지 실패")
+    game:keypressed("f")
+    assert(game.mode == "turret_upgrade" and #game.turretUpgradeChoices == 3, "F키 포탑 강화 선택지 생성 실패")
     game:chooseTurretMod(1)
     assert(combatTurret.level == 1 and game.mode == "playing" and game.ore == oreBefore - costBefore, "포탑 강화 적용 실패")
     local pickedMod
@@ -221,7 +223,7 @@ function SelfTest.run(game)
     local afterReward = game.progression.data.currency
     game:finishRun(false)
     assert(game.progression.data.currency == afterReward, "런 보상 중복 지급 방지 실패")
-    print("SELF_TEST_OK: LOBBY_SINGLE_START LOBBY_AUX_NAV SETTINGS BIG_TREE_SINGLE TREE_PER_HIT_DROP TREE_PROXIMITY_PICKUP QUARRY_GROUNDED QUARRY_PER_HIT_DROP QUARRY_ORE_RATIO QUARRY_PROXIMITY_PICKUP FARM TREE QUARRY_INFINITE TOOL_SPEED IMPACT_SYNC HARVEST_FEEDBACK VISIBLE_TURRET VISIBLE_DRONE VISIBLE_REPAIR_STATION RUN_LEVELUP THREE_CHOICES AUTOMATION EVOLUTION WALL_UPGRADE WALL_BLOCK HAMMER_REPAIR CRIT_CHANCE PRESTIGE_RUN MOVE_WHILE_FARM TURRET_UPGRADE META_SAVE TRAIT_TREE TRAIT_APPLY RUN_REWARD TEST_CURRENCY TEST_RESOURCES TEST_LEVELS TEST_RESET")
+    print("SELF_TEST_OK: LOBBY_SINGLE_START LOBBY_AUX_NAV SETTINGS BIG_TREE_SINGLE TREE_PER_HIT_DROP TREE_PROXIMITY_PICKUP QUARRY_GROUNDED QUARRY_PER_HIT_DROP QUARRY_ORE_RATIO QUARRY_PROXIMITY_PICKUP FARM TREE QUARRY_INFINITE TOOL_SPEED IMPACT_SYNC HARVEST_FEEDBACK VISIBLE_TURRET VISIBLE_DRONE VISIBLE_REPAIR_STATION RUN_LEVELUP THREE_CHOICES AUTOMATION EVOLUTION WALL_UPGRADE WALL_BLOCK HAMMER_REPAIR CRIT_CHANCE PRESTIGE_RUN MOVE_WHILE_FARM TURRET_NEARBY TURRET_F_INTERACT TURRET_UPGRADE META_SAVE TRAIT_TREE TRAIT_APPLY RUN_REWARD TEST_CURRENCY TEST_RESOURCES TEST_LEVELS TEST_RESET")
 end
 
 return SelfTest
