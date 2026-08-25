@@ -82,6 +82,30 @@ function SelfTest.run(game)
         assert(game.world:addBuilding("auto_farm", 1070 + (i - 1) * 60, 1180), "자동 농기계 건설 실패")
     end
     assert(#game.world.buildings == 7, "건설된 생산 시설 개수 불일치")
+    local combatTurret = game.world:addBuilding("autocannon_turret", 1400, 1250)
+    assert(combatTurret and combatTurret.level == 0, "포탑 초기 레벨 실패")
+    assert(game.world:isTurretBuilding("autocannon_turret") and not game.world:isTurretBuilding("auto_farm"), "포탑 판정 실패")
+    local costBefore, oreBefore = game.world:turretUpgradeCost(combatTurret), game.ore
+    game.player.x, game.player.y = combatTurret.x, combatTurret.y
+    game:tryOpenTurretUpgrade(combatTurret)
+    assert(game.mode == "turret_upgrade" and #game.turretUpgradeChoices == 3, "포탑 강화 선택지 생성 실패")
+    game:chooseTurretMod(1)
+    assert(combatTurret.level == 1 and game.mode == "playing" and game.ore == oreBefore - costBefore, "포탑 강화 적용 실패")
+    local pickedMod
+    for id in pairs(combatTurret.mods) do pickedMod = id end
+    assert(pickedMod ~= nil, "포탑 강화 중첩 기록 실패")
+    game:tryOpenTurretUpgrade(combatTurret)
+    game:cancelTurretUpgrade()
+    assert(game.mode == "playing" and combatTurret.level == 1, "포탑 강화 취소 실패")
+    combatTurret.mods, combatTurret.level = {multishot = 1, double_tap = 1}, 2
+    local turretDef = game.world:defFor("autocannon_turret")
+    for i = 1, 4 do game.world.enemies[#game.world.enemies + 1] = {x = combatTurret.x + i * 10, y = combatTurret.y, hp = 500, speed = 0, hit = 0} end
+    combatTurret.timer = 0
+    game.world:updateBuildings(.01, game)
+    local totalDamage = 0
+    for _, e in ipairs(game.world.enemies) do totalDamage = totalDamage + (500 - e.hp) end
+    assert(totalDamage >= turretDef.damage * 4, "다중공격·이중발사 배수 적용 실패")
+    game.world.enemies = {}
     assert(game.upgrades:choose("protein_feed", game), "런 보조 강화 실패")
     assert(game.upgrades:isEvolutionReady(game.upgrades:get("eternal_farm"), game) and game.upgrades:choose("eternal_farm", game), "런 진화 조합 실패")
     game.upgrades:rollChoices(game); assert(#game.upgrades.choices == 3, "런 3택 생성 실패")
@@ -197,7 +221,7 @@ function SelfTest.run(game)
     local afterReward = game.progression.data.currency
     game:finishRun(false)
     assert(game.progression.data.currency == afterReward, "런 보상 중복 지급 방지 실패")
-    print("SELF_TEST_OK: LOBBY_SINGLE_START LOBBY_AUX_NAV SETTINGS BIG_TREE_SINGLE TREE_PER_HIT_DROP TREE_PROXIMITY_PICKUP QUARRY_GROUNDED QUARRY_PER_HIT_DROP QUARRY_ORE_RATIO QUARRY_PROXIMITY_PICKUP FARM TREE QUARRY_INFINITE TOOL_SPEED IMPACT_SYNC HARVEST_FEEDBACK VISIBLE_TURRET VISIBLE_DRONE VISIBLE_REPAIR_STATION RUN_LEVELUP THREE_CHOICES AUTOMATION EVOLUTION WALL_UPGRADE WALL_BLOCK HAMMER_REPAIR CRIT_CHANCE PRESTIGE_RUN MOVE_WHILE_FARM META_SAVE TRAIT_TREE TRAIT_APPLY RUN_REWARD TEST_CURRENCY TEST_RESOURCES TEST_LEVELS TEST_RESET")
+    print("SELF_TEST_OK: LOBBY_SINGLE_START LOBBY_AUX_NAV SETTINGS BIG_TREE_SINGLE TREE_PER_HIT_DROP TREE_PROXIMITY_PICKUP QUARRY_GROUNDED QUARRY_PER_HIT_DROP QUARRY_ORE_RATIO QUARRY_PROXIMITY_PICKUP FARM TREE QUARRY_INFINITE TOOL_SPEED IMPACT_SYNC HARVEST_FEEDBACK VISIBLE_TURRET VISIBLE_DRONE VISIBLE_REPAIR_STATION RUN_LEVELUP THREE_CHOICES AUTOMATION EVOLUTION WALL_UPGRADE WALL_BLOCK HAMMER_REPAIR CRIT_CHANCE PRESTIGE_RUN MOVE_WHILE_FARM TURRET_UPGRADE META_SAVE TRAIT_TREE TRAIT_APPLY RUN_REWARD TEST_CURRENCY TEST_RESOURCES TEST_LEVELS TEST_RESET")
 end
 
 return SelfTest

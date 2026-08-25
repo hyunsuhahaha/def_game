@@ -5,6 +5,21 @@ local buildingDefs = require("src.buildings")
 local buildingById = {}
 for _, def in ipairs(buildingDefs) do buildingById[def.id] = def end
 
+local function isTurretDef(def)
+    if not def or not def.tags then return false end
+    for _, tag in ipairs(def.tags) do if tag == "포탑" then return true end end
+    return false
+end
+
+local turretMods = {
+    {id="multishot", name="다중 조준", desc="한 번에 공격하는 대상 수가 늘어납니다.", color={1,.55,.2,1}},
+    {id="double_tap", name="이중 발사", desc="공격 사이클마다 한 번 더 발사합니다.", color={.35,.85,1,1}},
+    {id="heavy_shell", name="강화 탄두", desc="공격력이 크게 증가합니다.", color={1,.3,.3,1}},
+    {id="rapid_coil", name="연사 코일", desc="공격 속도가 빨라집니다.", color={1,.85,.25,1}},
+    {id="long_barrel", name="확장 포신", desc="사거리가 늘어납니다.", color={.55,1,.6,1}}
+}
+local turretMaxLevel = 8
+
 local function image(path)
     local value = love.graphics.newImage(path)
     value:setFilter("linear", "linear", 4)
@@ -322,9 +337,36 @@ end
 function World:addBuilding(kind, x, y)
     local def = buildingById[kind]
     if not def or not self:canPlaceBuilding(x, y, def.footprint) then return nil end
-    local building = {kind = kind, x = x, y = y, timer = def.interval, flash = .4, fuel = def.fuelRadius and 1 or nil}
+    local building = {kind = kind, x = x, y = y, timer = def.interval, flash = .4, fuel = def.fuelRadius and 1 or nil, level = 0, mods = {}}
     self.buildings[#self.buildings + 1] = building
     return building
+end
+
+function World:defFor(kind) return buildingById[kind] end
+
+function World:isTurretBuilding(kind) return isTurretDef(buildingById[kind]) end
+
+function World:turretMaxLevel() return turretMaxLevel end
+
+function World:buildingAt(x, y)
+    for _, b in ipairs(self.buildings) do
+        local def = buildingById[b.kind]
+        local r = (def.footprint or 46) / 2 + 16
+        local dx, dy = x - b.x, y - b.y
+        if dx * dx + dy * dy <= r * r then return b, def end
+    end
+end
+
+function World:turretUpgradeCost(building)
+    local level = building.level or 0
+    return math.floor(6 + level * level * 4 + .5)
+end
+
+function World:rollTurretMods()
+    local pool = {}
+    for i, mod in ipairs(turretMods) do pool[i] = mod end
+    for i = #pool, 2, -1 do local j = love.math.random(i); pool[i], pool[j] = pool[j], pool[i] end
+    return {pool[1], pool[2], pool[3]}
 end
 
 function World:updateBuildings(dt, game)
@@ -338,9 +380,10 @@ function World:updateBuildings(dt, game)
             local rate = inRange and (def.fuelRecharge * efficiency) or -(def.fuelDrain / efficiency)
             b.fuel = math.max(0, math.min(1, (b.fuel or 1) + dt * rate))
         end
+        local mods = b.mods or {}
         b.timer = (b.timer or def.interval) - dt
         if b.timer <= 0 then
-            b.timer = def.interval
+            b.timer = def.interval * (0.85 ^ (mods.rapid_coil or 0))
             if def.fuelRadius and (b.fuel or 1) <= 0 then
                 -- out of fuel: skip this cycle's action entirely
             elseif def.behavior == "produce" then
@@ -355,12 +398,19 @@ function World:updateBuildings(dt, game)
                     b.flash = .35
                 end
             elseif def.behavior == "rail" then
-                if (game.ore or 0) >= (def.spawnCost.ore or 0) then
+                local dmg = (def.damage + (game.upgrades and game.upgrades:level("super_magnet") or 0) * 7) * (1 + (mods.heavy_shell or 0) * .4)
+                local targets = 1 + (mods.multishot or 0)
+                for _ = 1, 1 + (mods.double_tap or 0) do
+                    if (game.ore or 0) < (def.spawnCost.ore or 0) then break end
                     game.ore = game.ore - def.spawnCost.ore
-                    self:fireRail(b, game, def.damage + (game.upgrades and game.upgrades:level("super_magnet") or 0) * 7)
+                    if not self:fireRail(b, game, dmg, targets) then break end
                 end
             elseif def.behavior == "blade" then
-                self:bladeBurst(b, game, def.damage)
+                local dmg = def.damage * (1 + (mods.heavy_shell or 0) * .4)
+                local cap = 5 + (mods.multishot or 0) * 2
+                for _ = 1, 1 + (mods.double_tap or 0) do
+                    if not self:bladeBurst(b, game, dmg, cap) then break end
+                end
             elseif def.behavior == "spore" then
                 self:sporeBurst(b, game, def.damage)
             elseif def.behavior == "repair" then
@@ -373,15 +423,11 @@ function World:updateBuildings(dt, game)
             elseif def.behavior == "carrier" then
                 if game.player:totalCargo() > 0 then game:depositCargo("운반 드론 자동 납품"); b.flash = .25 end
             elseif def.behavior == "turret" then
-                local target, best = nil, def.range
-                for _, enemy in ipairs(self.enemies) do
-                    local dx, dy = enemy.x - b.x, enemy.y - b.y; local d = math.sqrt(dx * dx + dy * dy)
-                    if d < best then target, best = enemy, d end
-                end
-                if target then
-                    target.hp = target.hp - def.damage; self:applyCombatEffects(target, def.damage, game)
-                    self.shots[#self.shots + 1] = {x1 = b.x, y1 = b.y - 30, x2 = target.x, y2 = target.y, life = .12}
-                    b.flash = .2
+                local range = def.range * (1 + (mods.long_barrel or 0) * .18)
+                local dmg = def.damage * (1 + (mods.heavy_shell or 0) * .4)
+                local targets = 1 + (mods.multishot or 0)
+                for _ = 1, 1 + (mods.double_tap or 0) do
+                    if not self:turretFire(b, game, dmg, range, targets) then break end
                 end
             end
         end
@@ -495,24 +541,49 @@ function World:spawnDefender(kind, level, game)
     if game and game.camera then game.camera.trauma = math.min(1, game.camera.trauma + .16) end
 end
 
-function World:fireRail(source, game, damage)
-    local target
-    for _, enemy in ipairs(self.enemies) do if not target or enemy.y > target.y then target = enemy end end
-    if not target then return false end
+function World:fireRail(source, game, damage, count)
+    count = count or 1
+    local sorted = {}
+    for _, enemy in ipairs(self.enemies) do sorted[#sorted + 1] = enemy end
+    if #sorted == 0 then return false end
+    table.sort(sorted, function(a, b) return a.y > b.y end)
     source.flash = .3
-    target.hp = target.hp - damage; self:applyCombatEffects(target, damage, game)
-    self.shots[#self.shots+1]={x1=source.x,y1=source.y-38,x2=target.x,y2=target.y,life=.24,color={.25,.92,1}}
-    self.particles[#self.particles+1]={x=target.x,y=target.y,life=.3,maxLife=.3,size=22,color={.25,.92,1},ring=true}
+    for i = 1, math.min(count, #sorted) do
+        local target = sorted[i]
+        target.hp = target.hp - damage; self:applyCombatEffects(target, damage, game)
+        self.shots[#self.shots+1]={x1=source.x,y1=source.y-38,x2=target.x,y2=target.y,life=.24,color={.25,.92,1}}
+        self.particles[#self.particles+1]={x=target.x,y=target.y,life=.3,maxLife=.3,size=22,color={.25,.92,1},ring=true}
+    end
     if game.camera then game.camera.trauma=math.min(1,game.camera.trauma+.24) end
     return true
 end
 
-function World:bladeBurst(source, game, damage)
+function World:bladeBurst(source, game, damage, cap)
+    cap = cap or 5
     local hits = 0
     for _, enemy in ipairs(self.enemies) do
-        if hits < 5 and enemy.y > self.wall.y - 520 then enemy.hp=enemy.hp-damage; hits=hits+1; self.shots[#self.shots+1]={x1=source.x,y1=source.y-25,x2=enemy.x,y2=enemy.y,life=.18,color={1,.62,.18}} end
+        if hits < cap and enemy.y > self.wall.y - 520 then enemy.hp=enemy.hp-damage; hits=hits+1; self.shots[#self.shots+1]={x1=source.x,y1=source.y-25,x2=enemy.x,y2=enemy.y,life=.18,color={1,.62,.18}} end
     end
     if hits > 0 then source.flash = .3; if game.camera then game.camera.trauma=math.min(1,game.camera.trauma+.13) end end
+    return hits > 0
+end
+
+function World:turretFire(building, game, damage, range, targetCount)
+    local candidates = {}
+    for _, enemy in ipairs(self.enemies) do
+        local dx, dy = enemy.x - building.x, enemy.y - building.y
+        local d2 = dx * dx + dy * dy
+        if d2 <= range * range then candidates[#candidates + 1] = {enemy = enemy, d2 = d2} end
+    end
+    if #candidates == 0 then return false end
+    table.sort(candidates, function(a, b) return a.d2 < b.d2 end)
+    for i = 1, math.min(targetCount, #candidates) do
+        local enemy = candidates[i].enemy
+        enemy.hp = enemy.hp - damage; self:applyCombatEffects(enemy, damage, game)
+        self.shots[#self.shots + 1] = {x1 = building.x, y1 = building.y - 30, x2 = enemy.x, y2 = enemy.y, life = .12}
+    end
+    building.flash = .2
+    return true
 end
 
 function World:sporeBurst(source, game, damage)
@@ -729,6 +800,13 @@ function World:draw(player)
             local fuelColor = fuel > .5 and {.35, .9, .5, 1} or fuel > .2 and {1, .75, .2, 1} or {1, .3, .25, 1}
             love.graphics.setColor(fuelColor); love.graphics.rectangle("fill", building.x - gaugeW / 2, gaugeY, gaugeW * fuel, 6, 2, 2)
             love.graphics.setColor(1, 1, 1, .18); love.graphics.setLineWidth(1); love.graphics.rectangle("line", building.x - gaugeW / 2, gaugeY, gaugeW, 6, 2, 2)
+        end
+        if isTurretDef(def) and (building.level or 0) > 0 then
+            local dotY, count = building.y - (def.fuelRadius and 96 or 46), math.min(building.level, turretMaxLevel)
+            local dotStart = building.x - (count - 1) * 3
+            for i = 1, count do
+                love.graphics.setColor(1, .78, .25, .9); love.graphics.circle("fill", dotStart + (i - 1) * 6, dotY, 2.4)
+            end
         end
     end} end
     for _, value in ipairs(self.helpers) do local helper = value; queue[#queue + 1] = {y = helper.y, draw = function()

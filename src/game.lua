@@ -180,6 +180,7 @@ function Game:update(dt)
     self.runXPVisual = self.runXPVisual + (self.runXP - self.runXPVisual) * (1 - math.exp(-dt * 9))
     self.runXPPulse = math.max(0, self.runXPPulse - dt * 1.35)
     if self.mode == "upgrade" then return end
+    if self.mode == "turret_upgrade" then return end
     self.noticeTime = math.max(0, self.noticeTime - dt)
     local wx, wy = self.camera:screenToWorld(love.mouse.getPosition()); self.hoverNode, self.hoverWall = self.world:findNodeAt(wx, wy), self.world:isWallAt(wx, wy)
     if self.ended then return end
@@ -200,6 +201,11 @@ function Game:keypressed(key)
     if self.mode == "meta" then if self.traitTree:keypressed(key) == "back" then self.mode = "lobby" end; return end
     if self.mode == "upgrade" then if key == "1" or key == "2" or key == "3" then self:selectRunUpgrade(tonumber(key)) end; return end
     if self.mode == "build_select" then if key == "escape" then self.mode = "playing" end; return end
+    if self.mode == "turret_upgrade" then
+        if key == "escape" then self:cancelTurretUpgrade()
+        elseif key == "1" or key == "2" or key == "3" then self:chooseTurretMod(tonumber(key)) end
+        return
+    end
     if self.mode == "results" then
         if key == "t" then self.mode = "meta"
         elseif key == "return" or key == "escape" then self.mode = "lobby" end
@@ -279,6 +285,15 @@ function Game:mousepressed(x, y, button)
         end
         return
     end
+    if self.mode == "turret_upgrade" then
+        if button == 1 then
+            local index = self:turretChoiceAt(x, y)
+            if index then self:chooseTurretMod(index) end
+        elseif button == 2 then
+            self:cancelTurretUpgrade()
+        end
+        return
+    end
     if self.mode == "results" then
         if button == 1 then
             local w, h = love.graphics.getDimensions()
@@ -325,6 +340,8 @@ function Game:mousepressed(x, y, button)
         if x >= sx and x <= sx + slotW and y >= barY and y <= barY + 70 then self:useAbility(i); return end
     end
     local wx, wy = self.camera:screenToWorld(x, y)
+    local building = self.world:buildingAt(wx, wy)
+    if building then self:tryOpenTurretUpgrade(building); return end
     if self.world:isWallAt(wx, wy) then self.player:beginWallRepair(self.world, self); return end
     local node = self.world:findNodeAt(wx, wy)
     if node then self.player:beginInteraction(node, self.world, self) else self.player:cancelInteraction() end
@@ -348,6 +365,81 @@ function Game:buildCardAt(x, y)
     for i, box in ipairs(self.buildCardBoxes or {}) do
         if x >= box.x and x <= box.x + box.w and y >= box.y and y <= box.y + box.h then return i end
     end
+end
+
+function Game:tryOpenTurretUpgrade(building)
+    if not self.world:isTurretBuilding(building.kind) then self:setNotice("이 건물은 강화할 수 없습니다", "core"); return end
+    local dx, dy = building.x - self.player.x, building.y - self.player.y
+    if dx * dx + dy * dy > 200 * 200 then self:setNotice("포탑에 더 가까이 가세요", "core"); return end
+    if (building.level or 0) >= self.world:turretMaxLevel() then self:setNotice("이미 최고 단계입니다", "ore"); return end
+    local cost = self.world:turretUpgradeCost(building)
+    if (self.ore or 0) < cost then self:setNotice("광석 부족 — 필요: 광석 " .. cost, "ore"); return end
+    self.turretUpgradeTarget = building
+    self.turretUpgradeChoices = self.world:rollTurretMods()
+    self.turretUpgradeCostValue = cost
+    self.mode = "turret_upgrade"
+end
+
+function Game:chooseTurretMod(index)
+    local building = self.turretUpgradeTarget
+    local choice = self.turretUpgradeChoices and self.turretUpgradeChoices[index]
+    if not building or not choice then return end
+    local cost = self.turretUpgradeCostValue or 0
+    if (self.ore or 0) < cost then self:cancelTurretUpgrade(); return end
+    self.ore = self.ore - cost
+    building.mods = building.mods or {}
+    building.mods[choice.id] = (building.mods[choice.id] or 0) + 1
+    building.level = (building.level or 0) + 1
+    building.flash = .5
+    self.world.particles[#self.world.particles + 1] = {x = building.x, y = building.y - 30, life = .4, maxLife = .4, size = 28, color = choice.color, ring = true}
+    if self.camera then self.camera.trauma = math.min(1, self.camera.trauma + .2) end
+    local def = self.world:defFor(building.kind)
+    self:setNotice((def and def.name or "포탑") .. " " .. choice.name .. " 적용! Lv." .. building.level, "ore")
+    self.turretUpgradeTarget, self.turretUpgradeChoices = nil, nil
+    self.mode = "playing"
+end
+
+function Game:cancelTurretUpgrade()
+    self.turretUpgradeTarget, self.turretUpgradeChoices = nil, nil
+    self.mode = "playing"
+end
+
+function Game:turretChoiceAt(x, y)
+    for i, box in ipairs(self.turretChoiceBoxes or {}) do
+        if x >= box.x and x <= box.x + box.w and y >= box.y and y <= box.y + box.h then return i end
+    end
+end
+
+function Game:drawTurretUpgrade()
+    local w, h, f = love.graphics.getWidth(), love.graphics.getHeight(), self.fonts
+    local building = self.turretUpgradeTarget
+    if not building then return end
+    local def = self.world:defFor(building.kind)
+    love.graphics.setColor(.02, .03, .04, .78); love.graphics.rectangle("fill", 0, 0, w, h)
+    love.graphics.setFont(f.small); love.graphics.setColor(.95, .8, .3); love.graphics.printf((def and def.name or "포탑") .. "  ·  Lv." .. (building.level or 0), 0, 90, w, "center")
+    love.graphics.setFont(f.title); love.graphics.setColor(1, 1, 1); love.graphics.printf("포탑 강화 — 광석 " .. (self.turretUpgradeCostValue or 0), 0, 122, w, "center")
+    local gap = 24
+    local cardW = math.min(300, (w - 72 - gap * 2) / 3)
+    local cardH, y = 300, 190
+    local startX = w / 2 - (cardW * 3 + gap * 2) / 2
+    local mx, my = love.mouse.getPosition()
+    self.turretChoiceBoxes = {}
+    for i, mod in ipairs(self.turretUpgradeChoices or {}) do
+        local x = startX + (i - 1) * (cardW + gap)
+        local hovered = mx >= x and mx <= x + cardW and my >= y and my <= y + cardH
+        self.turretChoiceBoxes[i] = {x = x, y = y, w = cardW, h = cardH}
+        love.graphics.setColor(0, 0, 0, .28); love.graphics.rectangle("fill", x + 5, y + 8, cardW, cardH, 12, 12)
+        love.graphics.setColor(hovered and {.98, .97, .88, 1} or {.91, .91, .83, .98}); love.graphics.rectangle("fill", x, y, cardW, cardH, 12, 12)
+        love.graphics.setColor(mod.color); love.graphics.rectangle("fill", x, y, cardW, 7, 12, 12)
+        love.graphics.setLineWidth(hovered and 3 or 1.5); love.graphics.setColor(mod.color[1], mod.color[2], mod.color[3], hovered and 1 or .55); love.graphics.rectangle("line", x, y, cardW, cardH, 12, 12)
+        love.graphics.setFont(f.heading); love.graphics.setColor(.1, .16, .15); love.graphics.printf(tostring(i) .. "  " .. mod.name, x + 18, y + 26, cardW - 36, "center")
+        love.graphics.setFont(f.small); love.graphics.setColor(.3, .36, .34); love.graphics.printf(mod.desc, x + 24, y + 90, cardW - 48, "center")
+        local stacks = (building.mods and building.mods[mod.id]) or 0
+        if stacks > 0 then
+            love.graphics.setColor(mod.color); love.graphics.printf("현재 " .. stacks .. "중첩", x + 24, y + cardH - 40, cardW - 48, "center")
+        end
+    end
+    love.graphics.setFont(f.small); love.graphics.setColor(.7, .78, .72); love.graphics.printf("우클릭 또는 ESC로 취소", 0, y + cardH + 20, w, "center")
 end
 
 function Game:drawBuildSelect()
@@ -418,6 +510,7 @@ function Game:draw()
     end
     self.camera:detach(); self:drawUI()
     if self.mode == "upgrade" then self.upgrades:drawSelection(self, self.fonts) end
+    if self.mode == "turret_upgrade" then self:drawTurretUpgrade() end
     if self.mode == "results" then self:drawResults() end
     if self.placingBuilding then
         local w = love.graphics.getWidth()
