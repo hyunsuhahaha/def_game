@@ -1,6 +1,6 @@
 local Game
 local game
-local captureFrames = os.getenv("LAST_HAUL_CAPTURE_HARVEST") and 10 or ((os.getenv("LAST_HAUL_CAPTURE") or os.getenv("LAST_HAUL_CAPTURE_GAME") or os.getenv("LAST_HAUL_CAPTURE_FARM") or os.getenv("LAST_HAUL_CAPTURE_MINE") or os.getenv("LAST_HAUL_CAPTURE_WALL") or os.getenv("LAST_HAUL_CAPTURE_REPAIR") or os.getenv("LAST_HAUL_CAPTURE_META") or os.getenv("LAST_HAUL_CAPTURE_RESULTS") or os.getenv("LAST_HAUL_CAPTURE_UPGRADE") or os.getenv("LAST_HAUL_CAPTURE_UNITS") or os.getenv("LAST_HAUL_CAPTURE_TEST_OPTIONS") or os.getenv("LAST_HAUL_CAPTURE_TURRET_PROMPT")) and 30 or nil)
+local captureFrames = os.getenv("LAST_HAUL_CAPTURE_HARVEST") and 10 or ((os.getenv("LAST_HAUL_CAPTURE") or os.getenv("LAST_HAUL_CAPTURE_GAME") or os.getenv("LAST_HAUL_CAPTURE_FARM") or os.getenv("LAST_HAUL_CAPTURE_MINE") or os.getenv("LAST_HAUL_CAPTURE_WALL") or os.getenv("LAST_HAUL_CAPTURE_REPAIR") or os.getenv("LAST_HAUL_CAPTURE_META") or os.getenv("LAST_HAUL_CAPTURE_RESULTS") or os.getenv("LAST_HAUL_CAPTURE_UPGRADE") or os.getenv("LAST_HAUL_CAPTURE_UNITS") or os.getenv("LAST_HAUL_CAPTURE_TEST_OPTIONS") or os.getenv("LAST_HAUL_CAPTURE_TURRET_PROMPT") or os.getenv("LAST_HAUL_CAPTURE_TURRET_PLACEMENT")) and 30 or nil)
 
 function love.load()
     love.graphics.setDefaultFilter("linear", "linear", 4)
@@ -35,10 +35,19 @@ function love.load()
     end
     if os.getenv("LAST_HAUL_CAPTURE_TURRET_PROMPT") then
         game:startRun()
-        local turret = game.world:addBuilding("autocannon_turret", game.world.core.x + 190, game.world.core.y + 120)
+        local slot = game.world:firstAvailableTurretSlot()
+        local turret = game.world:addBuilding("autocannon_turret", slot.x, slot.y, slot.index)
         game.ore = 100
         game.player.x, game.player.y = turret.x + 75, turret.y + 55
         game.camera.x, game.camera.y = game.world.core.x, game.world.core.y + 60
+    end
+    if os.getenv("LAST_HAUL_CAPTURE_TURRET_PLACEMENT") then
+        game.progression.data.levels.turret_slots = tonumber(os.getenv("LAST_HAUL_TURRET_SLOT_LEVEL")) or 0
+        game:startRun(); game.ore = 100
+        game.player.x, game.player.y = game.world.core.x, game.world.core.y
+        game.camera.x, game.camera.y = game.player.x, game.player.y
+        game:useAbility(2)
+        love.mouse.setPosition(love.graphics.getWidth() / 2, love.graphics.getHeight() / 2)
     end
     if os.getenv("LAST_HAUL_CAPTURE_GAME") then game:startRun() end
     if os.getenv("LAST_HAUL_CAPTURE_FARM") then

@@ -15,6 +15,7 @@ local nodes = {
 
     {id = "turret_trim", branch = 3, tier = 1, angle = -20, name = "포탑 영점 조정", max = 5, costs = {6, 9, 13, 18, 24}, desc = "자동 포탑 피해 +4%", effect = "damage"},
     {id = "cooling_loop", branch = 3, tier = 2, angle = -20, name = "순환 냉각", max = 4, costs = {9, 14, 20, 27}, desc = "자동 포탑 공속 +3%", effect = "fireRate", requires = {"turret_trim", 2}},
+    {id = "turret_slots", branch = 3, tier = 2, angle = -45, name = "포대 확장", max = 2, costs = {18, 32}, desc = "대포 설치 슬롯 +1", effect = "turretSlots", requires = {"turret_trim", 2}},
     {id = "ore_reserve", branch = 3, tier = 3, angle = -20, name = "정제 광석 비축", max = 3, costs = {13, 20, 29}, desc = "시작 광석 +2", effect = "ore", requires = {"cooling_loop", 2}},
     {id = "salvage_code", branch = 3, tier = 4, angle = -20, name = "회수 규약", max = 1, costs = {35}, desc = "유산 부품 획득 +15%", effect = "reward", requires = {"ore_reserve", 3}},
 
@@ -107,7 +108,7 @@ function Progression:effects()
     local e = {
         gather = 1, capacity = 0, seeds = 0, move = 1, wallHp = 1, repair = 0, materials = 0, wallGuard = 0,
         damage = 1, fireRate = 1, ore = 0, reward = 1, harvestBonus = 0, buildCost = 1, fuelEff = 0,
-        produceBonus = 0, coreHp = 1, prepTime = 0, startTurret = false
+        produceBonus = 0, coreHp = 1, prepTime = 0, startTurret = false, turretSlots = 1
     }
     e.gather = 1 + self:getLevel("quick_work") * .06
     e.capacity = self:getLevel("cargo_rig") * 3
@@ -119,6 +120,7 @@ function Progression:effects()
     e.wallGuard = self:getLevel("last_wall") * .10
     e.damage = 1 + self:getLevel("turret_trim") * .04
     e.fireRate = 1 + self:getLevel("cooling_loop") * .03
+    e.turretSlots = 1 + self:getLevel("turret_slots")
     e.ore = self:getLevel("ore_reserve") * 2
     e.reward = 1 + self:getLevel("salvage_code") * .15
     e.harvestBonus = self:getLevel("harvest_boost") * 2

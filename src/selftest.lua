@@ -10,6 +10,11 @@ function SelfTest.run(game)
     local encoded = Progression.encode({currency = 17, levels = {quick_work = 2, wall_base = 1}})
     local decoded = Progression.decode(encoded)
     assert(decoded.currency == 17 and decoded.levels.quick_work == 2 and decoded.levels.wall_base == 1, "영구 데이터 직렬화 실패")
+    game.progression.data.levels.turret_slots = 1
+    assert(game.progression:effects().turretSlots == 2, "포대 확장 1단계 슬롯 지급 실패")
+    game.progression.data.levels.turret_slots = 2
+    assert(game.progression:effects().turretSlots == 3, "포대 확장 2단계 슬롯 지급 실패")
+    game.progression.data.levels.turret_slots = 0
     game.progression.data.currency = 99
     game.progression.data.levels.quick_work = 3
     game.progression:reset()
@@ -28,6 +33,7 @@ function SelfTest.run(game)
     assert(game.lobby:keypressed("return") == "start" and game.lobby:mousepressed(30, 30, 1) == "start", "로비 단일 시작 버튼 실패")
     assert(game.lobby:mousepressed(140, 30, 1) == "meta" and game.lobby:mousepressed(250, 30, 1) == "settings", "로비 보조 메뉴 진입 실패")
     game:startRun()
+    assert(game.world.turretSlotLimit == 1 and game.world:firstAvailableTurretSlot().index == 1, "기본 포대 슬롯 1개 실패")
     local food, oreBeforeGrant, wood, stoneBeforeGrant, seeds = game.food, game.ore, game.wood, game.stone, game.seeds
     game:grantTestRunResources()
     assert(game.food == food + 1000000 and game.ore == oreBeforeGrant + 1000000 and game.wood == wood + 1000000 and game.stone == stoneBeforeGrant + 1000000 and game.seeds == seeds + 1000000, "테스트 런 자원 지급 실패")
@@ -38,8 +44,16 @@ function SelfTest.run(game)
     game.runLevel, game.runXP, game.runXPNext, game.pendingLevels = level, xp, nextXP, pending
     game.ore = 14; game:keypressed("2")
     assert(game.placingBuilding and game.placingBuilding.id == "autocannon_turret", "포탑 건설 배치 모드 진입 실패")
-    local turret = game.world:addBuilding("autocannon_turret", 950, 1180)
+    local firstTurretSlot = game.world:firstAvailableTurretSlot()
+    local screenW, screenH = love.graphics.getDimensions()
+    local slotScreenX = screenW / 2 + (firstTurretSlot.x - game.camera.x) * game.camera.zoom
+    local slotScreenY = screenH / 2 + (firstTurretSlot.y - game.camera.y) * game.camera.zoom
+    game:mousepressed(slotScreenX, slotScreenY, 1)
+    local turret = game.world:turretInSlot(firstTurretSlot.index)
     assert(turret and #game.world.buildings == 1, "포탑 실물 배치 실패")
+    assert(game.world:firstAvailableTurretSlot() == nil, "사용 중 포대 슬롯 점유 실패")
+    game.placingBuilding = nil; game:keypressed("2")
+    assert(game.placingBuilding == nil, "가득 찬 포대 슬롯 추가 건설 차단 실패")
     assert(turret.fuel == 1, "포탑 초기 연료 실패")
     game.player.x, game.player.y = turret.x, turret.y
     game.world:updateBuildings(1, game)
@@ -82,7 +96,8 @@ function SelfTest.run(game)
         assert(game.world:addBuilding("auto_farm", 1070 + (i - 1) * 60, 1180), "자동 농기계 건설 실패")
     end
     assert(#game.world.buildings == 7, "건설된 생산 시설 개수 불일치")
-    local combatTurret = game.world:addBuilding("autocannon_turret", 1400, 1250)
+    local combatSlot = game.world:firstAvailableTurretSlot()
+    local combatTurret = game.world:addBuilding("autocannon_turret", combatSlot.x, combatSlot.y, combatSlot.index)
     assert(combatTurret and combatTurret.level == 0, "포탑 초기 레벨 실패")
     assert(game.world:isTurretBuilding("autocannon_turret") and not game.world:isTurretBuilding("auto_farm"), "포탑 판정 실패")
     local costBefore, oreBefore = game.world:turretUpgradeCost(combatTurret), game.ore
@@ -223,7 +238,7 @@ function SelfTest.run(game)
     local afterReward = game.progression.data.currency
     game:finishRun(false)
     assert(game.progression.data.currency == afterReward, "런 보상 중복 지급 방지 실패")
-    print("SELF_TEST_OK: LOBBY_SINGLE_START LOBBY_AUX_NAV SETTINGS BIG_TREE_SINGLE TREE_PER_HIT_DROP TREE_PROXIMITY_PICKUP QUARRY_GROUNDED QUARRY_PER_HIT_DROP QUARRY_ORE_RATIO QUARRY_PROXIMITY_PICKUP FARM TREE QUARRY_INFINITE TOOL_SPEED IMPACT_SYNC HARVEST_FEEDBACK VISIBLE_TURRET VISIBLE_DRONE VISIBLE_REPAIR_STATION RUN_LEVELUP THREE_CHOICES AUTOMATION EVOLUTION WALL_UPGRADE WALL_BLOCK HAMMER_REPAIR CRIT_CHANCE PRESTIGE_RUN MOVE_WHILE_FARM TURRET_NEARBY TURRET_F_INTERACT TURRET_UPGRADE META_SAVE TRAIT_TREE TRAIT_APPLY RUN_REWARD TEST_CURRENCY TEST_RESOURCES TEST_LEVELS TEST_RESET")
+    print("SELF_TEST_OK: LOBBY_SINGLE_START LOBBY_AUX_NAV SETTINGS BIG_TREE_SINGLE TREE_PER_HIT_DROP TREE_PROXIMITY_PICKUP QUARRY_GROUNDED QUARRY_PER_HIT_DROP QUARRY_ORE_RATIO QUARRY_PROXIMITY_PICKUP FARM TREE QUARRY_INFINITE TOOL_SPEED IMPACT_SYNC HARVEST_FEEDBACK VISIBLE_TURRET VISIBLE_DRONE VISIBLE_REPAIR_STATION RUN_LEVELUP THREE_CHOICES AUTOMATION EVOLUTION WALL_UPGRADE WALL_BLOCK HAMMER_REPAIR CRIT_CHANCE PRESTIGE_RUN MOVE_WHILE_FARM TURRET_SLOT_BASE TURRET_SLOT_TRAIT TURRET_SLOT_OCCUPIED TURRET_NEARBY TURRET_F_INTERACT TURRET_UPGRADE META_SAVE TRAIT_TREE TRAIT_APPLY RUN_REWARD TEST_CURRENCY TEST_RESOURCES TEST_LEVELS TEST_RESET")
 end
 
 return SelfTest

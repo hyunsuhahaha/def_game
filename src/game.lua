@@ -36,7 +36,7 @@ function Game.new()
         hammer = {name = "나무 수리 망치", speed = 1, type = "방벽 수리"}
     }
     self.wallCosts = {{wood = 0, stone = 0}, {wood = 12, stone = 8}, {wood = 22, stone = 16}, {wood = 36, stone = 28}}
-    local temporaryProfile = os.getenv("LAST_HAUL_SELF_TEST") or os.getenv("LAST_HAUL_CAPTURE_META") or os.getenv("LAST_HAUL_CAPTURE_RESULTS") or os.getenv("LAST_HAUL_CAPTURE_TEST_OPTIONS") or os.getenv("LAST_HAUL_CAPTURE_TURRET_PROMPT")
+    local temporaryProfile = os.getenv("LAST_HAUL_SELF_TEST") or os.getenv("LAST_HAUL_CAPTURE_META") or os.getenv("LAST_HAUL_CAPTURE_RESULTS") or os.getenv("LAST_HAUL_CAPTURE_TEST_OPTIONS") or os.getenv("LAST_HAUL_CAPTURE_TURRET_PROMPT") or os.getenv("LAST_HAUL_CAPTURE_TURRET_PLACEMENT")
     self.progression = Progression.new(temporaryProfile ~= nil)
     self.world = World.new(); self.lobby = Lobby.new(self.world.images, self.fonts)
     self.traitTree = TraitTree.new(self.progression, self.fonts, self.world.images, self.world.buildingIcons)
@@ -56,6 +56,8 @@ function Game:resetRun()
     self.upgrades, self.runLevel, self.runXP, self.runXPNext, self.pendingLevels = RunUpgrades.new(), 1, 0, 18, 0
     self.runXPVisual, self.runXPPulse, self.lastXPGain = 0, 0, 0
     local meta = self.progression:effects()
+    self.world:setTurretSlotLimit(meta.turretSlots)
+    self.turretSlotLimit = self.world.turretSlotLimit
     self.player.gather = self.player.gather * meta.gather
     self.player.capacity = self.player.capacity + meta.capacity
     self.player.speed = self.player.speed * meta.move
@@ -74,7 +76,10 @@ function Game:resetRun()
     self.world.core.maxHp = math.floor(self.world.core.maxHp * meta.coreHp + .5)
     self.world.core.hp = self.world.core.maxHp
     self.world.spawnTimer = self.world.spawnTimer + meta.prepTime
-    if meta.startTurret then self.world:addBuilding("autocannon_turret", self.world.core.x - 130, self.world.core.y + 210) end
+    if meta.startTurret then
+        local slot = self.world:firstAvailableTurretSlot()
+        if slot then self.world:addBuilding("autocannon_turret", slot.x, slot.y, slot.index) end
+    end
     if self.testGrantNextRun then self:grantTestRunResources(); self.testGrantNextRun = false end
     if (self.testLevelsNextRun or 0) > 0 then self:grantTestLevels(self.testLevelsNextRun); self.testLevelsNextRun = 0 end
 end
@@ -230,7 +235,7 @@ end
 function Game:useAbility(index)
     if index == 1 and self.food >= 12 then self.food = self.food - 12; self.world:spawnDefender("bio", 1, self); self:setNotice("생체 수호자를 부화했습니다", "food") end
     if index == 2 then
-        for _, def in ipairs(Buildings) do if def.id == "autocannon_turret" then self.placingBuilding = def; break end end
+        for _, def in ipairs(Buildings) do if def.id == "autocannon_turret" then self:beginBuildingPlacement(def); break end end
     end
     if index == 3 and self.food >= 8 and self.ore >= 8 then self.food, self.ore = self.food - 8, self.ore - 8; self.player.gather = self.player.gather * 1.15; self.player.capacity = self.player.capacity + 5; self:setNotice("작업 장비를 개조했습니다", "core") end
     if index == 4 then
@@ -290,7 +295,7 @@ function Game:mousepressed(x, y, button)
         if button == 1 then
             if x >= 28 and x <= 176 and y >= 25 and y <= 67 then self.mode = "playing"; return end
             local index = self:buildCardAt(x, y)
-            if index then self.placingBuilding = Buildings[index]; self.mode = "playing" end
+            if index then self:beginBuildingPlacement(Buildings[index]); self.mode = "playing" end
         end
         return
     end
@@ -318,13 +323,17 @@ function Game:mousepressed(x, y, button)
         local wx, wy = self.camera:screenToWorld(x, y)
         local def = self.placingBuilding
         if button == 1 then
-            if self.world:canPlaceBuilding(wx, wy, def.footprint) then
+            local isTurret = self.world:isTurretBuilding(def.id)
+            local turretSlot = isTurret and self.world:turretSlotAt(wx, wy, true) or nil
+            local validPosition = isTurret and turretSlot ~= nil or (not isTurret and self.world:canPlaceBuilding(wx, wy, def.footprint))
+            if validPosition then
                 local cost = self:buildingCost(def)
                 local canAfford = true
                 for res, amt in pairs(cost) do if (self[res] or 0) < amt then canAfford = false end end
                 if canAfford then
                     for res, amt in pairs(cost) do self[res] = self[res] - amt end
-                    self.world:addBuilding(def.id, wx, wy)
+                    local placed = isTurret and self.world:addBuilding(def.id, turretSlot.x, turretSlot.y, turretSlot.index) or self.world:addBuilding(def.id, wx, wy)
+                    if not placed then self:setNotice("포대 슬롯에 배치할 수 없습니다", "ore"); return end
                     self:setNotice(def.name .. " 건설 완료", "core")
                     self.placingBuilding = nil
                 else
@@ -333,7 +342,7 @@ function Game:mousepressed(x, y, button)
                     self:setNotice("자원 부족 — 필요: " .. table.concat(parts, " · "), "core")
                 end
             else
-                self:setNotice("여기엔 지을 수 없습니다", "core")
+                self:setNotice(isTurret and "초록색 빈 포대 슬롯에만 설치할 수 있습니다" or "여기엔 지을 수 없습니다", isTurret and "ore" or "core")
             end
         elseif button == 2 then
             self.placingBuilding = nil; self:setNotice("건설을 취소했습니다", "core")
@@ -372,6 +381,17 @@ function Game:buildingCost(def)
     local cost = {}
     for res, amt in pairs(def.cost) do cost[res] = math.max(1, math.floor(amt * mult + .5)) end
     return cost
+end
+
+function Game:beginBuildingPlacement(def)
+    if self.world:isTurretBuilding(def.id) and not self.world:firstAvailableTurretSlot() then
+        self.placingBuilding = nil
+        self:setNotice(string.format("포대 슬롯이 가득 찼습니다 (%d/%d) — 영구 특성에서 확장하세요", self.world:turretBuildingCount(), self.world.turretSlotLimit), "ore")
+        return false
+    end
+    self.placingBuilding = def
+    self:setNotice(self.world:isTurretBuilding(def.id) and "초록색 포대 슬롯을 클릭해 설치하세요" or (def.name .. " 배치 위치를 선택하세요"), "core")
+    return true
 end
 
 function Game:buildCardAt(x, y)
@@ -482,6 +502,8 @@ function Game:drawBuildSelect()
         local cost = self:buildingCost(def)
         local canAfford = true
         for res, amt in pairs(cost) do if (self[res] or 0) < amt then canAfford = false end end
+        local turretSlotAvailable = not self.world:isTurretBuilding(def.id) or self.world:firstAvailableTurretSlot() ~= nil
+        canAfford = canAfford and turretSlotAvailable
         UI.panel(x, y, cardW, cardH, canAfford and {.92, .58, .16, 1} or {.4, .42, .44, 1}, hovered and .97 or .9)
         local icon = self.world.buildingIcons[def.id]
         if icon then
@@ -494,7 +516,8 @@ function Game:drawBuildSelect()
         local parts = {}
         for res, amt in pairs(cost) do parts[#parts + 1] = resourceLabels[res] .. " " .. amt end
         love.graphics.setColor(canAfford and {.95, .8, .3, 1} or {1, .5, .45, 1})
-        love.graphics.printf(table.concat(parts, " · "), x + 8, y + cardH - 24, cardW - 16, "center")
+        local footer = turretSlotAvailable and table.concat(parts, " · ") or string.format("포대 슬롯 %d/%d", self.world:turretBuildingCount(), self.world.turretSlotLimit)
+        love.graphics.printf(footer, x + 8, y + cardH - 24, cardW - 16, "center")
     end
 end
 
@@ -522,16 +545,27 @@ function Game:draw()
     if self.placingBuilding then
         local def = self.placingBuilding
         local wx, wy = self.camera:screenToWorld(love.mouse.getPosition())
-        local valid = self.world:canPlaceBuilding(wx, wy, def.footprint)
+        local isTurret = self.world:isTurretBuilding(def.id)
+        local targetSlot = isTurret and self.world:turretSlotAt(wx, wy, true) or nil
+        local valid = isTurret and targetSlot ~= nil or (not isTurret and self.world:canPlaceBuilding(wx, wy, def.footprint))
+        if isTurret then
+            for i = 1, self.world.turretSlotLimit do
+                local slot = self.world.turretSlots[i]
+                local available = not self.world:turretInSlot(i)
+                love.graphics.setColor(available and {.2, 1, .38, .3} or {1, .18, .12, .3}); love.graphics.ellipse("fill", slot.x, slot.y, 63, 31)
+                love.graphics.setColor(available and {.35, 1, .48, .95} or {1, .25, .18, .95}); love.graphics.setLineWidth(4); love.graphics.ellipse("line", slot.x, slot.y, 63, 31)
+            end
+        end
+        local previewX, previewY = targetSlot and targetSlot.x or wx, targetSlot and targetSlot.y or wy
         love.graphics.setColor(valid and .4 or 1, valid and 1 or .3, valid and .5 or .3, .28)
-        love.graphics.circle("fill", wx, wy, def.footprint / 2 + 8)
+        love.graphics.circle("fill", previewX, previewY, def.footprint / 2 + 8)
         love.graphics.setLineWidth(2); love.graphics.setColor(valid and .5 or 1, valid and 1 or .35, valid and .6 or .35, .8)
-        love.graphics.circle("line", wx, wy, def.footprint / 2 + 8)
+        love.graphics.circle("line", previewX, previewY, def.footprint / 2 + 8)
         local icon = self.world.buildingIcons[def.id]
         if icon then
             local scale = 78 / math.max(icon:getWidth(), icon:getHeight())
             love.graphics.setColor(1, 1, 1, valid and .9 or .5)
-            love.graphics.draw(icon, wx, wy + 12, 0, scale, scale, icon:getWidth() / 2, icon:getHeight() * .91)
+            love.graphics.draw(icon, previewX, previewY + 12, 0, scale, scale, icon:getWidth() / 2, icon:getHeight() * .91)
         end
     end
     self.camera:detach(); self:drawUI()
@@ -610,7 +644,7 @@ end
 
 local function affordable(game, index)
     if index == 1 then return game.food >= 12 end
-    if index == 2 then return game.ore >= 6 end
+    if index == 2 then return game.ore >= 6 and game.world:firstAvailableTurretSlot() ~= nil end
     if index == 3 then return game.food >= 8 and game.ore >= 8 end
     if index == 5 then return true end
     local wall = game.world.wall
@@ -690,8 +724,8 @@ function Game:drawUI()
     love.graphics.setFont(f.small); love.graphics.setColor(.08, .12, .12, .9); love.graphics.rectangle("fill", w / 2 - 105, 64, 210, 50, 5, 5)
     love.graphics.setColor(.52, 1, .63); love.graphics.printf(string.format("생산 레벨 %d", self.runLevel), w / 2 - 105, 74, 210, "center")
     local droneCount=0; for _,defender in ipairs(self.world.defenders) do if defender.kind=="drone" then droneCount=droneCount+1 end end
-    local turretCount=0; for _,b in ipairs(self.world.buildings) do if b.kind=="autocannon_turret" or b.kind=="rail_turret" or b.kind=="blade_turret" then turretCount=turretCount+1 end end
-    love.graphics.setColor(.55,.82,.86); love.graphics.printf(string.format("배치 포탑 %d   전투 드론 %d",turretCount,droneCount),w/2-105,96,210,"center")
+    local turretCount = self.world:turretBuildingCount()
+    love.graphics.setColor(.55,.82,.86); love.graphics.printf(string.format("포대 %d/%d   전투 드론 %d",turretCount,self.world.turretSlotLimit,droneCount),w/2-105,96,210,"center")
     UI.button(w / 2 - 105, 118, 210, 32, "[P] 조기 철수 — 재화 정산", true, f.small)
 
     self:drawMinimap(16, h - 158, 205, 142); self:drawToolBelt(w - 276, h - 158, 260, 142)

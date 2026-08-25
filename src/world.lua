@@ -41,6 +41,12 @@ function World.new()
     self.width, self.height = 3200, 2000
     self.core = {x = 1600, y = 1325, hp = 500, maxHp = 500, damage = 18, fireRate = 1.25, range = 510, cooldown = 0}
     self.wall = {y = 1115, level = 1, maxLevel = 4, hp = 220, maxHp = 220, brokenNotified = false}
+    self.turretSlotLimit = 1
+    self.turretSlots = {
+        {index = 1, x = self.core.x + 300, y = self.wall.y + 82},
+        {index = 2, x = self.core.x - 300, y = self.wall.y + 82},
+        {index = 3, x = self.core.x, y = self.wall.y + 82}
+    }
     self.images = {
         industrial = image("assets/floor-industrial.png"), farm = image("assets/floor-biofarm.png"), quarry = image("assets/floor-quarry.png"),
         core = image("assets/supply-core-v2.png"), turret = image("assets/turret-v1.png"), drone = image("assets/combat-drone-v1.png"), crop = image("assets/crop-pod.png"), ore = image("assets/ore-node.png"),
@@ -331,13 +337,54 @@ function World:canPlaceBuilding(x, y, footprint)
         local dx, dy = x - turret.x, y - turret.y
         if dx * dx + dy * dy < minDist * minDist then return false end
     end
+    for i = 1, self.turretSlotLimit do
+        local slot = self.turretSlots[i]
+        local minDist = footprint / 2 + 55
+        local dx, dy = x - slot.x, y - slot.y
+        if dx * dx + dy * dy < minDist * minDist then return false end
+    end
     return true
 end
 
-function World:addBuilding(kind, x, y)
+function World:setTurretSlotLimit(limit)
+    self.turretSlotLimit = math.max(1, math.min(#self.turretSlots, math.floor(limit or 1)))
+end
+
+function World:turretInSlot(index)
+    for _, building in ipairs(self.buildings) do
+        if building.turretSlotIndex == index then return building end
+    end
+end
+
+function World:turretBuildingCount()
+    local count = 0
+    for _, building in ipairs(self.buildings) do if isTurretDef(buildingById[building.kind]) then count = count + 1 end end
+    return count
+end
+
+function World:firstAvailableTurretSlot()
+    for i = 1, self.turretSlotLimit do
+        if not self:turretInSlot(i) then return self.turretSlots[i] end
+    end
+end
+
+function World:turretSlotAt(x, y, availableOnly)
+    for i = 1, self.turretSlotLimit do
+        local slot = self.turretSlots[i]
+        local dx, dy = x - slot.x, y - slot.y
+        if dx * dx + dy * dy <= 72 * 72 and (not availableOnly or not self:turretInSlot(i)) then return slot end
+    end
+end
+
+function World:addBuilding(kind, x, y, turretSlotIndex)
     local def = buildingById[kind]
-    if not def or not self:canPlaceBuilding(x, y, def.footprint) then return nil end
-    local building = {kind = kind, x = x, y = y, timer = def.interval, flash = .4, fuel = def.fuelRadius and 1 or nil, level = 0, mods = {}}
+    if not def then return nil end
+    if isTurretDef(def) then
+        local slot = turretSlotIndex and self.turretSlots[turretSlotIndex] or self:turretSlotAt(x, y, true)
+        if not slot or slot.index > self.turretSlotLimit or self:turretInSlot(slot.index) then return nil end
+        x, y, turretSlotIndex = slot.x, slot.y, slot.index
+    elseif not self:canPlaceBuilding(x, y, def.footprint) then return nil end
+    local building = {kind = kind, x = x, y = y, timer = def.interval, flash = .4, fuel = def.fuelRadius and 1 or nil, level = 0, mods = {}, turretSlotIndex = turretSlotIndex}
     self.buildings[#self.buildings + 1] = building
     return building
 end
@@ -720,6 +767,26 @@ local function shadow(x, y, rx, ry, alpha) love.graphics.setColor(0, 0, 0, alpha
 local function centered(img, x, y, scale) love.graphics.setColor(1, 1, 1, 1); love.graphics.draw(img, x, y, 0, scale, scale, img:getWidth() / 2, img:getHeight() / 2) end
 local function grounded(img, x, y, scale) love.graphics.setColor(1, 1, 1, 1); love.graphics.draw(img, x, y, 0, scale, scale, img:getWidth() / 2, img:getHeight() * .91) end
 
+function World:drawTurretSlot(slot)
+    local occupied = self:turretInSlot(slot.index) ~= nil
+    shadow(slot.x, slot.y + 4, 57, 14, .45)
+    love.graphics.setColor(.12, .16, .17, 1)
+    love.graphics.polygon("fill", slot.x - 58, slot.y, slot.x - 40, slot.y - 23, slot.x + 40, slot.y - 23, slot.x + 58, slot.y, slot.x + 40, slot.y + 23, slot.x - 40, slot.y + 23)
+    love.graphics.setColor(.31, .38, .39, 1); love.graphics.setLineWidth(3)
+    love.graphics.polygon("line", slot.x - 58, slot.y, slot.x - 40, slot.y - 23, slot.x + 40, slot.y - 23, slot.x + 58, slot.y, slot.x + 40, slot.y + 23, slot.x - 40, slot.y + 23)
+    love.graphics.setColor(occupied and {.27, .31, .31, 1} or {.24, .27, .25, 1})
+    love.graphics.ellipse("fill", slot.x, slot.y, 35, 15)
+    love.graphics.setColor(occupied and {.55, .6, .6, .7} or {.9, .62, .2, .9}); love.graphics.setLineWidth(2)
+    love.graphics.ellipse("line", slot.x, slot.y, 35, 15)
+    for _, offset in ipairs({-42, 42}) do
+        love.graphics.setColor(.72, .76, .72, .8); love.graphics.circle("fill", slot.x + offset, slot.y, 3)
+    end
+    if not occupied then
+        love.graphics.setFont(self.effectFont); love.graphics.setColor(1, .72, .3, .9)
+        love.graphics.printf("포대 " .. slot.index, slot.x - 50, slot.y + 29, 100, "center")
+    end
+end
+
 function World:drawPlot(node)
     local wet = node.state == "growing" or node.state == "planted"
     love.graphics.setColor(wet and {.105, .065, .04, .96} or {.17, .095, .045, .94})
@@ -782,6 +849,10 @@ function World:draw(player)
     drawTiled(self.images.quarry, 1940, 1160, 1260, 840, 320)
     love.graphics.setColor(.06, .075, .085, 1); love.graphics.rectangle("fill", 0, 0, self.width, 55); love.graphics.rectangle("fill", 0, self.height - 55, self.width, 55); love.graphics.rectangle("fill", 0, 0, 55, self.height); love.graphics.rectangle("fill", self.width - 55, 0, 55, self.height)
     local queue = {}
+    for i = 1, self.turretSlotLimit do
+        local slot = self.turretSlots[i]
+        queue[#queue + 1] = {y = slot.y - 1, draw = function() self:drawTurretSlot(slot) end}
+    end
     queue[#queue + 1] = {y = self.core.y, draw = function() shadow(self.core.x, self.core.y, 145, 48, .5); centered(self.images.core, self.core.x, self.core.y - 50, .23) end}
     queue[#queue + 1] = {y = self.core.y + 1, draw = function()
         for _, turret in ipairs(self.turrets) do
