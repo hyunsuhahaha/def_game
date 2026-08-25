@@ -96,6 +96,20 @@ function SelfTest.run(game)
     game.world:updateDrops(.1, game)
     assert(game.player.food > playerFoodBefore, "자동 생산 드롭 근접 흡수 실패")
     game.player.food = 0
+    assert(game.upgrades:choose("baby_robot", game), "아기 운반 로봇 선택 실패")
+    game.world:updateHelpers(0, game)
+    assert(#game.world.helpers == 1, "아기 로봇 생성 실패")
+    local helper = game.world.helpers[1]
+    helper.x, helper.y = game.world.core.x, game.world.core.y
+    game.world.drops = {}
+    game.world:spawnDrop("stone", 1, helper.x + 300, helper.y, 0, 0)
+    local stoneBefore = game.stone
+    for _ = 1, 200 do
+        game.world:updateHelpers(.1, game)
+        if #game.world.drops == 0 then break end
+    end
+    assert(#game.world.drops == 0, "아기 로봇이 드롭을 수거하지 못함")
+    assert(game.stone > stoneBefore, "아기 로봇 자원 납품 실패")
     assert(game.player.gather > 1.11 and game.player.capacity == 21, "영구 특성 런 적용 실패")
     game.player.capacity = 100
     local farm = find(game.world, "plot")

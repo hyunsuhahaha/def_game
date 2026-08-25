@@ -34,7 +34,7 @@ function World.new()
     }
     self.buildingIcons = {}
     for _, def in ipairs(buildingDefs) do self.buildingIcons[def.id] = image(def.icon or ("assets/upgrades/" .. def.id .. ".png")) end
-    self.nodes, self.enemies, self.defenders, self.turrets, self.buildings, self.shots, self.drops = {}, {}, {}, {}, {}, {}, {}
+    self.nodes, self.enemies, self.defenders, self.turrets, self.buildings, self.shots, self.drops, self.helpers = {}, {}, {}, {}, {}, {}, {}, {}
     self.particles, self.popups, self.harvestChain, self.harvestChainTime = {}, {}, 0, 0
     self.effectFont = love.graphics.newFont("assets/font-korean.ttf", 18)
     self.quarryVisual = {shadowX = 5, shadowY = 7, shadowRx = 104, shadowRy = 11, shadowAlpha = .22, frontBias = 130}
@@ -190,6 +190,7 @@ function World:update(dt, game)
     self:updateEffects(dt, game)
     self:updateDrops(dt, game)
     self:updateBuildings(dt, game)
+    self:updateHelpers(dt, game)
     for _, turret in ipairs(self.turrets) do turret.flash = math.max(0, (turret.flash or 0) - dt) end
     for _, node in ipairs(self.nodes) do
         if node.kind == "plot" then
@@ -295,7 +296,7 @@ function World:updateBuildings(dt, game)
         if def.fuelRadius then
             local dx, dy = game.player.x - b.x, game.player.y - b.y
             local inRange = dx * dx + dy * dy <= def.fuelRadius * def.fuelRadius
-            local efficiency = 1 + (game.upgrades and game.upgrades.resourcePct.fuelEfficiency or 0)
+            local efficiency = 1 + (game.upgrades and game.upgrades.resourcePct.fuelEfficiency or 0) + (game.metaFuelEfficiency or 0)
             local rate = inRange and (def.fuelRecharge * efficiency) or -(def.fuelDrain / efficiency)
             b.fuel = math.max(0, math.min(1, (b.fuel or 1) + dt * rate))
         end
@@ -305,7 +306,7 @@ function World:updateBuildings(dt, game)
             if def.fuelRadius and (b.fuel or 1) <= 0 then
                 -- out of fuel: skip this cycle's action entirely
             elseif def.behavior == "produce" then
-                self:spawnDrop(def.resource, def.amount, b.x, b.y + 44, 50, 40)
+                self:spawnDrop(def.resource, def.amount + (game.metaProduceBonus or 0), b.x, b.y + 44, 50, 40)
                 b.flash = .3
             elseif def.behavior == "spawn" then
                 local affordable = true
@@ -345,6 +346,53 @@ function World:updateBuildings(dt, game)
                     b.flash = .2
                 end
             end
+        end
+    end
+end
+
+local function dropStillListed(list, target)
+    for _, drop in ipairs(list) do if drop == target then return true end end
+    return false
+end
+
+function World:updateHelpers(dt, game)
+    local wanted = game.upgrades and game.upgrades:level("baby_robot") or 0
+    while #self.helpers < wanted do
+        self.helpers[#self.helpers + 1] = {x = self.core.x + love.math.random(-40, 40), y = self.core.y + love.math.random(-40, 40), speed = 190, bob = love.math.random() * 6.28}
+    end
+    for _, h in ipairs(self.helpers) do
+        h.bob = h.bob + dt * 5
+        if h.target and not dropStillListed(self.drops, h.target) then h.target = nil end
+        if not h.target then
+            local best, bestDist = nil, nil
+            for _, drop in ipairs(self.drops) do
+                local dx, dy = drop.x - h.x, drop.y - h.y
+                local d = dx * dx + dy * dy
+                if not bestDist or d < bestDist then best, bestDist = drop, d end
+            end
+            h.target = best
+        end
+        if h.target then
+            local dx, dy = h.target.x - h.x, h.target.y - h.y
+            local dist = math.sqrt(dx * dx + dy * dy)
+            if dist > 6 then
+                h.x, h.y = h.x + dx / dist * h.speed * dt, h.y + dy / dist * h.speed * dt
+            else
+                local drop, amount = h.target, h.target.amount
+                if game.upgrades then amount = game.upgrades:applyGain(drop.kind, amount) end
+                game[drop.kind] = game[drop.kind] + amount
+                game.runStats.harvested = game.runStats.harvested + amount
+                game.runStats[drop.kind] = (game.runStats[drop.kind] or 0) + amount
+                game:addRunXP(amount)
+                local pulseKind = drop.kind == "food" and "plot" or drop.kind == "wood" and "tree" or drop.kind
+                self:resourcePulse(game, pulseKind, amount, "로봇 납품")
+                for i, d in ipairs(self.drops) do if d == drop then table.remove(self.drops, i); break end end
+                h.target = nil
+            end
+        else
+            local dx, dy = self.core.x - h.x, self.core.y - h.y
+            local dist = math.sqrt(dx * dx + dy * dy)
+            if dist > 30 then h.x, h.y = h.x + dx / dist * h.speed * .5 * dt, h.y + dy / dist * h.speed * .5 * dt end
         end
     end
 end
@@ -500,6 +548,7 @@ function World:workNode(node, game, player, tool, dt)
         if node.state == "ready" then
             if cargoSpace(player) < 6 then game:setNotice("가방이 가득 찼습니다", "core"); return false end
             local amount = game.upgrades and game.upgrades:duplicateAmount(6) or 6
+            amount = amount + (game.harvestBonus or 0)
             if game.upgrades then amount = game.upgrades:applyGain("food", amount) end
             amount=math.min(amount,cargoSpace(player)); player.food, game.seeds, node.state = player.food + amount, game.seeds + 1, "empty"
             game.runStats.harvested = game.runStats.harvested + amount; game:addRunXP(amount)
@@ -629,6 +678,16 @@ function World:draw(player)
             local fuelColor = fuel > .5 and {.35, .9, .5, 1} or fuel > .2 and {1, .75, .2, 1} or {1, .3, .25, 1}
             love.graphics.setColor(fuelColor); love.graphics.rectangle("fill", building.x - gaugeW / 2, gaugeY, gaugeW * fuel, 6, 2, 2)
             love.graphics.setColor(1, 1, 1, .18); love.graphics.setLineWidth(1); love.graphics.rectangle("line", building.x - gaugeW / 2, gaugeY, gaugeW, 6, 2, 2)
+        end
+    end} end
+    for _, value in ipairs(self.helpers) do local helper = value; queue[#queue + 1] = {y = helper.y, draw = function()
+        local bob = math.sin(helper.bob) * 4
+        shadow(helper.x, helper.y + 10, 16, 6, .38)
+        local icon = self.buildingIcons.carrier_drone
+        if icon then
+            love.graphics.setColor(1, 1, 1, 1)
+            local scale = 34 / math.max(icon:getWidth(), icon:getHeight())
+            centered(icon, helper.x, helper.y - 18 + bob, scale)
         end
     end} end
     queue[#queue + 1] = {y = self.wall.y, draw = function() self:drawWall(player) end}

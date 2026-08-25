@@ -15,6 +15,7 @@ local definitions = {
     {id="field_boots", name="현장 기동화", category="passive", max=5, color={.75,1,.75}, tags={"이동","탐사"}, desc="이동 속도가 6% 증가합니다."},
     {id="recycler", name="자원 복제기", category="passive", max=5, color={.82,.65,1}, tags={"자원","복제"}, desc="채집 자원을 복제할 확률이 생깁니다."},
     {id="wide_lens", name="장거리 조준경", category="passive", max=5, color={.62,.82,1}, tags={"포탑","사거리"}, desc="거점 포탑 사거리가 증가합니다."},
+    {id="baby_robot", name="아기 운반 로봇", category="passive", max=3, color={.6,.88,1}, tags={"운반","자동화"}, desc="마을에 떨어진 자원을 자동으로 주워 거점에 납품합니다."},
 
     {id="eternal_farm", name="영원의 농장", category="evolution", max=1, color={.55,1,.32}, tags={"진화","농업"}, desc="모든 작물 성장이 가속되고 식량이 폭발적으로 생산됩니다.", base="auto_farm", passive="protein_feed"},
     {id="planet_drill", name="행성 굴착기", category="evolution", max=1, color={.25,.9,1}, tags={"진화","채광"}, desc="광역 채굴 때마다 초대형 레일포를 발사합니다.", base="mining_drone", passive="super_magnet"},

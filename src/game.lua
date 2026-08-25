@@ -39,7 +39,7 @@ function Game.new()
     local temporaryProfile = os.getenv("LAST_HAUL_SELF_TEST") or os.getenv("LAST_HAUL_CAPTURE_META") or os.getenv("LAST_HAUL_CAPTURE_RESULTS") or os.getenv("LAST_HAUL_CAPTURE_TEST_OPTIONS")
     self.progression = Progression.new(temporaryProfile ~= nil)
     self.world = World.new(); self.lobby = Lobby.new(self.world.images, self.fonts)
-    self.traitTree = TraitTree.new(self.progression, self.fonts)
+    self.traitTree = TraitTree.new(self.progression, self.fonts, self.world.images, self.world.buildingIcons)
     self.mode, self.notice, self.noticeKind, self.noticeTime = "lobby", "", "core", 0
     self:resetRun(); self.mode = "lobby"
     return self
@@ -67,6 +67,14 @@ function Game:resetRun()
     self.world.wall.maxHp = math.floor(self.world.wall.maxHp * meta.wallHp + .5)
     self.world.wall.hp = self.world.wall.maxHp
     self.repairBonus, self.rewardMultiplier = meta.repair, meta.reward
+    self.harvestBonus = meta.harvestBonus
+    self.buildCostMultiplier = meta.buildCost
+    self.metaFuelEfficiency = meta.fuelEff
+    self.metaProduceBonus = meta.produceBonus
+    self.world.core.maxHp = math.floor(self.world.core.maxHp * meta.coreHp + .5)
+    self.world.core.hp = self.world.core.maxHp
+    self.world.spawnTimer = self.world.spawnTimer + meta.prepTime
+    if meta.startTurret then self.world:addBuilding("autocannon_turret", self.world.core.x - 130, self.world.core.y + 210) end
     if self.testGrantNextRun then self:grantTestRunResources(); self.testGrantNextRun = false end
     if (self.testLevelsNextRun or 0) > 0 then self:grantTestLevels(self.testLevelsNextRun); self.testLevelsNextRun = 0 end
 end
@@ -280,16 +288,17 @@ function Game:mousepressed(x, y, button)
         local def = self.placingBuilding
         if button == 1 then
             if self.world:canPlaceBuilding(wx, wy, def.footprint) then
+                local cost = self:buildingCost(def)
                 local canAfford = true
-                for res, amt in pairs(def.cost) do if (self[res] or 0) < amt then canAfford = false end end
+                for res, amt in pairs(cost) do if (self[res] or 0) < amt then canAfford = false end end
                 if canAfford then
-                    for res, amt in pairs(def.cost) do self[res] = self[res] - amt end
+                    for res, amt in pairs(cost) do self[res] = self[res] - amt end
                     self.world:addBuilding(def.id, wx, wy)
                     self:setNotice(def.name .. " 건설 완료", "core")
                     self.placingBuilding = nil
                 else
                     local parts = {}
-                    for res, amt in pairs(def.cost) do parts[#parts + 1] = resourceLabels[res] .. " " .. amt end
+                    for res, amt in pairs(cost) do parts[#parts + 1] = resourceLabels[res] .. " " .. amt end
                     self:setNotice("자원 부족 — 필요: " .. table.concat(parts, " · "), "core")
                 end
             else
@@ -320,6 +329,13 @@ function Game:wheelmoved(x, y)
     self.camera.zoom = math.max(.6, math.min(1.8, self.camera.zoom * factor))
 end
 
+function Game:buildingCost(def)
+    local mult = self.buildCostMultiplier or 1
+    local cost = {}
+    for res, amt in pairs(def.cost) do cost[res] = math.max(1, math.floor(amt * mult + .5)) end
+    return cost
+end
+
 function Game:buildCardAt(x, y)
     for i, box in ipairs(self.buildCardBoxes or {}) do
         if x >= box.x and x <= box.x + box.w and y >= box.y and y <= box.y + box.h then return i end
@@ -345,8 +361,9 @@ function Game:drawBuildSelect()
         local x, y = startX + col * (cardW + gap), startY + row * (cardH + gap)
         self.buildCardBoxes[i] = {x = x, y = y, w = cardW, h = cardH}
         local hovered = mx >= x and mx <= x + cardW and my >= y and my <= y + cardH
+        local cost = self:buildingCost(def)
         local canAfford = true
-        for res, amt in pairs(def.cost) do if (self[res] or 0) < amt then canAfford = false end end
+        for res, amt in pairs(cost) do if (self[res] or 0) < amt then canAfford = false end end
         UI.panel(x, y, cardW, cardH, canAfford and {.92, .58, .16, 1} or {.4, .42, .44, 1}, hovered and .97 or .9)
         local icon = self.world.buildingIcons[def.id]
         if icon then
@@ -357,7 +374,7 @@ function Game:drawBuildSelect()
         love.graphics.setFont(f.body); love.graphics.setColor(.95, .96, .9); love.graphics.printf(def.name, x + 8, y + 122, cardW - 16, "center")
         love.graphics.setFont(f.small); love.graphics.setColor(.68, .76, .7); love.graphics.printf(def.desc, x + 10, y + 148, cardW - 20, "center")
         local parts = {}
-        for res, amt in pairs(def.cost) do parts[#parts + 1] = resourceLabels[res] .. " " .. amt end
+        for res, amt in pairs(cost) do parts[#parts + 1] = resourceLabels[res] .. " " .. amt end
         love.graphics.setColor(canAfford and {.95, .8, .3, 1} or {1, .5, .45, 1})
         love.graphics.printf(table.concat(parts, " · "), x + 8, y + cardH - 24, cardW - 16, "center")
     end
@@ -397,8 +414,9 @@ function Game:draw()
     if self.placingBuilding then
         local w = love.graphics.getWidth()
         local def, f = self.placingBuilding, self.fonts
+        local cost = self:buildingCost(def)
         local parts = {}
-        for res, amt in pairs(def.cost) do parts[#parts + 1] = resourceLabels[res] .. " " .. amt end
+        for res, amt in pairs(cost) do parts[#parts + 1] = resourceLabels[res] .. " " .. amt end
         UI.panel(w / 2 - 220, 16, 440, 40, {.35, 1, .62, 1}, .92)
         love.graphics.setFont(f.small); love.graphics.setColor(1, 1, 1)
         love.graphics.printf(def.name .. " 배치 중 · 비용 " .. table.concat(parts, " · ") .. " · 클릭 배치 / 우클릭·ESC 취소", w / 2 - 220, 27, 440, "center")
