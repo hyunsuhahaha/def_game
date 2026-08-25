@@ -45,7 +45,7 @@ function World.new()
 end
 
 local effectColors = {
-    tree = {.86, .55, .2}, wood = {.76, .48, .2}, stone = {.78, .84, .88}, ore = {.25, .82, 1}, quarry = {.65, .78, .86}, plot = {.42, 1, .45}
+    tree = {.86, .55, .2}, wood = {.76, .48, .2}, stone = {.78, .84, .88}, ore = {.25, .82, 1}, quarry = {.65, .78, .86}, plot = {.42, 1, .45}, food = {.45, .95, .48}
 }
 
 local function effectOrigin(node)
@@ -149,7 +149,7 @@ function World:updateDrops(dt, game)
                     game.runStats.harvested = game.runStats.harvested + amount
                     game.runStats[drop.kind] = (game.runStats[drop.kind] or 0) + amount
                     game:addRunXP(amount)
-                    local label = drop.kind == "stone" and "돌" or drop.kind == "wood" and "목재" or "광석"
+                    local label = drop.kind == "stone" and "돌" or drop.kind == "wood" and "목재" or drop.kind == "food" and "식량" or "광석"
                     local color = effectColors[drop.kind]
                     self.popups[#self.popups + 1] = {x=drop.x,y=drop.y-32,life=.8,maxLife=.8,text="+"..amount.." "..label,color=color,chain=0}
                     table.remove(self.drops, i)
@@ -303,14 +303,7 @@ function World:updateBuildings(dt, game)
             if def.fuelRadius and (b.fuel or 1) <= 0 then
                 -- out of fuel: skip this cycle's action entirely
             elseif def.behavior == "produce" then
-                local amount = game.upgrades and game.upgrades:applyGain(def.resource, def.amount) or def.amount
-                game[def.resource] = game[def.resource] + amount
-                game.runStats.harvested = game.runStats.harvested + amount
-                game.runStats[def.resource] = (game.runStats[def.resource] or 0) + amount
-                game:addRunXP(math.max(1, math.floor(amount / 2)))
-                local pulseKind = def.resource == "food" and "plot" or def.resource == "wood" and "tree" or def.resource
-                local label = def.resource == "food" and "자동 식량" or def.resource == "wood" and "자동 목재" or "자동 광석"
-                self:resourcePulse(game, pulseKind, amount, label)
+                self:spawnDrop(def.resource, def.amount, b.x, b.y + 44, 50, 40)
                 b.flash = .3
             elseif def.behavior == "spawn" then
                 local affordable = true
@@ -680,8 +673,8 @@ function World:draw(player)
         else shadow(defender.x, defender.y, 20, 8, .42); love.graphics.setColor(.25, .9, .38); love.graphics.circle("fill", defender.x, defender.y - 20, 22) end
     end} end
     for _, value in ipairs(self.drops) do local drop = value; queue[#queue + 1] = {y = drop.y, draw = function()
-        local img = drop.kind == "stone" and self.images.stone or drop.kind == "wood" and self.images.lumber or self.images.ore
-        local width = drop.kind == "stone" and 38 or drop.kind == "wood" and 48 or 31
+        local img = drop.kind == "stone" and self.images.stone or drop.kind == "wood" and self.images.lumber or drop.kind == "food" and self.images.crop or self.images.ore
+        local width = drop.kind == "stone" and 38 or drop.kind == "wood" and 48 or drop.kind == "food" and 34 or 31
         local scale = width / img:getWidth()
         love.graphics.setColor(0, 0, 0, drop.magnet and .12 or .24)
         love.graphics.ellipse("fill", drop.x + 2, drop.y + 3, width * .38, width * .11)

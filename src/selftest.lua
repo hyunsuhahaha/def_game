@@ -79,9 +79,17 @@ function SelfTest.run(game)
     assert(game.upgrades:choose("protein_feed", game), "런 보조 강화 실패")
     assert(game.upgrades:isEvolutionReady(game.upgrades:get("eternal_farm"), game) and game.upgrades:choose("eternal_farm", game), "런 진화 조합 실패")
     game.upgrades:rollChoices(game); assert(#game.upgrades.choices == 3, "런 3택 생성 실패")
-    local foodBeforeAutomation = game.food
+    local dropsBeforeAutomation = #game.world.drops
     game.world:updateBuildings(6.5, game)
-    assert(game.food > foodBeforeAutomation, "자동 생산 건물 작동 실패")
+    assert(#game.world.drops > dropsBeforeAutomation, "자동 생산 건물 드롭 생성 실패")
+    local foodDrop
+    for _, drop in ipairs(game.world.drops) do if drop.kind == "food" then foodDrop = drop end end
+    assert(foodDrop, "자동 농기계 식량 드롭 종류 실패")
+    foodDrop.x, foodDrop.y, foodDrop.height, foodDrop.vx, foodDrop.vy, foodDrop.vz = game.player.x, game.player.y, 0, 0, 0, 0
+    local playerFoodBefore = game.player.food
+    game.world:updateDrops(.1, game)
+    assert(game.player.food > playerFoodBefore, "자동 생산 드롭 근접 흡수 실패")
+    game.player.food = 0
     assert(game.player.gather > 1.11 and game.player.capacity == 21, "영구 특성 런 적용 실패")
     game.player.capacity = 100
     local farm = find(game.world, "plot")
