@@ -373,13 +373,36 @@ function Game:drawUI()
     love.graphics.setColor(.76, .84, .87); love.graphics.print(string.format("방어벽 %d단계  %d / %d", wall.level, math.floor(wall.hp), wall.maxHp), 32, 98)
     UI.bar(32, 122, 348, 12, wall.hp / wall.maxHp, wall.level == 4 and {.18, .86, 1, 1} or {.94, .58, .14, 1})
 
-    UI.panel(w - 334, 16, 318, 122, {.92, .58, .16, 1})
-    love.graphics.setFont(f.small); love.graphics.setColor(.58, .68, .71); love.graphics.print("거점 창고", w - 316, 27)
-    love.graphics.setColor(.45, .95, .48); love.graphics.print("식량 " .. self.food, w - 316, 51); love.graphics.setColor(.35, .78, 1); love.graphics.print("광석 " .. self.ore, w - 240, 51)
-    love.graphics.setColor(.9, .68, .35); love.graphics.print("목재 " .. self.wood, w - 164, 51); love.graphics.setColor(.75, .78, .8); love.graphics.print("돌 " .. self.stone, w - 88, 51)
-    love.graphics.setColor(.95, .78, .25); love.graphics.print("씨앗 " .. self.seeds, w - 316, 76)
-    love.graphics.setColor(.78, .84, .86); love.graphics.print(string.format("가방 %d / %d", self.player:totalCargo(), self.player.capacity), w - 222, 76)
-    UI.bar(w - 316, 103, 282, 10, self.player:totalCargo() / self.player.capacity, {.96, .64, .18, 1})
+    local hx, hy, hw = w - 334, 16, 318
+    UI.panel(hx, hy, hw, 150, {.92, .58, .16, 1})
+    love.graphics.setFont(f.small); love.graphics.setColor(.58, .68, .71); love.graphics.print("거점 창고", hx + 16, hy + 10)
+    local resources = {
+        {img = self.world.images.crop, label = "식량", color = {.45, .95, .48}, value = self.food},
+        {img = self.world.images.ore, label = "광석", color = {.35, .78, 1}, value = self.ore},
+        {img = self.world.images.lumber, label = "목재", color = {.9, .68, .35}, value = self.wood},
+        {img = self.world.images.stone, label = "돌", color = {.75, .78, .8}, value = self.stone},
+        {img = nil, label = "씨앗", color = {.95, .78, .25}, value = self.seeds}
+    }
+    local chipW, chipH, gap, chipX0, chipY = 53, 58, 6, hx + 14, hy + 32
+    for i, res in ipairs(resources) do
+        local cx = chipX0 + (i - 1) * (chipW + gap)
+        love.graphics.setColor(.08, .11, .13, .9); love.graphics.rectangle("fill", cx, chipY, chipW, chipH, 6, 6)
+        love.graphics.setColor(1, 1, 1, .1); love.graphics.setLineWidth(1); love.graphics.rectangle("line", cx, chipY, chipW, chipH, 6, 6)
+        love.graphics.setColor(1, 1, 1, 1)
+        if res.img then
+            local scale = 30 / math.max(res.img:getWidth(), res.img:getHeight())
+            love.graphics.draw(res.img, cx + chipW / 2, chipY + 21, 0, scale, scale, res.img:getWidth() / 2, res.img:getHeight() / 2)
+        else
+            love.graphics.setColor(res.color)
+            for d = -1, 1 do love.graphics.circle("fill", cx + chipW / 2 + d * 7, chipY + 21, 3) end
+        end
+        love.graphics.setFont(f.small); love.graphics.setColor(res.color)
+        love.graphics.printf(tostring(res.value), cx, chipY + chipH - 20, chipW, "center")
+    end
+    local barY = chipY + chipH + 12
+    love.graphics.setFont(f.small); love.graphics.setColor(.78, .84, .86)
+    love.graphics.print(string.format("가방  %d / %d", self.player:totalCargo(), self.player.capacity), hx + 14, barY)
+    UI.bar(hx + 14, barY + 20, hw - 28, 10, self.player:totalCargo() / self.player.capacity, {.96, .64, .18, 1})
 
     UI.panel(w / 2 - 105, 16, 210, 44, {.78, .2, .18, 1}, .86)
     love.graphics.setFont(f.body); love.graphics.setColor(1, .82, .72); love.graphics.printf(self.world.spawnTimer > 0 and string.format("다음 웨이브 %.1f초", self.world.spawnTimer) or "웨이브 접근 중", w / 2 - 105, 27, 210, "center")
