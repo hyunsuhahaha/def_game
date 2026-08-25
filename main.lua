@@ -1,6 +1,6 @@
 local Game
 local game
-local captureFrames = os.getenv("LAST_HAUL_CAPTURE_TURRET_FIRE") and 3 or (os.getenv("LAST_HAUL_CAPTURE_DRILL") and 2 or ((os.getenv("LAST_HAUL_CAPTURE_RUSH") or os.getenv("LAST_HAUL_CAPTURE_LOBBY") or os.getenv("LAST_HAUL_CAPTURE_CLEARCUT") or os.getenv("LAST_HAUL_CAPTURE_CLEARCUT_UPGRADE") or os.getenv("LAST_HAUL_CAPTURE_CLEARCUT_RESULTS") or os.getenv("LAST_HAUL_CAPTURE_CLEARCUT_THREATS") or os.getenv("LAST_HAUL_CAPTURE_CLEARCUT_BUILDS") or os.getenv("LAST_HAUL_CAPTURE_CLEARCUT_CHAR_SELECT") or os.getenv("LAST_HAUL_CAPTURE_CLEARCUT_FIREJOB")) and 6 or (os.getenv("LAST_HAUL_CAPTURE_HARVEST") and 10 or ((os.getenv("LAST_HAUL_CAPTURE") or os.getenv("LAST_HAUL_CAPTURE_GAME") or os.getenv("LAST_HAUL_CAPTURE_FARM") or os.getenv("LAST_HAUL_CAPTURE_MINE") or os.getenv("LAST_HAUL_CAPTURE_WALL") or os.getenv("LAST_HAUL_CAPTURE_REPAIR") or os.getenv("LAST_HAUL_CAPTURE_META") or os.getenv("LAST_HAUL_CAPTURE_RESULTS") or os.getenv("LAST_HAUL_CAPTURE_UPGRADE") or os.getenv("LAST_HAUL_CAPTURE_UNITS") or os.getenv("LAST_HAUL_CAPTURE_TEST_OPTIONS") or os.getenv("LAST_HAUL_CAPTURE_TURRET_PROMPT") or os.getenv("LAST_HAUL_CAPTURE_TURRET_PLACEMENT") or os.getenv("LAST_HAUL_CAPTURE_TURRET_UPGRADE")) and 30 or nil))))
+local captureFrames = os.getenv("LAST_HAUL_CAPTURE_TURRET_FIRE") and 3 or (os.getenv("LAST_HAUL_CAPTURE_DRILL") and 2 or ((os.getenv("LAST_HAUL_CAPTURE_RUSH") or os.getenv("LAST_HAUL_CAPTURE_LOBBY") or os.getenv("LAST_HAUL_CAPTURE_CLEARCUT") or os.getenv("LAST_HAUL_CAPTURE_CLEARCUT_UPGRADE") or os.getenv("LAST_HAUL_CAPTURE_CLEARCUT_RESULTS") or os.getenv("LAST_HAUL_CAPTURE_CLEARCUT_THREATS") or os.getenv("LAST_HAUL_CAPTURE_CLEARCUT_BUILDS") or os.getenv("LAST_HAUL_CAPTURE_CLEARCUT_CHAR_SELECT") or os.getenv("LAST_HAUL_CAPTURE_CLEARCUT_FIREJOB") or os.getenv("LAST_HAUL_CAPTURE_CLEARCUT_COMBAT") or os.getenv("LAST_HAUL_CAPTURE_CLEARCUT_DEFEAT")) and 6 or (os.getenv("LAST_HAUL_CAPTURE_HARVEST") and 10 or ((os.getenv("LAST_HAUL_CAPTURE") or os.getenv("LAST_HAUL_CAPTURE_GAME") or os.getenv("LAST_HAUL_CAPTURE_FARM") or os.getenv("LAST_HAUL_CAPTURE_MINE") or os.getenv("LAST_HAUL_CAPTURE_WALL") or os.getenv("LAST_HAUL_CAPTURE_REPAIR") or os.getenv("LAST_HAUL_CAPTURE_META") or os.getenv("LAST_HAUL_CAPTURE_RESULTS") or os.getenv("LAST_HAUL_CAPTURE_UPGRADE") or os.getenv("LAST_HAUL_CAPTURE_UNITS") or os.getenv("LAST_HAUL_CAPTURE_TEST_OPTIONS") or os.getenv("LAST_HAUL_CAPTURE_TURRET_PROMPT") or os.getenv("LAST_HAUL_CAPTURE_TURRET_PLACEMENT") or os.getenv("LAST_HAUL_CAPTURE_TURRET_UPGRADE")) and 30 or nil))))
 
 function love.load()
     love.graphics.setDefaultFilter("linear", "linear", 4)
@@ -116,6 +116,28 @@ function love.load()
         game.clearcut.levels.molotov = 2
         love.mouse.setPosition(love.graphics.getWidth() / 2 + 220, love.graphics.getHeight() / 2 - 60)
         game.clearcut:updateHeldAxe(0, game, true)
+    end
+    if os.getenv("LAST_HAUL_CAPTURE_CLEARCUT_COMBAT") then
+        game:startClearcut("physical")
+        local c = game.clearcut
+        -- exercise every enemy/boss/projectile/damage path once as a smoke test
+        c:spawnWave({squirrel=2, boar=1, turret=1}, game)
+        for _, e in ipairs(c.enemies) do e.x, e.y = game.player.x + 60, game.player.y - 40 end
+        c:updateEnemies(2, game)
+        c:updateProjectiles(0.3, game)
+        c:damageEnemiesInRadius(game.player.x, game.player.y, 500, 999, game)
+        c:updateEnemies(0.02, game)
+        c:spawnBoss("ent", game)
+        c:bossSlam(c.activeBoss, game)
+        c:updateBossTelegraphs(1, game)
+        c.remainingTrees = 0
+        c:updateEnemies(0.02, game)
+        c:damagePlayer(30, game)
+        print("COMBAT_SMOKE_TEST_OK hp=" .. c.hp .. " enemies=" .. #c.enemies .. " boss=" .. tostring(c.activeBoss and c.activeBoss.def.name) .. " worldtree=" .. tostring(c.worldTreeSpawned))
+    end
+    if os.getenv("LAST_HAUL_CAPTURE_CLEARCUT_DEFEAT") then
+        game:startClearcut("physical")
+        game.clearcut:damagePlayer(200, game)
     end
     if os.getenv("LAST_HAUL_CAPTURE_CLEARCUT_BUILDS") then
         game:startClearcut()

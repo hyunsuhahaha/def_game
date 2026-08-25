@@ -34,11 +34,21 @@ local definitions = {
 }
 
 local milestones = {
-    {pct=10, text="\"숲이 당신의 존재를 알아챈 것 같다...\""},
-    {pct=30, text="다람쥐들이 사방으로 도망치기 시작한다."},
-    {pct=50, text="숲의 절반이 사라졌다."},
-    {pct=70, text="숲이... 이상할 정도로 조용해졌다."},
-    {pct=90, text="거의 다 왔다. 마지막 나무들이 보인다."}
+    {pct=10, text="\"숲이 당신의 존재를 알아챈 것 같다...\"", wave={squirrel=4}},
+    {pct=30, text="다람쥐들이 사방으로 도망치기 시작한다.", wave={squirrel=4, boar=2}},
+    {pct=50, text="숲의 절반이 사라졌다.", wave={squirrel=3}, boss="ent"},
+    {pct=70, text="숲이... 이상할 정도로 조용해졌다.", wave={boar=4, turret=3}},
+    {pct=90, text="거의 다 왔다. 마지막 나무들이 보인다.", wave={squirrel=6, boar=3, turret=2}}
+}
+
+local enemyDefs = {
+    squirrel = {name="화난 다람쥐", hp=8, speed=155, damage=4, radius=13, color={.62,.38,.18}, hitCooldown=.85, reward=2},
+    boar = {name="가시 멧돼지", hp=30, speed=100, damage=9, radius=20, color={.4,.27,.19}, hitCooldown=1.1, reward=4},
+    turret = {name="버섯 포탑", hp=22, speed=0, damage=7, radius=18, color={.74,.34,.52}, ranged=true, range=300, fireInterval=1.9, reward=5},
+    ent = {name="엘더 트렌트", hp=260, speed=48, damage=16, radius=42, color={.33,.21,.12}, hitCooldown=1, boss=true,
+        slamInterval=3.2, slamRadius=110, slamDamage=20, reward=40},
+    worldtree = {name="세계수", hp=950, speed=0, damage=0, radius=92, color={.26,.5,.22}, boss=true, finalBoss=true,
+        slamInterval=4, slamRadius=150, slamDamage=18, summonInterval=7, reward=0}
 }
 
 local function formatTime(value)
@@ -55,7 +65,9 @@ function ClearcutMode.new()
         rootHazards={}, rootedTimer=0, rootedCount=0,
         bees={}, beeSlow=false, beeSwarmsTriggered=0, beehiveTotal=0,
         streak=0, lastHitAt=-10, molotovTimer=0, wildfireTimer=0, toxicTimer=0, evolutions={}, molotovs={},
-        job=nil, attackCooldown=0
+        job=nil, attackCooldown=0,
+        hp=100, maxHp=100, invulnTimer=0, dead=false,
+        enemies={}, projectiles={}, bossTelegraphs={}, waveFired={}, worldTreeSpawned=false, readyToFinish=false, activeBoss=nil, kills=0
     }, ClearcutMode)
 end
 
@@ -102,6 +114,7 @@ function ClearcutMode:setup(game)
 end
 
 function ClearcutMode:update(dt, game)
+    if self.dead then return end
     self.elapsed = self.elapsed + dt
     self:updateHeldAxe(dt, game)
     self:updateRegrowth(dt, game)
@@ -110,9 +123,13 @@ function ClearcutMode:update(dt, game)
     self:updateFire(dt, game)
     self:updateMolotovs(dt, game)
     self:updateToxicRain(dt, game)
+    self:updateEnemies(dt, game)
+    self:updateProjectiles(dt, game)
+    self:updateBossTelegraphs(dt, game)
     if self.elapsed - self.lastHitAt > .9 then self.streak = 0 end
     self.regrowFlash = math.max(0, self.regrowFlash - dt)
     self.rootedTimer = math.max(0, self.rootedTimer - dt)
+    self.invulnTimer = math.max(0, self.invulnTimer - dt)
     game.player.speed = self.baseSpeed * (self.rootedTimer > 0 and .18 or 1)
 end
 
@@ -212,7 +229,160 @@ function ClearcutMode:updateBees(dt, game)
     end
 end
 
-function ClearcutMode:igniteNear(source, game, radius, count)
+function ClearcutMode:damagePlayer(amount, game)
+    if self.dead or self.invulnTimer > 0 or amount <= 0 then return end
+    self.hp = math.max(0, self.hp - amount)
+    self.invulnTimer = .35
+    if game.camera then game.camera.trauma = math.min(1, game.camera.trauma + .3) end
+    for _ = 1, 8 do game.world:addParticle(game.player.x, game.player.y - 30, {1, .22, .16}, true, false) end
+    if self.hp <= 0 then
+        self.dead = true
+        self:finish(game, false)
+    end
+end
+
+function ClearcutMode:damageEnemiesInRadius(x, y, radius, damage, game)
+    for _, e in ipairs(self.enemies) do
+        local dx, dy = e.x - x, e.y - y
+        if dx*dx + dy*dy <= radius*radius then
+            e.hp = e.hp - damage
+            for _ = 1, 4 do game.world:addParticle(e.x, e.y - 12, {1, .32, .2}, true, false) end
+        end
+    end
+end
+
+function ClearcutMode:spawnEnemy(kind, x, y)
+    local def = enemyDefs[kind]
+    if not def then return end
+    local e = {kind = kind, def = def, x = x, y = y, hp = def.hp, maxHp = def.hp, hitTimer = 0, fireTimer = def.fireInterval, slamTimer = def.slamInterval, summonTimer = def.summonInterval}
+    self.enemies[#self.enemies + 1] = e
+    if def.boss then self.activeBoss = e end
+    return e
+end
+
+function ClearcutMode:spawnWave(counts, game)
+    for kind, count in pairs(counts) do
+        for _ = 1, count do
+            local a = love.math.random() * math.pi * 2
+            local r = 480 + love.math.random() * 180
+            self:spawnEnemy(kind, game.player.x + math.cos(a) * r, game.player.y + math.sin(a) * r)
+        end
+    end
+    game:setNotice("적이 몰려온다!", "ore")
+end
+
+function ClearcutMode:spawnBoss(kind, game)
+    local a = love.math.random() * math.pi * 2
+    local e = self:spawnEnemy(kind, game.player.x + math.cos(a) * 420, game.player.y + math.sin(a) * 420)
+    game:setNotice((e and e.def.name or "보스") .. " 등장!", "ore")
+    if game.camera then game.camera.trauma = math.min(1, game.camera.trauma + .4) end
+end
+
+function ClearcutMode:spawnWorldTree(game)
+    if self.worldTreeSpawned then return end
+    self.worldTreeSpawned = true
+    self.worldTree = self:spawnEnemy("worldtree", game.player.x, game.player.y - 280)
+    game:setNotice("세계수가 깨어났다 — 이것이 숲의 마지막 저항이다!", "ore")
+    if game.camera then game.camera.trauma = math.min(1, game.camera.trauma + .5) end
+end
+
+function ClearcutMode:spawnEnemyProjectile(e, game)
+    local dx, dy = game.player.x - e.x, game.player.y - e.y
+    local d = math.sqrt(dx*dx + dy*dy)
+    if d <= 0 then return end
+    self.projectiles[#self.projectiles + 1] = {x = e.x, y = e.y, vx = dx / d * 150, vy = dy / d * 150, life = 3, damage = e.def.damage, color = e.def.color}
+end
+
+function ClearcutMode:updateProjectiles(dt, game)
+    for i = #self.projectiles, 1, -1 do
+        local p = self.projectiles[i]
+        p.x, p.y = p.x + p.vx * dt, p.y + p.vy * dt
+        p.life = p.life - dt
+        local dx, dy = game.player.x - p.x, game.player.y - p.y
+        if dx*dx + dy*dy <= 22*22 then
+            self:damagePlayer(p.damage, game)
+            table.remove(self.projectiles, i)
+        elseif p.life <= 0 then
+            table.remove(self.projectiles, i)
+        end
+    end
+end
+
+function ClearcutMode:bossSlam(e, game)
+    self.bossTelegraphs[#self.bossTelegraphs + 1] = {x = e.x, y = e.y, radius = e.def.slamRadius, phase = "warn", timer = .75, damage = e.def.slamDamage}
+end
+
+function ClearcutMode:updateBossTelegraphs(dt, game)
+    for i = #self.bossTelegraphs, 1, -1 do
+        local t = self.bossTelegraphs[i]
+        t.timer = t.timer - dt
+        if t.phase == "warn" and t.timer <= 0 then
+            t.phase, t.timer = "active", .25
+            local dx, dy = game.player.x - t.x, game.player.y - t.y
+            if dx*dx + dy*dy <= t.radius * t.radius then self:damagePlayer(t.damage, game) end
+            if game.camera then game.camera.trauma = math.min(1, game.camera.trauma + .4) end
+        elseif t.phase == "active" and t.timer <= 0 then
+            table.remove(self.bossTelegraphs, i)
+        end
+    end
+end
+
+function ClearcutMode:onEnemyDefeated(e, game)
+    self.kills = self.kills + 1
+    if e.def.reward and e.def.reward > 0 then self:onWood(e.def.reward, game) end
+    if e == self.worldTree then
+        self.readyToFinish = true
+        game:setNotice("세계수를 쓰러뜨렸다 — 숲이 완전히 멈췄다.", "food")
+    end
+    if e == self.activeBoss then self.activeBoss = nil end
+end
+
+function ClearcutMode:updateEnemies(dt, game)
+    for i = #self.enemies, 1, -1 do
+        local e = self.enemies[i]
+        local def = e.def
+        e.hitTimer = math.max(0, e.hitTimer - dt)
+        if def.ranged then
+            local dx, dy = game.player.x - e.x, game.player.y - e.y
+            local dist = math.sqrt(dx*dx + dy*dy)
+            e.fireTimer = e.fireTimer - dt
+            if dist <= def.range and e.fireTimer <= 0 then
+                e.fireTimer = def.fireInterval
+                self:spawnEnemyProjectile(e, game)
+            end
+        elseif def.speed > 0 or not def.boss then
+            local dx, dy = game.player.x - e.x, game.player.y - e.y
+            local dist = math.sqrt(dx*dx + dy*dy)
+            if dist > def.radius + 20 then
+                e.x, e.y = e.x + dx / dist * def.speed * dt, e.y + dy / dist * def.speed * dt
+            elseif e.hitTimer <= 0 then
+                e.hitTimer = def.hitCooldown
+                self:damagePlayer(def.damage, game)
+            end
+        end
+        if def.slamInterval then
+            e.slamTimer = e.slamTimer - dt
+            if e.slamTimer <= 0 then
+                e.slamTimer = def.slamInterval
+                self:bossSlam(e, game)
+            end
+        end
+        if def.summonInterval then
+            e.summonTimer = e.summonTimer - dt
+            if e.summonTimer <= 0 then
+                e.summonTimer = def.summonInterval
+                self:spawnWave({squirrel = 2, boar = 1}, game)
+            end
+        end
+        if e.hp <= 0 then
+            self:onEnemyDefeated(e, game)
+            table.remove(self.enemies, i)
+        end
+    end
+    if self.remainingTrees <= 0 and not self.worldTreeSpawned then self:spawnWorldTree(game) end
+end
+
+function ClearcutMode:igniteNear(source, game, radius, count, depth)
     local candidates = {}
     for _, node in ipairs(game.world.nodes) do
         if node.rushTree and node.active and not node.burning and node ~= source then
@@ -221,8 +391,9 @@ function ClearcutMode:igniteNear(source, game, radius, count)
         end
     end
     for i = #candidates, 2, -1 do local j = love.math.random(i); candidates[i], candidates[j] = candidates[j], candidates[i] end
+    depth = depth or ((source.spreadDepth or 0) + 1)
     for i = 1, math.min(count, #candidates) do
-        candidates[i].burning, candidates[i].burnTimer = true, 0
+        candidates[i].burning, candidates[i].burnTimer, candidates[i].spreadDepth, candidates[i].fireTickTimer = true, 0, depth, 0
         game.world:igniteFx(candidates[i].x, candidates[i].y, false)
     end
 end
@@ -259,10 +430,11 @@ function ClearcutMode:updateMolotovs(dt, game)
         m.t = m.t + dt
         if m.t >= m.dur then
             if m.manual then
-                self:igniteNear({x=m.x1, y=m.y1}, game, m.radius, 99)
+                self:igniteNear({x=m.x1, y=m.y1}, game, m.radius, 99, 0)
+                self:damageEnemiesInRadius(m.x1, m.y1, m.radius, 9, game)
                 game.world:igniteFx(m.x1, m.y1, true)
             elseif m.target.active and not m.target.burning then
-                m.target.burning, m.target.burnTimer, m.target.igniting = true, 0, nil
+                m.target.burning, m.target.burnTimer, m.target.igniting, m.target.spreadDepth, m.target.fireTickTimer = true, 0, nil, 0, 0
                 game.world:igniteFx(m.target.x, m.target.y, true)
             elseif m.target then
                 m.target.igniting = nil
@@ -291,6 +463,7 @@ function ClearcutMode:onTreeBurnedDown(node, game)
         table.sort(far, function(a, b) return a.d2 > b.d2 end)
         for i = 1, math.min(emberLevel, #far) do
             far[i].node.burning, far[i].node.burnTimer, far[i].node.emberChained = true, 0, true
+            far[i].node.spreadDepth, far[i].node.fireTickTimer = (node.spreadDepth or 0) + 1, 0
             game.world:igniteFx(far[i].node.x, far[i].node.y, false)
         end
     end
@@ -320,6 +493,12 @@ function ClearcutMode:updateFire(dt, game)
     for _, node in ipairs(game.world.nodes) do
         if node.rushTree and node.active and node.burning then
             node.burnTimer = node.burnTimer + dt
+            node.fireTickTimer = (node.fireTickTimer or 0) - dt
+            if node.fireTickTimer <= 0 then
+                node.fireTickTimer = .5
+                local falloff = .5 ^ (node.spreadDepth or 0)
+                self:damageEnemiesInRadius(node.x, node.y, 75, 3 * falloff, game)
+            end
             if node.burnTimer >= burnDuration then
                 node.burning = false
                 self:onTreeBurnedDown(node, game)
@@ -464,6 +643,7 @@ function ClearcutMode:updateToxicAttack(dt, game, heldOverride)
             end
         end
     end
+    self:damageEnemiesInRadius(tx, ty, self.aimRadius, dmg * 3, game)
     game.world:toxicPulseFx(tx, ty, self.aimRadius)
     if game.camera then game.camera.trauma = math.min(1, game.camera.trauma + .18) end
     local speed = (game.tools.axe.speed or 1) * game.player.gather
@@ -477,6 +657,8 @@ function ClearcutMode:checkMilestones(game)
         if pct >= m.pct and not self.milestoneFired[m.pct] then
             self.milestoneFired[m.pct] = true
             game:setNotice(m.text, "food")
+            if m.wave then self:spawnWave(m.wave, game) end
+            if m.boss then self:spawnBoss(m.boss, game) end
         end
     end
 end
@@ -565,6 +747,7 @@ function ClearcutMode:hitTree(primary, game)
     local wideLevel = self:levelOf("wide_blade")
     local radius = 75 + wideLevel * 45
     local targetCount = 1 + wideLevel * 2
+    self:damageEnemiesInRadius(primary.x, primary.y, radius, 9 + self:levelOf("berserker") * 2, game)
     local candidates={}
     for _,node in ipairs(game.world.nodes) do
         if node.rushTree and node.active then
@@ -605,10 +788,11 @@ function ClearcutMode:hitTree(primary, game)
     self:checkMilestones(game)
 end
 
-function ClearcutMode:finish(game)
+function ClearcutMode:finish(game, victory)
     if game.result then return end
-    game.ended, game.victory = true, true
-    game.result={elapsed=math.floor(self.elapsed),wood=self.totalWood,trees=self.treesFelled,total=self.initialTrees,maxMulti=self.maxMulti,maxChain=self.maxChain,level=self.level,regrowPulses=self.regrowPulses,treesRevived=self.treesRevived,rootedCount=self.rootedCount,beeSwarms=self.beeSwarmsTriggered}
+    if victory == nil then victory = true end
+    game.ended, game.victory = true, victory
+    game.result={elapsed=math.floor(self.elapsed),wood=self.totalWood,trees=self.treesFelled,total=self.initialTrees,maxMulti=self.maxMulti,maxChain=self.maxChain,level=self.level,regrowPulses=self.regrowPulses,treesRevived=self.treesRevived,rootedCount=self.rootedCount,beeSwarms=self.beeSwarmsTriggered,victory=victory,kills=self.kills}
     game.mode="clearcut_results"
 end
 
@@ -641,6 +825,42 @@ local function drawBeehive(x, y, t)
         local bx, by = x + math.cos(a) * 15, hy - 5 + math.sin(a * 1.4) * 9
         drawBeeBody(bx, by, a + math.pi / 2, t * 30 + i)
     end
+end
+
+local function drawEnemy(e, t)
+    local def = e.def
+    local bob = def.speed > 0 and math.sin(t * 8 + e.x) * 2 or 0
+    love.graphics.setColor(0, 0, 0, .32); love.graphics.ellipse("fill", e.x, e.y + def.radius * .55, def.radius * .95, def.radius * .38)
+    love.graphics.setColor(def.color); love.graphics.circle("fill", e.x, e.y + bob, def.radius)
+    love.graphics.setColor(def.color[1] * .45, def.color[2] * .45, def.color[3] * .45, 1); love.graphics.setLineWidth(2.4)
+    love.graphics.circle("line", e.x, e.y + bob, def.radius)
+    if e.kind == "squirrel" then
+        love.graphics.setColor(def.color); love.graphics.polygon("fill", e.x - def.radius * .6, e.y + bob, e.x - def.radius * 1.6, e.y + bob - def.radius, e.x - def.radius * .3, e.y + bob - def.radius * .3)
+    elseif e.kind == "boar" then
+        love.graphics.setColor(1, .96, .85, 1)
+        love.graphics.polygon("fill", e.x - def.radius * .5, e.y + bob + def.radius * .3, e.x - def.radius * .9, e.y + bob + def.radius * .55, e.x - def.radius * .3, e.y + bob + def.radius * .5)
+        love.graphics.polygon("fill", e.x + def.radius * .5, e.y + bob + def.radius * .3, e.x + def.radius * .9, e.y + bob + def.radius * .55, e.x + def.radius * .3, e.y + bob + def.radius * .5)
+    elseif e.kind == "turret" then
+        love.graphics.setColor(1, 1, 1, .9)
+        for i = -2, 2 do love.graphics.circle("fill", e.x + i * def.radius * .32, e.y + bob - def.radius * .3, def.radius * .13) end
+    elseif def.finalBoss then
+        love.graphics.setColor(.2, .4, .16, 1); love.graphics.setLineWidth(5)
+        for i = 1, 5 do
+            local a = i / 5 * math.pi * 2 + t * .3
+            love.graphics.line(e.x, e.y, e.x + math.cos(a) * def.radius * 1.3, e.y + math.sin(a) * def.radius * .6)
+        end
+    elseif def.boss then
+        love.graphics.setColor(.5, .35, .18, .9); love.graphics.setLineWidth(3)
+        love.graphics.line(e.x - def.radius * .5, e.y - def.radius * .3, e.x - def.radius * .9, e.y - def.radius * .9)
+        love.graphics.line(e.x + def.radius * .5, e.y - def.radius * .3, e.x + def.radius * .9, e.y - def.radius * .9)
+    end
+    love.graphics.setColor(1, .25, .18, 1)
+    love.graphics.circle("fill", e.x - def.radius * .3, e.y + bob - def.radius * .15, def.radius * .13)
+    love.graphics.circle("fill", e.x + def.radius * .3, e.y + bob - def.radius * .15, def.radius * .13)
+    local hpPct = math.max(0, e.hp / e.maxHp)
+    local barW = def.radius * 2
+    love.graphics.setColor(0, 0, 0, .65); love.graphics.rectangle("fill", e.x - barW / 2, e.y - def.radius - 14, barW, 5)
+    love.graphics.setColor(hpPct > .5 and 1 or 1, hpPct > .5 and .3 or .15, .2, 1); love.graphics.rectangle("fill", e.x - barW / 2, e.y - def.radius - 14, barW * hpPct, 5)
 end
 
 function ClearcutMode:drawWorldOverlay(game)
@@ -736,6 +956,27 @@ function ClearcutMode:drawWorldOverlay(game)
         love.graphics.setColor(1, .85, .35, .85 * fl); love.graphics.circle("fill", 0, -13.6, 1.4 * fl)
         love.graphics.pop()
     end
+    for _, tel in ipairs(self.bossTelegraphs) do
+        if tel.phase == "warn" then
+            local pulse = 1 - math.max(0, tel.timer) / .75
+            love.graphics.setLineWidth(4); love.graphics.setColor(1, .3, .15, .85 - pulse * .3)
+            love.graphics.circle("line", tel.x, tel.y, tel.radius * pulse)
+            love.graphics.setColor(1, .3, .15, .1); love.graphics.circle("fill", tel.x, tel.y, tel.radius * pulse)
+        else
+            local fade = math.max(0, tel.timer) / .25
+            love.graphics.setColor(1, .45, .2, fade * .5); love.graphics.circle("fill", tel.x, tel.y, tel.radius)
+            love.graphics.setLineWidth(6); love.graphics.setColor(1, .8, .3, fade); love.graphics.circle("line", tel.x, tel.y, tel.radius)
+        end
+    end
+    for _, e in ipairs(self.enemies) do drawEnemy(e, t) end
+    for _, p in ipairs(self.projectiles) do
+        love.graphics.setColor(p.color[1], p.color[2], p.color[3], .3); love.graphics.circle("fill", p.x, p.y, 8)
+        love.graphics.setColor(p.color); love.graphics.circle("fill", p.x, p.y, 4.5)
+        love.graphics.setColor(0, 0, 0, .8); love.graphics.setLineWidth(1); love.graphics.circle("line", p.x, p.y, 4.5)
+    end
+    if self.invulnTimer > 0 then
+        love.graphics.setColor(1, .2, .15, .35); love.graphics.circle("fill", game.player.x, game.player.y - 20, 26)
+    end
     love.graphics.setLineStyle("smooth")
 end
 
@@ -758,6 +999,11 @@ function ClearcutMode:drawHUD(game,fonts)
         love.graphics.setColor(1, .82, .3); love.graphics.print("진화: " .. table.concat(evoNames, " · "), 32, 146)
     end
 
+    love.graphics.setColor(.04,.07,.055,.9); love.graphics.rectangle("fill",16,192,360,34,8,8)
+    love.graphics.setFont(fonts.small); love.graphics.setColor(1,.4,.35); love.graphics.print("HP",30,199)
+    UI.bar(66,199,296,18,math.max(0,self.hp/self.maxHp),{1,.32,.26,1},{.14,.06,.05,.95})
+    love.graphics.setFont(fonts.small); love.graphics.setColor(1,1,1); love.graphics.printf(math.ceil(self.hp).." / "..self.maxHp,66,201,296,"center")
+
     local pct = self:destructionPct()
     local barW = 300
     local flash = self.regrowFlash > 0
@@ -765,6 +1011,14 @@ function ClearcutMode:drawHUD(game,fonts)
     love.graphics.setFont(fonts.small); love.graphics.setColor(.95,.85,.7); love.graphics.printf("FOREST REMAINING",w/2-barW/2,25,barW,"center")
     UI.bar(w/2-barW/2,45,barW,16,1-pct/100,flash and {1,.4,.3,1} or {.35,1,.45,1},{.1,.06,.04,.95})
     love.graphics.setFont(fonts.body); love.graphics.setColor(1,1,1); love.graphics.printf(string.format("%.0f%%",100-pct),w/2-barW/2,63,barW,"center")
+
+    if self.activeBoss then
+        local boss = self.activeBoss
+        local bw = math.min(700, w*.55)
+        UI.panel(w/2-bw/2,96,bw,42,{1,.3,.15,1},.95)
+        love.graphics.setFont(fonts.small); love.graphics.setColor(1,.85,.7); love.graphics.printf(boss.def.name,w/2-bw/2,102,bw,"center")
+        UI.bar(w/2-bw/2+14,120,bw-28,12,math.max(0,boss.hp/boss.maxHp),{1,.3,.2,1},{.12,.05,.04,.95})
+    end
 
     local xpBarW = math.min(520, w*.42)
     local bx, by = w/2-xpBarW/2, h-108
@@ -806,13 +1060,16 @@ end
 
 function ClearcutMode:drawResults(game,fonts)
     local w,h,r=love.graphics.getWidth(),love.graphics.getHeight(),game.result
+    local victory = r.victory ~= false
     love.graphics.setColor(0,0,0,.84); love.graphics.rectangle("fill",0,0,w,h)
-    UI.panel(w/2-330,h/2-260,660,556,{.35,1,.52,1},.98)
-    love.graphics.setFont(fonts.title); love.graphics.setColor(1,1,1); love.graphics.printf("숲을 전부 밀어버렸다",w/2-300,h/2-230,600,"center")
-    love.graphics.setFont(fonts.small); love.graphics.setColor(.7,.85,.76); love.graphics.printf("숲 파괴율 100%  ·  핵심 재미 검증 보고서",w/2-300,h/2-182,600,"center")
-    local rows={{"걸린 시간",formatTime(r.elapsed)},{"총 목재",r.wood},{"쓰러뜨린 나무",r.trees.." / "..r.total},{"최대 동시 타격",r.maxMulti},{"최대 연쇄 벌목",r.maxChain},{"도달 레벨",r.level},{"숲 재생 펄스 · 되살아난 나무",r.regrowPulses.."회 · "..r.treesRevived.."그루"},{"가시덩굴에 붙잡힌 횟수",r.rootedCount},{"자극한 벌집",r.beeSwarms}}
+    UI.panel(w/2-330,h/2-260,660,590,victory and {.35,1,.52,1} or {1,.3,.28,1},.98)
+    love.graphics.setFont(fonts.title); love.graphics.setColor(1,1,1)
+    love.graphics.printf(victory and "세계수를 쓰러뜨렸다 — 숲을 완전히 정복했다" or "숲의 반격에 쓰러졌다",w/2-300,h/2-230,600,"center")
+    love.graphics.setFont(fonts.small); love.graphics.setColor(.7,.85,.76)
+    love.graphics.printf((victory and "숲 파괴율 100%  ·  " or "미완의 정복  ·  ") .. "핵심 재미 검증 보고서",w/2-300,h/2-182,600,"center")
+    local rows={{"걸린 시간",formatTime(r.elapsed)},{"총 목재",r.wood},{"쓰러뜨린 나무",r.trees.." / "..r.total},{"처치한 적",r.kills or 0},{"최대 동시 타격",r.maxMulti},{"최대 연쇄 벌목",r.maxChain},{"도달 레벨",r.level},{"숲 재생 펄스 · 되살아난 나무",r.regrowPulses.."회 · "..r.treesRevived.."그루"},{"가시덩굴에 붙잡힌 횟수",r.rootedCount},{"자극한 벌집",r.beeSwarms}}
     for i,row in ipairs(rows) do local y=h/2-140+(i-1)*38; love.graphics.setColor(i%2==0 and {.07,.12,.1,.9} or {.045,.085,.07,.9}); love.graphics.rectangle("fill",w/2-270,y,540,32,4,4); love.graphics.setColor(.72,.82,.76); love.graphics.print(row[1],w/2-250,y+7); love.graphics.setColor(1,.75,.25); love.graphics.printf(tostring(row[2]),w/2+40,y+7,270,"center") end
-    UI.button(w/2-250,h/2+236,240,48,"로비로",true,fonts.body); UI.button(w/2+10,h/2+236,240,48,"다시 실험",true,fonts.body)
+    UI.button(w/2-250,h/2+270,240,48,"로비로",true,fonts.body); UI.button(w/2+10,h/2+270,240,48,"다시 실험",true,fonts.body)
 end
 
 ClearcutMode.characters = {

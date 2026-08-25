@@ -222,7 +222,7 @@ function Game:update(dt)
     if self.rush then self.rush:update(dt,self) end
     if self.clearcut then self.clearcut:update(dt,self) end
     self.world:update(dt, self); self.camera:update(dt, self.player, self.world)
-    if self.clearcut and self.clearcut.remainingTrees <= 0 and not self.ended then self.clearcut:finish(self) end
+    if self.clearcut and self.clearcut.readyToFinish and not self.ended then self.clearcut:finish(self, true) end
     if self.ended and not self.clearcut then
         if self.rush then self.rush:finish(self,self.victory) else self:finishRun(self.victory) end
     end
@@ -259,7 +259,7 @@ function Game:keypressed(key)
         return
     end
     if self.mode == "clearcut_results" then
-        if key=="return" or key=="r" then self:startClearcut() elseif key=="escape" then self.mode="lobby" end
+        if key=="return" or key=="r" then self:startClearcut(self.clearcut and self.clearcut.job) elseif key=="escape" then self.mode="lobby" end
         return
     end
     if self.mode == "results" then
@@ -370,7 +370,7 @@ function Game:mousepressed(x, y, button)
         return
     end
     if self.mode == "clearcut_results" then
-        if button==1 then local w,h=love.graphics.getDimensions(); if y>=h/2+236 and y<=h/2+284 then if x>=w/2-250 and x<=w/2-10 then self.mode="lobby" elseif x>=w/2+10 and x<=w/2+250 then self:startClearcut() end end end
+        if button==1 then local w,h=love.graphics.getDimensions(); if y>=h/2+270 and y<=h/2+318 then if x>=w/2-250 and x<=w/2-10 then self.mode="lobby" elseif x>=w/2+10 and x<=w/2+250 then self:startClearcut(self.clearcut and self.clearcut.job) end end end
         return
     end
     if self.mode == "results" then
