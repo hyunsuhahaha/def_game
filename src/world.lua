@@ -26,10 +26,10 @@ function World.new()
         industrial = image("assets/floor-industrial.png"), farm = image("assets/floor-biofarm.png"), quarry = image("assets/floor-quarry.png"),
         core = image("assets/supply-core-v2.png"), turret = image("assets/turret-v1.png"), drone = image("assets/combat-drone-v1.png"), crop = image("assets/crop-pod.png"), ore = image("assets/ore-node.png"),
         repairStation = image("assets/upgrades/repair_station.png"),
-        tree = image("assets/tree-v1.png"), stone = image("assets/stone-v1.png"),
+        tree = image("assets/tree-v1.png"), stone = image("assets/stone-v1.png"), lumber = image("assets/lumber-drop-v1.png"),
         workerWalk = image("assets/worker-walk-v3.png"), workerActions = image("assets/worker-actions-v1.png"), workerRepair = image("assets/worker-repair-v1.png")
     }
-    self.nodes, self.enemies, self.defenders, self.turrets, self.structures, self.shots = {}, {}, {}, {}, {}, {}
+    self.nodes, self.enemies, self.defenders, self.turrets, self.structures, self.shots, self.drops = {}, {}, {}, {}, {}, {}, {}
     self.particles, self.popups, self.harvestChain, self.harvestChainTime = {}, {}, 0, 0
     self.effectFont = love.graphics.newFont("assets/font-korean.ttf", 18)
     self.quarryVisual = {shadowX = 5, shadowY = 7, shadowRx = 104, shadowRy = 11, shadowAlpha = .22, frontBias = 130}
@@ -111,25 +111,66 @@ function World:updateEffects(dt, game)
     end
 end
 
+function World:spawnDrop(kind, amount, x, y, spreadX, spreadY)
+    spreadX, spreadY = spreadX or 24, spreadY or 0
+    for _ = 1, amount do
+        local minVx, maxVx = kind == "wood" and 25 or -125, kind == "wood" and 125 or 35
+        self.drops[#self.drops + 1] = {
+            kind = kind, amount = 1,
+            x = x + love.math.random(-spreadX, spreadX), y = y - 34 + love.math.random(-spreadY, spreadY),
+            vx = love.math.random(minVx, maxVx), vy = love.math.random(28, 82),
+            height = love.math.random(36, 58), vz = love.math.random(85, 135),
+            magnet = false
+        }
+    end
+end
+
+function World:updateDrops(dt, game)
+    local player = game.player
+    for i = #self.drops, 1, -1 do
+        local drop = self.drops[i]
+        local dx, dy = player.x - drop.x, player.y - drop.y
+        local distance = math.sqrt(dx * dx + dy * dy)
+        if drop.height <= 0 and distance <= 135 and cargoSpace(player) > 0 then drop.magnet = true end
+        if drop.magnet then
+            local pull = math.min(1, dt * 12)
+            drop.x, drop.y = drop.x + dx * pull, drop.y + dy * pull
+            drop.height = drop.height + (10 - drop.height) * pull
+            if distance <= 26 then
+                local amount = math.min(drop.amount, cargoSpace(player))
+                if amount > 0 then
+                    player[drop.kind] = player[drop.kind] + amount
+                    game.runStats.harvested = game.runStats.harvested + amount
+                    game.runStats[drop.kind] = (game.runStats[drop.kind] or 0) + amount
+                    game:addRunXP(amount)
+                    local label = drop.kind == "stone" and "돌" or drop.kind == "wood" and "목재" or "광석"
+                    local color = effectColors[drop.kind]
+                    self.popups[#self.popups + 1] = {x=drop.x,y=drop.y-32,life=.8,maxLife=.8,text="+"..amount.." "..label,color=color,chain=0}
+                    table.remove(self.drops, i)
+                else
+                    drop.magnet = false
+                end
+            end
+        else
+            drop.x, drop.y = drop.x + drop.vx * dt, drop.y + drop.vy * dt
+            drop.vx, drop.vy = drop.vx * math.exp(-dt * 4.5), drop.vy * math.exp(-dt * 4.5)
+            drop.height, drop.vz = drop.height + drop.vz * dt, drop.vz - 360 * dt
+            if drop.height <= 0 then
+                drop.height = 0
+                if drop.vz < -45 then drop.vz = -drop.vz * .22 else drop.vz = 0 end
+            end
+        end
+    end
+end
+
 function World:harvestHit(node, game, player)
-    if cargoSpace(player) <= 0 then game:setNotice("가방이 가득 찼습니다", "core"); return end
+    self:impactNode(node, game, false)
     if node.kind == "tree" then
-        local amount = math.min(game.upgrades and game.upgrades:duplicateAmount(1) or 1, cargoSpace(player))
-        if amount <= 0 then return end
-        player.wood = player.wood + amount
-        game.runStats.harvested = game.runStats.harvested + amount; game.runStats.wood = (game.runStats.wood or 0) + amount
-        game:addRunXP(amount)
-        self:harvestBurst(node, game, amount, "목재")
+        self:spawnDrop("wood", 1, node.x + 100, node.y + 40, 90, 70)
     elseif node.kind == "quarry" then
         node.oreCounter = (node.oreCounter or 0) + 1
         local isOre = node.oreCounter % 5 == 0
-        local kind, label = isOre and "ore" or "stone", isOre and "광석" or "돌"
-        local amount = math.min(game.upgrades and game.upgrades:duplicateAmount(1) or 1, cargoSpace(player))
-        if amount <= 0 then return end
-        player[kind] = player[kind] + amount
-        game.runStats.harvested = game.runStats.harvested + amount; game.runStats[kind] = (game.runStats[kind] or 0) + amount
-        game:addRunXP(amount)
-        self:harvestBurst(node, game, amount, label)
+        self:spawnDrop(isOre and "ore" or "stone", 1, node.x - 120, node.y + 50, 100, 70)
     end
 end
 
@@ -141,6 +182,7 @@ end
 
 function World:update(dt, game)
     self:updateEffects(dt, game)
+    self:updateDrops(dt, game)
     for _, turret in ipairs(self.turrets) do turret.flash = math.max(0, (turret.flash or 0) - dt) end
     for _, structure in ipairs(self.structures) do structure.flash = math.max(0, (structure.flash or 0) - dt) end
     for _, node in ipairs(self.nodes) do
@@ -525,6 +567,15 @@ function World:draw(player)
         if defender.kind == "drone" then
             local bob=math.sin(love.timer.getTime()*4+defender.x*.01)*5; shadow(defender.x,defender.y+8,31,10,.38); love.graphics.setColor(1,1,1); centered(self.images.drone,defender.x,defender.y-34+bob,.052)
         else shadow(defender.x, defender.y, 20, 8, .42); love.graphics.setColor(.25, .9, .38); love.graphics.circle("fill", defender.x, defender.y - 20, 22) end
+    end} end
+    for _, value in ipairs(self.drops) do local drop = value; queue[#queue + 1] = {y = drop.y, draw = function()
+        local img = drop.kind == "stone" and self.images.stone or drop.kind == "wood" and self.images.lumber or self.images.ore
+        local width = drop.kind == "stone" and 38 or drop.kind == "wood" and 48 or 31
+        local scale = width / img:getWidth()
+        love.graphics.setColor(0, 0, 0, drop.magnet and .12 or .24)
+        love.graphics.ellipse("fill", drop.x + 2, drop.y + 3, width * .38, width * .11)
+        love.graphics.setColor(1, 1, 1, 1)
+        love.graphics.draw(img, drop.x, drop.y - drop.height, 0, scale, scale, img:getWidth() / 2, img:getHeight() * .91)
     end} end
     for _, e in ipairs(self.enemies) do local enemy = e; queue[#queue + 1] = {y = enemy.y, draw = function() shadow(enemy.x, enemy.y, 20, 9, .5); love.graphics.setColor(.65, .12, .15); love.graphics.circle("fill", enemy.x, enemy.y - 22, 24); love.graphics.setColor(1, .35, .25); love.graphics.circle("line", enemy.x, enemy.y - 22, 24) end} end
     queue[#queue + 1] = {y = player.y, draw = function() player:draw() end}

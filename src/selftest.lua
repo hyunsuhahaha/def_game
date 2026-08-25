@@ -76,19 +76,29 @@ function SelfTest.run(game)
     assert(impactCount == 1, "도구 타격 프레임과 이펙트 불일치")
     game.player:cancelInteraction()
     game.world.impactNode = originalImpact
-    game.player.wood = 0
+    game.player.wood, game.world.drops = 0, {}
     game.world:harvestHit(tree, game, game.player)
-    assert(game.player.wood == 1 and tree.active, "벌목 즉시 지급 실패")
-    game.world:harvestHit(tree, game, game.player)
-    assert(game.player.wood == 2, "벌목 반복 타격 지급 실패")
+    assert(game.player.wood == 0 and #game.world.drops == 1 and game.world.drops[1].kind == "wood" and tree.active, "벌목 즉시 획득 방지 실패")
+    local woodDrop = game.world.drops[1]
+    woodDrop.x, woodDrop.y, woodDrop.height, woodDrop.vx, woodDrop.vy, woodDrop.vz = game.player.x, game.player.y, 0, 0, 0, 0
+    game.world:updateDrops(.1, game)
+    assert(game.player.wood == 1 and #game.world.drops == 0, "목재 근접 흡수 실패")
     local quarryDx, quarryDy = quarry.x - game.world.core.x, quarry.y - game.world.core.y
     assert(quarryDx * quarryDx + quarryDy * quarryDy <= 520 * 520, "채석장이 거점에서 너무 멀리 배치됨")
-    for _ = 1, 4 do game.world:harvestHit(quarry, game, game.player) end
-    assert(game.player.stone == 4 and game.player.ore == 0, "채석 즉시 지급 실패")
-    game.world:harvestHit(quarry, game, game.player)
-    assert(game.player.ore == 1, "채석 광석 비율 실패")
     for _ = 1, 5 do game.world:harvestHit(quarry, game, game.player) end
-    assert(game.player.stone == 8 and game.player.ore == 2 and quarry.active, "채석 반복 타격 지급 실패")
+    assert(#game.world.drops == 5, "채석 타격당 드롭 생성 실패")
+    local oreDrops, stoneDrops = 0, 0
+    for _, drop in ipairs(game.world.drops) do
+        drop.x, drop.y, drop.height, drop.vx, drop.vy, drop.vz = game.player.x, game.player.y, 0, 0, 0, 0
+        if drop.kind == "ore" then oreDrops = oreDrops + 1 else stoneDrops = stoneDrops + 1 end
+    end
+    assert(oreDrops == 1 and stoneDrops == 4, "채석 광석 비율 실패")
+    game.world:updateDrops(.1, game)
+    assert(game.player.stone == 4 and game.player.ore == 1 and #game.world.drops == 0 and quarry.active, "채석물 근접 흡수 실패")
+    for _ = 1, 5 do game.world:harvestHit(quarry, game, game.player) end
+    for _, drop in ipairs(game.world.drops) do drop.x, drop.y, drop.height, drop.vx, drop.vy, drop.vz = game.player.x, game.player.y, 0, 0, 0, 0 end
+    game.world:updateDrops(.1, game)
+    assert(game.player.stone == 8 and game.player.ore == 2 and #game.world.drops == 0 and quarry.active, "채석장 반복 타격 지급 실패")
     assert(#game.world.particles > 0 and #game.world.popups > 0 and game.camera.trauma > 0, "채집 타격 피드백 실패")
     game.wood, game.stone = 100, 100
     game:keypressed("4"); game:keypressed("4"); game:keypressed("4")
@@ -112,7 +122,7 @@ function SelfTest.run(game)
     local afterReward = game.progression.data.currency
     game:finishRun(false)
     assert(game.progression.data.currency == afterReward, "런 보상 중복 지급 방지 실패")
-    print("SELF_TEST_OK: LOBBY_SINGLE_START LOBBY_AUX_NAV SETTINGS BIG_TREE_SINGLE TREE_INSTANT_HARVEST QUARRY_GROUNDED QUARRY_INSTANT_HARVEST QUARRY_ORE_RATIO FARM TREE QUARRY_INFINITE TOOL_SPEED IMPACT_SYNC HARVEST_FEEDBACK VISIBLE_TURRET VISIBLE_DRONE VISIBLE_REPAIR_STATION RUN_LEVELUP THREE_CHOICES AUTOMATION EVOLUTION WALL_UPGRADE WALL_BLOCK HAMMER_REPAIR META_SAVE TRAIT_TREE TRAIT_APPLY RUN_REWARD TEST_CURRENCY TEST_RESOURCES TEST_LEVELS TEST_RESET")
+    print("SELF_TEST_OK: LOBBY_SINGLE_START LOBBY_AUX_NAV SETTINGS BIG_TREE_SINGLE TREE_PER_HIT_DROP TREE_PROXIMITY_PICKUP QUARRY_GROUNDED QUARRY_PER_HIT_DROP QUARRY_ORE_RATIO QUARRY_PROXIMITY_PICKUP FARM TREE QUARRY_INFINITE TOOL_SPEED IMPACT_SYNC HARVEST_FEEDBACK VISIBLE_TURRET VISIBLE_DRONE VISIBLE_REPAIR_STATION RUN_LEVELUP THREE_CHOICES AUTOMATION EVOLUTION WALL_UPGRADE WALL_BLOCK HAMMER_REPAIR META_SAVE TRAIT_TREE TRAIT_APPLY RUN_REWARD TEST_CURRENCY TEST_RESOURCES TEST_LEVELS TEST_RESET")
 end
 
 return SelfTest
