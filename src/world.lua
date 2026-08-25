@@ -60,6 +60,7 @@ function World.new()
     }
     self.images = {
         industrial = image("assets/floor-industrial.png"), farm = image("assets/floor-biofarm.png"), quarry = image("assets/floor-quarry.png"),
+        forestGround = image("assets/forest-ground-tile-v1.png"),
         core = image("assets/supply-core-v2.png"), turret = image("assets/turret-v1.png"), drone = image("assets/combat-drone-v1.png"), crop = image("assets/crop-pod.png"), ore = image("assets/ore-node.png"),
         tree = image("assets/tree-v1.png"), stone = image("assets/stone-v1.png"), lumber = image("assets/lumber-drop-v1.png"),
         workerWalk = image("assets/worker-walk-v3.png"), workerActions = image("assets/worker-actions-v1.png"), workerRepair = image("assets/worker-repair-v1.png"),
@@ -966,9 +967,99 @@ local function drawTiled(img, x, y, w, h, tile)
     for py = y, y + h, tile do for px = x, x + w, tile do love.graphics.draw(img, px, py, 0, sx, sy) end end
 end
 
+local function drawMirroredTiled(img, x, y, w, h, tile, alpha)
+    love.graphics.setColor(1, 1, 1, alpha or 1)
+    local baseX, baseY = tile / img:getWidth(), tile / img:getHeight()
+    local row = 0
+    for py = y, y + h, tile do
+        local col = 0
+        for px = x, x + w, tile do
+            local flipX, flipY = col % 2 == 1, row % 2 == 1
+            local sx, sy = flipX and -baseX or baseX, flipY and -baseY or baseY
+            local ox, oy = flipX and img:getWidth() or 0, flipY and img:getHeight() or 0
+            love.graphics.draw(img, px, py, 0, sx, sy, ox, oy)
+            col = col + 1
+        end
+        row = row + 1
+    end
+end
+
 local function shadow(x, y, rx, ry, alpha) love.graphics.setColor(0, 0, 0, alpha or .38); love.graphics.ellipse("fill", x + 8, y + 14, rx, ry) end
 local function centered(img, x, y, scale) love.graphics.setColor(1, 1, 1, 1); love.graphics.draw(img, x, y, 0, scale, scale, img:getWidth() / 2, img:getHeight() / 2) end
 local function grounded(img, x, y, scale) love.graphics.setColor(1, 1, 1, 1); love.graphics.draw(img, x, y, 0, scale, scale, img:getWidth() / 2, img:getHeight() * .91) end
+
+function World:drawForestGround()
+    love.graphics.setColor(.33, .51, .12, 1)
+    love.graphics.rectangle("fill", 0, 0, self.width, self.height)
+    drawMirroredTiled(self.images.forestGround, 0, 0, self.width, self.height, 768, .9)
+
+    -- 방벽 앞은 적과 투사체가 읽히는 밝은 초원 전선으로 남긴다.
+    love.graphics.setColor(.16, .31, .09, .14)
+    love.graphics.rectangle("fill", 55, 55, self.width - 110, self.wall.y - 110)
+
+    -- 전선, 중앙 작업장, 깊은 숲을 잇는 하나의 흙길이다.
+    love.graphics.setColor(.42, .25, .09, .48)
+    love.graphics.polygon("fill",
+        self.core.x - 88, 55, self.core.x + 88, 55,
+        self.core.x + 126, self.wall.y + 70, self.core.x + 218, self.core.y + 78,
+        self.core.x + 165, self.height - 55, self.core.x - 150, self.height - 55,
+        self.core.x - 205, self.core.y + 78, self.core.x - 120, self.wall.y + 70)
+    love.graphics.setColor(.72, .51, .2, .22)
+    love.graphics.setLineWidth(8)
+    love.graphics.line(self.core.x, 55, self.core.x, self.wall.y + 20, self.core.x - 22, self.core.y + 115, self.core.x + 12, self.height - 55)
+
+    -- 벌목물이 모이는 넓은 중앙 공터와 양쪽 작업 진입로.
+    love.graphics.setColor(.39, .23, .08, .6)
+    love.graphics.ellipse("fill", self.core.x, self.core.y + 92, 390, 225)
+    love.graphics.polygon("fill", self.core.x - 220, self.core.y + 120, 130, 1650, 130, 1815, self.core.x - 135, self.core.y + 245)
+    love.graphics.polygon("fill", self.core.x + 220, self.core.y + 120, self.width - 130, 1650, self.width - 130, 1815, self.core.x + 135, self.core.y + 245)
+    love.graphics.setColor(.77, .58, .25, .22)
+    love.graphics.setLineWidth(4)
+    love.graphics.ellipse("line", self.core.x, self.core.y + 92, 390, 225)
+
+    -- 반복 타일 위의 작은 풀·낙엽 디테일. 전부 비상호작용 장식이다.
+    for i = 1, 96 do
+        local x = 75 + ((i * 347) % (self.width - 150))
+        local y = 75 + ((i * 613) % (self.height - 150))
+        local nearYard = ((x - self.core.x) / 420) ^ 2 + ((y - self.core.y - 90) / 245) ^ 2 < 1
+        if not nearYard then
+            local size = 2 + i % 4
+            if i % 3 == 0 then
+                love.graphics.setColor(.86, .56, .16, .35)
+                love.graphics.ellipse("fill", x, y, size + 2, size)
+            else
+                love.graphics.setColor(.18, .42, .1, .38)
+                love.graphics.setLineWidth(2)
+                love.graphics.line(x - size, y + size, x, y - size, x + size, y + size)
+            end
+        end
+    end
+
+    -- 월드 가장자리는 금속 프레임 대신 짙은 숲바닥으로 마감한다.
+    love.graphics.setColor(.045, .12, .055, .88)
+    love.graphics.rectangle("fill", 0, 0, self.width, 55)
+    love.graphics.rectangle("fill", 0, self.height - 55, self.width, 55)
+    love.graphics.rectangle("fill", 0, 0, 55, self.height)
+    love.graphics.rectangle("fill", self.width - 55, 0, 55, self.height)
+end
+
+function World:drawRushStump(node)
+    local regrow = math.max(0, math.min(1, 1 - (node.respawn or 0) / 10))
+    love.graphics.setColor(0, 0, 0, .24)
+    love.graphics.ellipse("fill", node.x + 4, node.y + 6, 23, 7)
+    love.graphics.setColor(.34, .17, .06, 1)
+    love.graphics.polygon("fill", node.x - 17, node.y + 3, node.x - 12, node.y - 20, node.x + 13, node.y - 20, node.x + 18, node.y + 3)
+    love.graphics.setColor(.72, .46, .18, 1)
+    love.graphics.ellipse("fill", node.x, node.y - 20, 15, 6)
+    love.graphics.setColor(.3, .15, .055, .9)
+    love.graphics.setLineWidth(2)
+    love.graphics.ellipse("line", node.x, node.y - 20, 8, 3)
+    if regrow > .7 then
+        love.graphics.setColor(.38, .8, .22, .95)
+        love.graphics.ellipse("fill", node.x - 5, node.y - 30, 5, 2.5)
+        love.graphics.ellipse("fill", node.x + 5, node.y - 34, 5, 2.5)
+    end
+end
 
 function World:drawTurretSlot(slot)
     local occupied = self:turretInSlot(slot.index) ~= nil
@@ -1064,11 +1155,15 @@ function World:drawMiningDrill(building)
 end
 
 function World:draw(player)
-    drawTiled(self.images.industrial, 0, 0, self.width, 1160, 320)
-    drawTiled(self.images.farm, 0, 1160, 1260, 840, 320)
-    drawTiled(self.images.industrial, 1260, 1160, 680, 840, 320)
-    drawTiled(self.images.quarry, 1940, 1160, 1260, 840, 320)
-    love.graphics.setColor(.06, .075, .085, 1); love.graphics.rectangle("fill", 0, 0, self.width, 55); love.graphics.rectangle("fill", 0, self.height - 55, self.width, 55); love.graphics.rectangle("fill", 0, 0, 55, self.height); love.graphics.rectangle("fill", self.width - 55, 0, 55, self.height)
+    if self.theme == "forest" then
+        self:drawForestGround()
+    else
+        drawTiled(self.images.industrial, 0, 0, self.width, 1160, 320)
+        drawTiled(self.images.farm, 0, 1160, 1260, 840, 320)
+        drawTiled(self.images.industrial, 1260, 1160, 680, 840, 320)
+        drawTiled(self.images.quarry, 1940, 1160, 1260, 840, 320)
+        love.graphics.setColor(.06, .075, .085, 1); love.graphics.rectangle("fill", 0, 0, self.width, 55); love.graphics.rectangle("fill", 0, self.height - 55, self.width, 55); love.graphics.rectangle("fill", 0, 0, 55, self.height); love.graphics.rectangle("fill", self.width - 55, 0, 55, self.height)
+    end
     local queue = {}
     for i = 1, self.turretSlotLimit do
         local slot = self.turretSlots[i]
@@ -1146,14 +1241,17 @@ function World:draw(player)
     end} end
     queue[#queue + 1] = {y = self.wall.y, draw = function() self:drawWall(player) end}
     for _, n in ipairs(self.nodes) do
-        if n.active or n.kind == "plot" then
+        if n.active or n.kind == "plot" or n.rushTree then
             local node = n
             local sortY = node.kind == "quarry" and (node.y - self.quarryVisual.frontBias) or node.kind == "tree" and (node.y - self.treeVisual.frontBias) or node.y
             queue[#queue + 1] = {y = sortY, draw = function()
                 local shake = (node.hitShake or 0) * 42
                 local ox, oy = (love.math.random() * 2 - 1) * shake, (love.math.random() * 2 - 1) * shake * .35
                 local bump = 1 + (node.hitFlash or 0) * .32
-                if node.hitFlash and node.hitFlash > 0 then
+                if not node.active and node.rushTree then
+                    self:drawRushStump(node)
+                    return
+                elseif node.hitFlash and node.hitFlash > 0 then
                     local fx, fy = effectOrigin(node); love.graphics.setColor(1, .9, .42, node.hitFlash * 3.5); love.graphics.circle("fill", fx, fy, 36 + node.hitFlash * 70)
                 end
                 if node.kind == "plot" then love.graphics.push(); love.graphics.translate(ox, oy); self:drawPlot(node); love.graphics.pop()
@@ -1161,7 +1259,15 @@ function World:draw(player)
                     local visual = self.treeVisual
                     love.graphics.setColor(0, 0, 0, visual.shadowAlpha)
                     love.graphics.ellipse("fill", node.x + visual.shadowX, node.y + visual.shadowY, visual.shadowRx, visual.shadowRy)
-                    grounded(self.images.tree, node.x + ox, node.y + oy, visual.scale * bump)
+                    if node.rushTree then
+                        local pdx, pdy = node.x - player.x, node.y - player.y
+                        local distance = math.sqrt(pdx*pdx + pdy*pdy)
+                        local alpha = distance < 125 and .32 or distance < 205 and (.32 + (distance - 125) / 80 * .68) or 1
+                        love.graphics.setColor(1, 1, 1, alpha)
+                        love.graphics.draw(self.images.tree, node.x + ox, node.y + oy, 0, visual.scale * bump, visual.scale * bump, self.images.tree:getWidth() / 2, self.images.tree:getHeight() * .91)
+                    else
+                        grounded(self.images.tree, node.x + ox, node.y + oy, visual.scale * bump)
+                    end
                 elseif node.kind == "quarry" then
                     local visual = self.quarryVisual
                     love.graphics.setColor(0, 0, 0, visual.shadowAlpha)

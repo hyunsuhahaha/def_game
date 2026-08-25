@@ -74,7 +74,11 @@ function love.load()
     if os.getenv("LAST_HAUL_CAPTURE_RUSH") then
         game:startRush()
         game.rush.levels.twin_axe,game.rush.levels.wide_swing,game.rush.levels.chain_fell,game.rush.levels.magnet=2,2,1,2
-        local target=game.world.nodes[math.floor(#game.world.nodes/2)]
+        local target,best=game.world.nodes[1],math.huge
+        for _,node in ipairs(game.world.nodes) do
+            local dx,dy=node.x-game.world.core.x,node.y-game.world.core.y
+            if dx*dx+dy*dy<best then target,best=node,dx*dx+dy*dy end
+        end
         game.player.x,game.player.y=target.x+90,target.y+55
         game.camera.x,game.camera.y=target.x,target.y-30
         target.rushHp=1; game.rush:hitTree(target,game)

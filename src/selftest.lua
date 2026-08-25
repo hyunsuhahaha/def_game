@@ -35,7 +35,7 @@ function SelfTest.run(game)
     assert(game.lobby:keypressed("r") == "rush" and game.lobby:mousepressed(30, 90, 1) == "rush", "로비 채집 러시 버튼 실패")
     assert(game.lobby:mousepressed(140, 30, 1) == "meta" and game.lobby:mousepressed(250, 30, 1) == "settings", "로비 보조 메뉴 진입 실패")
     game:startRush()
-    assert(game.runType=="rush" and game.time==180 and game.player.capacity==99999 and #game.world.nodes>=60, "3분 채집 러시 초기화 실패")
+    assert(game.runType=="rush" and game.world.theme=="forest" and game.time==180 and game.player.capacity==99999 and #game.world.nodes>=60, "3분 채집 러시 숲 맵 초기화 실패")
     local rushTree=game.world.nodes[1]
     game.player.x,game.player.y=rushTree.x,rushTree.y
     rushTree.rushHp=2

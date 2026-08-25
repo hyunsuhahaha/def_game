@@ -40,16 +40,25 @@ function RushMode:setup(game)
     game.player.speed, game.player.capacity, game.player.gather = 300, 99999, 1.15
     game.camera.x, game.camera.y, game.camera.zoom = game.player.x, game.player.y, .86
     game.world.nodes, game.world.drops, game.world.enemies, game.world.buildings = {}, {}, {}, {}
+    game.world.theme = "forest"
     game.world.treeVisual.scale = .18
     game.world.treeVisual.shadowRx, game.world.treeVisual.shadowRy, game.world.treeVisual.frontBias = 58, 8, 82
-    for row = 0, 4 do
-        for col = 0, 17 do
-            local x = 175 + col * 168 + (row % 2) * 45 + love.math.random(-18,18)
-            local y = 1270 + row * 154 + love.math.random(-14,14)
-            local dx, dy = x - game.world.core.x, y - game.world.core.y
-            if dx*dx + dy*dy > 315*315 then
-                game.world.nodes[#game.world.nodes+1] = {kind="tree",x=x,y=y,work=0,workTime=1,active=true,respawn=0,rushTree=true,rushHp=2,rushMaxHp=2}
-            end
+    local attempts = 0
+    while #game.world.nodes < 78 and attempts < 1800 do
+        attempts = attempts + 1
+        local x = love.math.random(115, game.world.width - 115)
+        local y = love.math.random(1240, game.world.height - 90)
+        local dx, dy = x - game.world.core.x, y - game.world.core.y
+        local trailX = game.world.core.x + math.sin((y - 1240) * .006) * 115
+        local clearCore = dx*dx + dy*dy > 345*345
+        local clearTrail = math.abs(x - trailX) > 88
+        local separated = true
+        for _, node in ipairs(game.world.nodes) do
+            local ndx, ndy = x - node.x, y - node.y
+            if ndx*ndx + ndy*ndy < 132*132 then separated = false; break end
+        end
+        if clearCore and clearTrail and separated then
+            game.world.nodes[#game.world.nodes+1] = {kind="tree",x=x,y=y,work=0,workTime=1,active=true,respawn=0,rushTree=true,rushHp=2,rushMaxHp=2}
         end
     end
     game.world.wall.maxHp, game.world.wall.hp = 520, 520
