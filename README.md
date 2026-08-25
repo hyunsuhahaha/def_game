@@ -123,7 +123,8 @@ love .
     ├── turret-v1.png        # 보급 센터 기본 하드포인트
     ├── turret-v2.png        # 자동 포탑 선택 아이콘
     ├── turret-base-v1.png   # 회전하지 않는 포탑 하부 베이스
-    ├── turret-head-v1.png   # 목표를 추적하는 쌍열 상부 포탑
+    ├── turret-head-v1.png   # 초기 쿼터뷰 상부 포탑 원본
+    ├── turret-head-v2.png   # 회전 왜곡 없는 탑다운 쌍열 상부 포탑
     ├── muzzle-flash-v1.png  # 방향성 총구 화염·연기 효과
     └── combat-drone-v1.png  # 전투 드론
 ```

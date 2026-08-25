@@ -58,8 +58,8 @@ function love.load()
         game.player.x, game.player.y = turret.x + 80, turret.y + 80
         game.camera.x, game.camera.y = turret.x - 20, turret.y - 140
         game.world.enemies = {
-            {x=turret.x-290,y=turret.y-150,hp=800,speed=0,hit=0},
-            {x=turret.x-330,y=turret.y-70,hp=800,speed=0,hit=0}
+            {x=turret.x,y=turret.y-300,hp=800,speed=0,hit=0},
+            {x=turret.x-90,y=turret.y-315,hp=800,speed=0,hit=0}
         }
         turret.mods, turret.timer = {multishot=1}, 0
     end

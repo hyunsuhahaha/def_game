@@ -63,7 +63,7 @@ function World.new()
         core = image("assets/supply-core-v2.png"), turret = image("assets/turret-v1.png"), drone = image("assets/combat-drone-v1.png"), crop = image("assets/crop-pod.png"), ore = image("assets/ore-node.png"),
         tree = image("assets/tree-v1.png"), stone = image("assets/stone-v1.png"), lumber = image("assets/lumber-drop-v1.png"),
         workerWalk = image("assets/worker-walk-v3.png"), workerActions = image("assets/worker-actions-v1.png"), workerRepair = image("assets/worker-repair-v1.png"),
-        turretBase = image("assets/turret-base-v1.png"), turretHead = image("assets/turret-head-v1.png"),
+        turretBase = image("assets/turret-base-v1.png"), turretHead = image("assets/turret-head-v2.png"),
         muzzleFlash = image("assets/muzzle-flash-v1.png")
     }
     self.buildingIcons = {}
@@ -996,7 +996,7 @@ function World:draw(player)
             love.graphics.setColor(1, 1, 1, 1)
             love.graphics.draw(base, building.x, building.y - 37, 0, baseScale, baseScale, base:getWidth() / 2, base:getHeight() / 2)
             love.graphics.draw(head, building.x - math.cos(angle) * recoil, building.y - 64 - math.sin(angle) * recoil,
-                angle - math.pi, headScale, headScale, 1025, 800)
+                angle - math.pi, headScale, headScale, 1012, 512)
         elseif icon then
             love.graphics.setColor(1, 1, 1, 1)
             local scale = 78 / math.max(icon:getWidth(), icon:getHeight())
