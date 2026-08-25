@@ -377,43 +377,56 @@ local function dropStillListed(list, target)
 end
 
 function World:updateHelpers(dt, game)
-    local wanted = game.upgrades and game.upgrades:level("baby_robot") or 0
-    while #self.helpers < wanted do
-        self.helpers[#self.helpers + 1] = {x = self.core.x + love.math.random(-40, 40), y = self.core.y + love.math.random(-40, 40), speed = 190, bob = love.math.random() * 6.28}
+    local level = game.upgrades and game.upgrades:level("baby_robot") or 0
+    local speed = 80 + level * 30
+    while #self.helpers < level do
+        self.helpers[#self.helpers + 1] = {x = self.core.x + love.math.random(-40, 40), y = self.core.y + love.math.random(-40, 40), bob = love.math.random() * 6.28}
     end
     for _, h in ipairs(self.helpers) do
         h.bob = h.bob + dt * 5
-        if h.target and not dropStillListed(self.drops, h.target) then h.target = nil end
-        if not h.target then
-            local best, bestDist = nil, nil
-            for _, drop in ipairs(self.drops) do
-                local dx, dy = drop.x - h.x, drop.y - h.y
-                local d = dx * dx + dy * dy
-                if not bestDist or d < bestDist then best, bestDist = drop, d end
-            end
-            h.target = best
-        end
-        if h.target then
-            local dx, dy = h.target.x - h.x, h.target.y - h.y
-            local dist = math.sqrt(dx * dx + dy * dy)
-            if dist > 6 then
-                h.x, h.y = h.x + dx / dist * h.speed * dt, h.y + dy / dist * h.speed * dt
-            else
-                local drop, amount = h.target, h.target.amount
-                if game.upgrades then amount = game.upgrades:applyGain(drop.kind, amount) end
-                game[drop.kind] = game[drop.kind] + amount
-                game.runStats.harvested = game.runStats.harvested + amount
-                game.runStats[drop.kind] = (game.runStats[drop.kind] or 0) + amount
-                game:addRunXP(amount)
-                local pulseKind = drop.kind == "food" and "plot" or drop.kind == "wood" and "tree" or drop.kind
-                self:resourcePulse(game, pulseKind, amount, "로봇 납품")
-                for i, d in ipairs(self.drops) do if d == drop then table.remove(self.drops, i); break end end
-                h.target = nil
-            end
-        else
+        h.speed = speed
+        if h.carrying then
             local dx, dy = self.core.x - h.x, self.core.y - h.y
             local dist = math.sqrt(dx * dx + dy * dy)
-            if dist > 30 then h.x, h.y = h.x + dx / dist * h.speed * .5 * dt, h.y + dy / dist * h.speed * .5 * dt end
+            if dist > 40 then
+                h.x, h.y = h.x + dx / dist * h.speed * dt, h.y + dy / dist * h.speed * dt
+            else
+                local kind, amount = h.carrying.kind, h.carrying.amount
+                if game.upgrades then amount = game.upgrades:applyGain(kind, amount) end
+                game[kind] = game[kind] + amount
+                game.runStats.harvested = game.runStats.harvested + amount
+                game.runStats[kind] = (game.runStats[kind] or 0) + amount
+                game:addRunXP(amount)
+                local pulseKind = kind == "food" and "plot" or kind == "wood" and "tree" or kind
+                self:resourcePulse(game, pulseKind, amount, "로봇 납품")
+                h.carrying = nil
+            end
+        else
+            if h.target and not dropStillListed(self.drops, h.target) then h.target = nil end
+            if not h.target then
+                local best, bestDist = nil, nil
+                for _, drop in ipairs(self.drops) do
+                    local dx, dy = drop.x - h.x, drop.y - h.y
+                    local d = dx * dx + dy * dy
+                    if not bestDist or d < bestDist then best, bestDist = drop, d end
+                end
+                h.target = best
+            end
+            if h.target then
+                local dx, dy = h.target.x - h.x, h.target.y - h.y
+                local dist = math.sqrt(dx * dx + dy * dy)
+                if dist > 6 then
+                    h.x, h.y = h.x + dx / dist * h.speed * dt, h.y + dy / dist * h.speed * dt
+                else
+                    h.carrying = {kind = h.target.kind, amount = h.target.amount}
+                    for i, d in ipairs(self.drops) do if d == h.target then table.remove(self.drops, i); break end end
+                    h.target = nil
+                end
+            else
+                local dx, dy = self.core.x - h.x, self.core.y - h.y
+                local dist = math.sqrt(dx * dx + dy * dy)
+                if dist > 30 then h.x, h.y = h.x + dx / dist * h.speed * .5 * dt, h.y + dy / dist * h.speed * .5 * dt end
+            end
         end
     end
 end
@@ -709,6 +722,15 @@ function World:draw(player)
             love.graphics.setColor(1, 1, 1, 1)
             local scale = 34 / math.max(icon:getWidth(), icon:getHeight())
             centered(icon, helper.x, helper.y - 18 + bob, scale)
+        end
+        if helper.carrying then
+            local kind = helper.carrying.kind
+            local cargoIcon = kind == "stone" and self.images.stone or kind == "wood" and self.images.lumber or kind == "food" and self.images.crop or self.images.ore
+            if cargoIcon then
+                love.graphics.setColor(1, 1, 1, 1)
+                local cargoScale = 16 / math.max(cargoIcon:getWidth(), cargoIcon:getHeight())
+                centered(cargoIcon, helper.x, helper.y - 38 + bob, cargoScale)
+            end
         end
     end} end
     queue[#queue + 1] = {y = self.wall.y, draw = function() self:drawWall(player) end}
