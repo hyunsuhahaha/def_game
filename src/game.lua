@@ -7,6 +7,7 @@ local Progression = require("src.progression")
 local TraitTree = require("src.trait_tree")
 local Feedback = require("src.feedback")
 local RunUpgrades = require("src.run_upgrades")
+local RushMode = require("src.rush_mode")
 local Buildings = require("src.buildings")
 local resourceLabels = {wood = "목재", stone = "돌", ore = "광석", food = "식량"}
 
@@ -46,6 +47,7 @@ function Game.new()
 end
 
 function Game:resetRun()
+    self.runType, self.rush = nil, nil
     self.world = World.new()
     self.player = Player.new(1600, 1470, self.world.images.workerWalk, self.world.images.workerActions, self.world.images.workerRepair)
     self.camera = Camera.new(self.player.x, self.player.y)
@@ -87,6 +89,13 @@ end
 function Game:startRun()
     self:resetRun(); self.mode = "playing"; self:setNotice("작전 시작 — 자원을 생산해 거점을 지키세요", "core")
     if self.pendingLevels > 0 then self.upgrades:rollChoices(self); self.mode = "upgrade" end
+end
+
+function Game:startRush()
+    self:resetRun()
+    self.rush=RushMode.new()
+    self.rush:setup(self)
+    self.mode="playing"
 end
 function Game:setNotice(text, kind) self.notice, self.noticeKind, self.noticeTime = text, kind or "core", 2.2 end
 
@@ -134,6 +143,7 @@ function Game:depositCargo(message)
 end
 
 function Game:addRunXP(amount)
+    if self.runType=="rush" then return end
     amount = math.max(0, amount or 0)
     self.runXP = self.runXP + amount
     if amount > 0 then self.runXPPulse, self.lastXPGain = 1, amount end
@@ -180,21 +190,27 @@ function Game:update(dt)
     if self.mode == "settings" then self.lobby:update(dt); return end
     if self.mode == "test_options" then self.testResetTime=math.max(0,(self.testResetTime or 0)-dt); if self.testResetTime<=0 then self.testResetArmed=false end; return end
     if self.mode == "meta" then self.traitTree:update(dt); return end
-    if self.mode == "results" then return end
+    if self.mode == "results" or self.mode == "rush_results" then return end
     if self.mode == "build_select" then return end
     self.runXPVisual = self.runXPVisual + (self.runXP - self.runXPVisual) * (1 - math.exp(-dt * 9))
     self.runXPPulse = math.max(0, self.runXPPulse - dt * 1.35)
-    if self.mode == "upgrade" then return end
+    if self.mode == "upgrade" or self.mode == "rush_upgrade" then return end
     if self.mode == "turret_upgrade" then return end
     self.noticeTime = math.max(0, self.noticeTime - dt)
     local wx, wy = self.camera:screenToWorld(love.mouse.getPosition())
     self.hoverNode, self.hoverWall, self.hoverBuilding = self.world:findNodeAt(wx, wy), self.world:isWallAt(wx, wy), self.world:buildingAt(wx, wy)
     if self.ended then return end
-    self.time = math.max(0, self.time - dt); if self.time <= 0 then self:finishRun(true); return end
+    self.time = math.max(0, self.time - dt)
+    if self.time <= 0 then
+        if self.runType=="rush" then self.rush:finish(self,true) else self:finishRun(true) end
+        return
+    end
     self.player:update(dt, self.world, self)
     self.nearTurret = self:getNearbyTurret()
-    self.upgrades:update(dt, self); self.world:update(dt, self); self.camera:update(dt, self.player, self.world)
-    if self.ended then self:finishRun(self.victory) end
+    self.upgrades:update(dt, self)
+    if self.rush then self.rush:update(dt,self) end
+    self.world:update(dt, self); self.camera:update(dt, self.player, self.world)
+    if self.ended then if self.rush then self.rush:finish(self,self.victory) else self:finishRun(self.victory) end end
 end
 
 function Game:keypressed(key)
@@ -203,15 +219,22 @@ function Game:keypressed(key)
     if self.mode == "lobby" then
         if key == "escape" then love.event.quit(); return end
         if key == "t" then self.mode = "meta"; return end
-        if self.lobby:keypressed(key) == "start" then self:startRun() end; return
+        local action=self.lobby:keypressed(key)
+        if action=="start" then self:startRun() elseif action=="rush" then self:startRush() end
+        return
     end
     if self.mode == "settings" then if key == "escape" then self.mode = "lobby" end; return end
     if self.mode == "meta" then if self.traitTree:keypressed(key) == "back" then self.mode = "lobby" end; return end
     if self.mode == "upgrade" then if key == "1" or key == "2" or key == "3" then self:selectRunUpgrade(tonumber(key)) end; return end
+    if self.mode == "rush_upgrade" then if key=="1" or key=="2" or key=="3" then self.rush:choose(tonumber(key),self) end; return end
     if self.mode == "build_select" then if key == "escape" then self.mode = "playing" end; return end
     if self.mode == "turret_upgrade" then
         if key == "escape" then self:cancelTurretUpgrade()
         elseif key == "1" or key == "2" or key == "3" then self:chooseTurretMod(tonumber(key)) end
+        return
+    end
+    if self.mode == "rush_results" then
+        if key=="return" or key=="r" then self:startRush() elseif key=="escape" then self.mode="lobby" end
         return
     end
     if self.mode == "results" then
@@ -222,7 +245,8 @@ function Game:keypressed(key)
     if key == "escape" and self.placingBuilding then self.placingBuilding = nil; self:setNotice("건설을 취소했습니다", "core"); return end
     if key == "escape" then self.mode = "lobby"; return end
     if self.ended and (key == "r" or key == "return") then self:startRun(); return end
-    if key == "p" then self:prestigeRun(); return end
+    if key == "p" and self.runType~="rush" then self:prestigeRun(); return end
+    if self.runType=="rush" then return end
     if key == "f" then
         local turret = self:getNearbyTurret()
         if turret then self:tryOpenTurretUpgrade(turret)
@@ -268,6 +292,7 @@ function Game:mousepressed(x, y, button)
     if self.mode == "lobby" then
         local action = self.lobby:mousepressed(x, y, button)
         if action == "start" then self:startRun()
+        elseif action == "rush" then self:startRush()
         elseif action == "meta" then self.mode = "meta"
         elseif action == "settings" then self.mode = "settings" end
         return
@@ -291,6 +316,7 @@ function Game:mousepressed(x, y, button)
     end
     if self.mode == "meta" then if self.traitTree:mousepressed(x, y, button) == "back" then self.mode = "lobby" end; return end
     if self.mode == "upgrade" then if button == 1 then local index = self.upgrades:choiceAt(x, y); if index then self:selectRunUpgrade(index) end end; return end
+    if self.mode == "rush_upgrade" then if button==1 then local index=self.rush:choiceAt(x,y); if index then self.rush:choose(index,self) end end; return end
     if self.mode == "build_select" then
         if button == 1 then
             if x >= 28 and x <= 176 and y >= 25 and y <= 67 then self.mode = "playing"; return end
@@ -308,6 +334,10 @@ function Game:mousepressed(x, y, button)
         end
         return
     end
+    if self.mode == "rush_results" then
+        if button==1 then local w,h=love.graphics.getDimensions(); if y>=h/2+196 and y<=h/2+244 then if x>=w/2-250 and x<=w/2-10 then self.mode="lobby" elseif x>=w/2+10 and x<=w/2+250 then self:startRush() end end end
+        return
+    end
     if self.mode == "results" then
         if button == 1 then
             local w, h = love.graphics.getDimensions()
@@ -319,6 +349,10 @@ function Game:mousepressed(x, y, button)
         return
     end
     if self.ended then return end
+    if self.runType=="rush" then
+        if button==1 then local wx,wy=self.camera:screenToWorld(x,y); local node=self.world:findNodeAt(wx,wy); if node then self.player:beginInteraction(node,self.world,self) else self.player:cancelInteraction() end end
+        return
+    end
     if self.placingBuilding then
         local wx, wy = self.camera:screenToWorld(x, y)
         local def = self.placingBuilding
@@ -617,7 +651,7 @@ function Game:draw()
     love.graphics.setBlendMode("alpha")
     local nearbyTurret = self:getNearbyTurret()
     self.nearTurret = nearbyTurret
-    if nearbyTurret and self.mode == "playing" then
+    if nearbyTurret and self.mode == "playing" and self.runType~="rush" then
         local labelY = nearbyTurret.y - 116
         love.graphics.setColor(.02, .055, .06, .94); love.graphics.rectangle("fill", nearbyTurret.x - 54, labelY, 108, 30, 7, 7)
         love.graphics.setColor(1, .68, .18, 1); love.graphics.setLineWidth(2); love.graphics.rectangle("line", nearbyTurret.x - 54, labelY, 108, 30, 7, 7)
@@ -651,8 +685,10 @@ function Game:draw()
     end
     self.camera:detach(); self:drawUI()
     if self.mode == "upgrade" then self.upgrades:drawSelection(self, self.fonts) end
+    if self.mode == "rush_upgrade" then self.rush:drawSelection(self,self.fonts) end
     if self.mode == "turret_upgrade" then self:drawTurretUpgrade() end
     if self.mode == "results" then self:drawResults() end
+    if self.mode == "rush_results" then self.rush:drawResults(self,self.fonts) end
     if self.placingBuilding then
         local w = love.graphics.getWidth()
         local def, f = self.placingBuilding, self.fonts
@@ -760,6 +796,7 @@ end
 
 function Game:drawUI()
     local w, h, f = love.graphics.getWidth(), love.graphics.getHeight(), self.fonts
+    if self.runType=="rush" then self.rush:drawHUD(self,f); return end
     UI.panel(16, 16, 382, 142, {.25, .78, .88, 1})
     local m, s = math.floor(self.time / 60), math.floor(self.time % 60)
     love.graphics.setFont(f.big); love.graphics.setColor(1, 1, 1); love.graphics.print(string.format("%02d:%02d", m, s), 32, 27)

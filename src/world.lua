@@ -84,6 +84,7 @@ local effectColors = {
 }
 
 local function effectOrigin(node)
+    if node.rushTree then return node.x, node.y - 92 end
     if node.kind == "tree" then return node.x, node.y - 145 end
     if node.kind == "quarry" then return node.x, node.y - 105 end
     if node.kind == "plot" then return node.x, node.y - 18 end
@@ -167,13 +168,15 @@ end
 
 function World:updateDrops(dt, game)
     local player = game.player
+    local pickupRadius = game.rush and game.rush:pickupRadius() or 80
+    local pickupSpeed = game.rush and game.rush:pickupSpeed() or 12
     for i = #self.drops, 1, -1 do
         local drop = self.drops[i]
         local dx, dy = player.x - drop.x, player.y - drop.y
         local distance = math.sqrt(dx * dx + dy * dy)
-        if drop.height <= 0 and distance <= 80 and cargoSpace(player) > 0 then drop.magnet = true end
+        if drop.height <= (game.rush and 18 or 0) and distance <= pickupRadius and cargoSpace(player) > 0 then drop.magnet = true end
         if drop.magnet then
-            local pull = math.min(1, dt * 12)
+            local pull = math.min(1, dt * pickupSpeed)
             drop.x, drop.y = drop.x + dx * pull, drop.y + dy * pull
             drop.height = drop.height + (10 - drop.height) * pull
             if distance <= 26 then
@@ -183,7 +186,7 @@ function World:updateDrops(dt, game)
                     player[drop.kind] = player[drop.kind] + amount
                     game.runStats.harvested = game.runStats.harvested + amount
                     game.runStats[drop.kind] = (game.runStats[drop.kind] or 0) + amount
-                    game:addRunXP(amount)
+                    if game.rush and drop.kind=="wood" then game.rush:onWood(amount,game) else game:addRunXP(amount) end
                     local label = drop.kind == "stone" and "돌" or drop.kind == "wood" and "목재" or drop.kind == "food" and "식량" or "광석"
                     local color = effectColors[drop.kind]
                     self.popups[#self.popups + 1] = {x=drop.x,y=drop.y-32,life=.8,maxLife=.8,text="+"..amount.." "..label,color=color,chain=0}
@@ -244,6 +247,7 @@ function World:harvestChipBurst(x, y, kind, power, game, isCrit)
 end
 
 function World:harvestHit(node, game, player)
+    if game.rush and node.rushTree then game.rush:hitTree(node,game); return end
     self:impactNode(node, game, false)
     local ex, ey = effectOrigin(node)
     local critChance = game.upgrades and game.upgrades.resourcePct.critChance or 0
@@ -281,7 +285,10 @@ function World:update(dt, game)
             if node.state == "growing" then node.grow = math.max(0, node.grow - dt * (game.upgrades and game.upgrades:cropGrowthMultiplier() or 1)); if node.grow <= 0 then node.state = "ready" end end
         elseif not node.active then
             node.respawn = node.respawn - dt
-            if node.respawn <= 0 then node.active, node.work = true, 0 end
+            if node.respawn <= 0 then
+                node.active, node.work = true, 0
+                if node.rushTree then node.rushHp=node.rushMaxHp end
+            end
         end
     end
     self.spawnTimer = self.spawnTimer - dt
@@ -334,14 +341,20 @@ function World:update(dt, game)
     end
     self.core.cooldown = self.core.cooldown - dt
     if self.core.cooldown <= 0 then
-        local target, best = nil, self.core.range or 510
-        for _, e in ipairs(self.enemies) do local dx, dy = e.x - self.core.x, e.y - self.core.y; local d = math.sqrt(dx * dx + dy * dy); if d < best then target, best = e, d end end
-        if target then
-            local source = self.turrets[1]
+        local sources = game.rush and #self.turrets > 0 and self.turrets or {self.turrets[1] or false}
+        local fired = false
+        for _, source in ipairs(sources) do
             local sx, sy = source and source.x or self.core.x, source and source.y - 35 or self.core.y - 70
-            if source then source.flash = .14 end
-            target.hp = target.hp - self.core.damage; self:applyCombatEffects(target, self.core.damage, game); self.shots[#self.shots + 1] = {x1 = sx, y1 = sy, x2 = target.x, y2 = target.y, life = .12}; self.core.cooldown = 1 / self.core.fireRate
+            local target, best = nil, self.core.range or 510
+            for _, e in ipairs(self.enemies) do local dx,dy=e.x-sx,e.y-sy; local d=math.sqrt(dx*dx+dy*dy); if e.hp>0 and d<best then target,best=e,d end end
+            if target then
+                if source then source.flash=.14 end
+                target.hp=target.hp-self.core.damage; self:applyCombatEffects(target,self.core.damage,game)
+                self.shots[#self.shots+1]={x1=sx,y1=sy,x2=target.x,y2=target.y,life=.12,color=game.rush and {.95,.64,.16} or nil}
+                fired=true
+            end
         end
+        if fired then self.core.cooldown=1/self.core.fireRate end
     end
     for i = #self.shots, 1, -1 do self.shots[i].life = self.shots[i].life - dt; if self.shots[i].life <= 0 then table.remove(self.shots, i) end end
 end
@@ -884,7 +897,8 @@ function World:findNodeAt(x, y)
     for _, node in ipairs(self.nodes) do
         if node.active or node.kind == "plot" then
             local rx, ry, centerY = 72, 52, node.y
-            if node.kind == "tree" then rx, ry, centerY = 188, 228, node.y - 150 end
+            if node.rushTree then rx,ry,centerY=94,122,node.y-92
+            elseif node.kind == "tree" then rx, ry, centerY = 188, 228, node.y - 150 end
             if node.kind == "plot" then rx, ry = 82, 42 end
             if node.kind == "stone" then rx, ry, centerY = 78, 62, node.y - 28 end
             if node.kind == "ore" then rx, ry, centerY = 68, 58, node.y - 24 end

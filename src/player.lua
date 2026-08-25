@@ -99,7 +99,7 @@ function Player:update(dt, world, game)
         end
     end
     local cx, cy = world.core.x - self.x, world.core.y - self.y
-    if cx * cx + cy * cy < 145 * 145 then game:depositCargo() end
+    if not game.rush and cx * cx + cy * cy < 145 * 145 then game:depositCargo() end
 end
 
 function Player:draw()

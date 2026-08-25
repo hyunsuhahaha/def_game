@@ -28,10 +28,36 @@ function SelfTest.run(game)
     assert(game.progression:buy("quick_work") and game.progression:buy("quick_work"), "기초 특성 구매 실패")
     assert(game.progression:buy("cargo_rig"), "연결 특성 구매 실패")
     game.lobby.startBox = {x = 10, y = 10, w = 100, h = 50}
+    game.lobby.rushBox = {x = 10, y = 70, w = 100, h = 50}
     game.lobby.traitsBox = {x = 120, y = 10, w = 100, h = 50}
     game.lobby.settingsBox = {x = 230, y = 10, w = 100, h = 50}
-    assert(game.lobby:keypressed("return") == "start" and game.lobby:mousepressed(30, 30, 1) == "start", "로비 단일 시작 버튼 실패")
+    assert(game.lobby:keypressed("return") == "start" and game.lobby:mousepressed(30, 30, 1) == "start", "로비 기본 작전 버튼 실패")
+    assert(game.lobby:keypressed("r") == "rush" and game.lobby:mousepressed(30, 90, 1) == "rush", "로비 채집 러시 버튼 실패")
     assert(game.lobby:mousepressed(140, 30, 1) == "meta" and game.lobby:mousepressed(250, 30, 1) == "settings", "로비 보조 메뉴 진입 실패")
+    game:startRush()
+    assert(game.runType=="rush" and game.time==180 and game.player.capacity==99999 and #game.world.nodes>=60, "3분 채집 러시 초기화 실패")
+    local rushTree=game.world.nodes[1]
+    game.rush.levels.twin_axe,game.rush.levels.wide_swing,game.rush.levels.chain_fell=1,3,1
+    rushTree.rushHp=1
+    game.rush:hitTree(rushTree,game)
+    assert(game.rush.treesFelled>=1 and #game.world.drops>=3 and game.rush.maxMulti>=2, "광역·연쇄 벌목 실패")
+    for _,drop in ipairs(game.world.drops) do drop.x,drop.y,drop.height,drop.vx,drop.vy,drop.vz=game.player.x,game.player.y,0,0,0,0 end
+    game.world:updateDrops(.1,game)
+    assert(game.rush.totalWood>=3, "목재 자동 흡수 실패")
+    if game.rush.pending<1 then game.rush:onWood(10,game) end
+    assert(game.rush.pending>=1, "러시 경험치·레벨업 실패")
+    game.rush:rollChoices(); assert(#game.rush.choices==3, "러시 강화 3택 실패")
+    game.mode="rush_upgrade"
+    local choiceDrawOk,choiceDrawError=pcall(game.draw,game); assert(choiceDrawOk,"러시 3택 렌더 실패: "..tostring(choiceDrawError))
+    assert(game.rush:choose(1,game), "러시 강화 선택 실패")
+    game.rush:onWood(40,game)
+    assert(game.rush.combatTier>=1 and #game.world.turrets>=2, "목재 기반 자동 전선 성장 실패")
+    game.world.enemies={{x=game.world.core.x,y=game.world.wall.y-120,hp=1000,speed=0,hit=0}}
+    game.world.core.cooldown=0; game.world:update(.01,game)
+    assert(#game.world.shots>=2,"러시 다중 자동 포탑 일제사격 실패")
+    local rushDrawOk,rushDrawError=pcall(game.draw,game); assert(rushDrawOk,"러시 HUD 렌더 실패: "..tostring(rushDrawError))
+    game.rush:finish(game,true); assert(game.mode=="rush_results" and game.result.wood>=43, "러시 결과 보고서 실패")
+    local resultDrawOk,resultDrawError=pcall(game.draw,game); assert(resultDrawOk,"러시 결과 렌더 실패: "..tostring(resultDrawError))
     game:startRun()
     assert(game.world.turretSlotLimit == 1 and game.world:firstAvailableTurretSlot().index == 1, "기본 포대 슬롯 1개 실패")
     local food, oreBeforeGrant, wood, stoneBeforeGrant, seeds = game.food, game.ore, game.wood, game.stone, game.seeds
@@ -259,7 +285,7 @@ function SelfTest.run(game)
     local afterReward = game.progression.data.currency
     game:finishRun(false)
     assert(game.progression.data.currency == afterReward, "런 보상 중복 지급 방지 실패")
-    print("SELF_TEST_OK: LOBBY_SINGLE_START LOBBY_AUX_NAV SETTINGS BIG_TREE_SINGLE TREE_PER_HIT_DROP TREE_PROXIMITY_PICKUP QUARRY_GROUNDED QUARRY_PER_HIT_DROP QUARRY_ORE_RATIO QUARRY_PROXIMITY_PICKUP FARM TREE QUARRY_INFINITE TOOL_SPEED IMPACT_SYNC HARVEST_FEEDBACK VISIBLE_TURRET VISIBLE_DRONE VISIBLE_REPAIR_STATION MINING_DRILL_VFX RUN_LEVELUP THREE_CHOICES AUTOMATION EVOLUTION WALL_UPGRADE WALL_BLOCK HAMMER_REPAIR CRIT_CHANCE PRESTIGE_RUN MOVE_WHILE_FARM TURRET_SLOT_BASE TURRET_SLOT_TRAIT TURRET_SLOT_OCCUPIED TURRET_NEARBY TURRET_F_INTERACT TURRET_UPGRADE TURRET_AIM VISIBLE_BULLET MUZZLE_FLASH CHAIN_COIL_VFX EXPLOSIVE_SHELL_VFX META_SAVE TRAIT_TREE TRAIT_APPLY RUN_REWARD TEST_CURRENCY TEST_RESOURCES TEST_LEVELS TEST_RESET")
+    print("SELF_TEST_OK: LOBBY_DUAL_MODE RUSH_3MIN RUSH_FOREST RUSH_MULTI_HIT RUSH_CHAIN_FELL RUSH_AUTO_PICKUP RUSH_THREE_CHOICES RUSH_AUTO_FRONT RUSH_RESULTS LOBBY_AUX_NAV SETTINGS BIG_TREE_SINGLE TREE_PER_HIT_DROP TREE_PROXIMITY_PICKUP QUARRY_GROUNDED QUARRY_PER_HIT_DROP QUARRY_ORE_RATIO QUARRY_PROXIMITY_PICKUP FARM TREE QUARRY_INFINITE TOOL_SPEED IMPACT_SYNC HARVEST_FEEDBACK VISIBLE_TURRET VISIBLE_DRONE VISIBLE_REPAIR_STATION MINING_DRILL_VFX RUN_LEVELUP THREE_CHOICES AUTOMATION EVOLUTION WALL_UPGRADE WALL_BLOCK HAMMER_REPAIR CRIT_CHANCE PRESTIGE_RUN MOVE_WHILE_FARM TURRET_SLOT_BASE TURRET_SLOT_TRAIT TURRET_SLOT_OCCUPIED TURRET_NEARBY TURRET_F_INTERACT TURRET_UPGRADE TURRET_AIM VISIBLE_BULLET MUZZLE_FLASH CHAIN_COIL_VFX EXPLOSIVE_SHELL_VFX META_SAVE TRAIT_TREE TRAIT_APPLY RUN_REWARD TEST_CURRENCY TEST_RESOURCES TEST_LEVELS TEST_RESET")
 end
 
 return SelfTest
