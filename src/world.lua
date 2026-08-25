@@ -139,6 +139,7 @@ function World:updateDrops(dt, game)
             if distance <= 26 then
                 local amount = math.min(drop.amount, cargoSpace(player))
                 if amount > 0 then
+                    if game.upgrades then amount = math.min(game.upgrades:applyGain(drop.kind, amount), cargoSpace(player)) end
                     player[drop.kind] = player[drop.kind] + amount
                     game.runStats.harvested = game.runStats.harvested + amount
                     game.runStats[drop.kind] = (game.runStats[drop.kind] or 0) + amount
@@ -415,6 +416,7 @@ function World:workNode(node, game, player, tool, dt)
         if node.state == "ready" then
             if cargoSpace(player) < 6 then game:setNotice("가방이 가득 찼습니다", "core"); return false end
             local amount = game.upgrades and game.upgrades:duplicateAmount(6) or 6
+            if game.upgrades then amount = game.upgrades:applyGain("food", amount) end
             amount=math.min(amount,cargoSpace(player)); player.food, game.seeds, node.state = player.food + amount, game.seeds + 1, "empty"
             game.runStats.harvested = game.runStats.harvested + amount; game:addRunXP(amount)
             self:harvestBurst(node, game, amount, "식량")
@@ -428,6 +430,7 @@ function World:workNode(node, game, player, tool, dt)
     if node.work < node.workTime then return true end
     local amount = node.kind == "stone" and 5 or 5
     if game.upgrades then amount = game.upgrades:duplicateAmount(amount) end
+    if game.upgrades then amount = game.upgrades:applyGain(node.kind, amount) end
     amount = math.min(amount, cargoSpace(player))
     player[node.kind == "tree" and "wood" or node.kind] = player[node.kind == "tree" and "wood" or node.kind] + amount
     game.runStats.harvested = game.runStats.harvested + amount; game.runStats[node.kind] = (game.runStats[node.kind] or 0) + amount; game:addRunXP(amount)

@@ -28,11 +28,37 @@ local definitions = {
 
     {id="eternal_farm", name="영원의 농장", category="evolution", max=1, color={.55,1,.32}, tags={"진화","농업"}, desc="모든 작물 성장이 가속되고 식량이 폭발적으로 생산됩니다.", base="auto_farm", passive="protein_feed"},
     {id="planet_drill", name="행성 굴착기", category="evolution", max=1, color={.25,.9,1}, tags={"진화","채광"}, desc="광역 채굴 때마다 초대형 레일포를 발사합니다.", base="mining_drone", passive="super_magnet"},
-    {id="forest_shredder", name="산림 분쇄기", category="evolution", max=1, color={1,.55,.16}, tags={"진화","벌목"}, desc="숲을 자동 분쇄하고 거대한 톱날 폭풍을 만듭니다.", base="logging_bot", passive="high_motor"}
+    {id="forest_shredder", name="산림 분쇄기", category="evolution", max=1, color={1,.55,.16}, tags={"진화","벌목"}, desc="숲을 자동 분쇄하고 거대한 톱날 폭풍을 만듭니다.", base="logging_bot", passive="high_motor"},
+
+    {id="wood_gain", name="벌목 효율 강화", category="passive", max=5, color={.4,.43,.46}, tags={"자원","목재"}, resource="wood", resourceLabel="목재", desc="목재 획득량이 증가합니다."},
+    {id="stone_gain", name="채석 효율 강화", category="passive", max=5, color={.4,.43,.46}, tags={"자원","채석"}, resource="stone", resourceLabel="돌", desc="돌 획득량이 증가합니다."},
+    {id="ore_refine", name="정제 효율 강화", category="passive", max=5, color={.4,.43,.46}, tags={"자원","채광"}, resource="ore", resourceLabel="광석", desc="광석 획득량이 증가합니다."},
+    {id="food_gain", name="수확 효율 강화", category="passive", max=5, color={.4,.43,.46}, tags={"자원","농업"}, resource="food", resourceLabel="식량", desc="식량 획득량이 증가합니다."},
+    {id="farm_speed", name="속성 재배 기술", category="passive", max=5, color={.4,.43,.46}, tags={"농업","속도"}, resource="farmSpeed", resourceLabel="작물 성장 속도", desc="작물 성장 속도가 증가합니다."}
 }
 
 local byId = {}
 for _, definition in ipairs(definitions) do byId[definition.id] = definition end
+
+local rarities = {
+    {id="normal", name="노멀", color={.4,.43,.46,1}, weight=44, percent=.06},
+    {id="rare", name="레어", color={.35,.62,1,1}, weight=27, percent=.12},
+    {id="epic", name="에픽", color={.72,.38,1,1}, weight=16, percent=.20},
+    {id="unique", name="유니크", color={1,.55,.18,1}, weight=9, percent=.32},
+    {id="legendary", name="레전더리", color={1,.84,.25,1}, weight=4, percent=.50}
+}
+local legendary = rarities[#rarities]
+
+local function rollRarity()
+    local total = 0
+    for _, tier in ipairs(rarities) do total = total + tier.weight end
+    local roll = love.math.random() * total
+    for _, tier in ipairs(rarities) do
+        roll = roll - tier.weight
+        if roll <= 0 then return tier end
+    end
+    return rarities[1]
+end
 
 function RunUpgrades.new()
     local icons = {}
@@ -52,7 +78,7 @@ function RunUpgrades.new()
             return pixel * color;
         }
     ]])
-    return setmetatable({levels={}, choices={}, systemCount=0, passiveCount=0, timers={}, icons=icons, lightBackgroundShader=lightBackgroundShader, maxSystems=6, maxPassives=6}, RunUpgrades)
+    return setmetatable({levels={}, choices={}, systemCount=0, passiveCount=0, timers={}, icons=icons, lightBackgroundShader=lightBackgroundShader, maxSystems=6, maxPassives=6, resourcePct={wood=0, stone=0, ore=0, food=0, farmSpeed=0}}, RunUpgrades)
 end
 
 function RunUpgrades:level(id) return self.levels[id] or 0 end
@@ -71,6 +97,21 @@ function RunUpgrades:canOffer(def)
     return self.passiveCount < self.maxPassives
 end
 
+local function cloneWithRarity(def, rarity)
+    local choice = {}
+    for k, v in pairs(def) do choice[k] = v end
+    choice.rarity = rarity
+    if def.resource then
+        choice.color = rarity.color
+        choice.gainPercent = rarity.percent
+        local percentText = math.floor(rarity.percent * 100)
+        choice.desc = def.resource == "farmSpeed"
+            and string.format("작물 성장 속도가 %d%% 증가합니다.", percentText)
+            or string.format("%s 획득량이 %d%% 증가합니다.", def.resourceLabel, percentText)
+    end
+    return choice
+end
+
 function RunUpgrades:rollChoices()
     local pool, evolutions = {}, {}
     for _, def in ipairs(definitions) do
@@ -79,11 +120,15 @@ function RunUpgrades:rollChoices()
         end
     end
     for i = #pool, 2, -1 do local j = love.math.random(i); pool[i], pool[j] = pool[j], pool[i] end
-    self.choices = {}
-    if #evolutions > 0 then self.choices[1] = evolutions[love.math.random(#evolutions)] end
-    local used = {}; if self.choices[1] then used[self.choices[1].id] = true end
+    local picked = {}
+    if #evolutions > 0 then picked[1] = evolutions[love.math.random(#evolutions)] end
+    local used = {}; if picked[1] then used[picked[1].id] = true end
     for _, def in ipairs(pool) do
-        if not used[def.id] and #self.choices < 3 then self.choices[#self.choices + 1], used[def.id] = def, true end
+        if not used[def.id] and #picked < 3 then picked[#picked + 1], used[def.id] = def, true end
+    end
+    self.choices = {}
+    for i, def in ipairs(picked) do
+        self.choices[i] = cloneWithRarity(def, def.category == "evolution" and legendary or rollRarity())
     end
     return self.choices
 end
@@ -95,6 +140,10 @@ function RunUpgrades:choose(index, game)
     self.levels[def.id] = self:level(def.id) + 1
     if first and def.category == "system" then self.systemCount = self.systemCount + 1 end
     if first and def.category == "passive" then self.passiveCount = self.passiveCount + 1 end
+    if def.resource then
+        local percent = def.gainPercent or rollRarity().percent
+        self.resourcePct[def.resource] = (self.resourcePct[def.resource] or 0) + percent
+    end
     if def.id == "cargo_frame" then game.player.capacity = game.player.capacity + 3 end
     if def.id == "field_boots" then game.player.speed = game.player.speed * 1.06 end
     if def.id == "wide_lens" then game.world.core.range = (game.world.core.range or 510) + 45 end
@@ -109,7 +158,14 @@ function RunUpgrades:speedMultiplier()
 end
 
 function RunUpgrades:cropGrowthMultiplier()
-    return self:level("eternal_farm") > 0 and 2.4 or 1
+    local base = self:level("eternal_farm") > 0 and 2.4 or 1
+    return base * (1 + (self.resourcePct.farmSpeed or 0))
+end
+
+function RunUpgrades:applyGain(kind, amount)
+    local pct = self.resourcePct[kind]
+    if not pct or pct <= 0 or amount <= 0 then return amount end
+    return math.max(amount, math.floor(amount * (1 + pct) + 0.5))
 end
 
 function RunUpgrades:duplicateAmount(amount)
@@ -128,18 +184,18 @@ function RunUpgrades:update(dt, game)
     local speed = self:speedMultiplier()
     local farm = self:level("auto_farm")
     if farm > 0 and timerReady(self, "auto_farm", dt, (6.2 - farm * .45) / speed) then
-        local amount = farm + (self:level("eternal_farm") > 0 and 5 or 0)
+        local amount = self:applyGain("food", farm + (self:level("eternal_farm") > 0 and 5 or 0))
         game.food = game.food + amount; game.runStats.harvested = game.runStats.harvested + amount; game:addRunXP(math.max(1, math.floor(amount / 2))); game.world:resourcePulse(game, "plot", amount, "자동 식량")
     end
     local mining = self:level("mining_drone")
     if mining > 0 and timerReady(self, "mining_drone", dt, (7 - mining * .45) / speed) then
-        local amount = mining + math.floor(self:level("super_magnet") / 2) + (self:level("planet_drill") > 0 and 4 or 0)
+        local amount = self:applyGain("ore", mining + math.floor(self:level("super_magnet") / 2) + (self:level("planet_drill") > 0 and 4 or 0))
         game.ore = game.ore + amount; game.runStats.harvested = game.runStats.harvested + amount; game.runStats.ore = (game.runStats.ore or 0) + amount; game:addRunXP(math.max(1, math.floor(amount / 2))); game.world:resourcePulse(game, "ore", amount, "자동 광석")
         if self:level("planet_drill") > 0 then game.world:fireRail(game, 75 + mining * 18) end
     end
     local logging = self:level("logging_bot")
     if logging > 0 and timerReady(self, "logging_bot", dt, (6.6 - logging * .4) / speed) then
-        local amount = logging + math.floor(self:level("high_motor") / 2) + (self:level("forest_shredder") > 0 and 4 or 0)
+        local amount = self:applyGain("wood", logging + math.floor(self:level("high_motor") / 2) + (self:level("forest_shredder") > 0 and 4 or 0))
         game.wood = game.wood + amount; game.runStats.harvested = game.runStats.harvested + amount; game.runStats.tree = (game.runStats.tree or 0) + amount; game:addRunXP(math.max(1, math.floor(amount / 2))); game.world:resourcePulse(game, "tree", amount, "자동 목재")
     end
     local hatchery = self:level("hatchery")
@@ -189,6 +245,12 @@ function RunUpgrades:drawSelection(game, fonts)
         local x, level = startX + (i - 1) * (cardW + gap), self:level(def.id)
         local hovered = mx >= x and mx <= x + cardW and my >= y and my <= y + cardH
         self.choiceBoxes[i] = {x=x,y=y,w=cardW,h=cardH}
+        local rarity = def.rarity
+        if rarity and rarity.id == "legendary" then
+            local pulse = .5 + .5 * math.sin(love.timer.getTime() * 4)
+            love.graphics.setColor(rarity.color[1], rarity.color[2], rarity.color[3], .12 + pulse * .14)
+            love.graphics.rectangle("fill", x - 5, y - 5, cardW + 10, cardH + 10, 15, 15)
+        end
         love.graphics.setColor(0, 0, 0, .28); love.graphics.rectangle("fill", x + 5, y + 8, cardW, cardH, 12, 12)
         love.graphics.setColor(hovered and {.98, .97, .88, 1} or {.91, .91, .83, .98}); love.graphics.rectangle("fill", x, y, cardW, cardH, 12, 12)
         love.graphics.setColor(def.color); love.graphics.rectangle("fill", x, y, cardW, 7, 12, 12)
@@ -198,6 +260,14 @@ function RunUpgrades:drawSelection(game, fonts)
         love.graphics.setFont(fonts.heading); love.graphics.setColor(1, 1, 1); love.graphics.printf(tostring(i), x + 18, y + 20, 38, "center")
         local category = def.category == "evolution" and "최종 진화" or (def.category == "passive" and "보조 장비" or "생산 설비")
         love.graphics.setFont(fonts.small); love.graphics.setColor(.18, .26, .24); love.graphics.printf(category, x + cardW - 108, y + 27, 88, "right")
+        if rarity then
+            local badgeX, badgeW = x + 64, cardW - 108 - 64 - 8
+            if badgeW > 44 then
+                love.graphics.setColor(rarity.color[1], rarity.color[2], rarity.color[3], .2); love.graphics.rectangle("fill", badgeX, y + 20, badgeW, 26, 7, 7)
+                love.graphics.setLineWidth(1.5); love.graphics.setColor(rarity.color); love.graphics.rectangle("line", badgeX, y + 20, badgeW, 26, 7, 7)
+                love.graphics.setFont(fonts.small); love.graphics.printf(rarity.name, badgeX, y + 26, badgeW, "center")
+            end
+        end
 
         local icon = self.icons[def.id]
         if icon then
