@@ -36,7 +36,6 @@ function Player:beginInteraction(node, world, game)
     self.actionFrameDuration = .32 / ((game.tools[tool].speed or 1) * self.gather)
     self.nextImpact = self.actionFrameDuration
     self.facing = dx < 0 and -1 or 1
-    game:setNotice(label .. " — " .. game.tools[tool].name .. " 자동 사용", tool == "pickaxe" and "ore" or tool == "axe" and "food" or "core")
 end
 
 function Player:beginWallRepair(world, game)
@@ -44,7 +43,6 @@ function Player:beginWallRepair(world, game)
     if world.wall.hp >= world.wall.maxHp then game:setNotice("방어벽이 이미 완전히 수리되었습니다", "core"); return end
     self.interactionTarget, self.activeTool, self.actionClock, self.repairingWall = nil, "hammer", 0, true
     self.facing = 1
-    game:setNotice("나무 수리 망치 자동 사용 — 목재 1 · 돌 1", "core")
 end
 
 function Player:cancelInteraction()
