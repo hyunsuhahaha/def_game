@@ -295,7 +295,9 @@ function World:updateBuildings(dt, game)
         if def.fuelRadius then
             local dx, dy = game.player.x - b.x, game.player.y - b.y
             local inRange = dx * dx + dy * dy <= def.fuelRadius * def.fuelRadius
-            b.fuel = math.max(0, math.min(1, (b.fuel or 1) + dt * (inRange and def.fuelRecharge or -def.fuelDrain)))
+            local efficiency = 1 + (game.upgrades and game.upgrades.resourcePct.fuelEfficiency or 0)
+            local rate = inRange and (def.fuelRecharge * efficiency) or -(def.fuelDrain / efficiency)
+            b.fuel = math.max(0, math.min(1, (b.fuel or 1) + dt * rate))
         end
         b.timer = (b.timer or def.interval) - dt
         if b.timer <= 0 then

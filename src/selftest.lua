@@ -47,6 +47,12 @@ function SelfTest.run(game)
     game.player.x, game.player.y = turret.x + 5000, turret.y
     game.world:updateBuildings(1, game)
     assert(turret.fuel < 1, "연료 반경 밖에서 소모 실패")
+    local baselineDrain = 1 - turret.fuel
+    assert(game.upgrades:choose("fuel_efficiency", game), "연료 효율 강화 선택 실패")
+    assert((game.upgrades.resourcePct.fuelEfficiency or 0) > 0, "연료 효율 강화 적용 실패")
+    turret.fuel = 1
+    game.world:updateBuildings(1, game)
+    assert(1 - turret.fuel < baselineDrain, "연료 효율 강화가 소모량을 줄이지 못함")
     for _ = 1, 10 do game.world:updateBuildings(1, game) end
     assert(turret.fuel == 0, "연료 완전 소모 실패")
     game.world.enemies[#game.world.enemies + 1] = {x = turret.x, y = turret.y, hp = 100, speed = 0, hit = 0}
