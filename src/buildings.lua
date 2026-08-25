@@ -10,9 +10,11 @@ return {
     {id="drone_factory", name="드론 공장", tags={"공장","병력"}, desc="광석으로 전투 드론을 조립합니다.",
         cost={ore=10}, behavior="spawn", spawnKind="drone", spawnCost={ore=4}, interval=8.5, footprint=50},
     {id="rail_turret", name="레일 포탑", tags={"채광","포탑"}, desc="광석을 탄환으로 바꿔 강력한 포격을 합니다.",
-        cost={ore=10}, behavior="rail", spawnCost={ore=2}, interval=6.5, damage=40, footprint=44},
+        cost={ore=10}, behavior="rail", spawnCost={ore=2}, interval=6.5, damage=40, footprint=44,
+        fuelRadius=230, fuelDrain=.16, fuelRecharge=.35},
     {id="blade_turret", name="톱날 포탑", tags={"벌목","포탑"}, desc="전선에 주기적으로 톱날을 발사합니다.",
-        cost={wood=18}, behavior="blade", interval=5.6, damage=26, footprint=44},
+        cost={wood=18}, behavior="blade", interval=5.6, damage=26, footprint=44,
+        fuelRadius=230, fuelDrain=.16, fuelRecharge=.35},
     {id="battle_crops", name="전투 농장", tags={"농업","방어"}, desc="주변 작물이 적에게 포자를 발사합니다.",
         cost={food=18}, behavior="spore", interval=5, damage=16, footprint=46},
     {id="repair_station", name="자동 수리소", tags={"방벽","자동화"}, desc="목재와 돌로 방어벽을 자동 수리합니다.",
@@ -20,5 +22,6 @@ return {
     {id="carrier_drone", name="운반 드론", tags={"운반","자동화"}, desc="가방의 자원을 거점으로 자동 운반합니다.",
         cost={wood=12}, behavior="carrier", interval=6, footprint=40},
     {id="autocannon_turret", name="자동 포탑", tags={"방어","포탑"}, desc="사거리 안의 적을 자동으로 공격합니다.",
-        cost={ore=6}, behavior="turret", interval=.8, damage=9, range=440, footprint=44, icon="assets/turret-v1.png"}
+        cost={ore=6}, behavior="turret", interval=.8, damage=9, range=440, footprint=44, icon="assets/turret-v1.png",
+        fuelRadius=230, fuelDrain=.16, fuelRecharge=.35}
 }

@@ -40,6 +40,27 @@ function SelfTest.run(game)
     assert(game.placingBuilding and game.placingBuilding.id == "autocannon_turret", "포탑 건설 배치 모드 진입 실패")
     local turret = game.world:addBuilding("autocannon_turret", 950, 1180)
     assert(turret and #game.world.buildings == 1, "포탑 실물 배치 실패")
+    assert(turret.fuel == 1, "포탑 초기 연료 실패")
+    game.player.x, game.player.y = turret.x, turret.y
+    game.world:updateBuildings(1, game)
+    assert(turret.fuel == 1, "연료 반경 안에서 감소 방지 실패")
+    game.player.x, game.player.y = turret.x + 5000, turret.y
+    game.world:updateBuildings(1, game)
+    assert(turret.fuel < 1, "연료 반경 밖에서 소모 실패")
+    for _ = 1, 10 do game.world:updateBuildings(1, game) end
+    assert(turret.fuel == 0, "연료 완전 소모 실패")
+    game.world.enemies[#game.world.enemies + 1] = {x = turret.x, y = turret.y, hp = 100, speed = 0, hit = 0}
+    local dummy = game.world.enemies[#game.world.enemies]
+    turret.timer = 0
+    game.world:updateBuildings(.01, game)
+    assert(dummy.hp == 100, "연료 소진 시 포탑 정지 실패")
+    game.player.x, game.player.y = turret.x, turret.y
+    for _ = 1, 10 do game.world:updateBuildings(1, game) end
+    assert(turret.fuel == 1, "연료 재충전 실패")
+    turret.timer = 0
+    game.world:updateBuildings(.01, game)
+    assert(dummy.hp < 100, "연료 충전 후 포탑 재가동 실패")
+    game.world.enemies[#game.world.enemies] = nil
     game.placingBuilding = nil
     game.world.buildings = {}
     game.world:spawnDefender("drone", 2, game)

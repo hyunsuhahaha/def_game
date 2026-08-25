@@ -283,7 +283,7 @@ end
 function World:addBuilding(kind, x, y)
     local def = buildingById[kind]
     if not def or not self:canPlaceBuilding(x, y, def.footprint) then return nil end
-    local building = {kind = kind, x = x, y = y, timer = def.interval, flash = .4}
+    local building = {kind = kind, x = x, y = y, timer = def.interval, flash = .4, fuel = def.fuelRadius and 1 or nil}
     self.buildings[#self.buildings + 1] = building
     return building
 end
@@ -292,10 +292,17 @@ function World:updateBuildings(dt, game)
     for _, b in ipairs(self.buildings) do
         b.flash = math.max(0, (b.flash or 0) - dt)
         local def = buildingById[b.kind]
+        if def.fuelRadius then
+            local dx, dy = game.player.x - b.x, game.player.y - b.y
+            local inRange = dx * dx + dy * dy <= def.fuelRadius * def.fuelRadius
+            b.fuel = math.max(0, math.min(1, (b.fuel or 1) + dt * (inRange and def.fuelRecharge or -def.fuelDrain)))
+        end
         b.timer = (b.timer or def.interval) - dt
         if b.timer <= 0 then
             b.timer = def.interval
-            if def.behavior == "produce" then
+            if def.fuelRadius and (b.fuel or 1) <= 0 then
+                -- out of fuel: skip this cycle's action entirely
+            elseif def.behavior == "produce" then
                 local amount = game.upgrades and game.upgrades:applyGain(def.resource, def.amount) or def.amount
                 game[def.resource] = game[def.resource] + amount
                 game.runStats.harvested = game.runStats.harvested + amount
@@ -606,12 +613,27 @@ function World:draw(player)
     end}
     for _, value in ipairs(self.buildings) do local building = value; queue[#queue + 1] = {y = building.y, draw = function()
         local flash, icon = building.flash or 0, self.buildingIcons[building.kind]
+        local def = buildingById[building.kind]
+        if def.fuelRadius then
+            local fuel = building.fuel or 1
+            love.graphics.setLineWidth(1.5)
+            love.graphics.setColor(fuel > .01 and .35 or 1, fuel > .01 and .82 or .3, 1, .18)
+            love.graphics.circle("line", building.x, building.y, def.fuelRadius)
+        end
         shadow(building.x, building.y + 10, 62, 19, .42)
         if flash > 0 then love.graphics.setColor(.35, 1, .62, flash * 1.8); love.graphics.circle("fill", building.x, building.y - 40, 52 + flash * 48) end
         if icon then
             love.graphics.setColor(1, 1, 1, 1)
             local scale = 78 / math.max(icon:getWidth(), icon:getHeight())
             grounded(icon, building.x, building.y + 12, scale * (1 + flash * .08))
+        end
+        if def.fuelRadius then
+            local fuel = building.fuel or 1
+            local gaugeW, gaugeY = 44, building.y - 82
+            love.graphics.setColor(.05, .07, .08, .9); love.graphics.rectangle("fill", building.x - gaugeW / 2, gaugeY, gaugeW, 6, 2, 2)
+            local fuelColor = fuel > .5 and {.35, .9, .5, 1} or fuel > .2 and {1, .75, .2, 1} or {1, .3, .25, 1}
+            love.graphics.setColor(fuelColor); love.graphics.rectangle("fill", building.x - gaugeW / 2, gaugeY, gaugeW * fuel, 6, 2, 2)
+            love.graphics.setColor(1, 1, 1, .18); love.graphics.setLineWidth(1); love.graphics.rectangle("line", building.x - gaugeW / 2, gaugeY, gaugeW, 6, 2, 2)
         end
     end} end
     queue[#queue + 1] = {y = self.wall.y, draw = function() self:drawWall(player) end}
