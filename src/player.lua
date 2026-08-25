@@ -8,7 +8,8 @@ function Player.new(x, y, walkSheet, actionSheet, repairSheet)
         x = x, y = y, speed = 260, sheet = walkSheet, actionSheet = actionSheet, repairSheet = repairSheet,
         food = 0, ore = 0, wood = 0, stone = 0, capacity = 18, gather = 1,
         walkClock = 0, actionClock = 0, isMoving = false, facing = 1,
-        interactionTarget = nil, activeTool = nil, repairingWall = false
+        interactionTarget = nil, activeTool = nil, repairingWall = false,
+        autoAxeClock = nil, autoAxeDuration = .42, axeHolding = false, axeRange = 185
     }, Player)
     local fw, fh = walkSheet:getWidth() / 8, walkSheet:getHeight()
     self.frameWidth, self.frameHeight, self.frames = fw, fh, {}
@@ -49,7 +50,17 @@ function Player:cancelInteraction()
     self.interactionTarget, self.activeTool, self.actionClock, self.repairingWall, self.nextImpact = nil, nil, 0, false, nil
 end
 
+function Player:playAutoAxeSwing(targetX)
+    self.autoAxeClock = 0
+    self.autoAxeDuration = .42
+    if targetX then self.facing = targetX < self.x and -1 or 1 end
+end
+
 function Player:update(dt, world, game)
+    if self.autoAxeClock then
+        self.autoAxeClock = self.autoAxeClock + dt
+        if self.autoAxeClock >= self.autoAxeDuration then self.autoAxeClock = nil end
+    end
     local dx, dy = 0, 0
     if love.keyboard.isDown("a", "left") then dx = dx - 1 end
     if love.keyboard.isDown("d", "right") then dx = dx + 1 end
@@ -104,14 +115,22 @@ end
 
 function Player:draw()
     local pulse = self.isMoving and math.sin(self.walkClock * math.pi) or 0
+    if self.axeHolding then
+        love.graphics.setColor(1, .68, .2, .08); love.graphics.ellipse("fill", self.x, self.y + 3, self.axeRange, self.axeRange * .38)
+        love.graphics.setColor(1, .75, .28, .48); love.graphics.setLineWidth(2); love.graphics.ellipse("line", self.x, self.y + 3, self.axeRange, self.axeRange * .38)
+    end
     love.graphics.setColor(0, 0, 0, .42); love.graphics.ellipse("fill", self.x + 3, self.y + 3, 22 - math.abs(pulse) * 2, 7)
     love.graphics.setColor(1, 1, 1)
     if self.repairingWall then
         local frame = math.floor(self.actionClock / .32) % 2 + 1
         love.graphics.draw(self.repairSheet, self.repairFrames[frame], self.x, self.y, 0, .145 * self.facing, .145, self.repairFrameWidth / 2, self.repairFootAnchors[frame])
-    elseif self.interactionTarget and self.activeTool then
-        local first = actionStart[self.activeTool] or 1
-        local frame = first + (math.floor(self.actionClock / (self.actionFrameDuration or .32)) % 2)
+    elseif self.autoAxeClock or (self.interactionTarget and self.activeTool) then
+        local autoAxe = self.autoAxeClock ~= nil
+        local activeTool = autoAxe and "axe" or self.activeTool
+        local clock = autoAxe and self.autoAxeClock or self.actionClock
+        local duration = autoAxe and (self.autoAxeDuration / 2) or (self.actionFrameDuration or .32)
+        local first = actionStart[activeTool] or 1
+        local frame = first + (math.floor(clock / duration) % 2)
         love.graphics.draw(self.actionSheet, self.actionFrames[frame], self.x, self.y, 0, .16 * self.facing, .16, self.actionFrameWidth / 2, self.actionFootAnchors[frame])
     else
         local frame = self.isMoving and (math.floor(self.walkClock) % 8 + 1) or 2

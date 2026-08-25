@@ -79,6 +79,12 @@ function love.load()
         game.camera.x,game.camera.y=target.x,target.y-30
         target.rushHp=1; game.rush:hitTree(target,game)
         game.rush:onWood(95,game); game.rush.pending=0; game.mode="playing"
+        game.world.enemies={
+            {x=560,y=game.world.wall.y-310,hp=120,speed=0,hit=0},
+            {x=1180,y=game.world.wall.y-210,hp=120,speed=0,hit=0},
+            {x=1980,y=game.world.wall.y-260,hp=120,speed=0,hit=0},
+            {x=2640,y=game.world.wall.y-150,hp=120,speed=0,hit=0}
+        }
     end
     if os.getenv("LAST_HAUL_CAPTURE_TURRET_PLACEMENT") then
         game.progression.data.levels.turret_slots = tonumber(os.getenv("LAST_HAUL_TURRET_SLOT_LEVEL")) or 0
@@ -129,6 +135,7 @@ end
 
 function love.update(dt)
     game:update(math.min(dt, 1 / 20))
+    if os.getenv("LAST_HAUL_CAPTURE_RUSH") and game.rush and game.mode=="playing" then game.rush:updateHeldAxe(0,game,true) end
     if captureFrames then captureFrames = captureFrames - 1 end
 end
 function love.draw()

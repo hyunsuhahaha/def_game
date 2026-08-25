@@ -24,7 +24,8 @@ function RushMode.new()
     return setmetatable({
         levels={}, choices={}, level=1, xp=0, xpNext=10, pending=0,
         totalWood=0, treesFelled=0, combatTier=0, elapsed=0,
-        firstWindowWood=0, lastWindowWood=0, maxMulti=1, maxChain=0
+        firstWindowWood=0, lastWindowWood=0, maxMulti=1, maxChain=0,
+        axeCooldown=0, axeRange=185
     }, RushMode)
 end
 
@@ -64,6 +65,39 @@ function RushMode:update(dt, game)
     if self.elapsed <= 30 then self.firstWindowWood = self.totalWood end
     if self.elapsed >= 150 then self.lastWindowWood = self.totalWood - (self.woodAt150 or self.totalWood); self.woodAt150 = self.woodAt150 or self.totalWood end
     for _, building in ipairs(game.world.buildings) do if building.fuel then building.fuel = 1 end end
+    self:updateHeldAxe(dt, game)
+end
+
+function RushMode:closestTreeInAxeRange(game)
+    local bestNode, bestDistance
+    local range2 = self.axeRange * self.axeRange
+    for _, node in ipairs(game.world.nodes) do
+        if node.rushTree and node.active then
+            local dx, dy = node.x - game.player.x, node.y - game.player.y
+            local distance = dx * dx + dy * dy
+            if distance <= range2 and (not bestDistance or distance < bestDistance) then
+                bestNode, bestDistance = node, distance
+            end
+        end
+    end
+    return bestNode
+end
+
+function RushMode:updateHeldAxe(dt, game, heldOverride)
+    local held = heldOverride
+    if held == nil then held = love.mouse.isDown(1) end
+    game.player.axeHolding = held
+    game.player.axeRange = self.axeRange
+    self.axeCooldown = math.max(0, self.axeCooldown - dt)
+    if not held or self.axeCooldown > 0 then return false end
+    local target = self:closestTreeInAxeRange(game)
+    if not target then return false end
+    game.player:cancelInteraction()
+    game.player:playAutoAxeSwing(target.x)
+    self:hitTree(target, game)
+    local speed = (game.tools.axe.speed or 1) * game.player.gather
+    self.axeCooldown = .62 / speed
+    return true
 end
 
 function RushMode:onWood(amount, game)
@@ -180,8 +214,35 @@ function RushMode:drawHUD(game,fonts)
     love.graphics.setColor(.9,.95,.9); love.graphics.printf("계속 캐면 전선이 자동으로 강해집니다",w/2-140,29,280,"center")
     UI.bar(w/2-132,53,264,9,self.xp/self.xpNext,{.35,1,.55,1})
     love.graphics.setFont(fonts.small); love.graphics.setColor(.75,.86,.8); love.graphics.printf("생산 레벨 "..self.level.."  ·  다음 3택 "..math.max(0,self.xpNext-self.xp),w/2-140,66,280,"center")
-    love.graphics.setColor(.04,.07,.055,.86); love.graphics.rectangle("fill",16,h-52,450,36,8,8)
-    love.graphics.setColor(.82,.9,.84); love.graphics.print("나무 클릭: 자동 도끼  ·  WASD: 이동  ·  ESC: 로비",30,h-43)
+    love.graphics.setColor(.04,.07,.055,.86); love.graphics.rectangle("fill",16,h-52,565,36,8,8)
+    love.graphics.setColor(.82,.9,.84); love.graphics.print("마우스 누른 채 이동: 범위 자동 벌목  ·  WASD: 이동  ·  ESC: 로비",30,h-43)
+    self:drawBattleMonitor(game,fonts)
+end
+
+function RushMode:drawBattleMonitor(game,fonts)
+    local screenW=love.graphics.getWidth()
+    local x,y,w,h=screenW-430,16,414,174
+    local wallRatio=math.max(0,game.world.wall.hp/game.world.wall.maxHp)
+    local accent=wallRatio>.45 and {.32,.88,1,1} or wallRatio>.2 and {1,.72,.2,1} or {1,.25,.18,1}
+    UI.panel(x,y,w,h,accent,.96)
+    love.graphics.setFont(fonts.small); love.graphics.setColor(.82,.91,.94)
+    love.graphics.print("실시간 전선 중계",x+14,y+9)
+    love.graphics.setColor(accent); love.graphics.printf(string.format("적 %d  ·  방벽 %d%%",#game.world.enemies,math.floor(wallRatio*100)),x+170,y+9,w-184,"right")
+    local vx,vy,vw,vh=x+10,y+34,w-20,h-44
+    love.graphics.setColor(.018,.028,.032,1); love.graphics.rectangle("fill",vx,vy,vw,vh,5,5)
+    love.graphics.setScissor(vx,vy,vw,vh)
+    love.graphics.push()
+    local scale=vw/game.world.width
+    love.graphics.translate(vx,vy+vh-6)
+    love.graphics.scale(scale,scale)
+    love.graphics.translate(0,-(game.world.wall.y+170))
+    game.world:draw(game.player)
+    love.graphics.pop()
+    love.graphics.setScissor()
+    love.graphics.setColor(0,0,0,.52); love.graphics.rectangle("fill",vx,vy,vw,21)
+    love.graphics.setFont(fonts.small); love.graphics.setColor(.85,.9,.9)
+    love.graphics.printf("▲ 적 진입 방향     자동 포탑 전투     ▼ 방어벽",vx,vy+3,vw,"center")
+    love.graphics.setColor(accent); love.graphics.setLineWidth(2); love.graphics.rectangle("line",vx+.5,vy+.5,vw-1,vh-1,5,5)
 end
 
 function RushMode:drawSelection(game,fonts)

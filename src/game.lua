@@ -350,7 +350,8 @@ function Game:mousepressed(x, y, button)
     end
     if self.ended then return end
     if self.runType=="rush" then
-        if button==1 then local wx,wy=self.camera:screenToWorld(x,y); local node=self.world:findNodeAt(wx,wy); if node then self.player:beginInteraction(node,self.world,self) else self.player:cancelInteraction() end end
+        -- 벌목 러시는 개별 나무를 클릭하지 않는다. 버튼을 누르는 동안
+        -- RushMode가 플레이어 주변의 나무를 자동 포착한다.
         return
     end
     if self.placingBuilding then
