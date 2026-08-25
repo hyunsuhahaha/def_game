@@ -116,15 +116,15 @@ function World:updateEffects(dt, game)
     end
 end
 
-function World:spawnDrop(kind, amount, x, y, spreadX, spreadY)
-    spreadX, spreadY = spreadX or 24, spreadY or 0
+function World:spawnDrop(kind, amount, x, y, spreadX, spreadY, power)
+    spreadX, spreadY, power = spreadX or 24, spreadY or 0, math.min(power or 1, 2.4)
     for _ = 1, amount do
         local minVx, maxVx = kind == "wood" and 25 or -125, kind == "wood" and 125 or 35
         self.drops[#self.drops + 1] = {
             kind = kind, amount = 1,
             x = x + love.math.random(-spreadX, spreadX), y = y - 34 + love.math.random(-spreadY, spreadY),
-            vx = love.math.random(minVx, maxVx), vy = love.math.random(28, 82),
-            height = love.math.random(36, 58), vz = love.math.random(85, 135),
+            vx = love.math.random(minVx, maxVx) * power, vy = love.math.random(28, 82) * power,
+            height = love.math.random(36, 58) * power, vz = love.math.random(85, 135) * power,
             magnet = false
         }
     end
@@ -169,14 +169,35 @@ function World:updateDrops(dt, game)
     end
 end
 
+function World:harvestPower(game, kind)
+    local pct = game.upgrades and game.upgrades.resourcePct and game.upgrades.resourcePct[kind] or 0
+    return 1 + math.min(pct, 2.5)
+end
+
+function World:harvestChipBurst(x, y, kind, power, game)
+    local color = effectColors[kind] or {1, 1, 1}
+    local count = math.floor(3 + (power - 1) * 10)
+    for _ = 1, count do self:addParticle(x, y, color, power > 1.25, true) end
+    if power > 1.15 then
+        self.particles[#self.particles + 1] = {x = x, y = y, life = .22, maxLife = .22, size = 10 + power * 8, color = color, ring = true}
+    end
+    if game.camera then game.camera.trauma = math.min(1, game.camera.trauma + .06 + power * .05) end
+end
+
 function World:harvestHit(node, game, player)
     self:impactNode(node, game, false)
+    local ex, ey = effectOrigin(node)
     if node.kind == "tree" then
-        self:spawnDrop("wood", 1, node.x + 160, node.y + 70, 130, 100)
+        local power = self:harvestPower(game, "wood")
+        self:harvestChipBurst(ex, ey, "wood", power, game)
+        self:spawnDrop("wood", 1, node.x + 160, node.y + 70, 130, 100, power)
     elseif node.kind == "quarry" then
         node.oreCounter = (node.oreCounter or 0) + 1
         local isOre = node.oreCounter % 5 == 0
-        self:spawnDrop(isOre and "ore" or "stone", 1, node.x - 160, node.y + 70, 130, 100)
+        local kind = isOre and "ore" or "stone"
+        local power = self:harvestPower(game, kind)
+        self:harvestChipBurst(ex, ey, kind, power, game)
+        self:spawnDrop(kind, 1, node.x - 160, node.y + 70, 130, 100, power)
     end
 end
 
