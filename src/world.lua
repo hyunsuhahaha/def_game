@@ -131,7 +131,7 @@ function World:updateDrops(dt, game)
         local drop = self.drops[i]
         local dx, dy = player.x - drop.x, player.y - drop.y
         local distance = math.sqrt(dx * dx + dy * dy)
-        if drop.height <= 0 and distance <= 135 and cargoSpace(player) > 0 then drop.magnet = true end
+        if drop.height <= 0 and distance <= 80 and cargoSpace(player) > 0 then drop.magnet = true end
         if drop.magnet then
             local pull = math.min(1, dt * 12)
             drop.x, drop.y = drop.x + dx * pull, drop.y + dy * pull
@@ -166,11 +166,11 @@ end
 function World:harvestHit(node, game, player)
     self:impactNode(node, game, false)
     if node.kind == "tree" then
-        self:spawnDrop("wood", 1, node.x + 100, node.y + 40, 90, 70)
+        self:spawnDrop("wood", 1, node.x + 160, node.y + 70, 130, 100)
     elseif node.kind == "quarry" then
         node.oreCounter = (node.oreCounter or 0) + 1
         local isOre = node.oreCounter % 5 == 0
-        self:spawnDrop(isOre and "ore" or "stone", 1, node.x - 120, node.y + 50, 100, 70)
+        self:spawnDrop(isOre and "ore" or "stone", 1, node.x - 160, node.y + 70, 130, 100)
     end
 end
 
