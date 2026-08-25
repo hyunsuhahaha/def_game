@@ -20,6 +20,17 @@ local turretMods = {
 }
 local turretMaxLevel = 8
 
+local function atan2(y, x)
+    if math.atan2 then return math.atan2(y, x) end
+    if x > 0 then return math.atan(y / x) end
+    if x < 0 then return math.atan(y / x) + (y >= 0 and math.pi or -math.pi) end
+    return y >= 0 and math.pi / 2 or -math.pi / 2
+end
+
+local function angleDelta(target, current)
+    return (target - current + math.pi) % (math.pi * 2) - math.pi
+end
+
 local function image(path)
     local value = love.graphics.newImage(path)
     value:setFilter("linear", "linear", 4)
@@ -51,11 +62,14 @@ function World.new()
         industrial = image("assets/floor-industrial.png"), farm = image("assets/floor-biofarm.png"), quarry = image("assets/floor-quarry.png"),
         core = image("assets/supply-core-v2.png"), turret = image("assets/turret-v1.png"), drone = image("assets/combat-drone-v1.png"), crop = image("assets/crop-pod.png"), ore = image("assets/ore-node.png"),
         tree = image("assets/tree-v1.png"), stone = image("assets/stone-v1.png"), lumber = image("assets/lumber-drop-v1.png"),
-        workerWalk = image("assets/worker-walk-v3.png"), workerActions = image("assets/worker-actions-v1.png"), workerRepair = image("assets/worker-repair-v1.png")
+        workerWalk = image("assets/worker-walk-v3.png"), workerActions = image("assets/worker-actions-v1.png"), workerRepair = image("assets/worker-repair-v1.png"),
+        turretBase = image("assets/turret-base-v1.png"), turretHead = image("assets/turret-head-v1.png"),
+        muzzleFlash = image("assets/muzzle-flash-v1.png")
     }
     self.buildingIcons = {}
     for _, def in ipairs(buildingDefs) do self.buildingIcons[def.id] = image(def.icon or ("assets/upgrades/" .. def.id .. ".png")) end
     self.nodes, self.enemies, self.defenders, self.turrets, self.buildings, self.shots, self.drops, self.helpers = {}, {}, {}, {}, {}, {}, {}, {}
+    self.bullets, self.muzzleFlashes, self.impactFlashes = {}, {}, {}
     self.particles, self.popups, self.harvestChain, self.harvestChainTime = {}, {}, 0, 0
     self.effectFont = love.graphics.newFont("assets/font-korean.ttf", 18)
     self.quarryVisual = {shadowX = 5, shadowY = 7, shadowRx = 104, shadowRy = 11, shadowAlpha = .22, frontBias = 130}
@@ -195,6 +209,25 @@ function World:harvestPower(game, kind)
     return 1 + math.min(pct, 2.5)
 end
 
+function World:turretUpgradeBurst(building, mod)
+    local x, y = building.x, building.y - 30
+    local color = mod.color or {1, .9, .4, 1}
+    for _, ring in ipairs({{size = 12, life = .26}, {size = 24, life = .4}, {size = 40, life = .56}}) do
+        self.particles[#self.particles + 1] = {x = x, y = y, life = ring.life, maxLife = ring.life, size = ring.size, color = color, ring = true}
+    end
+    for _ = 1, 28 do
+        local angle = love.math.random() * math.pi * 2
+        local speed = 90 + love.math.random() * 190
+        local life = .45 + love.math.random() * .3
+        self.particles[#self.particles + 1] = {
+            x = x, y = y, vx = math.cos(angle) * speed, vy = math.sin(angle) * speed * .6 - 60,
+            life = life, maxLife = life, size = 2.5 + love.math.random() * 3.5, color = color
+        }
+    end
+    self.impactFlashes[#self.impactFlashes + 1] = {x = x, y = y, life = .3, maxLife = .3}
+    self.popups[#self.popups + 1] = {x = x, y = y - 46, life = .95, maxLife = .95, text = mod.name .. " 강화!", color = color, chain = 0}
+end
+
 function World:harvestChipBurst(x, y, kind, power, game, isCrit)
     local color = effectColors[kind] or {1, 1, 1}
     local count = math.floor(3 + (power - 1) * 10)
@@ -240,6 +273,7 @@ function World:update(dt, game)
     self:updateEffects(dt, game)
     self:updateDrops(dt, game)
     self:updateBuildings(dt, game)
+    self:updateProjectiles(dt, game)
     self:updateHelpers(dt, game)
     for _, turret in ipairs(self.turrets) do turret.flash = math.max(0, (turret.flash or 0) - dt) end
     for _, node in ipairs(self.nodes) do
@@ -384,7 +418,7 @@ function World:addBuilding(kind, x, y, turretSlotIndex)
         if not slot or slot.index > self.turretSlotLimit or self:turretInSlot(slot.index) then return nil end
         x, y, turretSlotIndex = slot.x, slot.y, slot.index
     elseif not self:canPlaceBuilding(x, y, def.footprint) then return nil end
-    local building = {kind = kind, x = x, y = y, timer = def.interval, flash = .4, fuel = def.fuelRadius and 1 or nil, level = 0, mods = {}, turretSlotIndex = turretSlotIndex}
+    local building = {kind = kind, x = x, y = y, timer = def.interval, flash = .4, fuel = def.fuelRadius and 1 or nil, level = 0, mods = {}, turretSlotIndex = turretSlotIndex, aimAngle = -math.pi / 2, recoil = 0, barrelSide = 1}
     self.buildings[#self.buildings + 1] = building
     return building
 end
@@ -433,7 +467,9 @@ end
 function World:updateBuildings(dt, game)
     for _, b in ipairs(self.buildings) do
         b.flash = math.max(0, (b.flash or 0) - dt)
+        b.recoil = math.max(0, (b.recoil or 0) - dt * 5.5)
         local def = buildingById[b.kind]
+        if def.behavior == "turret" then self:updateTurretAim(b, def, dt) end
         if def.fuelRadius then
             local dx, dy = game.player.x - b.x, game.player.y - b.y
             local inRange = dx * dx + dy * dy <= def.fuelRadius * def.fuelRadius
@@ -629,6 +665,50 @@ function World:bladeBurst(source, game, damage, cap)
     return hits > 0
 end
 
+function World:updateTurretAim(building, def, dt)
+    local best, bestDistance2
+    local range = def.range or 440
+    for _, enemy in ipairs(self.enemies) do
+        if enemy.hp > 0 then
+            local dx, dy = enemy.x - building.x, enemy.y - (building.y - 64)
+            local distance2 = dx * dx + dy * dy
+            if distance2 <= range * range and (not bestDistance2 or distance2 < bestDistance2) then
+                best, bestDistance2 = enemy, distance2
+            end
+        end
+    end
+    building.aimTarget = best
+    if best then
+        local desired = atan2(best.y - (building.y - 64), best.x - building.x)
+        local speed = 1 - math.exp(-dt * 12)
+        building.aimAngle = (building.aimAngle or -math.pi / 2) + angleDelta(desired, building.aimAngle or -math.pi / 2) * speed
+    end
+end
+
+function World:spawnAutocannonRound(building, target, damage, game)
+    local angle = atan2(target.y - (building.y - 64), target.x - building.x)
+    building.aimAngle = angle
+    building.barrelSide = -(building.barrelSide or 1)
+    local side = building.barrelSide * 10
+    local muzzleX = building.x + math.cos(angle) * 90 - math.sin(angle) * side
+    local muzzleY = building.y - 64 + math.sin(angle) * 90 + math.cos(angle) * side
+    self.bullets[#self.bullets + 1] = {
+        x = muzzleX, y = muzzleY, previousX = muzzleX, previousY = muzzleY,
+        target = target, damage = damage, speed = 820, life = 1.4, angle = angle
+    }
+    self.muzzleFlashes[#self.muzzleFlashes + 1] = {x = muzzleX, y = muzzleY, angle = angle, life = .13, maxLife = .13}
+    for _ = 1, 5 do
+        local sparkAngle = angle + (love.math.random() - .5) * .55
+        local speed = love.math.random(160, 290)
+        self.particles[#self.particles + 1] = {
+            x = muzzleX, y = muzzleY, vx = math.cos(sparkAngle) * speed, vy = math.sin(sparkAngle) * speed,
+            life = .18, maxLife = .18, size = love.math.random(2, 4), color = {1, .58, .14}
+        }
+    end
+    building.flash, building.recoil = .16, .16
+    if game.camera then game.camera.trauma = math.min(1, game.camera.trauma + .045) end
+end
+
 function World:turretFire(building, game, damage, range, targetCount)
     local candidates = {}
     for _, enemy in ipairs(self.enemies) do
@@ -639,12 +719,47 @@ function World:turretFire(building, game, damage, range, targetCount)
     if #candidates == 0 then return false end
     table.sort(candidates, function(a, b) return a.d2 < b.d2 end)
     for i = 1, math.min(targetCount, #candidates) do
-        local enemy = candidates[i].enemy
-        enemy.hp = enemy.hp - damage; self:applyCombatEffects(enemy, damage, game)
-        self.shots[#self.shots + 1] = {x1 = building.x, y1 = building.y - 30, x2 = enemy.x, y2 = enemy.y, life = .12}
+        self:spawnAutocannonRound(building, candidates[i].enemy, damage, game)
     end
-    building.flash = .2
     return true
+end
+
+function World:updateProjectiles(dt, game)
+    for i = #self.muzzleFlashes, 1, -1 do
+        local effect = self.muzzleFlashes[i]
+        effect.life = effect.life - dt
+        if effect.life <= 0 then table.remove(self.muzzleFlashes, i) end
+    end
+    for i = #self.impactFlashes, 1, -1 do
+        local effect = self.impactFlashes[i]
+        effect.life = effect.life - dt
+        if effect.life <= 0 then table.remove(self.impactFlashes, i) end
+    end
+    for i = #self.bullets, 1, -1 do
+        local bullet = self.bullets[i]
+        bullet.life = bullet.life - dt
+        local target = bullet.target
+        if bullet.life <= 0 or not target or target.hp <= 0 then
+            table.remove(self.bullets, i)
+        else
+            bullet.previousX, bullet.previousY = bullet.x, bullet.y
+            local dx, dy = target.x - bullet.x, target.y - bullet.y
+            local distance = math.sqrt(dx * dx + dy * dy)
+            bullet.angle = atan2(dy, dx)
+            if distance <= bullet.speed * dt + 12 then
+                bullet.x, bullet.y = target.x, target.y
+                target.hp = target.hp - bullet.damage
+                self:applyCombatEffects(target, bullet.damage, game)
+                self.impactFlashes[#self.impactFlashes + 1] = {x = target.x, y = target.y, life = .18, maxLife = .18}
+                for _ = 1, 8 do self:addParticle(target.x, target.y, {1, .52, .12}, true, false) end
+                if game.camera then game.camera.trauma = math.min(1, game.camera.trauma + .07) end
+                table.remove(self.bullets, i)
+            else
+                bullet.x = bullet.x + dx / distance * bullet.speed * dt
+                bullet.y = bullet.y + dy / distance * bullet.speed * dt
+            end
+        end
+    end
 end
 
 function World:sporeBurst(source, game, damage)
@@ -871,9 +986,18 @@ function World:draw(player)
             love.graphics.setColor(fuel > .01 and .35 or 1, fuel > .01 and .82 or .3, 1, .18)
             love.graphics.circle("line", building.x, building.y, def.fuelRadius)
         end
-        shadow(building.x, building.y + 10, 62, 19, .42)
-        if flash > 0 then love.graphics.setColor(.35, 1, .62, flash * 1.8); love.graphics.circle("fill", building.x, building.y - 40, 52 + flash * 48) end
-        if icon then
+        shadow(building.x, building.y + 10, def.behavior == "turret" and 70 or 62, def.behavior == "turret" and 22 or 19, .42)
+        if flash > 0 then love.graphics.setColor(1, .58, .16, flash * 2.8); love.graphics.circle("fill", building.x, building.y - 42, 34 + flash * 70) end
+        if icon and def.behavior == "turret" then
+            local angle = building.aimAngle or -math.pi / 2
+            local recoil = (building.recoil or 0) * 68
+            local base, head = self.images.turretBase, self.images.turretHead
+            local baseScale, headScale = 142 / base:getWidth(), 145 / head:getWidth()
+            love.graphics.setColor(1, 1, 1, 1)
+            love.graphics.draw(base, building.x, building.y - 37, 0, baseScale, baseScale, base:getWidth() / 2, base:getHeight() / 2)
+            love.graphics.draw(head, building.x - math.cos(angle) * recoil, building.y - 64 - math.sin(angle) * recoil,
+                angle - math.pi, headScale, headScale, 1025, 800)
+        elseif icon then
             love.graphics.setColor(1, 1, 1, 1)
             local scale = 78 / math.max(icon:getWidth(), icon:getHeight())
             grounded(icon, building.x, building.y + 12, scale * (1 + flash * .08))
@@ -968,6 +1092,27 @@ function World:draw(player)
     for _, e in ipairs(self.enemies) do local enemy = e; queue[#queue + 1] = {y = enemy.y, draw = function() shadow(enemy.x, enemy.y, 20, 9, .5); love.graphics.setColor(.65, .12, .15); love.graphics.circle("fill", enemy.x, enemy.y - 22, 24); love.graphics.setColor(1, .35, .25); love.graphics.circle("line", enemy.x, enemy.y - 22, 24) end} end
     queue[#queue + 1] = {y = player.y, draw = function() player:draw() end}
     table.sort(queue, function(a, b) return a.y < b.y end); for _, item in ipairs(queue) do item.draw() end
+    love.graphics.setBlendMode("add", "alphamultiply")
+    for _, bullet in ipairs(self.bullets) do
+        local tail = 34
+        local tx, ty = bullet.x - math.cos(bullet.angle) * tail, bullet.y - math.sin(bullet.angle) * tail
+        love.graphics.setLineWidth(9); love.graphics.setColor(1, .25, .04, .16); love.graphics.line(tx, ty, bullet.x, bullet.y)
+        love.graphics.setLineWidth(4); love.graphics.setColor(1, .65, .12, .8); love.graphics.line(tx, ty, bullet.x, bullet.y)
+        love.graphics.setColor(1, .96, .72, 1); love.graphics.circle("fill", bullet.x, bullet.y, 3.2)
+    end
+    local muzzle = self.images.muzzleFlash
+    for _, effect in ipairs(self.muzzleFlashes) do
+        local alpha = math.max(0, effect.life / effect.maxLife)
+        local scale = .068 * (.9 + (1 - alpha) * .14)
+        love.graphics.setColor(1, 1, 1, alpha)
+        love.graphics.draw(muzzle, effect.x, effect.y, effect.angle - math.pi, scale, scale, muzzle:getWidth() * .91, muzzle:getHeight() * .5)
+    end
+    for _, effect in ipairs(self.impactFlashes) do
+        local alpha = math.max(0, effect.life / effect.maxLife)
+        love.graphics.setColor(1, .62, .18, alpha * .55); love.graphics.circle("fill", effect.x, effect.y, 10 + (1 - alpha) * 18)
+        love.graphics.setColor(1, .95, .72, alpha); love.graphics.setLineWidth(3); love.graphics.circle("line", effect.x, effect.y, 6 + (1 - alpha) * 26)
+    end
+    love.graphics.setBlendMode("alpha")
     for _, p in ipairs(self.particles) do
         local alpha = math.max(0, p.life / p.maxLife)
         love.graphics.setColor(p.color[1], p.color[2], p.color[3], alpha)

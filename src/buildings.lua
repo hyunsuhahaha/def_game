@@ -22,6 +22,6 @@ return {
     {id="carrier_drone", name="운반 드론", tags={"운반","자동화"}, desc="가방의 자원을 거점으로 자동 운반합니다.",
         cost={wood=12}, behavior="carrier", interval=6, footprint=40},
     {id="autocannon_turret", name="자동 포탑", tags={"방어","포탑"}, desc="사거리 안의 적을 자동으로 공격합니다.",
-        cost={ore=6}, behavior="turret", interval=.8, damage=9, range=440, footprint=44, icon="assets/turret-v1.png",
+        cost={ore=6}, behavior="turret", interval=.8, damage=9, range=440, footprint=64, icon="assets/turret-v2.png",
         fuelRadius=230, fuelDrain=.16, fuelRecharge=.35}
 }

@@ -429,8 +429,8 @@ function Game:chooseTurretMod(index)
     building.mods[choice.id] = (building.mods[choice.id] or 0) + 1
     building.level = (building.level or 0) + 1
     building.flash = .5
-    self.world.particles[#self.world.particles + 1] = {x = building.x, y = building.y - 30, life = .4, maxLife = .4, size = 28, color = choice.color, ring = true}
-    if self.camera then self.camera.trauma = math.min(1, self.camera.trauma + .2) end
+    self.world:turretUpgradeBurst(building, choice)
+    if self.camera then self.camera.trauma = math.min(1, self.camera.trauma + .32) end
     local def = self.world:defFor(building.kind)
     self:setNotice((def and def.name or "포탑") .. " " .. choice.name .. " 적용! Lv." .. building.level, "ore")
     self.turretUpgradeTarget, self.turretUpgradeChoices = nil, nil
@@ -448,17 +448,65 @@ function Game:turretChoiceAt(x, y)
     end
 end
 
+local turretModIcons = {
+    multishot = function(cx, cy, r, color)
+        love.graphics.setColor(color); love.graphics.setLineWidth(2.4)
+        love.graphics.circle("line", cx, cy, r * .74)
+        love.graphics.circle("line", cx, cy, r * .28)
+        love.graphics.line(cx - r * .95, cy, cx - r * .5, cy); love.graphics.line(cx + r * .5, cy, cx + r * .95, cy)
+        love.graphics.line(cx, cy - r * .95, cx, cy - r * .5); love.graphics.line(cx, cy + r * .5, cx, cy + r * .95)
+        for _, a in ipairs({-math.pi / 2, math.pi / 6, math.pi * 5 / 6}) do
+            love.graphics.circle("fill", cx + math.cos(a) * r * .74, cy + math.sin(a) * r * .74, r * .11)
+        end
+    end,
+    double_tap = function(cx, cy, r, color)
+        love.graphics.setColor(color); love.graphics.setLineWidth(3.4)
+        for _, off in ipairs({-r * .42, r * .42}) do
+            love.graphics.line(cx - r * .4, cy + off - r * .3, cx + r * .18, cy + off, cx - r * .4, cy + off + r * .3)
+        end
+    end,
+    heavy_shell = function(cx, cy, r, color)
+        love.graphics.setColor(color)
+        love.graphics.polygon("fill", cx, cy - r * .85, cx + r * .38, cy - r * .1, cx + r * .38, cy + r * .7, cx - r * .38, cy + r * .7, cx - r * .38, cy - r * .1)
+        love.graphics.setColor(0, 0, 0, .32); love.graphics.rectangle("fill", cx - r * .38, cy + r * .22, r * .76, r * .13)
+        love.graphics.setColor(1, 1, 1, .4); love.graphics.polygon("fill", cx, cy - r * .78, cx + r * .1, cy - r * .3, cx - r * .1, cy - r * .3)
+    end,
+    rapid_coil = function(cx, cy, r, color)
+        love.graphics.setColor(color); love.graphics.setLineWidth(2.6)
+        for i = 0, 2 do
+            love.graphics.arc("line", "open", cx, cy - r * .55 + i * r * .55, r * .42, math.pi * .15, math.pi * 1.85, 24)
+        end
+    end,
+    long_barrel = function(cx, cy, r, color)
+        love.graphics.setColor(color); love.graphics.setLineWidth(4)
+        love.graphics.line(cx - r * .8, cy - r * .16, cx + r * .35, cy - r * .16)
+        love.graphics.line(cx - r * .8, cy + r * .16, cx + r * .35, cy + r * .16)
+        love.graphics.polygon("fill", cx + r * .3, cy - r * .38, cx + r * .85, cy, cx + r * .3, cy + r * .38)
+    end
+}
+
+local function drawCardRivets(x, y, w, h)
+    love.graphics.setColor(.5, .43, .32, 1)
+    for _, corner in ipairs({{x + 15, y + 15}, {x + w - 15, y + 15}, {x + 15, y + h - 15}, {x + w - 15, y + h - 15}}) do
+        love.graphics.circle("fill", corner[1], corner[2], 5)
+        love.graphics.setColor(.85, .74, .5, .9); love.graphics.circle("fill", corner[1] - 1.2, corner[2] - 1.2, 1.8)
+        love.graphics.setColor(.5, .43, .32, 1)
+    end
+end
+
 function Game:drawTurretUpgrade()
     local w, h, f = love.graphics.getWidth(), love.graphics.getHeight(), self.fonts
     local building = self.turretUpgradeTarget
     if not building then return end
     local def = self.world:defFor(building.kind)
-    love.graphics.setColor(.02, .03, .04, .78); love.graphics.rectangle("fill", 0, 0, w, h)
-    love.graphics.setFont(f.small); love.graphics.setColor(.95, .8, .3); love.graphics.printf((def and def.name or "포탑") .. "  ·  Lv." .. (building.level or 0), 0, 90, w, "center")
-    love.graphics.setFont(f.title); love.graphics.setColor(1, 1, 1); love.graphics.printf("포탑 강화 — 광석 " .. (self.turretUpgradeCostValue or 0), 0, 122, w, "center")
-    local gap = 24
+    local t = love.timer.getTime()
+    love.graphics.setColor(.01, .015, .02, .86); love.graphics.rectangle("fill", 0, 0, w, h)
+    love.graphics.setColor(.95, .78, .28, .07); love.graphics.circle("fill", w / 2, 170, math.max(w, h) * .42)
+    love.graphics.setFont(f.small); love.graphics.setColor(.95, .8, .3); love.graphics.printf((def and def.name or "포탑") .. "  ·  Lv." .. (building.level or 0), 0, 88, w, "center")
+    love.graphics.setFont(f.title); love.graphics.setColor(1, 1, 1); love.graphics.printf("포탑 강화 — 광석 " .. (self.turretUpgradeCostValue or 0), 0, 120, w, "center")
+    local gap = 26
     local cardW = math.min(300, (w - 72 - gap * 2) / 3)
-    local cardH, y = 300, 190
+    local cardH, y = 360, 196
     local startX = w / 2 - (cardW * 3 + gap * 2) / 2
     local mx, my = love.mouse.getPosition()
     self.turretChoiceBoxes = {}
@@ -466,18 +514,51 @@ function Game:drawTurretUpgrade()
         local x = startX + (i - 1) * (cardW + gap)
         local hovered = mx >= x and mx <= x + cardW and my >= y and my <= y + cardH
         self.turretChoiceBoxes[i] = {x = x, y = y, w = cardW, h = cardH}
-        love.graphics.setColor(0, 0, 0, .28); love.graphics.rectangle("fill", x + 5, y + 8, cardW, cardH, 12, 12)
-        love.graphics.setColor(hovered and {.98, .97, .88, 1} or {.91, .91, .83, .98}); love.graphics.rectangle("fill", x, y, cardW, cardH, 12, 12)
-        love.graphics.setColor(mod.color); love.graphics.rectangle("fill", x, y, cardW, 7, 12, 12)
-        love.graphics.setLineWidth(hovered and 3 or 1.5); love.graphics.setColor(mod.color[1], mod.color[2], mod.color[3], hovered and 1 or .55); love.graphics.rectangle("line", x, y, cardW, cardH, 12, 12)
-        love.graphics.setFont(f.heading); love.graphics.setColor(.1, .16, .15); love.graphics.printf(tostring(i) .. "  " .. mod.name, x + 18, y + 26, cardW - 36, "center")
-        love.graphics.setFont(f.small); love.graphics.setColor(.3, .36, .34); love.graphics.printf(mod.desc, x + 24, y + 90, cardW - 48, "center")
+        local lift = hovered and (4 + math.sin(t * 6) * 1.5) or 0
+        local cx, cy = x + cardW / 2, y - lift
+
+        love.graphics.setColor(mod.color[1], mod.color[2], mod.color[3], hovered and (.28 + math.sin(t * 4) * .06) or .1)
+        love.graphics.rectangle("fill", x - 10, cy - 10, cardW + 20, cardH + 20, 18, 18)
+
+        love.graphics.setColor(0, 0, 0, .4); love.graphics.rectangle("fill", x + 6, cy + 10, cardW, cardH, 14, 14)
+
+        UI.verticalGradient(x, cy, cardW, cardH, 14, {mod.color[1] * .16 + .05, mod.color[2] * .16 + .06, mod.color[3] * .16 + .08, 1}, {.03, .035, .045, 1})
+
+        love.graphics.setLineWidth(1.5); love.graphics.setColor(.05, .05, .06, 1); love.graphics.rectangle("line", x - 2, cy - 2, cardW + 4, cardH + 4, 15, 15)
+        love.graphics.setLineWidth(hovered and 3 or 1.8); love.graphics.setColor(mod.color[1], mod.color[2], mod.color[3], hovered and 1 or .65); love.graphics.rectangle("line", x, cy, cardW, cardH, 14, 14)
+        drawCardRivets(x, cy, cardW, cardH)
+
+        local badgeCx, badgeCy, badgeR = cx, cy + 92, 46
+        love.graphics.setColor(mod.color[1], mod.color[2], mod.color[3], .22 + (hovered and math.sin(t * 5) * .08 or 0))
+        love.graphics.circle("fill", badgeCx, badgeCy, badgeR + 14)
+        love.graphics.setColor(.05, .06, .07, 1); love.graphics.circle("fill", badgeCx, badgeCy, badgeR)
+        love.graphics.setLineWidth(3); love.graphics.setColor(mod.color); love.graphics.circle("line", badgeCx, badgeCy, badgeR)
+        love.graphics.setLineWidth(1); love.graphics.setColor(1, 1, 1, .25); love.graphics.circle("line", badgeCx, badgeCy, badgeR - 6)
+        local icon = turretModIcons[mod.id]
+        if icon then icon(badgeCx, badgeCy, badgeR * .62, {1, 1, 1, .95}) end
+
+        local plateY, plateH = cy + 160, 34
+        love.graphics.setColor(0, 0, 0, .55); love.graphics.rectangle("fill", x + 16, plateY, cardW - 32, plateH, 8, 8)
+        love.graphics.setLineWidth(1.4); love.graphics.setColor(mod.color[1], mod.color[2], mod.color[3], .7); love.graphics.rectangle("line", x + 16, plateY, cardW - 32, plateH, 8, 8)
+        love.graphics.setFont(f.heading); love.graphics.setColor(1, 1, 1, 1)
+        love.graphics.printf(tostring(i) .. "   " .. mod.name, x + 16, plateY + plateH / 2 - f.heading:getHeight() / 2, cardW - 32, "center")
+
+        love.graphics.setColor(mod.color[1], mod.color[2], mod.color[3], .8)
+        love.graphics.polygon("fill", cx, plateY + plateH + 14, cx + 6, plateY + plateH + 20, cx, plateY + plateH + 26, cx - 6, plateY + plateH + 20)
+
+        love.graphics.setFont(f.small); love.graphics.setColor(.72, .78, .84, 1)
+        love.graphics.printf(mod.desc, x + 26, plateY + plateH + 38, cardW - 52, "center")
+
         local stacks = (building.mods and building.mods[mod.id]) or 0
         if stacks > 0 then
-            love.graphics.setColor(mod.color); love.graphics.printf("현재 " .. stacks .. "중첩", x + 24, y + cardH - 40, cardW - 48, "center")
+            local pillW = 110
+            love.graphics.setColor(mod.color[1], mod.color[2], mod.color[3], .18)
+            love.graphics.rectangle("fill", cx - pillW / 2, cy + cardH - 46, pillW, 28, 14, 14)
+            love.graphics.setLineWidth(1.4); love.graphics.setColor(mod.color); love.graphics.rectangle("line", cx - pillW / 2, cy + cardH - 46, pillW, 28, 14, 14)
+            love.graphics.setColor(1, 1, 1, 1); love.graphics.printf("현재 " .. stacks .. "중첩", cx - pillW / 2, cy + cardH - 39, pillW, "center")
         end
     end
-    love.graphics.setFont(f.small); love.graphics.setColor(.7, .78, .72); love.graphics.printf("우클릭 또는 ESC로 취소", 0, y + cardH + 20, w, "center")
+    love.graphics.setFont(f.small); love.graphics.setColor(.7, .78, .72); love.graphics.printf("우클릭 또는 ESC로 취소", 0, y + cardH + 30, w, "center")
 end
 
 function Game:drawBuildSelect()

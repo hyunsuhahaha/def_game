@@ -15,6 +15,24 @@ function UI.bar(x, y, w, h, value, color, background)
     love.graphics.setColor(1, 1, 1, .14); love.graphics.rectangle("line", x, y, w, h, 3, 3)
 end
 
+function UI.verticalGradient(x, y, w, h, r, topColor, bottomColor, bands)
+    bands = bands or 24
+    love.graphics.stencil(function() love.graphics.rectangle("fill", x, y, w, h, r, r) end, "replace", 1)
+    love.graphics.setStencilTest("greater", 0)
+    local bandH = h / bands
+    for i = 0, bands - 1 do
+        local t = i / (bands - 1)
+        love.graphics.setColor(
+            topColor[1] + (bottomColor[1] - topColor[1]) * t,
+            topColor[2] + (bottomColor[2] - topColor[2]) * t,
+            topColor[3] + (bottomColor[3] - topColor[3]) * t,
+            (topColor[4] or 1) + ((bottomColor[4] or 1) - (topColor[4] or 1)) * t
+        )
+        love.graphics.rectangle("fill", x, y + i * bandH - 1, w, bandH + 2)
+    end
+    love.graphics.setStencilTest()
+end
+
 function UI.button(x, y, w, h, label, active, font)
     local mx, my = love.mouse.getPosition()
     local hovered = mx >= x and mx <= x + w and my >= y and my <= y + h

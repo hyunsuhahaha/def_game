@@ -1,6 +1,6 @@
 local Game
 local game
-local captureFrames = os.getenv("LAST_HAUL_CAPTURE_HARVEST") and 10 or ((os.getenv("LAST_HAUL_CAPTURE") or os.getenv("LAST_HAUL_CAPTURE_GAME") or os.getenv("LAST_HAUL_CAPTURE_FARM") or os.getenv("LAST_HAUL_CAPTURE_MINE") or os.getenv("LAST_HAUL_CAPTURE_WALL") or os.getenv("LAST_HAUL_CAPTURE_REPAIR") or os.getenv("LAST_HAUL_CAPTURE_META") or os.getenv("LAST_HAUL_CAPTURE_RESULTS") or os.getenv("LAST_HAUL_CAPTURE_UPGRADE") or os.getenv("LAST_HAUL_CAPTURE_UNITS") or os.getenv("LAST_HAUL_CAPTURE_TEST_OPTIONS") or os.getenv("LAST_HAUL_CAPTURE_TURRET_PROMPT") or os.getenv("LAST_HAUL_CAPTURE_TURRET_PLACEMENT")) and 30 or nil)
+local captureFrames = os.getenv("LAST_HAUL_CAPTURE_TURRET_FIRE") and 1 or (os.getenv("LAST_HAUL_CAPTURE_HARVEST") and 10 or ((os.getenv("LAST_HAUL_CAPTURE") or os.getenv("LAST_HAUL_CAPTURE_GAME") or os.getenv("LAST_HAUL_CAPTURE_FARM") or os.getenv("LAST_HAUL_CAPTURE_MINE") or os.getenv("LAST_HAUL_CAPTURE_WALL") or os.getenv("LAST_HAUL_CAPTURE_REPAIR") or os.getenv("LAST_HAUL_CAPTURE_META") or os.getenv("LAST_HAUL_CAPTURE_RESULTS") or os.getenv("LAST_HAUL_CAPTURE_UPGRADE") or os.getenv("LAST_HAUL_CAPTURE_UNITS") or os.getenv("LAST_HAUL_CAPTURE_TEST_OPTIONS") or os.getenv("LAST_HAUL_CAPTURE_TURRET_PROMPT") or os.getenv("LAST_HAUL_CAPTURE_TURRET_PLACEMENT") or os.getenv("LAST_HAUL_CAPTURE_TURRET_UPGRADE")) and 30 or nil))
 
 function love.load()
     love.graphics.setDefaultFilter("linear", "linear", 4)
@@ -40,6 +40,28 @@ function love.load()
         game.ore = 100
         game.player.x, game.player.y = turret.x + 75, turret.y + 55
         game.camera.x, game.camera.y = game.world.core.x, game.world.core.y + 60
+    end
+    if os.getenv("LAST_HAUL_CAPTURE_TURRET_UPGRADE") then
+        game:startRun()
+        local slot = game.world:firstAvailableTurretSlot()
+        local turret = slot and game.world:addBuilding("autocannon_turret", slot.x, slot.y, slot.index) or game.world.buildings[1]
+        turret.mods, turret.level = {rapid_coil = 1}, 1
+        game.ore = 100
+        game.player.x, game.player.y = turret.x + 75, turret.y + 55
+        game.camera.x, game.camera.y = game.world.core.x, game.world.core.y + 60
+        game:tryOpenTurretUpgrade(turret)
+    end
+    if os.getenv("LAST_HAUL_CAPTURE_TURRET_FIRE") then
+        game:startRun()
+        local slot = game.world:firstAvailableTurretSlot()
+        local turret = slot and game.world:addBuilding("autocannon_turret", slot.x, slot.y, slot.index) or game.world.buildings[1]
+        game.player.x, game.player.y = turret.x + 80, turret.y + 80
+        game.camera.x, game.camera.y = turret.x - 20, turret.y - 140
+        game.world.enemies = {
+            {x=turret.x-290,y=turret.y-150,hp=800,speed=0,hit=0},
+            {x=turret.x-330,y=turret.y-70,hp=800,speed=0,hit=0}
+        }
+        turret.mods, turret.timer = {multishot=1}, 0
     end
     if os.getenv("LAST_HAUL_CAPTURE_TURRET_PLACEMENT") then
         game.progression.data.levels.turret_slots = tonumber(os.getenv("LAST_HAUL_TURRET_SLOT_LEVEL")) or 0
