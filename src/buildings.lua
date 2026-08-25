@@ -1,0 +1,22 @@
+return {
+    {id="auto_farm", name="자동 농기계", tags={"농업","자동화"}, desc="주기적으로 식량을 생산합니다.",
+        cost={wood=10}, behavior="produce", resource="food", interval=6, amount=2, footprint=46},
+    {id="mining_drone", name="채굴 드론", tags={"채광","자동화"}, desc="주기적으로 광석을 생산합니다.",
+        cost={wood=14}, behavior="produce", resource="ore", interval=6.5, amount=2, footprint=46},
+    {id="logging_bot", name="벌목 로봇", tags={"벌목","자동화"}, desc="주기적으로 목재를 생산합니다.",
+        cost={stone=10}, behavior="produce", resource="wood", interval=6.2, amount=2, footprint=46},
+    {id="hatchery", name="부화장", tags={"생명","병력"}, desc="식량을 소비해 수호자를 자동 부화합니다.",
+        cost={food=20}, behavior="spawn", spawnKind="bio", spawnCost={food=5}, interval=7.5, footprint=50},
+    {id="drone_factory", name="드론 공장", tags={"공장","병력"}, desc="광석으로 전투 드론을 조립합니다.",
+        cost={ore=24}, behavior="spawn", spawnKind="drone", spawnCost={ore=4}, interval=8.5, footprint=50},
+    {id="rail_turret", name="레일 포탑", tags={"채광","포탑"}, desc="광석을 탄환으로 바꿔 강력한 포격을 합니다.",
+        cost={ore=20}, behavior="rail", spawnCost={ore=2}, interval=6.5, damage=40, footprint=44},
+    {id="blade_turret", name="톱날 포탑", tags={"벌목","포탑"}, desc="전선에 주기적으로 톱날을 발사합니다.",
+        cost={wood=18}, behavior="blade", interval=5.6, damage=26, footprint=44},
+    {id="battle_crops", name="전투 농장", tags={"농업","방어"}, desc="주변 작물이 적에게 포자를 발사합니다.",
+        cost={food=18}, behavior="spore", interval=5, damage=16, footprint=46},
+    {id="repair_station", name="자동 수리소", tags={"방벽","자동화"}, desc="목재와 돌로 방어벽을 자동 수리합니다.",
+        cost={wood=16, stone=16}, behavior="repair", spawnCost={wood=1, stone=1}, interval=5, repairAmount=20, footprint=50},
+    {id="carrier_drone", name="운반 드론", tags={"운반","자동화"}, desc="가방의 자원을 거점으로 자동 운반합니다.",
+        cost={wood=12}, behavior="carrier", interval=6, footprint=40}
+}

@@ -40,18 +40,23 @@ function SelfTest.run(game)
     assert(#game.world.turrets == 1 and game.world.turrets[1].kind == "autocannon", "포탑 실물 배치 실패")
     game.world:spawnDefender("drone", 2, game)
     assert(#game.world.defenders == 1 and game.world.defenders[1].kind == "drone", "전투 드론 실물 생성 실패")
-    assert(game.upgrades:choose("repair_station", game), "자동 수리소 선택 실패")
-    local repairStation = game.world:getStructure("repair_station")
-    assert(repairStation and repairStation.level == 1, "자동 수리소 월드 오브젝트 생성 실패")
-    assert(game.upgrades:choose("repair_station", game) and game.world:getStructure("repair_station") == repairStation and repairStation.level == 2, "자동 수리소 강화 시 중복 생성 방지 실패")
-    assert(game.upgrades:choose("auto_farm", game) and game.upgrades:choose("auto_farm", game), "런 시스템 강화 실패")
+    game.food, game.wood, game.stone, game.ore = 1000, 1000, 1000, 1000
+    local repairA = game.world:addBuilding("repair_station", 950, 1180)
+    assert(repairA and #game.world.buildings == 1, "생산 시설 건설 실패")
+    assert(game.world:addBuilding("repair_station", 950, 1180) == nil and #game.world.buildings == 1, "겹치는 위치 건설 방지 실패")
+    assert(game.world:addBuilding("repair_station", 1010, 1180) and #game.world.buildings == 2, "동일 건물 다중 건설 실패")
+    local quarry = find(game.world, "quarry")
+    assert(not game.world:canPlaceBuilding(quarry.x, quarry.y, 46), "채집 노드와 겹치는 위치 건설 방지 실패")
+    for i = 1, 5 do
+        assert(game.world:addBuilding("auto_farm", 1070 + (i - 1) * 60, 1180), "자동 농기계 건설 실패")
+    end
+    assert(#game.world.buildings == 7, "건설된 생산 시설 개수 불일치")
     assert(game.upgrades:choose("protein_feed", game), "런 보조 강화 실패")
-    game.upgrades.levels.auto_farm = 5
-    assert(game.upgrades:isEvolutionReady(game.upgrades:get("eternal_farm")) and game.upgrades:choose("eternal_farm", game), "런 진화 조합 실패")
-    game.upgrades:rollChoices(); assert(#game.upgrades.choices == 3, "런 3택 생성 실패")
+    assert(game.upgrades:isEvolutionReady(game.upgrades:get("eternal_farm"), game) and game.upgrades:choose("eternal_farm", game), "런 진화 조합 실패")
+    game.upgrades:rollChoices(game); assert(#game.upgrades.choices == 3, "런 3택 생성 실패")
     local foodBeforeAutomation = game.food
-    game.upgrades:update(10, game)
-    assert(game.food > foodBeforeAutomation, "자동 생산 시스템 작동 실패")
+    game.world:updateBuildings(6.5, game)
+    assert(game.food > foodBeforeAutomation, "자동 생산 건물 작동 실패")
     assert(game.player.gather > 1.11 and game.player.capacity == 21, "영구 특성 런 적용 실패")
     game.player.capacity = 100
     local farm = find(game.world, "plot")

@@ -7,6 +7,8 @@ local Progression = require("src.progression")
 local TraitTree = require("src.trait_tree")
 local Feedback = require("src.feedback")
 local RunUpgrades = require("src.run_upgrades")
+local Buildings = require("src.buildings")
+local resourceLabels = {wood = "목재", stone = "돌", ore = "광석", food = "식량"}
 
 local Game = {}
 Game.__index = Game
@@ -71,7 +73,7 @@ end
 
 function Game:startRun()
     self:resetRun(); self.mode = "playing"; self:setNotice("작전 시작 — 자원을 생산해 거점을 지키세요", "core")
-    if self.pendingLevels > 0 then self.upgrades:rollChoices(); self.mode = "upgrade" end
+    if self.pendingLevels > 0 then self.upgrades:rollChoices(self); self.mode = "upgrade" end
 end
 function Game:setNotice(text, kind) self.notice, self.noticeKind, self.noticeTime = text, kind or "core", 2.2 end
 
@@ -91,7 +93,7 @@ end
 function Game:closeTestOptions()
     local target=self.testReturnMode or "lobby"
     self.mode=target
-    if target=="playing" and self.pendingLevels>0 then self.upgrades:rollChoices(); self.mode="upgrade" end
+    if target=="playing" and self.pendingLevels>0 then self.upgrades:rollChoices(self); self.mode="upgrade" end
 end
 
 function Game:useTestOption(index)
@@ -128,7 +130,7 @@ function Game:addRunXP(amount)
         self.runXPNext = 18 + (self.runLevel - 1) * 10
     end
     if self.pendingLevels > 0 and self.mode == "playing" and not os.getenv("LAST_HAUL_SELF_TEST") then
-        self.upgrades:rollChoices(); self.mode = "upgrade"
+        self.upgrades:rollChoices(self); self.mode = "upgrade"
     end
 end
 
@@ -160,6 +162,7 @@ function Game:update(dt)
     if self.mode == "test_options" then self.testResetTime=math.max(0,(self.testResetTime or 0)-dt); if self.testResetTime<=0 then self.testResetArmed=false end; return end
     if self.mode == "meta" then self.traitTree:update(dt); return end
     if self.mode == "results" then return end
+    if self.mode == "build_select" then return end
     self.runXPVisual = self.runXPVisual + (self.runXP - self.runXPVisual) * (1 - math.exp(-dt * 9))
     self.runXPPulse = math.max(0, self.runXPPulse - dt * 1.35)
     if self.mode == "upgrade" then return end
@@ -182,17 +185,23 @@ function Game:keypressed(key)
     if self.mode == "settings" then if key == "escape" then self.mode = "lobby" end; return end
     if self.mode == "meta" then if self.traitTree:keypressed(key) == "back" then self.mode = "lobby" end; return end
     if self.mode == "upgrade" then if key == "1" or key == "2" or key == "3" then self:selectRunUpgrade(tonumber(key)) end; return end
+    if self.mode == "build_select" then if key == "escape" then self.mode = "playing" end; return end
     if self.mode == "results" then
         if key == "t" then self.mode = "meta"
         elseif key == "return" or key == "escape" then self.mode = "lobby" end
         return
     end
+    if key == "escape" and self.placingBuilding then self.placingBuilding = nil; self:setNotice("건설을 취소했습니다", "core"); return end
     if key == "escape" then self.mode = "lobby"; return end
     if self.ended and (key == "r" or key == "return") then self:startRun(); return end
-    if key == "1" and self.food >= 12 then self.food = self.food - 12; self.world:spawnDefender("bio", 1, self); self:setNotice("생체 수호자를 부화했습니다", "food") end
-    if key == "2" and self.ore >= 14 then self.ore = self.ore - 14; self.world.core.damage = self.world.core.damage * 1.2; self.world.core.fireRate = self.world.core.fireRate * 1.05; self.world:addTurret("autocannon", 1); self:setNotice("센터 하드포인트에 포탑을 배치했습니다", "ore") end
-    if key == "3" and self.food >= 8 and self.ore >= 8 then self.food, self.ore = self.food - 8, self.ore - 8; self.player.gather = self.player.gather * 1.15; self.player.capacity = self.player.capacity + 5; self:setNotice("작업 장비를 개조했습니다", "core") end
-    if key == "4" then
+    if key == "1" or key == "2" or key == "3" or key == "4" or key == "5" then self:useAbility(tonumber(key)) end
+end
+
+function Game:useAbility(index)
+    if index == 1 and self.food >= 12 then self.food = self.food - 12; self.world:spawnDefender("bio", 1, self); self:setNotice("생체 수호자를 부화했습니다", "food") end
+    if index == 2 and self.ore >= 14 then self.ore = self.ore - 14; self.world.core.damage = self.world.core.damage * 1.2; self.world.core.fireRate = self.world.core.fireRate * 1.05; self.world:addTurret("autocannon", 1); self:setNotice("센터 하드포인트에 포탑을 배치했습니다", "ore") end
+    if index == 3 and self.food >= 8 and self.ore >= 8 then self.food, self.ore = self.food - 8, self.ore - 8; self.player.gather = self.player.gather * 1.15; self.player.capacity = self.player.capacity + 5; self:setNotice("작업 장비를 개조했습니다", "core") end
+    if index == 4 then
         local wall = self.world.wall
         if wall.level < wall.maxLevel then
             local cost = self.wallCosts[wall.level + 1]
@@ -202,6 +211,7 @@ function Game:keypressed(key)
             else self:setNotice(string.format("방어벽 강화 필요: 목재 %d · 돌 %d", cost.wood, cost.stone), "core") end
         else self:setNotice("방어벽이 최고 단계입니다", "core") end
     end
+    if index == 5 then self.mode = "build_select" end
 end
 
 function Game:mousepressed(x, y, button)
@@ -242,6 +252,14 @@ function Game:mousepressed(x, y, button)
     end
     if self.mode == "meta" then if self.traitTree:mousepressed(x, y, button) == "back" then self.mode = "lobby" end; return end
     if self.mode == "upgrade" then if button == 1 then local index = self.upgrades:choiceAt(x, y); if index then self:selectRunUpgrade(index) end end; return end
+    if self.mode == "build_select" then
+        if button == 1 then
+            if x >= 28 and x <= 176 and y >= 25 and y <= 67 then self.mode = "playing"; return end
+            local index = self:buildCardAt(x, y)
+            if index then self.placingBuilding = Buildings[index]; self.mode = "playing" end
+        end
+        return
+    end
     if self.mode == "results" then
         if button == 1 then
             local w, h = love.graphics.getDimensions()
@@ -252,11 +270,86 @@ function Game:mousepressed(x, y, button)
         end
         return
     end
-    if button ~= 1 or self.ended then return end
+    if self.ended then return end
+    if self.placingBuilding then
+        local wx, wy = self.camera:screenToWorld(x, y)
+        local def = self.placingBuilding
+        if button == 1 then
+            if self.world:canPlaceBuilding(wx, wy, def.footprint) then
+                local canAfford = true
+                for res, amt in pairs(def.cost) do if (self[res] or 0) < amt then canAfford = false end end
+                if canAfford then
+                    for res, amt in pairs(def.cost) do self[res] = self[res] - amt end
+                    self.world:addBuilding(def.id, wx, wy)
+                    self:setNotice(def.name .. " 건설 완료", "core")
+                    self.placingBuilding = nil
+                else
+                    local parts = {}
+                    for res, amt in pairs(def.cost) do parts[#parts + 1] = resourceLabels[res] .. " " .. amt end
+                    self:setNotice("자원 부족 — 필요: " .. table.concat(parts, " · "), "core")
+                end
+            else
+                self:setNotice("여기엔 지을 수 없습니다", "core")
+            end
+        elseif button == 2 then
+            self.placingBuilding = nil; self:setNotice("건설을 취소했습니다", "core")
+        end
+        return
+    end
+    if button ~= 1 then return end
+    local hw, hh = love.graphics.getDimensions()
+    local slotW, gap, startX, barY = 132, 8, hw / 2 - 346, hh - 92
+    for i = 1, 5 do
+        local sx = startX + (i - 1) * (slotW + gap)
+        if x >= sx and x <= sx + slotW and y >= barY and y <= barY + 70 then self:useAbility(i); return end
+    end
     local wx, wy = self.camera:screenToWorld(x, y)
     if self.world:isWallAt(wx, wy) then self.player:beginWallRepair(self.world, self); return end
     local node = self.world:findNodeAt(wx, wy)
     if node then self.player:beginInteraction(node, self.world, self) else self.player:cancelInteraction() end
+end
+
+function Game:buildCardAt(x, y)
+    for i, box in ipairs(self.buildCardBoxes or {}) do
+        if x >= box.x and x <= box.x + box.w and y >= box.y and y <= box.y + box.h then return i end
+    end
+end
+
+function Game:drawBuildSelect()
+    local w, h, f = love.graphics.getWidth(), love.graphics.getHeight(), self.fonts
+    self.lobby:drawBackground(w, h)
+    love.graphics.setColor(.018, .042, .034, .88); love.graphics.rectangle("fill", 0, 0, w, h)
+    UI.button(28, 25, 148, 42, "← 나가기", true, f.body)
+    love.graphics.setFont(f.title); love.graphics.setColor(.98, .98, .92); love.graphics.printf("건설", 0, 66, w, "center")
+    love.graphics.setFont(f.small); love.graphics.setColor(.75, .83, .75)
+    love.graphics.printf("자원을 소모해 생산 시설을 짓습니다 — 카드를 고르면 거점 안 원하는 위치에 배치합니다", 0, 108, w, "center")
+    local cols, gap = 5, 14
+    local cardW = math.min(206, (w - 80 - gap * (cols - 1)) / cols)
+    local cardH = 214
+    local startX, startY = w / 2 - (cardW * cols + gap * (cols - 1)) / 2, 150
+    local mx, my = love.mouse.getPosition()
+    self.buildCardBoxes = {}
+    for i, def in ipairs(Buildings) do
+        local col, row = (i - 1) % cols, math.floor((i - 1) / cols)
+        local x, y = startX + col * (cardW + gap), startY + row * (cardH + gap)
+        self.buildCardBoxes[i] = {x = x, y = y, w = cardW, h = cardH}
+        local hovered = mx >= x and mx <= x + cardW and my >= y and my <= y + cardH
+        local canAfford = true
+        for res, amt in pairs(def.cost) do if (self[res] or 0) < amt then canAfford = false end end
+        UI.panel(x, y, cardW, cardH, canAfford and {.92, .58, .16, 1} or {.4, .42, .44, 1}, hovered and .97 or .9)
+        local icon = self.world.buildingIcons[def.id]
+        if icon then
+            local scale = math.min(90, cardW * .48) / math.max(icon:getWidth(), icon:getHeight())
+            love.graphics.setColor(1, 1, 1, 1)
+            love.graphics.draw(icon, x + cardW / 2, y + 66, 0, scale, scale, icon:getWidth() / 2, icon:getHeight() / 2)
+        end
+        love.graphics.setFont(f.body); love.graphics.setColor(.95, .96, .9); love.graphics.printf(def.name, x + 8, y + 122, cardW - 16, "center")
+        love.graphics.setFont(f.small); love.graphics.setColor(.68, .76, .7); love.graphics.printf(def.desc, x + 10, y + 148, cardW - 20, "center")
+        local parts = {}
+        for res, amt in pairs(def.cost) do parts[#parts + 1] = resourceLabels[res] .. " " .. amt end
+        love.graphics.setColor(canAfford and {.95, .8, .3, 1} or {1, .5, .45, 1})
+        love.graphics.printf(table.concat(parts, " · "), x + 8, y + cardH - 24, cardW - 16, "center")
+    end
 end
 
 function Game:draw()
@@ -264,15 +357,41 @@ function Game:draw()
     if self.mode == "lobby" then self.lobby:draw(); return end
     if self.mode == "settings" then self:drawSettings(); return end
     if self.mode == "meta" then self.traitTree:draw(); return end
+    if self.mode == "build_select" then self:drawBuildSelect(); return end
     love.graphics.clear(.08, .11, .12); self.camera:attach(); self.world:draw(self.player)
     local left, top, right, bottom = self.camera:visibleBounds()
     love.graphics.setBlendMode("screen", "alphamultiply"); love.graphics.setColor(.25, .34, .22, .13); love.graphics.rectangle("fill", left, top, right - left, bottom - top)
     local coreDx,coreDy=self.player.x-self.world.core.x,self.player.y-self.world.core.y
     local playerLight=coreDx*coreDx+coreDy*coreDy<400*400 and 1.45 or 2.2
     love.graphics.setBlendMode("add", "alphamultiply"); love.graphics.setColor(1, 1, 1, 1); love.graphics.draw(self.light, self.player.x, self.player.y, 0, playerLight, playerLight, 256, 256); love.graphics.draw(self.light, self.world.core.x, self.world.core.y, 0, 1.05, 1.05, 256, 256)
-    love.graphics.setBlendMode("alpha"); self.camera:detach(); self:drawUI()
+    love.graphics.setBlendMode("alpha")
+    if self.placingBuilding then
+        local def = self.placingBuilding
+        local wx, wy = self.camera:screenToWorld(love.mouse.getPosition())
+        local valid = self.world:canPlaceBuilding(wx, wy, def.footprint)
+        love.graphics.setColor(valid and .4 or 1, valid and 1 or .3, valid and .5 or .3, .28)
+        love.graphics.circle("fill", wx, wy, def.footprint / 2 + 8)
+        love.graphics.setLineWidth(2); love.graphics.setColor(valid and .5 or 1, valid and 1 or .35, valid and .6 or .35, .8)
+        love.graphics.circle("line", wx, wy, def.footprint / 2 + 8)
+        local icon = self.world.buildingIcons[def.id]
+        if icon then
+            local scale = 78 / math.max(icon:getWidth(), icon:getHeight())
+            love.graphics.setColor(1, 1, 1, valid and .9 or .5)
+            love.graphics.draw(icon, wx, wy + 12, 0, scale, scale, icon:getWidth() / 2, icon:getHeight() * .91)
+        end
+    end
+    self.camera:detach(); self:drawUI()
     if self.mode == "upgrade" then self.upgrades:drawSelection(self, self.fonts) end
     if self.mode == "results" then self:drawResults() end
+    if self.placingBuilding then
+        local w = love.graphics.getWidth()
+        local def, f = self.placingBuilding, self.fonts
+        local parts = {}
+        for res, amt in pairs(def.cost) do parts[#parts + 1] = resourceLabels[res] .. " " .. amt end
+        UI.panel(w / 2 - 220, 16, 440, 40, {.35, 1, .62, 1}, .92)
+        love.graphics.setFont(f.small); love.graphics.setColor(1, 1, 1)
+        love.graphics.printf(def.name .. " 배치 중 · 비용 " .. table.concat(parts, " · ") .. " · 클릭 배치 / 우클릭·ESC 취소", w / 2 - 220, 27, 440, "center")
+    end
 end
 
 function Game:drawSettings()
@@ -332,6 +451,7 @@ local function affordable(game, index)
     if index == 1 then return game.food >= 12 end
     if index == 2 then return game.ore >= 14 end
     if index == 3 then return game.food >= 8 and game.ore >= 8 end
+    if index == 5 then return true end
     local wall = game.world.wall
     if wall.level >= wall.maxLevel then return false end
     local cost = game.wallCosts[wall.level + 1]
@@ -414,8 +534,8 @@ function Game:drawUI()
     self:drawMinimap(16, h - 158, 205, 142); self:drawToolBelt(w - 276, h - 158, 260, 142)
     local nextWall = wall.level < wall.maxLevel and self.wallCosts[wall.level + 1] or nil
     local wallCostText = nextWall and string.format("목%d 돌%d", nextWall.wood, nextWall.stone) or "최고 단계"
-    local abilities = {{"1", "수호자", "식량 12"}, {"2", "포탑", "광석 14"}, {"3", "장비", "식8 광8"}, {"4", "방벽강화", wallCostText}}
-    local total, slotW, gap, startX, barY = 552, 132, 8, w / 2 - 276, h - 92
+    local abilities = {{"1", "수호자", "식량 12"}, {"2", "포탑", "광석 14"}, {"3", "장비", "식8 광8"}, {"4", "방벽강화", wallCostText}, {"5", "건설", "건물 배치"}}
+    local total, slotW, gap, startX, barY = 692, 132, 8, w / 2 - 346, h - 92
     for i, ability in ipairs(abilities) do
         local x, ready = startX + (i - 1) * (slotW + gap), affordable(self, i)
         UI.panel(x, barY, slotW, 70, ready and {.92, .58, .16, 1} or {.25, .3, .32, 1}, .94)

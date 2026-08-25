@@ -1,6 +1,10 @@
 local World = {}
 World.__index = World
 
+local buildingDefs = require("src.buildings")
+local buildingById = {}
+for _, def in ipairs(buildingDefs) do buildingById[def.id] = def end
+
 local function image(path)
     local value = love.graphics.newImage(path)
     value:setFilter("linear", "linear", 4)
@@ -25,11 +29,12 @@ function World.new()
     self.images = {
         industrial = image("assets/floor-industrial.png"), farm = image("assets/floor-biofarm.png"), quarry = image("assets/floor-quarry.png"),
         core = image("assets/supply-core-v2.png"), turret = image("assets/turret-v1.png"), drone = image("assets/combat-drone-v1.png"), crop = image("assets/crop-pod.png"), ore = image("assets/ore-node.png"),
-        repairStation = image("assets/upgrades/repair_station.png"),
         tree = image("assets/tree-v1.png"), stone = image("assets/stone-v1.png"), lumber = image("assets/lumber-drop-v1.png"),
         workerWalk = image("assets/worker-walk-v3.png"), workerActions = image("assets/worker-actions-v1.png"), workerRepair = image("assets/worker-repair-v1.png")
     }
-    self.nodes, self.enemies, self.defenders, self.turrets, self.structures, self.shots, self.drops = {}, {}, {}, {}, {}, {}, {}
+    self.buildingIcons = {}
+    for _, def in ipairs(buildingDefs) do self.buildingIcons[def.id] = image("assets/upgrades/" .. def.id .. ".png") end
+    self.nodes, self.enemies, self.defenders, self.turrets, self.buildings, self.shots, self.drops = {}, {}, {}, {}, {}, {}, {}
     self.particles, self.popups, self.harvestChain, self.harvestChainTime = {}, {}, 0, 0
     self.effectFont = love.graphics.newFont("assets/font-korean.ttf", 18)
     self.quarryVisual = {shadowX = 5, shadowY = 7, shadowRx = 104, shadowRy = 11, shadowAlpha = .22, frontBias = 130}
@@ -184,8 +189,8 @@ end
 function World:update(dt, game)
     self:updateEffects(dt, game)
     self:updateDrops(dt, game)
+    self:updateBuildings(dt, game)
     for _, turret in ipairs(self.turrets) do turret.flash = math.max(0, (turret.flash or 0) - dt) end
-    for _, structure in ipairs(self.structures) do structure.flash = math.max(0, (structure.flash or 0) - dt) end
     for _, node in ipairs(self.nodes) do
         if node.kind == "plot" then
             if node.state == "growing" then node.grow = math.max(0, node.grow - dt * (game.upgrades and game.upgrades:cropGrowthMultiplier() or 1)); if node.grow <= 0 then node.state = "ready" end end
@@ -249,17 +254,86 @@ end
 
 local turretSlots = {{x=-61,y=-66},{x=61,y=-66},{x=-61,y=28},{x=61,y=28}}
 
-function World:getStructure(kind)
-    for _, structure in ipairs(self.structures) do if structure.kind == kind then return structure end end
+function World:canPlaceBuilding(x, y, footprint)
+    footprint = footprint or 46
+    if x < self.core.x - 680 or x > self.core.x + 680 then return false end
+    if y < self.wall.y + 60 or y > self.height - 70 then return false end
+    local coreDx, coreDy = x - self.core.x, y - self.core.y
+    if coreDx * coreDx + coreDy * coreDy < 190 * 190 then return false end
+    for _, building in ipairs(self.buildings) do
+        local other = buildingById[building.kind]
+        local minDist = footprint / 2 + (other and other.footprint or 46) / 2 + 6
+        local dx, dy = x - building.x, y - building.y
+        if dx * dx + dy * dy < minDist * minDist then return false end
+    end
+    for _, node in ipairs(self.nodes) do
+        local nodeRadius = node.kind == "quarry" and 220 or node.kind == "tree" and 150 or 60
+        local minDist = footprint / 2 + nodeRadius
+        local dx, dy = x - node.x, y - node.y
+        if dx * dx + dy * dy < minDist * minDist then return false end
+    end
+    for _, turret in ipairs(self.turrets) do
+        local minDist = footprint / 2 + 40
+        local dx, dy = x - turret.x, y - turret.y
+        if dx * dx + dy * dy < minDist * minDist then return false end
+    end
+    return true
 end
 
-function World:addStructure(kind, level)
-    local existing = self:getStructure(kind)
-    if existing then existing.level, existing.flash = level or existing.level, .35; return existing end
-    if kind ~= "repair_station" then return nil end
-    local structure = {kind=kind, level=level or 1, x=self.core.x+220, y=self.core.y+135, flash=.45}
-    self.structures[#self.structures + 1] = structure
-    return structure
+function World:addBuilding(kind, x, y)
+    local def = buildingById[kind]
+    if not def or not self:canPlaceBuilding(x, y, def.footprint) then return nil end
+    local building = {kind = kind, x = x, y = y, timer = def.interval, flash = .4}
+    self.buildings[#self.buildings + 1] = building
+    return building
+end
+
+function World:updateBuildings(dt, game)
+    for _, b in ipairs(self.buildings) do
+        b.flash = math.max(0, (b.flash or 0) - dt)
+        local def = buildingById[b.kind]
+        b.timer = (b.timer or def.interval) - dt
+        if b.timer <= 0 then
+            b.timer = def.interval
+            if def.behavior == "produce" then
+                local amount = game.upgrades and game.upgrades:applyGain(def.resource, def.amount) or def.amount
+                game[def.resource] = game[def.resource] + amount
+                game.runStats.harvested = game.runStats.harvested + amount
+                game.runStats[def.resource] = (game.runStats[def.resource] or 0) + amount
+                game:addRunXP(math.max(1, math.floor(amount / 2)))
+                local pulseKind = def.resource == "food" and "plot" or def.resource == "wood" and "tree" or def.resource
+                local label = def.resource == "food" and "자동 식량" or def.resource == "wood" and "자동 목재" or "자동 광석"
+                self:resourcePulse(game, pulseKind, amount, label)
+                b.flash = .3
+            elseif def.behavior == "spawn" then
+                local affordable = true
+                for res, amt in pairs(def.spawnCost) do if (game[res] or 0) < amt then affordable = false end end
+                if affordable and #self.defenders < 5 + #self.buildings * 2 then
+                    for res, amt in pairs(def.spawnCost) do game[res] = game[res] - amt end
+                    self:spawnDefender(def.spawnKind, 1, game)
+                    b.flash = .35
+                end
+            elseif def.behavior == "rail" then
+                if (game.ore or 0) >= (def.spawnCost.ore or 0) then
+                    game.ore = game.ore - def.spawnCost.ore
+                    self:fireRail(b, game, def.damage + (game.upgrades and game.upgrades:level("super_magnet") or 0) * 7)
+                end
+            elseif def.behavior == "blade" then
+                self:bladeBurst(b, game, def.damage)
+            elseif def.behavior == "spore" then
+                self:sporeBurst(b, game, def.damage)
+            elseif def.behavior == "repair" then
+                if self.wall.hp < self.wall.maxHp and (game.wood or 0) >= (def.spawnCost.wood or 0) and (game.stone or 0) >= (def.spawnCost.stone or 0) then
+                    game.wood, game.stone = game.wood - def.spawnCost.wood, game.stone - def.spawnCost.stone
+                    self.wall.hp = math.min(self.wall.maxHp, self.wall.hp + def.repairAmount)
+                    self:resourcePulse(game, "plot", def.repairAmount, "자동 수리")
+                    b.flash = .45
+                end
+            elseif def.behavior == "carrier" then
+                if game.player:totalCargo() > 0 then game:depositCargo("운반 드론 자동 납품"); b.flash = .25 end
+            end
+        end
+    end
 end
 
 function World:addTurret(kind, level)
@@ -309,36 +383,33 @@ function World:spawnDefender(kind, level, game)
     if game and game.camera then game.camera.trauma = math.min(1, game.camera.trauma + .16) end
 end
 
-function World:fireRail(game, damage)
+function World:fireRail(source, game, damage)
     local target
     for _, enemy in ipairs(self.enemies) do if not target or enemy.y > target.y then target = enemy end end
     if not target then return false end
-    local source
-    for _, turret in ipairs(self.turrets) do if turret.kind == "rail" then source = turret; break end end
-    source = source or self.turrets[1]
-    local sx,sy=source and source.x or self.core.x,source and source.y-38 or self.core.y-90
-    if source then source.flash=.22 end
+    source.flash = .3
     target.hp = target.hp - damage; self:applyCombatEffects(target, damage, game)
-    self.shots[#self.shots+1]={x1=sx,y1=sy,x2=target.x,y2=target.y,life=.24,color={.25,.92,1}}
+    self.shots[#self.shots+1]={x1=source.x,y1=source.y-38,x2=target.x,y2=target.y,life=.24,color={.25,.92,1}}
     self.particles[#self.particles+1]={x=target.x,y=target.y,life=.3,maxLife=.3,size=22,color={.25,.92,1},ring=true}
     if game.camera then game.camera.trauma=math.min(1,game.camera.trauma+.24) end
     return true
 end
 
-function World:bladeBurst(game, damage)
+function World:bladeBurst(source, game, damage)
     local hits = 0
     for _, enemy in ipairs(self.enemies) do
-        if hits < 5 and enemy.y > self.wall.y - 520 then enemy.hp=enemy.hp-damage; hits=hits+1; self.shots[#self.shots+1]={x1=self.core.x-180,y1=self.wall.y-25,x2=enemy.x,y2=enemy.y,life=.18,color={1,.62,.18}} end
+        if hits < 5 and enemy.y > self.wall.y - 520 then enemy.hp=enemy.hp-damage; hits=hits+1; self.shots[#self.shots+1]={x1=source.x,y1=source.y-25,x2=enemy.x,y2=enemy.y,life=.18,color={1,.62,.18}} end
     end
-    if hits > 0 and game.camera then game.camera.trauma=math.min(1,game.camera.trauma+.13) end
+    if hits > 0 then source.flash = .3; if game.camera then game.camera.trauma=math.min(1,game.camera.trauma+.13) end end
 end
 
-function World:sporeBurst(game, damage)
+function World:sporeBurst(source, game, damage)
     local crops = 0
     for _, node in ipairs(self.nodes) do if node.kind=="plot" and (node.state=="growing" or node.state=="ready") then crops=crops+1 end end
     if crops == 0 then return end
     local hits=0
-    for _,enemy in ipairs(self.enemies) do if hits<math.min(6,crops) then enemy.hp=enemy.hp+0-damage*(1+crops*.04); hits=hits+1; self.shots[#self.shots+1]={x1=650,y1=1350,x2=enemy.x,y2=enemy.y,life=.2,color={.45,1,.35}} end end
+    for _,enemy in ipairs(self.enemies) do if hits<math.min(6,crops) then enemy.hp=enemy.hp-damage*(1+crops*.04); hits=hits+1; self.shots[#self.shots+1]={x1=source.x,y1=source.y,x2=enemy.x,y2=enemy.y,life=.2,color={.45,1,.35}} end end
+    if hits > 0 then source.flash = .3 end
 end
 
 function World:resourcePulse(game, kind, amount, label)
@@ -522,11 +593,15 @@ function World:draw(player)
             if turret.flash and turret.flash > 0 then love.graphics.setColor(turret.kind=="rail" and {.25,.92,1,turret.flash*4} or {1,.7,.2,turret.flash*4}); love.graphics.circle("fill",turret.x-30,turret.y-22,8+turret.flash*45) end
         end
     end}
-    for _, value in ipairs(self.structures) do local structure = value; queue[#queue + 1] = {y = structure.y, draw = function()
-        local flash = structure.flash or 0
-        shadow(structure.x, structure.y + 10, 72, 22, .42)
-        if flash > 0 then love.graphics.setColor(.35, 1, .62, flash * 1.8); love.graphics.circle("fill", structure.x, structure.y - 45, 60 + flash * 55) end
-        love.graphics.setColor(1, 1, 1, 1); grounded(self.images.repairStation, structure.x, structure.y + 12, .13 * (1 + flash * .08))
+    for _, value in ipairs(self.buildings) do local building = value; queue[#queue + 1] = {y = building.y, draw = function()
+        local flash, icon = building.flash or 0, self.buildingIcons[building.kind]
+        shadow(building.x, building.y + 10, 62, 19, .42)
+        if flash > 0 then love.graphics.setColor(.35, 1, .62, flash * 1.8); love.graphics.circle("fill", building.x, building.y - 40, 52 + flash * 48) end
+        if icon then
+            love.graphics.setColor(1, 1, 1, 1)
+            local scale = 78 / math.max(icon:getWidth(), icon:getHeight())
+            grounded(icon, building.x, building.y + 12, scale * (1 + flash * .08))
+        end
     end} end
     queue[#queue + 1] = {y = self.wall.y, draw = function() self:drawWall(player) end}
     for _, n in ipairs(self.nodes) do
