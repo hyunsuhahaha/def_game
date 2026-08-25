@@ -99,9 +99,10 @@ function Game:startRush()
     self.mode="playing"
 end
 
-function Game:startClearcut()
+function Game:startClearcut(characterId)
     self:resetRun()
     self.clearcut=ClearcutMode.new()
+    self.clearcut.job = characterId
     self.clearcut:setup(self)
     self.mode="playing"
 end
@@ -196,6 +197,7 @@ end
 function Game:update(dt)
     if self.mode == "lobby" then self.lobby:update(dt); return end
     if self.mode == "settings" then self.lobby:update(dt); return end
+    if self.mode == "clearcut_select" then return end
     if self.mode == "test_options" then self.testResetTime=math.max(0,(self.testResetTime or 0)-dt); if self.testResetTime<=0 then self.testResetArmed=false end; return end
     if self.mode == "meta" then self.traitTree:update(dt); return end
     if self.mode == "results" or self.mode == "rush_results" or self.mode == "clearcut_results" then return end
@@ -233,7 +235,12 @@ function Game:keypressed(key)
         if key == "escape" then love.event.quit(); return end
         if key == "t" then self.mode = "meta"; return end
         local action=self.lobby:keypressed(key)
-        if action=="start" then self:startRun() elseif action=="rush" then self:startRush() elseif action=="clearcut" then self:startClearcut() end
+        if action=="start" then self:startRun() elseif action=="rush" then self:startRush() elseif action=="clearcut" then self.mode="clearcut_select" end
+        return
+    end
+    if self.mode == "clearcut_select" then
+        if key=="1" or key=="2" or key=="3" then self:chooseClearcutCharacter(tonumber(key))
+        elseif key=="escape" then self.mode="lobby" end
         return
     end
     if self.mode == "settings" then if key == "escape" then self.mode = "lobby" end; return end
@@ -311,9 +318,13 @@ function Game:mousepressed(x, y, button)
         local action = self.lobby:mousepressed(x, y, button)
         if action == "start" then self:startRun()
         elseif action == "rush" then self:startRush()
-        elseif action == "clearcut" then self:startClearcut()
+        elseif action == "clearcut" then self.mode = "clearcut_select"
         elseif action == "meta" then self.mode = "meta"
         elseif action == "settings" then self.mode = "settings" end
+        return
+    end
+    if self.mode == "clearcut_select" then
+        if button==1 then local index=self:clearcutCharAt(x,y); if index then self:chooseClearcutCharacter(index) end end
         return
     end
     if self.mode == "settings" then
@@ -661,9 +672,44 @@ function Game:drawBuildSelect()
     end
 end
 
+function Game:drawClearcutSelect()
+    local w, h, f = love.graphics.getWidth(), love.graphics.getHeight(), self.fonts
+    love.graphics.setColor(.015, .035, .025, .92); love.graphics.rectangle("fill", 0, 0, w, h)
+    love.graphics.setFont(f.title); love.graphics.setColor(1, .82, .3); love.graphics.printf("캐릭터 선택 — 숲 전멸 실험실", 0, 66, w, "center")
+    love.graphics.setFont(f.small); love.graphics.setColor(.72, .88, .76); love.graphics.printf("선택한 캐릭터의 기본 공격 방식이 이번 런 내내 유지됩니다", 0, 112, w, "center")
+    local characters = ClearcutMode.characters
+    local gap, cardW, cardH = 24, math.min(320, (w - 96) / 3), 400
+    local startX, cardY = w / 2 - (cardW * 3 + gap * 2) / 2, 165
+    self.clearcutCharBoxes = {}
+    for i, c in ipairs(characters) do
+        local x, y = startX + (i - 1) * (cardW + gap), cardY
+        self.clearcutCharBoxes[i] = {x = x, y = y, w = cardW, h = cardH}
+        local hovered = self:clearcutCharAt(love.mouse.getPosition()) == i
+        UI.panel(x, y, cardW, cardH, {c.color[1], c.color[2], c.color[3], 1}, hovered and .99 or .94)
+        love.graphics.setColor(c.color[1], c.color[2], c.color[3], .18); love.graphics.circle("fill", x + cardW / 2, y + 105, 62)
+        love.graphics.setColor(c.color); love.graphics.setLineWidth(hovered and 5 or 3); love.graphics.circle("line", x + cardW / 2, y + 105, 38)
+        love.graphics.setFont(f.big); love.graphics.setColor(1, 1, 1); love.graphics.printf(tostring(i), x, y + 85, cardW, "center")
+        love.graphics.setFont(f.heading); love.graphics.printf(c.name, x + 16, y + 190, cardW - 32, "center")
+        love.graphics.setFont(f.body); love.graphics.setColor(.72, .82, .77); love.graphics.printf(c.tagline, x + 24, y + 232, cardW - 48, "center")
+        love.graphics.setFont(f.small); love.graphics.setColor(.58, .68, .64); love.graphics.printf(c.detail, x + 24, y + 300, cardW - 48, "center")
+    end
+    love.graphics.setFont(f.small); love.graphics.setColor(.7, .78, .72); love.graphics.printf("숫자키 1/2/3 또는 클릭으로 선택  ·  ESC로 취소", 0, cardY + cardH + 24, w, "center")
+end
+
+function Game:clearcutCharAt(x, y)
+    for i, box in ipairs(self.clearcutCharBoxes or {}) do if x >= box.x and x <= box.x + box.w and y >= box.y and y <= box.y + box.h then return i end end
+end
+
+function Game:chooseClearcutCharacter(index)
+    local c = ClearcutMode.characters[index]
+    if not c then return end
+    self:startClearcut(c.id)
+end
+
 function Game:draw()
     if self.mode=="test_options" then self:drawTestOptions(); return end
     if self.mode == "lobby" then self.lobby:draw(); return end
+    if self.mode == "clearcut_select" then self:drawClearcutSelect(); return end
     if self.mode == "settings" then self:drawSettings(); return end
     if self.mode == "meta" then self.traitTree:draw(); return end
     if self.mode == "build_select" then self:drawBuildSelect(); return end

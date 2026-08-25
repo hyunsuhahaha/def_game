@@ -1,6 +1,6 @@
 local Game
 local game
-local captureFrames = os.getenv("LAST_HAUL_CAPTURE_TURRET_FIRE") and 3 or (os.getenv("LAST_HAUL_CAPTURE_DRILL") and 2 or ((os.getenv("LAST_HAUL_CAPTURE_RUSH") or os.getenv("LAST_HAUL_CAPTURE_LOBBY") or os.getenv("LAST_HAUL_CAPTURE_CLEARCUT") or os.getenv("LAST_HAUL_CAPTURE_CLEARCUT_UPGRADE") or os.getenv("LAST_HAUL_CAPTURE_CLEARCUT_RESULTS") or os.getenv("LAST_HAUL_CAPTURE_CLEARCUT_THREATS") or os.getenv("LAST_HAUL_CAPTURE_CLEARCUT_BUILDS")) and 6 or (os.getenv("LAST_HAUL_CAPTURE_HARVEST") and 10 or ((os.getenv("LAST_HAUL_CAPTURE") or os.getenv("LAST_HAUL_CAPTURE_GAME") or os.getenv("LAST_HAUL_CAPTURE_FARM") or os.getenv("LAST_HAUL_CAPTURE_MINE") or os.getenv("LAST_HAUL_CAPTURE_WALL") or os.getenv("LAST_HAUL_CAPTURE_REPAIR") or os.getenv("LAST_HAUL_CAPTURE_META") or os.getenv("LAST_HAUL_CAPTURE_RESULTS") or os.getenv("LAST_HAUL_CAPTURE_UPGRADE") or os.getenv("LAST_HAUL_CAPTURE_UNITS") or os.getenv("LAST_HAUL_CAPTURE_TEST_OPTIONS") or os.getenv("LAST_HAUL_CAPTURE_TURRET_PROMPT") or os.getenv("LAST_HAUL_CAPTURE_TURRET_PLACEMENT") or os.getenv("LAST_HAUL_CAPTURE_TURRET_UPGRADE")) and 30 or nil))))
+local captureFrames = os.getenv("LAST_HAUL_CAPTURE_TURRET_FIRE") and 3 or (os.getenv("LAST_HAUL_CAPTURE_DRILL") and 2 or ((os.getenv("LAST_HAUL_CAPTURE_RUSH") or os.getenv("LAST_HAUL_CAPTURE_LOBBY") or os.getenv("LAST_HAUL_CAPTURE_CLEARCUT") or os.getenv("LAST_HAUL_CAPTURE_CLEARCUT_UPGRADE") or os.getenv("LAST_HAUL_CAPTURE_CLEARCUT_RESULTS") or os.getenv("LAST_HAUL_CAPTURE_CLEARCUT_THREATS") or os.getenv("LAST_HAUL_CAPTURE_CLEARCUT_BUILDS") or os.getenv("LAST_HAUL_CAPTURE_CLEARCUT_CHAR_SELECT") or os.getenv("LAST_HAUL_CAPTURE_CLEARCUT_FIREJOB")) and 6 or (os.getenv("LAST_HAUL_CAPTURE_HARVEST") and 10 or ((os.getenv("LAST_HAUL_CAPTURE") or os.getenv("LAST_HAUL_CAPTURE_GAME") or os.getenv("LAST_HAUL_CAPTURE_FARM") or os.getenv("LAST_HAUL_CAPTURE_MINE") or os.getenv("LAST_HAUL_CAPTURE_WALL") or os.getenv("LAST_HAUL_CAPTURE_REPAIR") or os.getenv("LAST_HAUL_CAPTURE_META") or os.getenv("LAST_HAUL_CAPTURE_RESULTS") or os.getenv("LAST_HAUL_CAPTURE_UPGRADE") or os.getenv("LAST_HAUL_CAPTURE_UNITS") or os.getenv("LAST_HAUL_CAPTURE_TEST_OPTIONS") or os.getenv("LAST_HAUL_CAPTURE_TURRET_PROMPT") or os.getenv("LAST_HAUL_CAPTURE_TURRET_PLACEMENT") or os.getenv("LAST_HAUL_CAPTURE_TURRET_UPGRADE")) and 30 or nil))))
 
 function love.load()
     love.graphics.setDefaultFilter("linear", "linear", 4)
@@ -111,6 +111,12 @@ function love.load()
             if second then second.rushHp=1; game.clearcut:hitTree(second,game); game.world:spawnFallImpact(second,game) end
         end
     end
+    if os.getenv("LAST_HAUL_CAPTURE_CLEARCUT_FIREJOB") then
+        game:startClearcut("fire")
+        game.clearcut.levels.molotov = 2
+        love.mouse.setPosition(love.graphics.getWidth() / 2 + 220, love.graphics.getHeight() / 2 - 60)
+        game.clearcut:updateHeldAxe(0, game, true)
+    end
     if os.getenv("LAST_HAUL_CAPTURE_CLEARCUT_BUILDS") then
         game:startClearcut()
         local c = game.clearcut
@@ -126,6 +132,10 @@ function love.load()
         c:updateFire(0.02, game)
         c:updateToxicRain(10, game)
         c:regrowPulse(game)
+        c.job = "fire"; c:updateHeldAxe(0.02, game, true)
+        c:updateMolotovs(2, game)
+        c.job = "toxic"; c:updateHeldAxe(0.02, game, true)
+        c.job = "physical"
         print("BUILD_SMOKE_TEST_OK")
         game.mode = "playing"
     end
@@ -139,7 +149,7 @@ function love.load()
         game.camera.x,game.camera.y = game.player.x,game.player.y
     end
     if os.getenv("LAST_HAUL_CAPTURE_CLEARCUT_UPGRADE") then
-        game:startClearcut(); game.clearcut.level = 5
+        game:startClearcut(os.getenv("LAST_HAUL_CLEARCUT_JOB")); game.clearcut.level = 5
         game.clearcut:rollChoices()
         game.mode = "clearcut_upgrade"
     end
@@ -149,6 +159,9 @@ function love.load()
         game.clearcut.maxMulti, game.clearcut.maxChain, game.clearcut.level, game.clearcut.remainingTrees = 9, 14, 12, 0
         game.clearcut.regrowPulses, game.clearcut.treesRevived, game.clearcut.rootedCount, game.clearcut.beeSwarmsTriggered = 6, 41, 3, 4
         game.clearcut:finish(game)
+    end
+    if os.getenv("LAST_HAUL_CAPTURE_CLEARCUT_CHAR_SELECT") then
+        game.mode = "clearcut_select"
     end
     if os.getenv("LAST_HAUL_CAPTURE_TURRET_PLACEMENT") then
         game.progression.data.levels.turret_slots = tonumber(os.getenv("LAST_HAUL_TURRET_SLOT_LEVEL")) or 0

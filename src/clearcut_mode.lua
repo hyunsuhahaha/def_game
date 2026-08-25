@@ -5,21 +5,31 @@ ClearcutMode.__index = ClearcutMode
 
 local trackLabels = {destroy = "파괴력", spread = "확산력", suppress = "억제력"}
 
+-- 시그니처 업그레이드를 처음 고르면 1차 전직이 확정되고 기본 공격 자체가 바뀐다.
+local jobFor = {berserker = "physical", molotov = "fire", toxic_rain = "toxic"}
+local jobNames = {physical = "광전사", fire = "화염 투척병", toxic = "맹독술사"}
+local jobDesc = {
+    physical = "도끼 손맛 그대로, 멈추지 않고 벨수록 미쳐 날뜁니다.",
+    fire = "기본 공격이 도끼질 대신 마우스 위치로 화염병을 던지는 것으로 바뀝니다.",
+    toxic = "기본 공격이 도끼질 대신 마우스 위치에 맹독을 터뜨리는 것으로 바뀝니다."
+}
+
+-- job이 있는 카드는 해당 전직에서만 뜨는 전직 전용 카드다. job이 없으면 모든 전직에 공용으로 뜬다.
 local definitions = {
-    -- 파괴력 (destroy) — 얼마나 빨리 없애느냐
-    {id="wide_blade", track="destroy", name="넓은 날", desc="도끼 범위와 한 번에 타격하는 나무 수가 늘어납니다.", max=3, color={1,.62,.18}},
-    {id="berserker", track="destroy", name="광전사", desc="쉬지 않고 벨수록 공격 속도가 빨라집니다 (멈추면 초기화).", max=3, color={1,.42,.22}},
-    {id="shockwave", track="destroy", name="충격파", desc="나무를 쓰러뜨리면 주변 나무에도 충격파 피해를 줍니다.", max=3, color={1,.78,.2}},
+    -- 파괴력 (destroy) — 얼마나 빨리 없애느냐 [광전사 전용 + 공용]
+    {id="wide_blade", track="destroy", name="넓은 날", desc="도끼 범위와 한 번에 타격하는 나무 수가 늘어납니다.", max=3, color={1,.62,.18}, job="physical"},
+    {id="berserker", track="destroy", name="광전사", desc="쉬지 않고 벨수록 공격 속도가 빨라집니다 (멈추면 초기화).", max=3, color={1,.42,.22}, job="physical"},
+    {id="shockwave", track="destroy", name="충격파", desc="나무를 쓰러뜨리면 주변 나무에도 충격파 피해를 줍니다.", max=3, color={1,.78,.2}, job="physical"},
     {id="domino", track="destroy", name="도미노", desc="쓰러지는 나무가 진행 방향의 다른 나무를 함께 쓰러뜨립니다.", max=3, color={.95,.55,.3}},
-    -- 확산력 (spread) — 한 번의 행동으로 얼마나 넓게 없애느냐
-    {id="molotov", track="spread", name="화염병", desc="주기적으로 화염병을 던져 나무에 불을 붙입니다.", max=3, color={1,.35,.12}},
-    {id="dry_forest", track="spread", name="마른 숲", desc="불이 주변 나무로 더 빠르고 넓게 번집니다.", max=3, color={1,.5,.15}},
-    {id="oil_drum", track="spread", name="기름통", desc="나무가 다 타버리면 확률적으로 주변이 한꺼번에 폭발합니다.", max=3, color={1,.62,.1}},
-    {id="embers", track="spread", name="불씨", desc="다 타버린 나무에서 불씨가 튀어 멀리 있는 나무에도 옮겨붙습니다.", max=3, color={1,.75,.25}},
-    -- 억제력 (suppress) — 자연이 얼마나 다시 못 자라게 하느냐
+    -- 확산력 (spread) — 한 번의 행동으로 얼마나 넓게 없애느냐 [화염 투척병 전용]
+    {id="molotov", track="spread", name="화염병", desc="화염병 공격의 사거리와 폭발 범위가 늘어나고, 주기적으로 저절로 하나 더 던집니다.", max=3, color={1,.35,.12}, job="fire"},
+    {id="dry_forest", track="spread", name="마른 숲", desc="불이 주변 나무로 더 빠르고 넓게 번집니다.", max=3, color={1,.5,.15}, job="fire"},
+    {id="oil_drum", track="spread", name="기름통", desc="나무가 다 타버리면 확률적으로 주변이 한꺼번에 폭발합니다.", max=3, color={1,.62,.1}, job="fire"},
+    {id="embers", track="spread", name="불씨", desc="다 타버린 나무에서 불씨가 튀어 멀리 있는 나무에도 옮겨붙습니다.", max=3, color={1,.75,.25}, job="fire"},
+    -- 억제력 (suppress) — 자연이 얼마나 다시 못 자라게 하느냐 [맹독술사 전용 + 공용]
     {id="herbicide", track="suppress", name="제초제", desc="벤 자리는 숲이 다시 자라지 않는 죽은 땅이 될 확률이 있습니다.", max=3, color={.62,.4,.85}},
     {id="root_cutting", track="suppress", name="뿌리 절단", desc="나무를 벨 때마다 숲의 재생력이 약해집니다.", max=3, color={.5,.62,.9}},
-    {id="toxic_rain", track="suppress", name="독성 비", desc="주기적으로 주변 나무에게 지속 피해를 줍니다.", max=3, color={.55,.85,.45}},
+    {id="toxic_rain", track="suppress", name="독성 비", desc="맹독 공격의 범위와 피해가 늘어나고, 평소에도 주변에 약하게 지속 피해를 줍니다.", max=3, color={.55,.85,.45}, job="toxic"},
     {id="forced_growth", track="suppress", name="강제 성장", desc="숲의 재생 속도가 크게 빨라지지만, 목재 경험치 획득량도 크게 늘어납니다.", max=3, color={.85,.7,.25}}
 }
 
@@ -44,7 +54,8 @@ function ClearcutMode.new()
         regrowTimer=0, regrowGrace=45, regrowInterval=7, regrowPulses=0, treesRevived=0, regrowFlash=0,
         rootHazards={}, rootedTimer=0, rootedCount=0,
         bees={}, beeSlow=false, beeSwarmsTriggered=0, beehiveTotal=0,
-        streak=0, lastHitAt=-10, molotovTimer=0, wildfireTimer=0, toxicTimer=0, evolutions={}, molotovs={}
+        streak=0, lastHitAt=-10, molotovTimer=0, wildfireTimer=0, toxicTimer=0, evolutions={}, molotovs={},
+        job=nil, attackCooldown=0
     }, ClearcutMode)
 end
 
@@ -234,15 +245,26 @@ function ClearcutMode:throwMolotov(game)
     }
 end
 
+function ClearcutMode:hurlMolotovAt(tx, ty, game)
+    local dist = math.sqrt((tx-game.player.x)^2 + (ty-game.player.y)^2)
+    self.molotovs[#self.molotovs+1] = {
+        x0=game.player.x, y0=game.player.y-40, x1=tx, y1=ty,
+        t=0, dur=math.max(.2, dist/1100), manual=true, radius=90 + self:levelOf("molotov") * 20
+    }
+end
+
 function ClearcutMode:updateMolotovs(dt, game)
     for i = #self.molotovs, 1, -1 do
         local m = self.molotovs[i]
         m.t = m.t + dt
         if m.t >= m.dur then
-            if m.target.active and not m.target.burning then
+            if m.manual then
+                self:igniteNear({x=m.x1, y=m.y1}, game, m.radius, 99)
+                game.world:igniteFx(m.x1, m.y1, true)
+            elseif m.target.active and not m.target.burning then
                 m.target.burning, m.target.burnTimer, m.target.igniting = true, 0, nil
                 game.world:igniteFx(m.target.x, m.target.y, true)
-            else
+            elseif m.target then
                 m.target.igniting = nil
             end
             table.remove(self.molotovs, i)
@@ -375,6 +397,12 @@ function ClearcutMode:berserkerSpeedMult()
 end
 
 function ClearcutMode:updateHeldAxe(dt, game, heldOverride)
+    if self.job == "fire" then return self:updateFireAttack(dt, game, heldOverride) end
+    if self.job == "toxic" then return self:updateToxicAttack(dt, game, heldOverride) end
+    return self:updatePhysicalAttack(dt, game, heldOverride)
+end
+
+function ClearcutMode:updatePhysicalAttack(dt, game, heldOverride)
     local held = heldOverride
     if held == nil then held = love.mouse.isDown(1) end
     game.player.axeHolding = held
@@ -389,6 +417,57 @@ function ClearcutMode:updateHeldAxe(dt, game, heldOverride)
     self:hitTree(target, game)
     local speed = (game.tools.axe.speed or 1) * game.player.gather * (self.beeSlow and .6 or 1) * self:berserkerSpeedMult()
     self.axeCooldown = .82 / speed
+    return true
+end
+
+function ClearcutMode:aimPoint(game, maxRange)
+    game.player.axeHolding = false
+    local tx, ty = game.camera:screenToWorld(love.mouse.getPosition())
+    local dx, dy = tx - game.player.x, ty - game.player.y
+    local dist = math.sqrt(dx*dx + dy*dy)
+    if dist > maxRange and dist > 0 then
+        tx, ty = game.player.x + dx / dist * maxRange, game.player.y + dy / dist * maxRange
+    end
+    return tx, ty
+end
+
+function ClearcutMode:updateFireAttack(dt, game, heldOverride)
+    local held = heldOverride
+    if held == nil then held = love.mouse.isDown(1) end
+    self.attackCooldown = math.max(0, self.attackCooldown - dt)
+    local maxRange = 320 + self:levelOf("molotov") * 40
+    local tx, ty = self:aimPoint(game, maxRange)
+    self.aimX, self.aimY, self.aimRadius = tx, ty, 90 + self:levelOf("molotov") * 20
+    if not held or self.attackCooldown > 0 then return false end
+    self:hurlMolotovAt(tx, ty, game)
+    local speed = (game.tools.axe.speed or 1) * game.player.gather
+    self.attackCooldown = 1.05 / speed
+    return true
+end
+
+function ClearcutMode:updateToxicAttack(dt, game, heldOverride)
+    local held = heldOverride
+    if held == nil then held = love.mouse.isDown(1) end
+    self.attackCooldown = math.max(0, self.attackCooldown - dt)
+    local maxRange = 260 + self:levelOf("toxic_rain") * 40
+    local tx, ty = self:aimPoint(game, maxRange)
+    self.aimX, self.aimY, self.aimRadius = tx, ty, 90 + self:levelOf("toxic_rain") * 25
+    if not held or self.attackCooldown > 0 then return false end
+    local dmg = 2 + self:levelOf("toxic_rain")
+    for _, node in ipairs(game.world.nodes) do
+        if node.rushTree and node.active then
+            local dx, dy = node.x - tx, node.y - ty
+            if dx*dx + dy*dy <= self.aimRadius * self.aimRadius then
+                node.rushHp = (node.rushHp or node.rushMaxHp) - dmg
+                game.world:impactNode(node, game, true)
+                if node.rushHp <= 0 then self:fellTree(node, game) end
+            end
+        end
+    end
+    game.world:toxicPulseFx(tx, ty, self.aimRadius)
+    if game.camera then game.camera.trauma = math.min(1, game.camera.trauma + .18) end
+    local speed = (game.tools.axe.speed or 1) * game.player.gather
+    self.attackCooldown = .85 / speed
     return true
 end
 
@@ -417,7 +496,10 @@ end
 
 function ClearcutMode:rollChoices()
     local pool = {}
-    for _, def in ipairs(definitions) do if self:levelOf(def.id) < def.max then pool[#pool+1]=def end end
+    for _, def in ipairs(definitions) do
+        local jobOk = not def.job or not self.job or def.job == self.job
+        if jobOk and self:levelOf(def.id) < def.max then pool[#pool+1]=def end
+    end
     for i=#pool,2,-1 do local j=love.math.random(i); pool[i],pool[j]=pool[j],pool[i] end
     self.choices={}
     for i=1,math.min(3,#pool) do self.choices[i]=pool[i] end
@@ -443,7 +525,13 @@ function ClearcutMode:choose(index, game)
     if not def then return false end
     self.levels[def.id]=self:levelOf(def.id)+1
     self.pending=math.max(0,self.pending-1)
-    game:setNotice(def.name.." Lv."..self:levelOf(def.id),"food")
+    if not self.job and jobFor[def.id] and self.levels[def.id]==1 then
+        self.job = jobFor[def.id]
+        self.attackCooldown = 0
+        game:setNotice("1차 전직 — " .. jobNames[self.job] .. "! " .. jobDesc[self.job], "ore")
+    else
+        game:setNotice(def.name.." Lv."..self:levelOf(def.id),"food")
+    end
     self:checkEvolutions(game)
     if self.pending>0 then self:rollChoices() else game.mode="playing" end
     return true
@@ -556,7 +644,17 @@ local function drawBeehive(x, y, t)
 end
 
 function ClearcutMode:drawWorldOverlay(game)
+    love.graphics.setLineStyle("rough")
     local t = love.timer.getTime()
+    if (self.job == "fire" or self.job == "toxic") and self.aimX then
+        local ringColor = self.job == "fire" and {1, .5, .15} or {.55, .85, .45}
+        love.graphics.setColor(ringColor[1], ringColor[2], ringColor[3], .16); love.graphics.circle("fill", self.aimX, self.aimY, self.aimRadius)
+        love.graphics.setLineWidth(2); love.graphics.setColor(ringColor[1], ringColor[2], ringColor[3], .85)
+        love.graphics.circle("line", self.aimX, self.aimY, self.aimRadius)
+        love.graphics.setLineWidth(1.5)
+        love.graphics.line(self.aimX - 10, self.aimY, self.aimX - 4, self.aimY); love.graphics.line(self.aimX + 4, self.aimY, self.aimX + 10, self.aimY)
+        love.graphics.line(self.aimX, self.aimY - 10, self.aimX, self.aimY - 4); love.graphics.line(self.aimX, self.aimY + 4, self.aimX, self.aimY + 10)
+    end
     for _, node in ipairs(game.world.nodes) do
         if node.rushTree and node.active and node.beehive then
             drawBeehive(node.x, node.y - 150, t)
@@ -638,13 +736,14 @@ function ClearcutMode:drawWorldOverlay(game)
         love.graphics.setColor(1, .85, .35, .85 * fl); love.graphics.circle("fill", 0, -13.6, 1.4 * fl)
         love.graphics.pop()
     end
+    love.graphics.setLineStyle("smooth")
 end
 
 function ClearcutMode:drawHUD(game,fonts)
     local w,h=love.graphics.getDimensions()
     UI.panel(16,16,360,168,{.35,1,.52,1},.94)
     love.graphics.setFont(fonts.big); love.graphics.setColor(1,1,1); love.graphics.print(formatTime(self.elapsed),32,27)
-    love.graphics.setFont(fonts.body); love.graphics.setColor(.95,.7,.25); love.graphics.print("숲 전멸 실험실",155,35)
+    love.graphics.setFont(fonts.body); love.graphics.setColor(.95,.7,.25); love.graphics.print("숲 전멸 실험실  ·  " .. (jobNames[self.job] or "벌목꾼"),155,35)
     love.graphics.setFont(fonts.small); love.graphics.setColor(.72,.9,.76); love.graphics.print(string.format("목재 %d   쓰러뜨린 나무 %d / %d",self.totalWood,self.treesFelled,self.initialTrees),32,76)
     love.graphics.print(string.format("동시 타격 %d   연쇄 %d   Lv.%d",self.maxMulti,self.maxChain,self.level),32,101)
     local statusColor = (self.rootedTimer > 0 or self.beeSlow) and {1,.6,.35} or {.6,.72,.66}
@@ -715,5 +814,11 @@ function ClearcutMode:drawResults(game,fonts)
     for i,row in ipairs(rows) do local y=h/2-140+(i-1)*38; love.graphics.setColor(i%2==0 and {.07,.12,.1,.9} or {.045,.085,.07,.9}); love.graphics.rectangle("fill",w/2-270,y,540,32,4,4); love.graphics.setColor(.72,.82,.76); love.graphics.print(row[1],w/2-250,y+7); love.graphics.setColor(1,.75,.25); love.graphics.printf(tostring(row[2]),w/2+40,y+7,270,"center") end
     UI.button(w/2-250,h/2+236,240,48,"로비로",true,fonts.body); UI.button(w/2+10,h/2+236,240,48,"다시 실험",true,fonts.body)
 end
+
+ClearcutMode.characters = {
+    {id="physical", name="광전사", color={1,.42,.22}, tagline="도끼 하나로 숲을 쓸어버리는 근접 벌목광.", detail="쉬지 않고 벨수록 공격 속도가 미친 듯이 빨라집니다. 사거리 안에서 자동으로 가장 가까운 나무를 벱니다."},
+    {id="fire", name="화염 투척병", color={1,.35,.12}, tagline="마우스 위치에 화염병을 던져 원거리에서 숲을 불태웁니다.", detail="근접할 필요 없이 조준만으로 광역 발화. 붙은 불은 알아서 번지고 퍼집니다."},
+    {id="toxic", name="맹독술사", color={.55,.85,.45}, tagline="마우스 위치에 맹독을 터뜨려 나무와 재생력을 동시에 억누릅니다.", detail="화력은 약하지만 숲이 다시 자라나는 능력 자체를 짓누릅니다."}
+}
 
 return ClearcutMode

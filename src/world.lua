@@ -1259,6 +1259,7 @@ function World:drawMiningDrill(building)
 end
 
 function World:draw(player)
+    love.graphics.setLineStyle("rough")
     if self.theme == "forest" then
         self:drawForestGround()
     else
@@ -1528,6 +1529,7 @@ function World:draw(player)
         if popup.chain >= 2 then love.graphics.setColor(1, .78, .2, alpha); love.graphics.printf("연속 채집 x" .. popup.chain, popup.x - 100, popup.y + 22, 200, "center") end
     end
     love.graphics.setLineWidth(4); for _, s in ipairs(self.shots) do local c=s.color or {.2,.85,1}; love.graphics.setColor(c[1],c[2],c[3],math.min(1,s.life/.12)); love.graphics.line(s.x1,s.y1,s.x2,s.y2) end
+    love.graphics.setLineStyle("smooth")
 end
 
 return World
