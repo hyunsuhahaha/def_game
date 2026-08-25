@@ -685,10 +685,14 @@ function Game:drawClearcutSelect()
         local x, y = startX + (i - 1) * (cardW + gap), cardY
         self.clearcutCharBoxes[i] = {x = x, y = y, w = cardW, h = cardH}
         local hovered = self:clearcutCharAt(love.mouse.getPosition()) == i
+        love.graphics.setLineStyle("rough")
         UI.panel(x, y, cardW, cardH, {c.color[1], c.color[2], c.color[3], 1}, hovered and .99 or .94)
         love.graphics.setColor(c.color[1], c.color[2], c.color[3], .18); love.graphics.circle("fill", x + cardW / 2, y + 105, 62)
         love.graphics.setColor(c.color); love.graphics.setLineWidth(hovered and 5 or 3); love.graphics.circle("line", x + cardW / 2, y + 105, 38)
-        love.graphics.setFont(f.big); love.graphics.setColor(1, 1, 1); love.graphics.printf(tostring(i), x, y + 85, cardW, "center")
+        local icon = ClearcutMode.icons[c.icon]
+        if icon then ClearcutMode.drawPixelGrid(icon.rows, icon.palette, x + cardW / 2, y + 105, 6.4) end
+        love.graphics.setLineStyle("smooth")
+        love.graphics.setFont(f.small); love.graphics.setColor(1, 1, 1, .85); love.graphics.printf(tostring(i), x + cardW - 40, y + 20, 24, "center")
         love.graphics.setFont(f.heading); love.graphics.printf(c.name, x + 16, y + 190, cardW - 32, "center")
         love.graphics.setFont(f.body); love.graphics.setColor(.72, .82, .77); love.graphics.printf(c.tagline, x + 24, y + 232, cardW - 48, "center")
         love.graphics.setFont(f.small); love.graphics.setColor(.58, .68, .64); love.graphics.printf(c.detail, x + 24, y + 300, cardW - 48, "center")

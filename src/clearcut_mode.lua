@@ -7,29 +7,29 @@ local trackLabels = {destroy = "파괴력", spread = "확산력", suppress = "�
 
 -- 시그니처 업그레이드를 처음 고르면 1차 전직이 확정되고 기본 공격 자체가 바뀐다.
 local jobFor = {berserker = "physical", molotov = "fire", toxic_rain = "toxic"}
-local jobNames = {physical = "광전사", fire = "화염 투척병", toxic = "맹독술사"}
+local jobNames = {physical = "생계형 나무꾼", fire = "흡연자", toxic = "비건 단체 회장"}
 local jobDesc = {
-    physical = "도끼 손맛 그대로, 멈추지 않고 벨수록 미쳐 날뜁니다.",
-    fire = "기본 공격이 도끼질 대신 마우스 위치로 화염병을 던지는 것으로 바뀝니다.",
-    toxic = "기본 공격이 도끼질 대신 마우스 위치에 맹독을 터뜨리는 것으로 바뀝니다."
+    physical = "그냥 오늘 할당량을 채우러 왔을 뿐이다. 대출은 갚아야 하니까.",
+    fire = "기본 공격이 도끼질 대신 마우스 위치에 담배꽁초를 튕기는 것으로 바뀝니다. 숲이 마른 건 내 탓이 아니다.",
+    toxic = "기본 공격이 도끼질 대신 마우스 위치에 '친환경' 제초제를 살포하는 것으로 바뀝니다. 숲을 지키기 위해 숲을 없앤다."
 }
 
 -- job이 있는 카드는 해당 전직에서만 뜨는 전직 전용 카드다. job이 없으면 모든 전직에 공용으로 뜬다.
 local definitions = {
-    -- 파괴력 (destroy) — 얼마나 빨리 없애느냐 [광전사 전용 + 공용]
-    {id="wide_blade", track="destroy", name="넓은 날", desc="도끼 범위와 한 번에 타격하는 나무 수가 늘어납니다.", max=3, color={1,.62,.18}, job="physical"},
-    {id="berserker", track="destroy", name="광전사", desc="쉬지 않고 벨수록 공격 속도가 빨라집니다 (멈추면 초기화).", max=3, color={1,.42,.22}, job="physical"},
-    {id="shockwave", track="destroy", name="충격파", desc="나무를 쓰러뜨리면 주변 나무에도 충격파 피해를 줍니다.", max=3, color={1,.78,.2}, job="physical"},
+    -- 파괴력 (destroy) — 얼마나 빨리 없애느냐 [생계형 나무꾼 전용 + 공용]
+    {id="wide_blade", track="destroy", name="야근 수당", desc="범위와 한 번에 타격하는 나무 수가 늘어납니다. 잔업은 곧 돈이다.", max=3, color={1,.62,.18}, job="physical"},
+    {id="berserker", track="destroy", name="이번 달 목표 초과", desc="쉬지 않고 벨수록 공격 속도가 빨라집니다 (멈추면 초기화).", max=3, color={1,.42,.22}, job="physical"},
+    {id="shockwave", track="destroy", name="산재 위험수당", desc="나무를 쓰러뜨리면 주변 나무에도 충격파 피해를 줍니다.", max=3, color={1,.78,.2}, job="physical"},
     {id="domino", track="destroy", name="도미노", desc="쓰러지는 나무가 진행 방향의 다른 나무를 함께 쓰러뜨립니다.", max=3, color={.95,.55,.3}},
-    -- 확산력 (spread) — 한 번의 행동으로 얼마나 넓게 없애느냐 [화염 투척병 전용]
-    {id="molotov", track="spread", name="화염병", desc="화염병 공격의 사거리와 폭발 범위가 늘어나고, 주기적으로 저절로 하나 더 던집니다.", max=3, color={1,.35,.12}, job="fire"},
-    {id="dry_forest", track="spread", name="마른 숲", desc="불이 주변 나무로 더 빠르고 넓게 번집니다.", max=3, color={1,.5,.15}, job="fire"},
-    {id="oil_drum", track="spread", name="기름통", desc="나무가 다 타버리면 확률적으로 주변이 한꺼번에 폭발합니다.", max=3, color={1,.62,.1}, job="fire"},
-    {id="embers", track="spread", name="불씨", desc="다 타버린 나무에서 불씨가 튀어 멀리 있는 나무에도 옮겨붙습니다.", max=3, color={1,.75,.25}, job="fire"},
-    -- 억제력 (suppress) — 자연이 얼마나 다시 못 자라게 하느냐 [맹독술사 전용 + 공용]
+    -- 확산력 (spread) — 한 번의 행동으로 얼마나 넓게 없애느냐 [흡연자 전용]
+    {id="molotov", track="spread", name="꽁초 투척", desc="사거리와 폭발 범위가 늘어나고, 주기적으로 무심코 하나 더 튕깁니다.", max=3, color={1,.35,.12}, job="fire"},
+    {id="dry_forest", track="spread", name="건조주의보 무시", desc="불이 주변 나무로 더 빠르고 넓게 번집니다.", max=3, color={1,.5,.15}, job="fire"},
+    {id="oil_drum", track="spread", name="라이터 기름 유출", desc="나무가 다 타버리면 확률적으로 주변이 한꺼번에 폭발합니다.", max=3, color={1,.62,.1}, job="fire"},
+    {id="embers", track="spread", name="바람 부는 날 흡연", desc="다 타버린 나무에서 불씨가 튀어 멀리 있는 나무에도 옮겨붙습니다.", max=3, color={1,.75,.25}, job="fire"},
+    -- 억제력 (suppress) — 자연이 얼마나 다시 못 자라게 하느냐 [비건 단체 회장 전용 + 공용]
     {id="herbicide", track="suppress", name="제초제", desc="벤 자리는 숲이 다시 자라지 않는 죽은 땅이 될 확률이 있습니다.", max=3, color={.62,.4,.85}},
     {id="root_cutting", track="suppress", name="뿌리 절단", desc="나무를 벨 때마다 숲의 재생력이 약해집니다.", max=3, color={.5,.62,.9}},
-    {id="toxic_rain", track="suppress", name="독성 비", desc="맹독 공격의 범위와 피해가 늘어나고, 평소에도 주변에 약하게 지속 피해를 줍니다.", max=3, color={.55,.85,.45}, job="toxic"},
+    {id="toxic_rain", track="suppress", name="친환경 제초 캠페인", desc="맹독 공격의 범위와 피해가 늘어나고, 평소에도 주변에 약하게 지속 피해를 줍니다.", max=3, color={.55,.85,.45}, job="toxic"},
     {id="forced_growth", track="suppress", name="강제 성장", desc="숲의 재생 속도가 크게 빨라지지만, 목재 경험치 획득량도 크게 늘어납니다.", max=3, color={.85,.7,.25}}
 }
 
@@ -237,7 +237,7 @@ function ClearcutMode:damagePlayer(amount, game)
     if self:levelOf("berserker") >= 3 and self.streak >= 10 then
         self.dodges = self.dodges + 1
         self.invulnTimer = .2
-        game:setNotice("불멸의 분노 — 회피!", "food")
+        game:setNotice("칼퇴 직전 폭주 — 회피!", "food")
         for _ = 1, 6 do game.world:addParticle(game.player.x, game.player.y - 20, {1, .85, .3}, true, false) end
         return
     end
@@ -469,7 +469,7 @@ function ClearcutMode:trackMolotovBarrage(game)
     if self:levelOf("molotov") < 3 then return end
     self.molotovShots = self.molotovShots + 1
     if self.molotovShots % 3 == 0 then
-        game:setNotice("융단 폭격 — 화염병 만렙 특수효과!", "food")
+        game:setNotice("줄담배 — 꽁초 투척 만렙 특수효과!", "food")
         for _ = 1, 2 do
             local a = love.math.random() * math.pi * 2
             local r = 60 + love.math.random() * 100
@@ -563,7 +563,7 @@ function ClearcutMode:updateFire(dt, game)
             local burning = {}
             for _, node in ipairs(game.world.nodes) do if node.rushTree and node.active and node.burning then burning[#burning+1] = node end end
             if #burning > 0 then
-                game:setNotice("들불 — 마른 숲 만렙 특수효과!", "food")
+                game:setNotice("산불경보 발령 — 건조주의보 무시 만렙 특수효과!", "food")
                 for _, source in ipairs(burning) do self:igniteNear(source, game, spreadRadius * 1.4, 2) end
             end
         end
@@ -818,23 +818,23 @@ end
 function ClearcutMode:checkEvolutions(game)
     if not self.evolutions.wildfire and self:levelOf("molotov") >= 3 and self:levelOf("oil_drum") >= 3 then
         self.evolutions.wildfire = true
-        game:setNotice("진화 — 산불! 불이 걷잡을 수 없이 번지기 시작한다.", "ore")
+        game:setNotice("융합 스킬 — 산불! 습관성 흡연이 결국 걷잡을 수 없이 번진다.", "ore")
     end
     if not self.evolutions.collapse and self:levelOf("shockwave") >= 3 and self:levelOf("domino") >= 3 then
         self.evolutions.collapse = true
-        game:setNotice("진화 — 벌목 붕괴! 쓰러진 나무가 또 다른 붕괴를 부른다.", "ore")
+        game:setNotice("융합 스킬 — 벌목 붕괴! 초과근무가 부른 대참사 — 쓰러진 나무가 또 다른 붕괴를 부른다.", "ore")
     end
     if not self.evolutions.deadGround and self:levelOf("herbicide") >= 3 and self:levelOf("root_cutting") >= 3 then
         self.evolutions.deadGround = true
-        game:setNotice("진화 — 죽은 땅! 한 번 벤 땅은 다시는 자라지 않는다.", "ore")
+        game:setNotice("융합 스킬 — 죽은 땅! '친환경' 관리의 최종 결과 — 한 번 벤 땅은 다시는 자라지 않는다.", "ore")
     end
     if not self.evolutions.frenzy and self:levelOf("berserker") >= 3 and self:levelOf("shockwave") >= 3 then
         self.evolutions.frenzy = true
-        game:setNotice("융합 스킬 — 광란 충격! 콤보가 절정에 달하면 모든 타격이 충격파를 뿜는다.", "ore")
+        game:setNotice("융합 스킬 — 무한 야근! 콤보가 절정에 달하면 모든 타격이 충격파를 뿜는다.", "ore")
     end
     if not self.evolutions.necrosis and self:levelOf("toxic_rain") >= 3 and self:levelOf("root_cutting") >= 3 then
         self.evolutions.necrosis = true
-        game:setNotice("융합 스킬 — 괴사의 비! 맹독이 닿은 땅은 그 자리에서 불모지가 된다.", "ore")
+        game:setNotice("융합 스킬 — 생태계 다이어트! 맹독이 닿은 땅은 그 자리에서 불모지가 된다.", "ore")
     end
 end
 
@@ -879,7 +879,7 @@ end
 
 function ClearcutMode:megaCleave(primary, game)
     local radius = 380
-    game:setNotice("광역 참격 — 넓은 날 만렙 특수효과!", "food")
+    game:setNotice("월급날 — 야근 수당 만렙 특수효과!", "food")
     if game.camera then game.camera.trauma = math.min(1, game.camera.trauma + .5) end
     self:damageEnemiesInRadius(primary.x, primary.y, radius, 30, game)
     game.world:igniteFx(primary.x, primary.y, true)
@@ -1115,6 +1115,50 @@ local chestRows = {
 }
 local chestPalette = {O={.16,.1,.04,1}, G={.85,.68,.28,1}, W={.5,.3,.13,1}, K={1,.92,.4,1}}
 
+-- 캐릭터 아이콘 (로비 선택 카드 + 인게임 소지품 표시에 재사용)
+local axeIconRows = {
+    "...OO...",
+    "..OMMO..",
+    ".OMMMMO.",
+    "OMMMMOO.",
+    "..OHO...",
+    "..OHO...",
+    "..OHO...",
+    "...OO...",
+}
+local axeIconPalette = {O={.14,.09,.05,1}, M={.82,.85,.88,1}, H={.5,.32,.16,1}}
+
+local cigaretteIconRows = {
+    "..q.....",
+    ".q......",
+    "q.......",
+    "........",
+    "........",
+    "WWWWWWFO",
+    "........",
+    "........",
+}
+local cigaretteIconPalette = {q={.75,.75,.78,.55}, W={.92,.9,.82,1}, F={1,.55,.15,1}, O={.35,.22,.13,1}}
+
+local leafIconRows = {
+    "...OO...",
+    "..OGGO..",
+    ".OGGGGO.",
+    "OGGGGGGO",
+    "OGGGVGGO",
+    ".OGGVGO.",
+    "..OGVO..",
+    "...OO...",
+}
+local leafIconPalette = {O={.1,.24,.08,1}, G={.32,.65,.2,1}, V={.2,.45,.13,1}}
+
+ClearcutMode.icons = {
+    axe = {rows = axeIconRows, palette = axeIconPalette},
+    cigarette = {rows = cigaretteIconRows, palette = cigaretteIconPalette},
+    leaf = {rows = leafIconRows, palette = leafIconPalette},
+}
+ClearcutMode.drawPixelGrid = drawPixelGrid
+
 local function drawEnemy(e, t)
     local def = e.def
     local walking = def.speed > 0 and (e.moving or false)
@@ -1146,6 +1190,20 @@ end
 function ClearcutMode:drawWorldOverlay(game)
     love.graphics.setLineStyle("rough")
     local t = love.timer.getTime()
+    local px, py = game.player.x + 14, game.player.y - 34
+    if self.job == "fire" then
+        drawPixelGrid(cigaretteIconRows, cigaretteIconPalette, px, py, 2.4)
+        for i = 1, 2 do
+            local phase = (t * .6 + i * .5) % 1
+            love.graphics.setColor(.8, .8, .82, (1 - phase) * .4)
+            love.graphics.circle("fill", px - 9 + math.sin(t * 2 + i) * 3, py - 4 - phase * 22, 2 + phase * 3)
+        end
+    elseif self.job == "toxic" then
+        local bob = math.sin(t * 2.4) * 2
+        drawPixelGrid(leafIconRows, leafIconPalette, px, py + bob, 2.4)
+    elseif self.job == "physical" then
+        drawPixelGrid(axeIconRows, axeIconPalette, px, py, 2.2)
+    end
     if (self.job == "fire" or self.job == "toxic") and self.aimX then
         local ringColor = self.job == "fire" and {1, .5, .15} or {.55, .85, .45}
         love.graphics.setColor(ringColor[1], ringColor[2], ringColor[3], .16); love.graphics.circle("fill", self.aimX, self.aimY, self.aimRadius)
@@ -1283,8 +1341,8 @@ function ClearcutMode:drawHUD(game,fonts)
     if self.evolutions.wildfire then evoNames[#evoNames+1] = "산불" end
     if self.evolutions.collapse then evoNames[#evoNames+1] = "벌목 붕괴" end
     if self.evolutions.deadGround then evoNames[#evoNames+1] = "죽은 땅" end
-    if self.evolutions.frenzy then evoNames[#evoNames+1] = "광란 충격" end
-    if self.evolutions.necrosis then evoNames[#evoNames+1] = "괴사의 비" end
+    if self.evolutions.frenzy then evoNames[#evoNames+1] = "무한 야근" end
+    if self.evolutions.necrosis then evoNames[#evoNames+1] = "생태계 다이어트" end
     if #evoNames > 0 then
         love.graphics.setColor(1, .82, .3); love.graphics.print("진화: " .. table.concat(evoNames, " · "), 32, 146)
     end
@@ -1363,9 +1421,15 @@ function ClearcutMode:drawResults(game,fonts)
 end
 
 ClearcutMode.characters = {
-    {id="physical", name="광전사", color={1,.42,.22}, tagline="도끼 하나로 숲을 쓸어버리는 근접 벌목광.", detail="쉬지 않고 벨수록 공격 속도가 미친 듯이 빨라집니다. 사거리 안에서 자동으로 가장 가까운 나무를 벱니다."},
-    {id="fire", name="화염 투척병", color={1,.35,.12}, tagline="마우스 위치에 화염병을 던져 원거리에서 숲을 불태웁니다.", detail="근접할 필요 없이 조준만으로 광역 발화. 붙은 불은 알아서 번지고 퍼집니다."},
-    {id="toxic", name="맹독술사", color={.55,.85,.45}, tagline="마우스 위치에 맹독을 터뜨려 나무와 재생력을 동시에 억누릅니다.", detail="화력은 약하지만 숲이 다시 자라나는 능력 자체를 짓누릅니다."}
+    {id="physical", name="생계형 나무꾼", icon="axe", color={1,.42,.22},
+        tagline="그냥 오늘 할당량을 채우러 온 것뿐이다.",
+        detail="왜 이렇게까지 하냐고? 대출이 있다. 쉬지 않고 벨수록 손이 미친 듯이 빨라진다. 사거리 안에서 자동으로 가장 가까운 나무를 벱니다."},
+    {id="fire", name="흡연자", icon="cigarette", color={1,.35,.12},
+        tagline="담배꽁초 하나가 뭐 대수라고.",
+        detail="마우스 위치에 무심코 꽁초를 튕깁니다. 숲이 마른 건 내 탓이 아니다. 붙은 불은 알아서 번지고 퍼집니다."},
+    {id="toxic", name="비건 단체 회장", icon="leaf", color={.55,.85,.45},
+        tagline="나무도 생명이지만... 일단 먹어야 한다.",
+        detail="마우스 위치에 '친환경' 제초제를 살포합니다. 숲을 지키기 위해 숲을 없앱니다. 화력은 약하지만 재생력 자체를 짓누릅니다."}
 }
 
 return ClearcutMode
