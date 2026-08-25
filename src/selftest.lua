@@ -37,7 +37,11 @@ function SelfTest.run(game)
     assert(game.runLevel == level + 2 and game.pendingLevels == pending + 2, "테스트 생산 레벨 지급 실패")
     game.runLevel, game.runXP, game.runXPNext, game.pendingLevels = level, xp, nextXP, pending
     game.ore = 14; game:keypressed("2")
-    assert(#game.world.turrets == 1 and game.world.turrets[1].kind == "autocannon", "포탑 실물 배치 실패")
+    assert(game.placingBuilding and game.placingBuilding.id == "autocannon_turret", "포탑 건설 배치 모드 진입 실패")
+    local turret = game.world:addBuilding("autocannon_turret", 950, 1180)
+    assert(turret and #game.world.buildings == 1, "포탑 실물 배치 실패")
+    game.placingBuilding = nil
+    game.world.buildings = {}
     game.world:spawnDefender("drone", 2, game)
     assert(#game.world.defenders == 1 and game.world.defenders[1].kind == "drone", "전투 드론 실물 생성 실패")
     game.food, game.wood, game.stone, game.ore = 1000, 1000, 1000, 1000

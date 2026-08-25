@@ -199,7 +199,9 @@ end
 
 function Game:useAbility(index)
     if index == 1 and self.food >= 12 then self.food = self.food - 12; self.world:spawnDefender("bio", 1, self); self:setNotice("생체 수호자를 부화했습니다", "food") end
-    if index == 2 and self.ore >= 14 then self.ore = self.ore - 14; self.world.core.damage = self.world.core.damage * 1.2; self.world.core.fireRate = self.world.core.fireRate * 1.05; self.world:addTurret("autocannon", 1); self:setNotice("센터 하드포인트에 포탑을 배치했습니다", "ore") end
+    if index == 2 then
+        for _, def in ipairs(Buildings) do if def.id == "autocannon_turret" then self.placingBuilding = def; break end end
+    end
     if index == 3 and self.food >= 8 and self.ore >= 8 then self.food, self.ore = self.food - 8, self.ore - 8; self.player.gather = self.player.gather * 1.15; self.player.capacity = self.player.capacity + 5; self:setNotice("작업 장비를 개조했습니다", "core") end
     if index == 4 then
         local wall = self.world.wall
@@ -246,6 +248,8 @@ function Game:mousepressed(x, y, button)
                 local nextValue = not self.settings.fullscreen
                 local ok = love.window.setFullscreen(nextValue, "desktop")
                 if ok ~= false then self.settings.fullscreen = nextValue end
+            elseif x >= w / 2 - 220 and x <= w / 2 + 220 and y >= 408 and y <= 464 then
+                self.progression:addCurrency(1000000)
             end
         end
         return
@@ -307,6 +311,13 @@ function Game:mousepressed(x, y, button)
     if self.world:isWallAt(wx, wy) then self.player:beginWallRepair(self.world, self); return end
     local node = self.world:findNodeAt(wx, wy)
     if node then self.player:beginInteraction(node, self.world, self) else self.player:cancelInteraction() end
+end
+
+function Game:wheelmoved(x, y)
+    if self.mode ~= "playing" or y == 0 then return end
+    if not (love.keyboard.isDown("lctrl") or love.keyboard.isDown("rctrl")) then return end
+    local factor = y > 0 and 1.1 or 1 / 1.1
+    self.camera.zoom = math.max(.6, math.min(1.8, self.camera.zoom * factor))
 end
 
 function Game:buildCardAt(x, y)
@@ -404,8 +415,11 @@ function Game:drawSettings()
     local x, boxW = w / 2 - 220, 440
     UI.button(x, 260, boxW, 56, "화면 흔들림  ·  " .. (self.settings.screenShake and "켜짐" or "꺼짐"), true, f.body)
     UI.button(x, 334, boxW, 56, "화면 모드  ·  " .. (self.settings.fullscreen and "전체 화면" or "창 모드"), true, f.body)
-    love.graphics.setFont(f.small); love.graphics.setColor(.72, .8, .73)
-    love.graphics.printf("ESC로 로비로 돌아갑니다.", 0, math.min(h - 52, 424), w, "center")
+    UI.button(x, 408, boxW, 56, "테스트 — 유산 부품 +1,000,000", true, f.body)
+    love.graphics.setFont(f.small); love.graphics.setColor(.78, .84, .62)
+    love.graphics.printf("현재 보유 유산 부품: " .. self.progression.data.currency, 0, 470, w, "center")
+    love.graphics.setColor(.72, .8, .73)
+    love.graphics.printf("ESC로 로비로 돌아갑니다.", 0, math.min(h - 52, 498), w, "center")
 end
 
 function Game:drawTestOptions()
@@ -529,7 +543,8 @@ function Game:drawUI()
     love.graphics.setFont(f.small); love.graphics.setColor(.08, .12, .12, .9); love.graphics.rectangle("fill", w / 2 - 105, 64, 210, 50, 5, 5)
     love.graphics.setColor(.52, 1, .63); love.graphics.printf(string.format("생산 레벨 %d", self.runLevel), w / 2 - 105, 74, 210, "center")
     local droneCount=0; for _,defender in ipairs(self.world.defenders) do if defender.kind=="drone" then droneCount=droneCount+1 end end
-    love.graphics.setColor(.55,.82,.86); love.graphics.printf(string.format("배치 포탑 %d/4   전투 드론 %d",#self.world.turrets,droneCount),w/2-105,96,210,"center")
+    local turretCount=0; for _,b in ipairs(self.world.buildings) do if b.kind=="autocannon_turret" or b.kind=="rail_turret" or b.kind=="blade_turret" then turretCount=turretCount+1 end end
+    love.graphics.setColor(.55,.82,.86); love.graphics.printf(string.format("배치 포탑 %d   전투 드론 %d",turretCount,droneCount),w/2-105,96,210,"center")
 
     self:drawMinimap(16, h - 158, 205, 142); self:drawToolBelt(w - 276, h - 158, 260, 142)
     local nextWall = wall.level < wall.maxLevel and self.wallCosts[wall.level + 1] or nil

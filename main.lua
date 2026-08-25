@@ -25,7 +25,7 @@ function love.load()
     end
     if os.getenv("LAST_HAUL_CAPTURE_UPGRADE") then
         game:startRun(); game.runLevel = 4
-        game.upgrades.choices = {game.upgrades:get("auto_farm"), game.upgrades:get("rail_turret"), game.upgrades:get("production_clock")}
+        game.upgrades.choices = {game.upgrades:get("protein_feed"), game.upgrades:get("explosive_payload"), game.upgrades:get("production_clock")}
         game.mode = "upgrade"
     end
     if os.getenv("LAST_HAUL_CAPTURE_UNITS") then
@@ -91,4 +91,7 @@ function love.keypressed(key)
 end
 function love.mousepressed(x, y, button)
     game:mousepressed(x, y, button)
+end
+function love.wheelmoved(x, y)
+    game:wheelmoved(x, y)
 end

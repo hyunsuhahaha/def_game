@@ -18,5 +18,7 @@ return {
     {id="repair_station", name="자동 수리소", tags={"방벽","자동화"}, desc="목재와 돌로 방어벽을 자동 수리합니다.",
         cost={wood=16, stone=16}, behavior="repair", spawnCost={wood=1, stone=1}, interval=5, repairAmount=20, footprint=50},
     {id="carrier_drone", name="운반 드론", tags={"운반","자동화"}, desc="가방의 자원을 거점으로 자동 운반합니다.",
-        cost={wood=12}, behavior="carrier", interval=6, footprint=40}
+        cost={wood=12}, behavior="carrier", interval=6, footprint=40},
+    {id="autocannon_turret", name="자동 포탑", tags={"방어","포탑"}, desc="사거리 안의 적을 자동으로 공격합니다.",
+        cost={ore=14}, behavior="turret", interval=.8, damage=9, range=440, footprint=44, icon="assets/turret-v1.png"}
 }

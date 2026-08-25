@@ -33,7 +33,7 @@ function World.new()
         workerWalk = image("assets/worker-walk-v3.png"), workerActions = image("assets/worker-actions-v1.png"), workerRepair = image("assets/worker-repair-v1.png")
     }
     self.buildingIcons = {}
-    for _, def in ipairs(buildingDefs) do self.buildingIcons[def.id] = image("assets/upgrades/" .. def.id .. ".png") end
+    for _, def in ipairs(buildingDefs) do self.buildingIcons[def.id] = image(def.icon or ("assets/upgrades/" .. def.id .. ".png")) end
     self.nodes, self.enemies, self.defenders, self.turrets, self.buildings, self.shots, self.drops = {}, {}, {}, {}, {}, {}, {}
     self.particles, self.popups, self.harvestChain, self.harvestChainTime = {}, {}, 0, 0
     self.effectFont = love.graphics.newFont("assets/font-korean.ttf", 18)
@@ -331,6 +331,17 @@ function World:updateBuildings(dt, game)
                 end
             elseif def.behavior == "carrier" then
                 if game.player:totalCargo() > 0 then game:depositCargo("운반 드론 자동 납품"); b.flash = .25 end
+            elseif def.behavior == "turret" then
+                local target, best = nil, def.range
+                for _, enemy in ipairs(self.enemies) do
+                    local dx, dy = enemy.x - b.x, enemy.y - b.y; local d = math.sqrt(dx * dx + dy * dy)
+                    if d < best then target, best = enemy, d end
+                end
+                if target then
+                    target.hp = target.hp - def.damage; self:applyCombatEffects(target, def.damage, game)
+                    self.shots[#self.shots + 1] = {x1 = b.x, y1 = b.y - 30, x2 = target.x, y2 = target.y, life = .12}
+                    b.flash = .2
+                end
             end
         end
     end
