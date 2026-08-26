@@ -73,7 +73,7 @@ function World.new()
     self.nodes, self.enemies, self.defenders, self.turrets, self.buildings, self.shots, self.drops, self.helpers = {}, {}, {}, {}, {}, {}, {}, {}
     self.bullets, self.muzzleFlashes, self.impactFlashes, self.chainArcs, self.explosions = {}, {}, {}, {}, {}
     self.particles, self.popups, self.harvestChain, self.harvestChainTime = {}, {}, 0, 0
-    self.effectFont = love.graphics.newFont("assets/font-korean.ttf", 18)
+    self.effectFont = love.graphics.newFont("assets/font-korean-bold.ttf", 18)
     self.quarryVisual = {shadowX = 5, shadowY = 7, shadowRx = 104, shadowRy = 11, shadowAlpha = .22, frontBias = 130}
     self.treeVisual = {scale = .28, shadowX = 4, shadowY = 9, shadowRx = 92, shadowRy = 12, shadowAlpha = .22, frontBias = 120}
     self.spawnTimer, self.wave, self.kills = 3, 0, 0

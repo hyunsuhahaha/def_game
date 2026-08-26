@@ -22,8 +22,8 @@ local function radial(size)
 end
 
 local function makeFonts()
-    local path = "assets/font-korean.ttf"
-    return {small = love.graphics.newFont(path, 14), body = love.graphics.newFont(path, 17), heading = love.graphics.newFont(path, 21), big = love.graphics.newFont(path, 28), title = love.graphics.newFont(path, 36)}
+    local regular, bold = "assets/font-korean-regular.ttf", "assets/font-korean-bold.ttf"
+    return {small = love.graphics.newFont(regular, 14), body = love.graphics.newFont(regular, 17), heading = love.graphics.newFont(bold, 21), big = love.graphics.newFont(bold, 28), title = love.graphics.newFont(bold, 36)}
 end
 
 function Game.new()
