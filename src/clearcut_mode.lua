@@ -39,6 +39,26 @@ local definitions = {
     {id="site_clearance", track="develop", name="부지 정지 작업", desc="돌진이 지나간 자리는 다시는 나무가 자라지 않는 부지가 됩니다.", max=3, color={.55,.5,.55}, job="developer"}
 }
 
+-- 아르카나: 인크리멘탈 업그레이드와 별개로 스테이지를 깰 때마다 딱 1번 고르는 영구 룰 변경 카드.
+-- 레벨이 없고 되돌릴 수 없는 트레이드오프 — 한 번 고르면 그 판 내내 유지된다.
+local arcanaDefs = {
+    {id="aging_body", name="몸이 예전 같지 않다", desc="최대 체력이 크게 늘어나지만, 몸이 무거워져 이동속도가 줄어듭니다.",
+        color={.6,.7,1}, icon="blob",
+        apply=function(self) self.maxHp=self.maxHp+40; self.hp=self.hp+40; self.baseSpeed=self.baseSpeed*.88 end},
+    {id="all_in_bet", name="올인 베팅", desc="받는 피해가 크게 늘어나지만, 목재 획득량도 크게 늘어납니다.",
+        color={1,.35,.3}, icon="diamond",
+        apply=function(self) self.dmgTakenMul=(self.dmgTakenMul or 1)*1.35; self.woodGainMul=(self.woodGainMul or 1)*1.3 end},
+    {id="overtime_request", name="연장근무 신청", desc="숲의 저주가 더 빠르게 짙어지지만, 정예와 사신의 등장 간격은 늘어납니다.",
+        color={1,.6,.2}, icon="box",
+        apply=function(self) self.curseBoostMul=(self.curseBoostMul or 1)*1.25; self.eliteIntervalMul=(self.eliteIntervalMul or 1)*1.25; self.reaperDelayMul=(self.reaperDelayMul or 1)*1.25 end},
+    {id="refuse_mercy", name="숲의 자비를 거부한다", desc="숲이 더 이상 재생하지 않게 되지만, 목재 획득량이 늘어납니다.",
+        color={.55,.35,.85}, icon="stick",
+        apply=function(self) self.regrowSuppressed=true; self.woodGainMul=(self.woodGainMul or 1)*1.2 end},
+    {id="deep_curse", name="뿌리 깊은 저주", desc="광폭화 라운드가 더 자주 찾아오지만, 그만큼 처치 보너스도 두 배로 불어납니다.",
+        color={.85,.2,.5}, icon="diamond",
+        apply=function(self) self.berserkCooldownMul=(self.berserkCooldownMul or 1)*.7; self.berserkBonusMul=(self.berserkBonusMul or 1)*2 end},
+}
+
 local milestones = {
     {pct=10, text="\"숲이 당신의 존재를 알아챈 것 같다...\"", wave={squirrel=4}},
     {pct=30, text="다람쥐들이 사방으로 도망치기 시작한다.", wave={squirrel=4, boar=2}},
@@ -72,13 +92,17 @@ function ClearcutMode.new()
         rootHazards={}, rootedTimer=0, rootedCount=0,
         bees={}, beeSlow=false, beeSwarmsTriggered=0, beehiveTotal=0,
         streak=0, lastHitAt=-10, molotovTimer=0, wildfireTimer=0, toxicTimer=0, evolutions={}, molotovs={},
-        job=nil, attackCooldown=0, dashing=nil, dashTrail={}, smoking=nil,
+        job=nil, attackCooldown=0, dashing=nil, dashTrail={}, smoking=nil, fireTriggerHeld=false,
         hp=100, maxHp=100, invulnTimer=0, dead=false,
         enemies={}, projectiles={}, bossTelegraphs={}, waveFired={}, worldTreeSpawned=false, readyToFinish=false, activeBoss=nil, kills=0,
         chests={}, chestPending=false, molotovShots=0, wildburstTimer=10, plagued={}, dodges=0,
         timeSpawnTimer=18, eliteTimer=200, reaperSpawned=false,
         stage=1, stageBossHpMul=1,
-        berserkState="idle", berserkTimer=85, berserkCycleCount=0, berserkTreeTimer=0, berserkKillsStart=0, berserkFlashNodes={}
+        berserkState="idle", berserkTimer=85, berserkCycleCount=0, berserkTreeTimer=0, berserkKillsStart=0, berserkFlashNodes={},
+        banished={}, rerollCount=0, banishArmed=false, selectionKind="upgrade", arcanaChoices={}, arcanaPicked={},
+        dmgTakenMul=1, woodGainMul=1, curseBoostMul=1, eliteIntervalMul=1, reaperDelayMul=1, regrowSuppressed=false,
+        berserkCooldownMul=1, berserkBonusMul=1,
+        permanentTraits={}
     }, ClearcutMode)
 end
 
@@ -87,7 +111,7 @@ function ClearcutMode:pickupRadius() return 165 + self:levelOf("magnet") * 95 en
 function ClearcutMode:pickupSpeed() return 15 + self:levelOf("magnet") * 4 end
 function ClearcutMode:destructionPct() return self.initialTrees > 0 and math.min(100, (1 - self.remainingTrees / self.initialTrees) * 100) or 0 end
 -- 뱀서라이크식 단일 난이도 다이얼: 진행도와 무관하게 순수 경과시간으로만 오른다 (농성 방지)
-function ClearcutMode:curseLevel() return 1 + (self.elapsed / 60) ^ 1.25 * .16 end
+function ClearcutMode:curseLevel() return 1 + (self.elapsed / 60) ^ 1.25 * .16 * (self.curseBoostMul or 1) end
 -- 광폭화 라운드 중 스폰/물량 배율: 경고 단계부터 서서히 조여오다 광란 단계에서 폭증한다
 function ClearcutMode:berserkMultiplier()
     if self.berserkState == "active" then return 2.4 + self.berserkCycleCount * .25 end
@@ -156,8 +180,13 @@ function ClearcutMode:advanceStage(game)
     game:setNotice("스테이지 " .. self.stage .. " — 숲이 더 거세게 반격한다!", "ore")
     if game.camera then game.camera.trauma = math.min(1, game.camera.trauma + .3) end
     self.pending = self.pending + 1
-    self:rollChoices()
-    game.mode = "clearcut_upgrade"
+    if #self:arcanaPool() > 0 then
+        self.selectionKind = "arcana"
+        self:rollArcanaChoices()
+        game.mode = "clearcut_upgrade"
+    else
+        self:openUpgradeChoices(game)
+    end
 end
 
 function ClearcutMode:update(dt, game)
@@ -193,6 +222,7 @@ function ClearcutMode:update(dt, game)
 end
 
 function ClearcutMode:updateRegrowth(dt, game)
+    if self.regrowSuppressed then return end
     if self.elapsed < self.regrowGrace then return end
     self.regrowTimer = self.regrowTimer + dt
     if self.regrowTimer < self.regrowInterval then return end
@@ -295,6 +325,7 @@ end
 
 function ClearcutMode:damagePlayer(amount, game)
     if self.dead or self.invulnTimer > 0 or amount <= 0 then return end
+    amount = amount * (self.dmgTakenMul or 1)
     if self:levelOf("berserker") >= 3 and self.streak >= 10 then
         self.dodges = self.dodges + 1
         self.invulnTimer = .2
@@ -374,7 +405,7 @@ end
 function ClearcutMode:updateEliteTimer(dt, game)
     self.eliteTimer = self.eliteTimer - dt
     if self.eliteTimer > 0 then return end
-    self.eliteTimer = 200
+    self.eliteTimer = 200 * (self.eliteIntervalMul or 1)
     local kind = love.math.random() < .5 and "boar" or "squirrel"
     local a = love.math.random() * math.pi * 2
     local e = self:spawnEnemy(kind, game.player.x + math.cos(a) * 520, game.player.y + math.sin(a) * 520, {hpMul = 6, speedMul = 1.15, dmgMul = 1.8, elite = true})
@@ -384,7 +415,7 @@ end
 
 -- 뱀서라이크식 "사신" — 농성 방지용 무한 추격자, 오래 버틸수록 등장
 function ClearcutMode:updateReaper(dt, game)
-    if self.reaperSpawned or self.elapsed < 600 then return end
+    if self.reaperSpawned or self.elapsed < 600 * (self.reaperDelayMul or 1) then return end
     self.reaperSpawned = true
     local a = love.math.random() * math.pi * 2
     self:spawnEnemy("reaper", game.player.x + math.cos(a) * 700, game.player.y + math.sin(a) * 700)
@@ -677,6 +708,7 @@ function ClearcutMode:openChest(game)
     self.choices = {}
     for i = 1, math.min(3, #pool) do self.choices[i] = pool[i] end
     self.chestPending = true
+    self.specialCard = nil
     game.mode = "clearcut_upgrade"
     game:setNotice("보물상자 — 전직 전용 스킬을 하나 고르세요!", "food")
 end
@@ -1036,21 +1068,31 @@ function ClearcutMode:updateFireAttack(dt, game, heldOverride)
     local maxRange = 320 + self:levelOf("molotov") * 40
     local tx, ty = self:aimPoint(game, maxRange)
     self.aimX, self.aimY, self.aimRadius = tx, ty, 90 + self:levelOf("molotov") * 20
-    if not self.smoking then self:startSmoking(game) end
-    self.smoking.t = self.smoking.t + dt
-    if self.smoking.t < self.smoking.dur then return false end
-    local fired = false
-    if held then
-        self:hurlMolotovAt(tx, ty, game)
-        fired = true
+    if math.abs(tx - game.player.x) > 1 then
+        game.player.facing = tx < game.player.x and -1 or 1
     end
-    self:startSmoking(game)
-    return fired
+    if not self.smoking then self:startSmoking(game) end
+    self.smoking.t = math.min(self.smoking.dur, self.smoking.t + dt)
+    self.smoking.ready = self.smoking.t >= self.smoking.dur
+    local pressed = held and not self.fireTriggerHeld
+    self.fireTriggerHeld = held
+    if pressed and self.smoking.ready then
+        self:hurlMolotovAt(tx, ty, game)
+        self:startSmoking(game)
+        return true
+    end
+    return false
 end
 
 function ClearcutMode:startSmoking(game)
     local speed = (game.tools.axe.speed or 1) * game.player.gather
-    self.smoking = {t = 0, dur = math.max(.75, 1.25 / speed)}
+    self.smoking = {t = 0, dur = math.max(.75, 1.25 / speed), ready = false}
+end
+
+function ClearcutMode:smokerMouthPose(game)
+    local facing = game.player.facing or 1
+    local mouthX, mouthY = game.player.x + 3 * facing, game.player.y - 61
+    return mouthX, mouthY, facing, mouthX + 9 * facing
 end
 
 function ClearcutMode:updateToxicAttack(dt, game, heldOverride)
@@ -1237,6 +1279,7 @@ function ClearcutMode:checkMilestones(game)
 end
 
 function ClearcutMode:onWood(amount, game)
+    amount = amount * (self.woodGainMul or 1)
     self.totalWood = self.totalWood + amount
     game.wood = self.totalWood
     local xpMult = 1 + self:levelOf("forced_growth") * .4
@@ -1246,18 +1289,96 @@ function ClearcutMode:onWood(amount, game)
         self.level, self.pending = self.level + 1, self.pending + 1
         self.xpNext = math.floor(10 + (self.level - 1) * 6.5)
     end
-    if self.pending > 0 and game.mode == "playing" and not os.getenv("LAST_HAUL_SELF_TEST") then self:rollChoices(); game.mode="clearcut_upgrade" end
+    if self.pending > 0 and game.mode == "playing" and not os.getenv("LAST_HAUL_SELF_TEST") then self:openUpgradeChoices(game) end
 end
 
-function ClearcutMode:rollChoices()
+function ClearcutMode:upgradePool()
     local pool = {}
     for _, def in ipairs(definitions) do
         local jobOk = not def.job or not self.job or def.job == self.job
-        if jobOk and self:levelOf(def.id) < def.max then pool[#pool+1]=def end
+        if jobOk and not self.banished[def.id] and self:levelOf(def.id) < def.max then pool[#pool+1]=def end
     end
+    return pool
+end
+
+function ClearcutMode:rollChoices()
+    local pool = self:upgradePool()
     for i=#pool,2,-1 do local j=love.math.random(i); pool[i],pool[j]=pool[j],pool[i] end
     self.choices={}
     for i=1,math.min(3,#pool) do self.choices[i]=pool[i] end
+end
+
+-- 아직 안 고른 아르카나만 모아 셔플한다. 스테이지 클리어 강제 선택과, 일반 카드 화면의
+-- 희귀 4번째 슬롯(스페셜 카드) 둘 다 여기서 뽑는다.
+function ClearcutMode:arcanaPool()
+    local pool = {}
+    for _, def in ipairs(arcanaDefs) do if not self.arcanaPicked[def.id] then pool[#pool+1]=def end end
+    return pool
+end
+
+function ClearcutMode:rollArcanaChoices()
+    local pool = self:arcanaPool()
+    for i=#pool,2,-1 do local j=love.math.random(i); pool[i],pool[j]=pool[j],pool[i] end
+    self.arcanaChoices={}
+    for i=1,math.min(3,#pool) do self.arcanaChoices[i]=pool[i] end
+end
+
+function ClearcutMode:rerollCost() return 18 + self.rerollCount * 12 end
+function ClearcutMode:banishCost() return 45 end
+
+-- 새 업그레이드 3택 화면을 여는 공용 진입점. 리롤 횟수/배니시 무장 상태를 초기화하고,
+-- 아주 낮은 확률로 뒷면에서 앞면으로 뒤집히며 등장하는 4번째 스페셜(아르카나) 카드를 끼워 넣는다.
+function ClearcutMode:openUpgradeChoices(game)
+    self.rerollCount, self.banishArmed, self.selectionKind = 0, false, "upgrade"
+    self:rollChoices()
+    self.specialCard = nil
+    if love.math.random() < .12 and #self:arcanaPool() > 0 then
+        local pool = self:arcanaPool()
+        self.specialCard = pool[love.math.random(#pool)]
+        self.specialCardRevealAt = love.timer.getTime()
+    end
+    game.mode = "clearcut_upgrade"
+end
+
+function ClearcutMode:rerollChoice(game)
+    if self.selectionKind ~= "upgrade" or self.chestPending then return false end
+    local cost = self:rerollCost()
+    if self.totalWood < cost then game:setNotice("목재가 부족합니다", "ore"); return false end
+    self.totalWood = self.totalWood - cost
+    self.rerollCount = self.rerollCount + 1
+    self.banishArmed = false
+    self:rollChoices()
+    return true
+end
+
+function ClearcutMode:toggleBanishArm(game)
+    if self.selectionKind ~= "upgrade" or self.chestPending then return false end
+    if not self.banishArmed then
+        local cost = self:banishCost()
+        if self.totalWood < cost then game:setNotice("목재가 부족합니다", "ore"); return false end
+    end
+    self.banishArmed = not self.banishArmed
+    return true
+end
+
+-- 배니시로 빠진 슬롯 하나만 다시 채운다 (나머지 두 장은 그대로 유지)
+function ClearcutMode:refillChoice(index)
+    local used = {}
+    for i, def in ipairs(self.choices) do if i ~= index and def then used[def.id] = true end end
+    local pool = {}
+    for _, def in ipairs(self:upgradePool()) do if not used[def.id] then pool[#pool+1] = def end end
+    self.choices[index] = #pool > 0 and pool[love.math.random(#pool)] or nil
+end
+
+function ClearcutMode:chooseArcana(index, game)
+    local def = self.arcanaChoices[index]
+    if not def then return false end
+    self.arcanaPicked[def.id] = true
+    def.apply(self)
+    game:setNotice("아르카나 — " .. def.name .. "! " .. def.desc, "ore")
+    self.selectionKind = "upgrade"
+    if self.pending > 0 then self:openUpgradeChoices(game) else game.mode = "playing" end
+    return true
 end
 
 function ClearcutMode:checkEvolutions(game)
@@ -1288,8 +1409,30 @@ function ClearcutMode:checkEvolutions(game)
 end
 
 function ClearcutMode:choose(index, game)
+    if index == "reroll" then return self:rerollChoice(game) end
+    if index == "banish" then return self:toggleBanishArm(game) end
+    if index == "special" then
+        local def = self.specialCard
+        if not def then return false end
+        self.arcanaPicked[def.id] = true
+        self.specialCard = nil
+        def.apply(self)
+        game:setNotice("스페셜 카드 — " .. def.name .. "! " .. def.desc, "ore")
+        return true
+    end
+    if self.selectionKind == "arcana" then return self:chooseArcana(index, game) end
     local def=self.choices[index]
     if not def then return false end
+    self.chestPending = false
+    if self.banishArmed then
+        if jobFor[def.id] then game:setNotice("전직 카드는 제외할 수 없습니다", "ore"); return false end
+        self.totalWood = self.totalWood - self:banishCost()
+        self.banished[def.id] = true
+        self.banishArmed = false
+        self:refillChoice(index)
+        game:setNotice(def.name .. " — 영구 제외", "ore")
+        return true
+    end
     self.levels[def.id]=self:levelOf(def.id)+1
     self.pending=math.max(0,self.pending-1)
     if not self.job and jobFor[def.id] and self.levels[def.id]==1 then
@@ -1300,7 +1443,8 @@ function ClearcutMode:choose(index, game)
         game:setNotice(def.name.." Lv."..self:levelOf(def.id),"food")
     end
     self:checkEvolutions(game)
-    if self.pending>0 then self:rollChoices() else game.mode="playing" end
+    self.specialCard = nil
+    if self.pending>0 then self:openUpgradeChoices(game) else game.mode="playing" end
     return true
 end
 
@@ -1479,6 +1623,22 @@ local function drawPixelGrid(rows, palette, cx, cy, px)
             if col then
                 love.graphics.setColor(col)
                 love.graphics.rectangle("fill", math.floor(cx - ox + (rx - 1) * px), math.floor(cy - oy + (ry - 1) * px), px + 1, px + 1)
+            end
+        end
+    end
+end
+
+local function drawPixelGridFacing(rows, palette, cx, cy, px, facing)
+    local gh, gw = #rows, #rows[1]
+    local ox, oy = gw * px / 2, gh * px / 2
+    for ry = 1, gh do
+        local row = rows[ry]
+        for rx = 1, gw do
+            local col = palette[row:sub(rx, rx)]
+            if col then
+                local visualX = facing < 0 and (gw - rx) or (rx - 1)
+                love.graphics.setColor(col)
+                love.graphics.rectangle("fill", math.floor(cx - ox + visualX * px), math.floor(cy - oy + (ry - 1) * px), px + 1, px + 1)
             end
         end
     end
@@ -1764,6 +1924,16 @@ local stickRows = {
     "..OOOOO..",
 }
 
+-- 아르카나/스페셜 카드는 새 아이콘을 따로 그리지 않고 기존 도형 실루엣을 재사용해,
+-- def.color 하나로 O(외곽)/H(하이라이트)/W·T(본체)/D(그림자) 톤을 즉석에서 만든다.
+local arcanaShapeRows = {diamond=diamondRows, blob=blobRows, box=boxRows, stick=stickRows}
+local function arcanaIconPalette(c)
+    return {
+        O={c[1]*.22,c[2]*.22,c[3]*.22,1}, H={math.min(1,c[1]*1.3+.15),math.min(1,c[2]*1.3+.15),math.min(1,c[3]*1.3+.15),1},
+        W={c[1],c[2],c[3],1}, T={c[1],c[2],c[3],1}, D={c[1]*.55,c[2]*.55,c[3]*.55,1},
+    }
+end
+
 local wideBladePalette = {O={.15,.17,.2,1}, H={1,1,1,1}, W={.75,.8,.86,1}}
 local berserkerPalette = {O={.28,.08,.04,1}, H={1,.7,.55,1}, W={.85,.42,.3,1}, D={.5,.18,.1,1}}
 local shockwavePalette = {O={.4,.28,.02,1}, H={1,.96,.7,1}, W={1,.8,.25,1}}
@@ -1914,12 +2084,13 @@ function ClearcutMode:drawWorldOverlay(game)
     if self.job == "fire" then
         local smoking = self.smoking
         local drag = smoking and math.min(1, smoking.t / smoking.dur) or 0
-        local facing = game.player.facing or 1
-        local mx, my = game.player.x + 3 * facing, game.player.y - 61
-        drawPixelGrid(cigaretteIconRows, cigaretteIconPalette, mx, my, 2.4)
+        local mx, my, facing, emberX = self:smokerMouthPose(game)
+        love.graphics.setColor(.92, .9, .82, 1)
+        love.graphics.rectangle("fill", mx - 9.6, my - 1.6, 19.2, 3.2)
+        drawPixelGridFacing(cigaretteIconRows, cigaretteIconPalette, mx, my, 3.2, facing)
         local emberGlow = (.42 + math.sin(t * (6 + drag * 12)) * .28) * (.7 + drag * .3)
-        love.graphics.setColor(1, .55, .15, emberGlow); love.graphics.circle("fill", mx + 9 * facing, my + 2, 2.2 + drag * 2.8)
-        local sx, sy = mx + 9 * facing, my + 1
+        love.graphics.setColor(1, .55, .15, emberGlow); love.graphics.circle("fill", emberX, my + 2, 2.2 + drag * 2.8)
+        local sx, sy = emberX, my + 1
         local strandCount = 2 + (drag > .1 and 1 or 0)
         local height = 50 + drag * 34
         local segments = 16
@@ -1942,6 +2113,12 @@ function ClearcutMode:drawWorldOverlay(game)
                 end
                 px0, py0 = x1, y1
             end
+        end
+        for puff = 1, 4 do
+            local rise = puff / 4
+            local drift = math.sin(t * 1.7 + puff * 1.9) * (5 + rise * 9)
+            love.graphics.setColor(.92, .93, .95, (.22 + drag * .18) * (1 - rise * .55))
+            love.graphics.circle("fill", sx + drift, sy - 12 - rise * (28 + drag * 18), 2.2 + rise * 3.2)
         end
         love.graphics.setLineStyle("rough")
     elseif self.job == "toxic" then
@@ -2414,16 +2591,72 @@ local function drawIconSocket(cx, cy, color, iconDef, t)
     end
 end
 
+local arcanaColor = {.72,.4,1,1}
+local specialColor = {1,.84,.25,1}
+
+-- 뒷면(물음표+금테)에서 앞면으로 뒤집히며 튀어나오는 스페셜 카드 전용 팝인 애니메이션.
+-- x축 스케일을 0 근처까지 접었다가 살짝 오버슈트하며 펼쳐 "카드가 뒤집힌다"는 느낌을 준다.
+local function specialCardFlip(elapsed)
+    local dur = .42
+    local p = math.min(1, elapsed / dur)
+    local scaleX
+    if p < .55 then
+        local q = p / .55
+        scaleX = .04 + (1.1 - .04) * (q*q)
+    else
+        local q = (p - .55) / .45
+        scaleX = 1.1 + (1 - 1.1) * q
+    end
+    return scaleX, p
+end
+
+local function drawCardBack(x,y,w,h,t)
+    local cx = x + w/2
+    love.graphics.setColor(.08,.06,.14,.97); love.graphics.rectangle("fill",x,y,w,h,14,14)
+    love.graphics.setColor(specialColor[1],specialColor[2],specialColor[3],.85); love.graphics.setLineWidth(3)
+    love.graphics.rectangle("line",x+6,y+6,w-12,h-12,10,10)
+    local pulse = .5+math.sin(t*6)*.5
+    love.graphics.setColor(specialColor[1],specialColor[2],specialColor[3],.5+pulse*.3)
+    love.graphics.setFont(love.graphics.newFont(46))
+    love.graphics.printf("?",x,y+h/2-30,w,"center")
+end
+
 function ClearcutMode:drawSelection(game,fonts)
     local w,h=love.graphics.getDimensions()
     local t = love.timer.getTime()
     love.graphics.setColor(.015,.035,.025,.84); love.graphics.rectangle("fill",0,0,w,h)
+    self.choiceBoxes={}
+    if self.selectionKind == "arcana" then
+        love.graphics.setFont(fonts.title); love.graphics.setColor(arcanaColor); love.graphics.printf("아르카나 — 룰을 바꾸는 선택",0,66,w,"center")
+        love.graphics.setFont(fonts.small); love.graphics.setColor(.85,.78,.95); love.graphics.printf("되돌릴 수 없습니다. 한 번 고르면 이번 판 내내 유지됩니다",0,112,w,"center")
+        local gap,cardW,cardH=24,math.min(320,(w-96)/3),360
+        local startX=w/2-(cardW*3+gap*2)/2
+        local mx,my=love.mouse.getPosition()
+        for i,def in ipairs(self.arcanaChoices) do
+            local x,y=startX+(i-1)*(cardW+gap),165
+            self.choiceBoxes[i]={x=x,y=y,w=cardW,h=cardH}
+            local hovered = mx>=x and mx<=x+cardW and my>=y and my<=y+cardH
+            drawUpgradeCardFrame(x,y,cardW,cardH,arcanaColor,hovered,nil,t)
+            local iconDef = {rows=arcanaShapeRows[def.icon], palette=arcanaIconPalette(def.color)}
+            drawIconSocket(x+cardW/2,y+108,arcanaColor,iconDef,t)
+            love.graphics.setColor(.06,.09,.08,.92); love.graphics.rectangle("fill",x+16,y+16,34,30,7,7)
+            love.graphics.setFont(fonts.heading); love.graphics.setColor(1,1,1); love.graphics.printf(tostring(i),x+16,y+21,34,"center")
+            love.graphics.setFont(fonts.small); love.graphics.setColor(arcanaColor[1],arcanaColor[2],arcanaColor[3],.95); love.graphics.printf("아르카나", x, y+18, cardW, "center")
+            love.graphics.setFont(fonts.heading); love.graphics.setColor(1,1,1); love.graphics.printf(def.name,x+16,y+195,cardW-32,"center")
+            love.graphics.setFont(fonts.body); love.graphics.setColor(.78,.72,.88); love.graphics.printf(def.desc,x+28,y+245,cardW-56,"center")
+            love.graphics.setColor(arcanaColor); love.graphics.printf("영구 효과 · 되돌릴 수 없음",x+20,y+320,cardW-40,"center")
+        end
+        return
+    end
+
     love.graphics.setFont(fonts.title); love.graphics.setColor(1,.82,.3); love.graphics.printf("벌목 방식 진화",0,66,w,"center")
     love.graphics.setFont(fonts.small); love.graphics.setColor(.72,.88,.76); love.graphics.printf("계속 움직이고 더 많은 숲을 한 번에 쓸어버리세요",0,112,w,"center")
-    local gap,cardW,cardH=24,math.min(320,(w-96)/3),360
-    local startX=w/2-(cardW*3+gap*2)/2
+    local numCards = self.specialCard and 4 or 3
+    local gap = 22
+    local cardW = math.min(300, (w-96-gap*(numCards-1))/numCards)
+    local cardH = 360
+    local startX = w/2-(cardW*numCards+gap*(numCards-1))/2
     local mx,my=love.mouse.getPosition()
-    self.choiceBoxes={}
     for i,def in ipairs(self.choices) do
         local x,y=startX+(i-1)*(cardW+gap),165
         self.choiceBoxes[i]={x=x,y=y,w=cardW,h=cardH}
@@ -2435,13 +2668,72 @@ function ClearcutMode:drawSelection(game,fonts)
         love.graphics.setColor(.06,.09,.08,.92); love.graphics.rectangle("fill",x+16,y+16,34,30,7,7)
         love.graphics.setFont(fonts.heading); love.graphics.setColor(1,1,1); love.graphics.printf(tostring(i),x+16,y+21,34,"center")
         love.graphics.setFont(fonts.small); love.graphics.setColor(jobColor[1],jobColor[2],jobColor[3],.95); love.graphics.printf(trackLabels[def.track] or "", x, y+18, cardW, "center")
+        if self.banishArmed and not jobFor[def.id] then
+            love.graphics.setColor(1,.3,.25,.5+math.sin(t*8)*.15); love.graphics.setLineWidth(3)
+            love.graphics.rectangle("line",x+3,y+3,cardW-6,cardH-6,12,12)
+        end
         love.graphics.setFont(fonts.heading); love.graphics.setColor(1,1,1); love.graphics.printf(def.name,x+16,y+195,cardW-32,"center")
         love.graphics.setFont(fonts.body); love.graphics.setColor(.72,.82,.77); love.graphics.printf(def.desc,x+28,y+245,cardW-56,"center")
         love.graphics.setColor(1,.75,.25); love.graphics.printf("Lv."..self:levelOf(def.id).." → Lv."..(self:levelOf(def.id)+1),x+20,y+320,cardW-40,"center")
     end
+
+    if self.specialCard then
+        local def = self.specialCard
+        local i = 4
+        local x,y = startX+(i-1)*(cardW+gap),165
+        self.choiceBoxes.special={x=x,y=y,w=cardW,h=cardH}
+        local hovered = mx>=x and mx<=x+cardW and my>=y and my<=y+cardH
+        local elapsed = t - (self.specialCardRevealAt or t)
+        local scaleX, p = specialCardFlip(elapsed)
+        local cx = x+cardW/2
+        love.graphics.push(); love.graphics.translate(cx,y+cardH/2); love.graphics.scale(scaleX,1); love.graphics.translate(-cx,-(y+cardH/2))
+        if scaleX < .5 then
+            drawCardBack(x,y,cardW,cardH,t)
+        else
+            drawUpgradeCardFrame(x,y,cardW,cardH,specialColor,hovered,nil,t)
+            local iconDef = {rows=arcanaShapeRows[def.icon], palette=arcanaIconPalette(def.color)}
+            drawIconSocket(x+cardW/2,y+108,specialColor,iconDef,t)
+            love.graphics.setColor(.06,.09,.08,.92); love.graphics.rectangle("fill",x+16,y+16,34,30,7,7)
+            love.graphics.setFont(fonts.heading); love.graphics.setColor(1,1,1); love.graphics.printf("4",x+16,y+21,34,"center")
+            love.graphics.setFont(fonts.small); love.graphics.setColor(specialColor[1],specialColor[2],specialColor[3],.95); love.graphics.printf("★ 스페셜 카드", x, y+18, cardW, "center")
+            love.graphics.setFont(fonts.heading); love.graphics.setColor(1,1,1); love.graphics.printf(def.name,x+16,y+195,cardW-32,"center")
+            love.graphics.setFont(fonts.body); love.graphics.setColor(.85,.8,.65); love.graphics.printf(def.desc,x+28,y+245,cardW-56,"center")
+            love.graphics.setColor(specialColor); love.graphics.printf("영구 효과 · 되돌릴 수 없음",x+20,y+320,cardW-40,"center")
+        end
+        love.graphics.pop()
+        if p >= 1 then
+            local glow = .3+math.sin(t*3)*.15
+            love.graphics.setColor(specialColor[1],specialColor[2],specialColor[3],glow)
+            love.graphics.setLineWidth(2); love.graphics.rectangle("line",x-4,y-4,cardW+8,cardH+8,16,16)
+        end
+    end
+
+    if not self.chestPending then
+        local btnW,btnH,btnGap=150,44,16
+        local by = 165+cardH+26
+        local bx = w/2-(btnW*2+btnGap)/2
+        self.rerollBox={x=bx,y=by,w=btnW,h=btnH}
+        self.banishBox={x=bx+btnW+btnGap,y=by,w=btnW,h=btnH}
+        local canReroll = self.totalWood >= self:rerollCost()
+        UI.button(bx,by,btnW,btnH,string.format("리롤 (목재 %d)",self:rerollCost()),canReroll,fonts.small)
+        local canBanish = self.banishArmed or self.totalWood >= self:banishCost()
+        UI.button(bx+btnW+btnGap,by,btnW,btnH,self.banishArmed and "배니시할 카드 선택" or string.format("배니시 (목재 %d)",self:banishCost()),canBanish,fonts.small)
+    end
 end
 
 function ClearcutMode:choiceAt(x,y)
+    if self.selectionKind == "upgrade" and not self.chestPending then
+        if self.rerollBox and x>=self.rerollBox.x and x<=self.rerollBox.x+self.rerollBox.w and y>=self.rerollBox.y and y<=self.rerollBox.y+self.rerollBox.h then
+            return self.totalWood >= self:rerollCost() and "reroll" or nil
+        end
+        if self.banishBox and x>=self.banishBox.x and x<=self.banishBox.x+self.banishBox.w and y>=self.banishBox.y and y<=self.banishBox.y+self.banishBox.h then
+            return (self.banishArmed or self.totalWood >= self:banishCost()) and "banish" or nil
+        end
+        if self.choiceBoxes and self.choiceBoxes.special then
+            local box = self.choiceBoxes.special
+            if x>=box.x and x<=box.x+box.w and y>=box.y and y<=box.y+box.h then return "special" end
+        end
+    end
     for i,box in ipairs(self.choiceBoxes or {}) do if x>=box.x and x<=box.x+box.w and y>=box.y and y<=box.y+box.h then return i end end
 end
 

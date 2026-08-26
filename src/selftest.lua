@@ -440,7 +440,70 @@ function SelfTest.run(game)
     for _, n in ipairs(game.clearcut.berserkFlashNodes) do if n == flashNode then stillTracked = true end end
     assert(not stillTracked and #game.clearcut.berserkFlashNodes == flashCountBefore - 1, "반격 나무 리스트 제거 실패")
 
-    print("SELF_TEST_OK: LOBBY_DUAL_MODE RUSH_3MIN RUSH_FOREST RUSH_HOLD_TO_CHOP RUSH_MULTI_HIT RUSH_CHAIN_FELL RUSH_AUTO_PICKUP RUSH_THREE_CHOICES RUSH_AUTO_FRONT RUSH_RESULTS LOBBY_AUX_NAV SETTINGS BIG_TREE_SINGLE TREE_PER_HIT_DROP TREE_PROXIMITY_PICKUP QUARRY_GROUNDED QUARRY_PER_HIT_DROP QUARRY_ORE_RATIO QUARRY_PROXIMITY_PICKUP FARM TREE QUARRY_INFINITE TOOL_SPEED IMPACT_SYNC HARVEST_FEEDBACK VISIBLE_TURRET VISIBLE_DRONE VISIBLE_REPAIR_STATION MINING_DRILL_VFX RUN_LEVELUP THREE_CHOICES AUTOMATION EVOLUTION WALL_UPGRADE WALL_BLOCK HAMMER_REPAIR CRIT_CHANCE PRESTIGE_RUN MOVE_WHILE_FARM TURRET_SLOT_BASE TURRET_SLOT_TRAIT TURRET_SLOT_OCCUPIED TURRET_NEARBY TURRET_F_INTERACT TURRET_UPGRADE TURRET_AIM VISIBLE_BULLET MUZZLE_FLASH CHAIN_COIL_VFX EXPLOSIVE_SHELL_VFX META_SAVE TRAIT_TREE TRAIT_APPLY RUN_REWARD TEST_CURRENCY TEST_RESOURCES TEST_LEVELS TEST_RESET CIGARETTE_SMOKE_WINDUP CLEARCUT_CARD_FRAME CURSE_SCALING SWARM_SCALING TIME_SPAWNER ELITE_SPAWN REAPER_SPAWN REAPER_DASH_AI ELITE_THORN_FIRE STAGE_PROGRESSION WORLDTREE_ATTACKS WORLDTREE_ENRAGE SHADED_SPRITES BERSERK_ROUND BERSERK_TREE_FX")
+    -- 카드 리롤 / 배니시
+    game.clearcut.totalWood = 500
+    game.clearcut:openUpgradeChoices(game)
+    local rerollCostBefore = game.clearcut:rerollCost()
+    local woodBeforeReroll = game.clearcut.totalWood
+    assert(game.clearcut:choose("reroll", game) == true, "리롤 실행 실패")
+    assert(game.clearcut.totalWood == woodBeforeReroll - rerollCostBefore, "리롤 목재 차감 실패")
+    assert(game.clearcut.rerollCount == 1, "리롤 횟수 누적 실패")
+    assert(game.clearcut:rerollCost() > rerollCostBefore, "리롤 비용 스케일링 실패")
+
+    local banishTarget, banishIdx
+    for i, def in ipairs(game.clearcut.choices) do
+        if def.id ~= "berserker" and def.id ~= "molotov" and def.id ~= "toxic_rain" and def.id ~= "heavy_machinery" then
+            banishTarget, banishIdx = def, i
+            break
+        end
+    end
+    assert(banishTarget, "배니시 테스트용 비전직 카드 탐색 실패")
+    assert(game.clearcut:choose("banish", game) == true, "배니시 무장 실패")
+    assert(game.clearcut.banishArmed == true, "배니시 무장 상태 실패")
+    local woodBeforeBanish = game.clearcut.totalWood
+    assert(game.clearcut:choose(banishIdx, game) == true, "배니시 확정 실패")
+    assert(game.clearcut.banished[banishTarget.id] == true, "카드 영구 제외 실패")
+    assert(game.clearcut.totalWood == woodBeforeBanish - 45, "배니시 목재 차감 실패")
+    assert(game.clearcut.banishArmed == false, "배니시 이후 무장 해제 실패")
+    for _, def in ipairs(game.clearcut:upgradePool()) do assert(def.id ~= banishTarget.id, "배니시된 카드가 풀에 남아있음") end
+
+    game.clearcut.choices[1] = {id="berserker", name="test", desc="test"}
+    game.clearcut.banishArmed = true
+    assert(game.clearcut:choose(1, game) == false, "전직 카드 배니시 방지 실패")
+    assert(not game.clearcut.banished["berserker"], "전직 카드가 잘못 배니시됨")
+    game.clearcut.banishArmed = false
+
+    -- 아르카나 (스테이지 클리어 시 딱 1번, 룰을 바꾸는 영구 카드 — 풀이 소진될 때까지 반복 지급되는지 확인)
+    game.clearcut:advanceStage(game)
+    assert(game.clearcut.selectionKind == "arcana", "스테이지 클리어 후 아르카나 선택 진입 실패")
+    assert(#game.clearcut.arcanaChoices >= 1, "아르카나 선택지 생성 실패")
+    local arcanaPick = game.clearcut.arcanaChoices[1]
+    assert(game.clearcut:choose(1, game) == true, "아르카나 선택 실패")
+    assert(game.clearcut.arcanaPicked[arcanaPick.id] == true, "아르카나 선택 기록 실패")
+    assert(game.clearcut.selectionKind == "upgrade", "아르카나 선택 후 업그레이드 화면 복귀 실패")
+    local remainingArcana = #game.clearcut:arcanaPool()
+    for i = 1, remainingArcana do
+        game.clearcut:advanceStage(game)
+        assert(game.clearcut.selectionKind == "arcana", "아르카나 반복 지급 실패")
+        game.clearcut:choose(1, game)
+    end
+    assert(#game.clearcut:arcanaPool() == 0, "아르카나 풀 소진 실패")
+    game.clearcut:advanceStage(game)
+    assert(game.clearcut.selectionKind == "upgrade", "아르카나 소진 후 일반 업그레이드 화면 폴백 실패")
+    game.clearcut.enemies, game.mode = {}, "playing"
+
+    -- 스페셜 카드: 아주 낮은 확률로 뜨는 4번째 슬롯, choose("special", game)로 즉시 적용된다
+    game.clearcut.arcanaPicked = {}
+    local specialPool = game.clearcut:arcanaPool()
+    assert(#specialPool > 0, "스페셜 카드 테스트용 아르카나 풀 확보 실패")
+    game.clearcut.specialCard = specialPool[1]
+    game.clearcut.specialCardRevealAt = love.timer.getTime() - 10
+    local specialId = specialPool[1].id
+    assert(game.clearcut:choose("special", game) == true, "스페셜 카드 선택 실패")
+    assert(game.clearcut.arcanaPicked[specialId] == true, "스페셜 카드 선택 기록 실패")
+    assert(game.clearcut.specialCard == nil, "스페셜 카드 선택 후 정리 실패")
+
+    print("SELF_TEST_OK: LOBBY_DUAL_MODE RUSH_3MIN RUSH_FOREST RUSH_HOLD_TO_CHOP RUSH_MULTI_HIT RUSH_CHAIN_FELL RUSH_AUTO_PICKUP RUSH_THREE_CHOICES RUSH_AUTO_FRONT RUSH_RESULTS LOBBY_AUX_NAV SETTINGS BIG_TREE_SINGLE TREE_PER_HIT_DROP TREE_PROXIMITY_PICKUP QUARRY_GROUNDED QUARRY_PER_HIT_DROP QUARRY_ORE_RATIO QUARRY_PROXIMITY_PICKUP FARM TREE QUARRY_INFINITE TOOL_SPEED IMPACT_SYNC HARVEST_FEEDBACK VISIBLE_TURRET VISIBLE_DRONE VISIBLE_REPAIR_STATION MINING_DRILL_VFX RUN_LEVELUP THREE_CHOICES AUTOMATION EVOLUTION WALL_UPGRADE WALL_BLOCK HAMMER_REPAIR CRIT_CHANCE PRESTIGE_RUN MOVE_WHILE_FARM TURRET_SLOT_BASE TURRET_SLOT_TRAIT TURRET_SLOT_OCCUPIED TURRET_NEARBY TURRET_F_INTERACT TURRET_UPGRADE TURRET_AIM VISIBLE_BULLET MUZZLE_FLASH CHAIN_COIL_VFX EXPLOSIVE_SHELL_VFX META_SAVE TRAIT_TREE TRAIT_APPLY RUN_REWARD TEST_CURRENCY TEST_RESOURCES TEST_LEVELS TEST_RESET CIGARETTE_SMOKE_WINDUP CLEARCUT_CARD_FRAME CURSE_SCALING SWARM_SCALING TIME_SPAWNER ELITE_SPAWN REAPER_SPAWN REAPER_DASH_AI ELITE_THORN_FIRE STAGE_PROGRESSION WORLDTREE_ATTACKS WORLDTREE_ENRAGE SHADED_SPRITES BERSERK_ROUND BERSERK_TREE_FX CARD_REROLL CARD_BANISH ARCANA_STAGE SPECIAL_CARD")
 end
 
 return SelfTest
