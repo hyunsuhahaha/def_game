@@ -76,7 +76,8 @@ function ClearcutMode.new()
         hp=100, maxHp=100, invulnTimer=0, dead=false,
         enemies={}, projectiles={}, bossTelegraphs={}, waveFired={}, worldTreeSpawned=false, readyToFinish=false, activeBoss=nil, kills=0,
         chests={}, chestPending=false, molotovShots=0, wildburstTimer=10, plagued={}, dodges=0,
-        timeSpawnTimer=18, eliteTimer=200, reaperSpawned=false
+        timeSpawnTimer=18, eliteTimer=200, reaperSpawned=false,
+        stage=1, stageBossHpMul=1
     }, ClearcutMode)
 end
 
@@ -102,7 +103,16 @@ function ClearcutMode:setup(game)
     self.baseSpeed = 320
     game.player.speed, game.player.capacity, game.player.gather = self.baseSpeed, 99999, 1.15
     game.camera.x, game.camera.y, game.camera.zoom = spawnX, spawnY, .72
-    local attempts, target, minSep = 0, 260, 108
+    self:generateForest(game, 260)
+    game:setNotice("숲 전체를 밀어버려라 — 마우스를 누른 채 나무 근처로 이동하세요", "food")
+    if self.job == "fire" then self:startSmoking(game) end
+end
+
+-- 나무 배치 로직: 최초 진입(setup)과 스테이지 전환(advanceStage)에서 공용으로 쓴다
+function ClearcutMode:generateForest(game, target)
+    local w, h = game.world.width, game.world.height
+    local spawnX, spawnY = w / 2, h / 2
+    local attempts, minSep = 0, 108
     while #game.world.nodes < target and attempts < 12000 do
         attempts = attempts + 1
         local x = love.math.random(130, w - 130)
@@ -121,8 +131,26 @@ function ClearcutMode:setup(game)
         end
     end
     self.initialTrees, self.remainingTrees = #game.world.nodes, #game.world.nodes
-    game:setNotice("숲 전체를 밀어버려라 — 마우스를 누른 채 나무 근처로 이동하세요", "food")
-    if self.job == "fire" then self:startSmoking(game) end
+end
+
+-- 스테이지 클리어: 세계수를 쓰러뜨리면 런을 끝내는 대신 더 큰 숲과 더 강한 저주로 다음 스테이지를 연다
+function ClearcutMode:advanceStage(game)
+    self.stage = self.stage + 1
+    self.stageBossHpMul = 1 + (self.stage - 1) * .55
+    game.world.nodes, game.world.drops = {}, {}
+    self.enemies, self.projectiles, self.bossTelegraphs = {}, {}, {}
+    self.rootHazards, self.bees, self.molotovs, self.chests, self.plagued = {}, {}, {}, {}, {}
+    self.milestoneFired, self.worldTreeSpawned, self.worldTree, self.activeBoss = {}, false, nil, nil
+    self.regrowTimer = 0
+    local w, h = game.world.width, game.world.height
+    game.player.x, game.player.y = w / 2, h / 2
+    game.camera.x, game.camera.y = game.player.x, game.player.y
+    self:generateForest(game, math.floor(260 + (self.stage - 1) * 45))
+    game:setNotice("스테이지 " .. self.stage .. " — 숲이 더 거세게 반격한다!", "ore")
+    if game.camera then game.camera.trauma = math.min(1, game.camera.trauma + .3) end
+    self.pending = self.pending + 1
+    self:rollChoices()
+    game.mode = "clearcut_upgrade"
 end
 
 function ClearcutMode:update(dt, game)
@@ -359,8 +387,8 @@ end
 function ClearcutMode:spawnWorldTree(game)
     if self.worldTreeSpawned then return end
     self.worldTreeSpawned = true
-    self.worldTree = self:spawnEnemy("worldtree", game.player.x, game.player.y - 280)
-    game:setNotice("세계수가 깨어났다 — 이것이 숲의 마지막 저항이다!", "ore")
+    self.worldTree = self:spawnEnemy("worldtree", game.player.x, game.player.y - 280, {hpMul = self.stageBossHpMul, dmgMul = 1 + (self.stage - 1) * .3})
+    game:setNotice("세계수가 깨어났다 — 스테이지 " .. self.stage .. "의 마지막 저항이다!", "ore")
     if game.camera then game.camera.trauma = math.min(1, game.camera.trauma + .5) end
 end
 
@@ -463,8 +491,8 @@ function ClearcutMode:onEnemyDefeated(e, game)
     self.kills = self.kills + 1
     if e.def.reward and e.def.reward > 0 then self:onWood(e.def.reward, game) end
     if e == self.worldTree then
-        self.readyToFinish = true
-        game:setNotice("세계수를 쓰러뜨렸다 — 숲이 완전히 멈췄다.", "food")
+        game:setNotice("스테이지 " .. self.stage .. " 클리어 — 세계수를 쓰러뜨렸다!", "food")
+        self:advanceStage(game)
     end
     if e.def.boss and not e.def.finalBoss then
         self.chests[#self.chests + 1] = {x = e.x, y = e.y, collected = false}
@@ -1240,7 +1268,10 @@ function ClearcutMode:finish(game, victory)
     if game.result then return end
     if victory == nil then victory = true end
     game.ended, game.victory = true, victory
-    game.result={elapsed=math.floor(self.elapsed),wood=self.totalWood,trees=self.treesFelled,total=self.initialTrees,maxMulti=self.maxMulti,maxChain=self.maxChain,level=self.level,regrowPulses=self.regrowPulses,treesRevived=self.treesRevived,rootedCount=self.rootedCount,beeSwarms=self.beeSwarmsTriggered,victory=victory,kills=self.kills}
+    local baseReward = math.floor(self.treesFelled / 5) + self.kills * 2 + math.floor(self.level * 1.5) + (victory and 30 or 0)
+    local traitReward = math.max(1, math.floor(baseReward * (self.permanentTraits.reward or 1) + .5))
+    if game.characterTraits then game.characterTraits:addCurrency(traitReward) end
+    game.result={elapsed=math.floor(self.elapsed),wood=self.totalWood,trees=self.treesFelled,total=self.initialTrees,maxMulti=self.maxMulti,maxChain=self.maxChain,level=self.level,stage=self.stage,regrowPulses=self.regrowPulses,treesRevived=self.treesRevived,rootedCount=self.rootedCount,beeSwarms=self.beeSwarmsTriggered,victory=victory,kills=self.kills,traitEarned=traitReward,traitCurrency=game.characterTraits and game.characterTraits.data.currency or traitReward}
     game.mode="clearcut_results"
 end
 
@@ -1887,7 +1918,7 @@ function ClearcutMode:drawHUD(game,fonts)
     local w,h=love.graphics.getDimensions()
     UI.panel(16,16,360,168,{.35,1,.52,1},.94)
     love.graphics.setFont(fonts.big); love.graphics.setColor(1,1,1); love.graphics.print(formatTime(self.elapsed),32,27)
-    love.graphics.setFont(fonts.body); love.graphics.setColor(.95,.7,.25); love.graphics.print("숲 전멸 실험실  ·  " .. (jobNames[self.job] or "벌목꾼"),155,35)
+    love.graphics.setFont(fonts.body); love.graphics.setColor(.95,.7,.25); love.graphics.print("STAGE " .. self.stage .. "  ·  " .. (jobNames[self.job] or "벌목꾼"),155,35)
     love.graphics.setFont(fonts.small); love.graphics.setColor(.72,.9,.76); love.graphics.print(string.format("목재 %d   쓰러뜨린 나무 %d / %d",self.totalWood,self.treesFelled,self.initialTrees),32,76)
     love.graphics.print(string.format("동시 타격 %d   연쇄 %d   Lv.%d",self.maxMulti,self.maxChain,self.level),32,101)
     local statusColor = (self.rootedTimer > 0 or self.beeSlow) and {1,.6,.35} or {.6,.72,.66}
@@ -2128,7 +2159,7 @@ function ClearcutMode:drawResults(game,fonts)
     love.graphics.printf(victory and "세계수를 쓰러뜨렸다 — 숲을 완전히 정복했다" or "숲의 반격에 쓰러졌다",w/2-300,h/2-230,600,"center")
     love.graphics.setFont(fonts.small); love.graphics.setColor(.7,.85,.76)
     love.graphics.printf((victory and "숲 파괴율 100%  ·  " or "미완의 정복  ·  ") .. "핵심 재미 검증 보고서",w/2-300,h/2-182,600,"center")
-    local rows={{"걸린 시간",formatTime(r.elapsed)},{"총 목재",r.wood},{"쓰러뜨린 나무",r.trees.." / "..r.total},{"처치한 적",r.kills or 0},{"최대 동시 타격",r.maxMulti},{"최대 연쇄 벌목",r.maxChain},{"도달 레벨",r.level},{"숲 재생 펄스 · 되살아난 나무",r.regrowPulses.."회 · "..r.treesRevived.."그루"},{"가시덩굴에 붙잡힌 횟수",r.rootedCount},{"자극한 벌집",r.beeSwarms}}
+    local rows={{"도달 스테이지",r.stage or 1},{"걸린 시간",formatTime(r.elapsed)},{"총 목재",r.wood},{"쓰러뜨린 나무",r.trees.." / "..r.total},{"처치한 적",r.kills or 0},{"최대 동시 타격",r.maxMulti},{"최대 연쇄 벌목",r.maxChain},{"도달 레벨",r.level},{"숲 재생 펄스 · 되살아난 나무",r.regrowPulses.."회 · "..r.treesRevived.."그루"},{"가시덩굴에 붙잡힌 횟수",r.rootedCount},{"자극한 벌집",r.beeSwarms}}
     for i,row in ipairs(rows) do local y=h/2-140+(i-1)*38; love.graphics.setColor(i%2==0 and {.07,.12,.1,.9} or {.045,.085,.07,.9}); love.graphics.rectangle("fill",w/2-270,y,540,32,4,4); love.graphics.setColor(.72,.82,.76); love.graphics.print(row[1],w/2-250,y+7); love.graphics.setColor(1,.75,.25); love.graphics.printf(tostring(row[2]),w/2+40,y+7,270,"center") end
     UI.button(w/2-250,h/2+270,240,48,"로비로",true,fonts.body); UI.button(w/2+10,h/2+270,240,48,"다시 실험",true,fonts.body)
 end
