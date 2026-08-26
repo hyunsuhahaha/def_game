@@ -1142,12 +1142,23 @@ end
 local function drawBeehive(x, y, t)
     local bob = math.sin(t * 3 + x) * 3
     local hy = y + bob
-    local layers = {{0, 10, 13, 7}, {0, 2, 11, 6.5}, {0, -6, 8.5, 6}, {0, -13, 5.5, 5}}
-    for _, l in ipairs(layers) do
-        love.graphics.setColor(.8, .6, .26, 1); love.graphics.ellipse("fill", x + l[1], hy + l[2], l[3], l[4])
-        love.graphics.setColor(.5, .34, .1, .85); love.graphics.setLineWidth(1.3); love.graphics.ellipse("line", x + l[1], hy + l[2], l[3], l[4])
+    love.graphics.setColor(0, 0, 0, .24); love.graphics.ellipse("fill", x + 2, hy + 21, 15, 5)
+    local layers = {{0, 11, 14, 7.5}, {0, 2.5, 11.8, 6.8}, {0, -5.5, 9, 6}, {0, -12.5, 6, 5}, {0, -18.5, 3.6, 3.4}}
+    for i, l in ipairs(layers) do
+        local lx, ly, rx, ry = x + l[1], hy + l[2], l[3], l[4]
+        local shade = 1 - (i - 1) * .045
+        love.graphics.setColor(.6 * shade, .42 * shade, .17 * shade, 1)
+        love.graphics.ellipse("fill", lx, ly, rx, ry)
+        love.graphics.setColor(1, .87, .56, .32)
+        love.graphics.ellipse("fill", lx - rx * .3, ly - ry * .42, rx * .55, ry * .4)
+        love.graphics.setColor(.26, .15, .05, .32)
+        love.graphics.ellipse("fill", lx + rx * .32, ly + ry * .4, rx * .5, ry * .38)
+        love.graphics.setLineWidth(1)
+        love.graphics.setColor(.32, .2, .07, .55); love.graphics.ellipse("line", lx, ly, rx, ry)
+        love.graphics.setColor(.32, .2, .07, .3); love.graphics.ellipse("line", lx, ly - ry * .35, rx * .82, ry * .55)
     end
-    love.graphics.setColor(.16, .09, .03, 1); love.graphics.ellipse("fill", x, hy + 11, 3.2, 2)
+    love.graphics.setColor(.08, .04, .015, 1); love.graphics.ellipse("fill", x, hy + 11.5, 3.6, 2.3)
+    love.graphics.setColor(0, 0, 0, .4); love.graphics.ellipse("fill", x - .5, hy + 11.8, 2.4, 1.4)
     for i = 1, 3 do
         local a = t * 4.5 + i * 2.1
         local bx, by = x + math.cos(a) * 15, hy - 5 + math.sin(a * 1.4) * 9
