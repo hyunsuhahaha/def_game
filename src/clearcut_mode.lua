@@ -1736,14 +1736,22 @@ end
 -- (linear 필터로) 그 캔버스를 늘려서 그린다 — 셀 경계가 매끄럽게 보간되어 "칠해진 그림"에 가까워진다.
 local spriteCanvasCache = setmetatable({}, {__mode = "k"})
 local eliteSpriteCache = setmetatable({}, {__mode = "k"})
-local SPRITE_BAKE_PX = 14
+local SPRITE_BAKE_PX = 22
+
+-- linear 필터만으로는 축소할 때(멀리서 작게 그릴 때) 제대로 블러가 안 걸려서 각짐이 남는다.
+-- 밉맵을 구워두면 축소 시 실제로 다운샘플된 블러 레벨을 골라 쓰기 때문에 훨씬 매끈해진다.
+local function finalizeSpriteCanvas(canvas)
+    canvas:setFilter("linear", "linear")
+    canvas:setMipmapFilter("linear")
+    canvas:generateMipmaps()
+    return canvas
+end
 
 local function bakeSpriteCanvas(rows, palette, outline)
     local gw, gh = #rows[1], #rows
     local w, h = gw * SPRITE_BAKE_PX, gh * SPRITE_BAKE_PX
     local canvasW, canvasH = math.ceil(w * 1.3), math.ceil(h * 1.3)
-    local canvas = love.graphics.newCanvas(canvasW, canvasH)
-    canvas:setFilter("linear", "linear")
+    local canvas = love.graphics.newCanvas(canvasW, canvasH, {mipmaps = "manual"})
     local prevCanvas = love.graphics.getCanvas()
     love.graphics.setCanvas({canvas, stencil = true})
     love.graphics.clear(0, 0, 0, 0)
@@ -1761,7 +1769,7 @@ local function bakeSpriteCanvas(rows, palette, outline)
     love.graphics.setStencilTest()
     love.graphics.pop()
     love.graphics.setCanvas(prevCanvas)
-    return canvas
+    return finalizeSpriteCanvas(canvas)
 end
 
 local function eliteTintPalette(base)
@@ -1786,7 +1794,7 @@ end
 local function drawShadedSprite(sprite, cx, cy, px)
     local canvas = spriteCanvasCache[sprite]
     if not canvas then
-        canvas = bakeSpriteCanvas(sprite.rows, sprite.palette, sprite.outline)
+        canvas = sprite.customBake and sprite.customBake(sprite.rows) or bakeSpriteCanvas(sprite.rows, sprite.palette, sprite.outline)
         spriteCanvasCache[sprite] = canvas
     end
     local scale = px / SPRITE_BAKE_PX
@@ -1936,6 +1944,79 @@ local vineSproutPalette = {
     K={.11,.15,.08,1}, B={.2,.26,.13,1}, L={.3,.38,.19,1},
 }
 
+-- 덩굴괴수는 칸마다 고정된 팔레트 색 하나를 칠하는 대신, 칸 위치에서 연속적인 그라데이션 색을
+-- 직접 계산해서 픽셀 단위로 찍는다 — 몇 개짜리 단색 밴드가 아니라 진짜 연속된 음영이 나오고,
+-- 아주 옅은 노이즈까지 섞어서 평평한 디지털 그라데이션 티가 안 나게 한다.
+local function lerp3(a, b, t) return a[1] + (b[1] - a[1]) * t, a[2] + (b[2] - a[2]) * t, a[3] + (b[3] - a[3]) * t end
+
+local function bakeVineSproutCanvas(rows)
+    local gw, gh = #rows[1], #rows
+    local headRows = 19
+    local px = SPRITE_BAKE_PX
+    local w, h = gw * px, gh * px
+    local canvasW, canvasH = math.ceil(w * 1.22), math.ceil(h * 1.12)
+    local canvas = love.graphics.newCanvas(canvasW, canvasH, {mipmaps = "manual"})
+    local prevCanvas = love.graphics.getCanvas()
+    love.graphics.setCanvas({canvas, stencil = true})
+    love.graphics.clear(0, 0, 0, 0)
+    love.graphics.push()
+    love.graphics.origin()
+    local originX, originY = (canvasW - w) / 2, (canvasH - h) / 2
+    local headCx, headCy = w / 2, (headRows / 2) * px
+    local headRx, headRy = 15.2 * px, 9.4 * px
+    local W3, R3, D3 = {.86, .56, .34}, {.5, .19, .15}, {.09, .16, .07}
+    local L3, B3, K3 = {.32, .4, .2}, {.2, .26, .13}, {.11, .15, .08}
+    local rng = love.math.newRandomGenerator(4242)
+    -- 외곽선: 실루엣을 살짝 키워서 어두운 톤으로 먼저 깔아둔다
+    local outlinePalette = {}
+    for k in pairs(vineSproutPalette) do outlinePalette[k] = {.05, .07, .04, 1} end
+    drawPixelGrid(rows, outlinePalette, originX + w / 2, originY + h / 2, px * 1.1)
+    for ry = 1, gh do
+        local row = rows[ry]
+        local first, last
+        for rx = 1, gw do
+            if row:sub(rx, rx) ~= "." then
+                first = first or rx
+                last = rx
+            end
+        end
+        if first then
+            for rx = first, last do
+                if row:sub(rx, rx) ~= "." then
+                    local cx, cy = originX + (rx - .5) * px, originY + (ry - .5) * px
+                    local r, g, b
+                    if ry <= headRows then
+                        local dx, dy = (cx - headCx) / headRx, (cy - headCy) / headRy
+                        local dist = math.min(1, math.sqrt(dx * dx + dy * dy))
+                        local t = dist ^ 1.25
+                        if t < .5 then r, g, b = lerp3(W3, R3, t / .5) else r, g, b = lerp3(R3, D3, (t - .5) / .5) end
+                    else
+                        local mid = (first + last) / 2
+                        local halfSpan = math.max(1, (last - first) / 2)
+                        local t = math.min(1, math.abs(rx - mid) / halfSpan)
+                        if t < .5 then r, g, b = lerp3(L3, B3, t / .5) else r, g, b = lerp3(B3, K3, (t - .5) / .5) end
+                        local depth = (ry - headRows) / (gh - headRows) * .12
+                        r, g, b = r - depth, g - depth, b - depth
+                    end
+                    local n = (rng:random() - .5) * .07
+                    love.graphics.setColor(math.max(0, r + n), math.max(0, g + n), math.max(0, b + n), 1)
+                    love.graphics.rectangle("fill", cx - px / 2, cy - px / 2, px + 1, px + 1)
+                end
+            end
+        end
+    end
+    love.graphics.stencil(function() drawPixelGrid(rows, vineSproutPalette, originX + w/2, originY + h/2, px) end, "replace", 1)
+    love.graphics.setStencilTest("greater", 0)
+    love.graphics.setColor(1, 1, 1, .1)
+    love.graphics.ellipse("fill", originX + w * .32, originY + h * .18, w * .34, h * .22)
+    love.graphics.setColor(0, 0, 0, .12)
+    love.graphics.ellipse("fill", originX + w * .66, originY + h * .16, w * .3, h * .2)
+    love.graphics.setStencilTest()
+    love.graphics.pop()
+    love.graphics.setCanvas(prevCanvas)
+    return finalizeSpriteCanvas(canvas)
+end
+
 -- 덩굴괴수 소환 텔레그래프 전용 새싹 스프라이트: 다 자라기 전 미리보기로, 자라날수록 스케일이 커진다
 local vineSproutTipRows = {
     "...G...",
@@ -1956,7 +2037,7 @@ local enemySprites = {
     ent = {rows = entRows, palette = entPalette},
     worldtree = {rows = worldTreeRows, palette = worldTreePalette},
     reaper = {rows = reaperRows, palette = reaperPalette},
-    vineSprout = {rows = vineSproutRows, palette = vineSproutPalette},
+    vineSprout = {rows = vineSproutRows, palette = vineSproutPalette, customBake = bakeVineSproutCanvas},
 }
 
 local thornRows = {"..O..", ".OYO.", "OYHYO", ".OYO.", "..O.."}
