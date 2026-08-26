@@ -1243,6 +1243,15 @@ function ClearcutMode:smokerMouthPose(game)
     local progress = player.clearcutActionProgress
     local sprite = player.clearcutSprite
 
+    if sprite and sprite.walkMouth and sprite.actionMouth and player.clearcutPose then
+        local row, frame, flip, foot, bob = player:clearcutPose()
+        local anchor = sprite[row .. "Mouth"][frame]
+        local scale = sprite.scale or .61
+        local mouthX = player.x + (anchor[1] - player.clearcutFrameWidth / 2) * scale * flip
+        local mouthY = player.y - bob + (anchor[2] - foot) * scale
+        return mouthX, mouthY, facing, mouthX + 4 * scale * facing
+    end
+
     if self.smoking and self.smoking.phase == "reload" and progress ~= nil
         and sprite and player.clearcutFrameWidth then
         local frame = math.max(1, math.min(#smokerActionMouthAnchors, math.floor(progress * 6) + 1))
@@ -2244,6 +2253,9 @@ local cigaretteButtPalette = {
 
 function ClearcutMode:drawSmokerCigarette(game)
     if self.job~="fire" or not self.smoking or self.smoking.phase=="flick" then return false end
+    -- Production frames already contain the cigarette. Only legacy sprites
+    -- need the oversized fallback object; smoke still uses the mouth pose.
+    if game.player.clearcutSprite and game.player.clearcutSprite.walkMouth then return true end
     local mouthX,mouthY,facing,tipX=self:smokerMouthPose(game)
     drawFacingPixelGrid(cigaretteIconRows,cigaretteIconPalette,(mouthX+tipX)/2,mouthY-2,2,facing)
     return true
@@ -2521,28 +2533,19 @@ function ClearcutMode:drawWorldOverlay(game)
             local mouthX,mouthY,facing,tipX=self:smokerMouthPose(game)
             local progress=smoking.phase=="loaded" and 1 or math.min(1,smoking.t/smoking.dur)
             local breath=smoking.phase=="loaded" and .58 or (.55+math.sin(progress*math.pi)*.45)
-            for i=1,11 do
-                local rise=i*6.5
-                local drift=math.sin(t*1.65+i*1.17)*(2+i*.82)+facing*i*1.55
-                local radius=4.2+i*.7
-                local alpha=math.max(.035,(.36-i*.016)*breath)
-                -- A darker back-puff gives the pale smoke enough contrast over
-                -- both grass and bright tree crowns without becoming opaque.
-                love.graphics.setColor(.38,.4,.37,alpha*.44)
-                love.graphics.circle("fill",tipX+drift-facing*2,mouthY-rise+2,radius+2.2)
-                love.graphics.setColor(.88,.89,.85,alpha)
-                love.graphics.circle("fill",tipX+drift,mouthY-rise,radius)
+            -- A cigarette emits a thin wisp, not a chimney of overlapping discs.
+            -- Keep the first pixel at the tip and let sparse fragments rise away.
+            for i=0,13 do
+                local rise=i*1.5
+                local drift=math.sin(t*1.65-i*.34)*i*.13+facing*i*.08
+                local alpha=(.30-i*.018)*breath
+                love.graphics.setColor(.78,.79,.75,alpha)
+                love.graphics.rectangle("fill",math.floor(tipX+drift+.5),math.floor(mouthY-rise-1),1,1)
             end
-            -- Draw the ember last so smoke never washes it out. Three hard
-            -- pixel layers keep it readable against every forest backdrop.
-            local emberPulse=.82+math.sin(t*13)*.18
-            local ex,ey=math.floor(tipX+.5),math.floor(mouthY+.5)
-            love.graphics.setColor(.22,.07,.025,.88)
-            love.graphics.rectangle("fill",ex-5,ey-5,10,10)
-            love.graphics.setColor(1,.32,.035,.9*emberPulse)
-            love.graphics.rectangle("fill",ex-3,ey-3,6,6)
-            love.graphics.setColor(1,.88,.32,.96)
-            love.graphics.rectangle("fill",ex-1,ey-1,3,3)
+            -- The atlas owns the white paper/filter/ember. A single dim pixel
+            -- may brighten its tip, but must never cover the paper or the face.
+            love.graphics.setColor(.92,.34,.10,.55+math.sin(t*8)*.12)
+            love.graphics.rectangle("fill",math.floor(tipX+.5),math.floor(mouthY+.5),1,1)
         end
     elseif self.job == "toxic" then
         local bob = math.sin(t * 2.4) * 2
@@ -3089,16 +3092,13 @@ function ClearcutMode:drawHUD(game,fonts)
         love.graphics.printf(sub, dbx, dby + 31, dbw, "center")
     end
 
-    local xpBarW = math.min(520, w*.42)
-    local bx, by = w/2-xpBarW/2, h-108
-    love.graphics.setColor(.04,.07,.055,.9); love.graphics.rectangle("fill",bx-16,by-10,xpBarW+32,46,8,8)
-    love.graphics.setFont(fonts.small); love.graphics.setColor(1,.82,.3); love.graphics.print("Lv."..self.level,bx-6,by-4)
-    UI.bar(bx+44,by+1,xpBarW-54,14,math.min(1,self.xp/self.xpNext),{1,.78,.25,1},{.12,.08,.04,.95})
-    love.graphics.setFont(fonts.small); love.graphics.setColor(1,1,1)
-    love.graphics.printf(math.floor(self.xp).." / "..self.xpNext.."  ·  다음 3택까지",bx+44,by+18,xpBarW-54,"center")
-
-    love.graphics.setColor(.04,.07,.055,.86); love.graphics.rectangle("fill",16,h-52,565,36,8,8)
-    love.graphics.setColor(.82,.9,.84); love.graphics.print("마우스 누른 채 이동: 범위 자동 벌목  ·  WASD: 이동  ·  ESC: 로비",30,h-43)
+    local barH = 8
+    local xpby = h - barH
+    love.graphics.setColor(.04,.07,.055,.9); love.graphics.rectangle("fill",0,xpby,w,barH)
+    love.graphics.setColor(1,.78,.25,1); love.graphics.rectangle("fill",0,xpby,w*math.min(1,self.xp/self.xpNext),barH)
+    love.graphics.setFont(fonts.small); love.graphics.setColor(1,1,1,.9)
+    love.graphics.print("Lv."..self.level,12,xpby-18)
+    love.graphics.printf(math.floor(self.xp).." / "..self.xpNext,0,xpby-18,w-12,"right")
 end
 
 local function octagonPoints(cx, cy, r, rot)
