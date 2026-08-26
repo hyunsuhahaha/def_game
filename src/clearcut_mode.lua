@@ -118,6 +118,7 @@ function ClearcutMode:setup(game)
     end
     self.initialTrees, self.remainingTrees = #game.world.nodes, #game.world.nodes
     game:setNotice("숲 전체를 밀어버려라 — 마우스를 누른 채 나무 근처로 이동하세요", "food")
+    if self.job == "fire" then self:startSmoking(game) end
 end
 
 function ClearcutMode:update(dt, game)
@@ -731,35 +732,26 @@ function ClearcutMode:aimPoint(game, maxRange)
 end
 
 function ClearcutMode:updateFireAttack(dt, game, heldOverride)
-    if self.smoking then
-        self:updateSmoking(dt, game)
-        return true
-    end
     local held = heldOverride
     if held == nil then held = love.mouse.isDown(1) end
-    self.attackCooldown = math.max(0, self.attackCooldown - dt)
     local maxRange = 320 + self:levelOf("molotov") * 40
     local tx, ty = self:aimPoint(game, maxRange)
     self.aimX, self.aimY, self.aimRadius = tx, ty, 90 + self:levelOf("molotov") * 20
-    if not held or self.attackCooldown > 0 then return false end
-    self:startSmoking(tx, ty, game)
-    return true
+    if not self.smoking then self:startSmoking(game) end
+    self.smoking.t = self.smoking.t + dt
+    if self.smoking.t < self.smoking.dur then return false end
+    local fired = false
+    if held then
+        self:hurlMolotovAt(tx, ty, game)
+        fired = true
+    end
+    self:startSmoking(game)
+    return fired
 end
 
-function ClearcutMode:startSmoking(tx, ty, game)
+function ClearcutMode:startSmoking(game)
     local speed = (game.tools.axe.speed or 1) * game.player.gather
-    self.smoking = {tx = tx, ty = ty, t = 0, dur = math.max(.75, 1.25 / speed)}
-end
-
-function ClearcutMode:updateSmoking(dt, game)
-    local s = self.smoking
-    s.t = s.t + dt
-    self.aimX, self.aimY = s.tx, s.ty
-    if s.t < s.dur then return end
-    self:hurlMolotovAt(s.tx, s.ty, game)
-    local speed = (game.tools.axe.speed or 1) * game.player.gather
-    self.attackCooldown = .45 / speed
-    self.smoking = nil
+    self.smoking = {t = 0, dur = math.max(.75, 1.25 / speed)}
 end
 
 function ClearcutMode:updateToxicAttack(dt, game, heldOverride)

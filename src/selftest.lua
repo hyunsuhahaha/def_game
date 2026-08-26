@@ -289,16 +289,13 @@ function SelfTest.run(game)
     game:finishRun(false)
     assert(game.progression.data.currency == afterReward, "런 보상 중복 지급 방지 실패")
     game:startClearcut("fire")
-    game.clearcut:startSmoking(game.player.x + 200, game.player.y, game)
-    assert(game.clearcut.smoking and #game.clearcut.molotovs == 0, "흡연 시작 시 즉시 투척 방지 실패")
-    local smokeStep = game.clearcut.smoking.dur / 8
-    for _ = 1, 7 do
-        game.clearcut:update(smokeStep, game)
-        assert(game.clearcut.smoking, "흡연 도중 조기 투척 실패")
-    end
+    assert(game.clearcut.smoking, "항상 흡연 루프 자동 시작 실패")
+    game.clearcut:updateFireAttack(game.clearcut.smoking.dur * .5, game, true)
+    assert(game.clearcut.smoking and #game.clearcut.molotovs == 0, "흡연 도중 조기 투척 방지 실패")
     local remaining = game.clearcut.smoking.dur - game.clearcut.smoking.t
-    game.clearcut:update(remaining + .02, game)
-    assert(game.clearcut.smoking == nil and #game.clearcut.molotovs >= 1, "흡연 완료 후 담배꽁초 투척 실패")
+    game.clearcut:updateFireAttack(remaining + .02, game, true)
+    assert(#game.clearcut.molotovs >= 1, "흡연 완료 후 담배꽁초 투척 실패")
+    assert(game.clearcut.smoking and game.clearcut.smoking.t < game.clearcut.smoking.dur, "투척 즉시 다음 담배로 재장전 실패")
     game.clearcut.molotovs = {}
     print("SELF_TEST_OK: LOBBY_DUAL_MODE RUSH_3MIN RUSH_FOREST RUSH_HOLD_TO_CHOP RUSH_MULTI_HIT RUSH_CHAIN_FELL RUSH_AUTO_PICKUP RUSH_THREE_CHOICES RUSH_AUTO_FRONT RUSH_RESULTS LOBBY_AUX_NAV SETTINGS BIG_TREE_SINGLE TREE_PER_HIT_DROP TREE_PROXIMITY_PICKUP QUARRY_GROUNDED QUARRY_PER_HIT_DROP QUARRY_ORE_RATIO QUARRY_PROXIMITY_PICKUP FARM TREE QUARRY_INFINITE TOOL_SPEED IMPACT_SYNC HARVEST_FEEDBACK VISIBLE_TURRET VISIBLE_DRONE VISIBLE_REPAIR_STATION MINING_DRILL_VFX RUN_LEVELUP THREE_CHOICES AUTOMATION EVOLUTION WALL_UPGRADE WALL_BLOCK HAMMER_REPAIR CRIT_CHANCE PRESTIGE_RUN MOVE_WHILE_FARM TURRET_SLOT_BASE TURRET_SLOT_TRAIT TURRET_SLOT_OCCUPIED TURRET_NEARBY TURRET_F_INTERACT TURRET_UPGRADE TURRET_AIM VISIBLE_BULLET MUZZLE_FLASH CHAIN_COIL_VFX EXPLOSIVE_SHELL_VFX META_SAVE TRAIT_TREE TRAIT_APPLY RUN_REWARD TEST_CURRENCY TEST_RESOURCES TEST_LEVELS TEST_RESET CIGARETTE_SMOKE_WINDUP")
 end
