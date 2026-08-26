@@ -371,6 +371,60 @@ function ClearcutMode:spawnEnemyProjectile(e, game)
     self.projectiles[#self.projectiles + 1] = {x = e.x, y = e.y, vx = dx / d * 150, vy = dy / d * 150, life = 3, damage = e.def.damage * (e.dmgMul or 1), color = e.def.color}
 end
 
+-- 정예 개체 전용 원거리 공격: 근접전만 하던 몹에게 가시 투사체를 추가로 부여한다
+function ClearcutMode:spawnThornProjectile(e, game)
+    local dx, dy = game.player.x - e.x, game.player.y - e.y
+    local d = math.sqrt(dx*dx + dy*dy)
+    if d <= 0 then return end
+    self.projectiles[#self.projectiles + 1] = {
+        x = e.x, y = e.y, vx = dx / d * 210, vy = dy / d * 210, life = 2.4,
+        damage = e.def.damage * (e.dmgMul or 1) * .6, color = {.62, .42, .15}, kind = "thorn",
+    }
+end
+
+-- 숲의 사신 전용 AI: 평소엔 추격, 가까워지면 멈춰서서 붉게 예열한 뒤 직선으로 돌진한다
+function ClearcutMode:updateReaperAI(e, dt, game)
+    local dx, dy = game.player.x - e.x, game.player.y - e.y
+    local dist = math.sqrt(dx*dx + dy*dy)
+    if e.reaperState == "charging" then
+        e.moving = false
+        e.reaperChargeT = e.reaperChargeT - dt
+        if dist > 1 then e.reaperDashDx, e.reaperDashDy = dx / dist, dy / dist end
+        if e.reaperChargeT <= 0 then
+            e.reaperState, e.reaperDashT = "dashing", .4
+        end
+        return
+    elseif e.reaperState == "dashing" then
+        e.moving = true
+        e.reaperDashT = e.reaperDashT - dt
+        local speed = e.def.speed * (e.speedMul or 1) * 3.2
+        e.x, e.y = e.x + (e.reaperDashDx or 0) * speed * dt, e.y + (e.reaperDashDy or 0) * speed * dt
+        e.hitTimer = math.max(0, e.hitTimer - dt)
+        if dist <= e.def.radius + 26 and e.hitTimer <= 0 then
+            e.hitTimer = .5
+            self:damagePlayer(e.def.damage * (e.dmgMul or 1) * 1.6, game)
+        end
+        if e.reaperDashT <= 0 then e.reaperState, e.reaperTimer = "idle", 4 end
+        return
+    end
+    e.reaperTimer = (e.reaperTimer or 4) - dt
+    if dist > e.def.radius + 20 then
+        local speed = e.def.speed * (e.speedMul or 1)
+        e.x, e.y = e.x + dx / dist * speed * dt, e.y + dy / dist * speed * dt
+        e.moving = true
+    else
+        e.moving = false
+        if e.hitTimer <= 0 then
+            e.hitTimer = e.def.hitCooldown
+            self:damagePlayer(e.def.damage * (e.dmgMul or 1), game)
+        end
+    end
+    if e.reaperTimer <= 0 and dist < 520 then
+        e.reaperState, e.reaperChargeT = "charging", .6
+        if game.camera then game.camera.trauma = math.min(1, game.camera.trauma + .15) end
+    end
+end
+
 function ClearcutMode:updateProjectiles(dt, game)
     for i = #self.projectiles, 1, -1 do
         local p = self.projectiles[i]
@@ -454,7 +508,9 @@ function ClearcutMode:updateEnemies(dt, game)
         local e = self.enemies[i]
         local def = e.def
         e.hitTimer = math.max(0, e.hitTimer - dt)
-        if def.ranged then
+        if e.kind == "reaper" then
+            self:updateReaperAI(e, dt, game)
+        elseif def.ranged then
             local dx, dy = game.player.x - e.x, game.player.y - e.y
             local dist = math.sqrt(dx*dx + dy*dy)
             e.fireTimer = e.fireTimer - dt
@@ -475,6 +531,13 @@ function ClearcutMode:updateEnemies(dt, game)
                     e.hitTimer = def.hitCooldown
                     self:damagePlayer(def.damage * (e.dmgMul or 1), game)
                 end
+            end
+        end
+        if e.elite then
+            e.eliteFireTimer = (e.eliteFireTimer or 2.4) - dt
+            if e.eliteFireTimer <= 0 then
+                e.eliteFireTimer = 2.6
+                self:spawnThornProjectile(e, game)
             end
         end
         if def.slamInterval then
@@ -1313,7 +1376,22 @@ local worldTreeRows = {
 }
 local worldTreePalette = {O={.08,.05,.02,1}, G={.18,.4,.16,1}, g={.26,.56,.24,1}, B={.32,.2,.1,1}, Y={1,.9,.45,1}}
 
-local reaperPalette = {O={.02,.01,.01,1}, D={.09,.05,.06,1}, E={1,.12,.08,1}, W={.32,.06,.08,1}, L={.05,.02,.02,1}}
+-- 숲의 사신: 짐승이 아니라 두건 쓴 망령 실루엣 — 낫을 든 도끼 사냥꾼 컨셉
+local reaperRows = {
+    "....OOO....",
+    "...OGGGO...",
+    "..OGRRRGO..",
+    "..OGGGGGO..",
+    ".OOGGGGGOO.",
+    "OBBBBBBBBBO",
+    "OBBBBBBBBBO",
+    "OBBBBBBBBBO",
+    "OBBBBBBBBBO",
+    ".OBBBBBBBO.",
+    ".OB.BOB.BO.",
+    "OO.O.O.O.OO",
+}
+local reaperPalette = {O={.03,.02,.02,1}, G={.12,.14,.1,1}, R={1,.15,.1,1}, B={.1,.06,.12,1}}
 
 local enemySprites = {
     squirrel = {rows = squirrelRows, palette = squirrelPalette},
@@ -1321,8 +1399,21 @@ local enemySprites = {
     turret = {rows = turretRows, palette = turretPalette},
     ent = {rows = entRows, palette = entPalette},
     worldtree = {rows = worldTreeRows, palette = worldTreePalette},
-    reaper = {rows = boarRows, palette = reaperPalette},
+    reaper = {rows = reaperRows, palette = reaperPalette},
 }
+
+local thornRows = {"..O..", ".OYO.", "OYHYO", ".OYO.", "..O.."}
+local thornPalette = {O={.15,.08,.04,1}, Y={.62,.42,.15,1}, H={.92,.78,.35,1}}
+
+-- 정예(elite) 개체는 별도 스프라이트를 새로 그리는 대신, 기존 실루엣을 어둡고 채도 높은 "타락" 톤으로 재염색해서 확실히 다르게 보이게 한다
+local function eliteTintPalette(base)
+    local out = {}
+    for k, c in pairs(base) do
+        local lum = (c[1] + c[2] + c[3]) / 3
+        out[k] = {math.min(1, lum * .3 + .55), math.min(1, lum * .12 + .05), math.min(1, lum * .55 + .2), c[4]}
+    end
+    return out
+end
 
 local chestRows = {
     "..OOOOOO..",
@@ -1564,13 +1655,19 @@ local function drawEnemy(e, t)
         love.graphics.setLineWidth(2); love.graphics.setColor(1, .84, .3, .8 + pulse * .2)
         love.graphics.circle("line", e.x, e.y - bob, def.radius * 1.35)
     elseif e.kind == "reaper" then
-        local pulse = .5 + math.sin(t * 5 + seed) * .5
-        love.graphics.setColor(1, .12, .1, .3 + pulse * .18)
-        love.graphics.circle("fill", e.x, e.y - bob, def.radius * 1.5)
+        local charging = e.reaperState == "charging"
+        local pulse = .5 + math.sin(t * (charging and 12 or 5) + seed) * .5
+        love.graphics.setColor(1, .12, .1, (charging and .55 or .3) + pulse * .18)
+        love.graphics.circle("fill", e.x, e.y - bob, def.radius * (charging and 1.9 or 1.5))
+        if charging and e.reaperDashDx then
+            love.graphics.setLineWidth(3); love.graphics.setColor(1, .2, .12, .5 + pulse * .3)
+            love.graphics.line(e.x, e.y - bob, e.x + e.reaperDashDx * 260, e.y - bob + e.reaperDashDy * 260)
+        end
     end
     if sprite then
         local px = (def.radius * 2.1) / #sprite.rows[1]
-        drawPixelGrid(sprite.rows, sprite.palette, e.x, e.y - bob, px)
+        local palette = e.elite and eliteTintPalette(sprite.palette) or sprite.palette
+        drawPixelGrid(sprite.rows, palette, e.x, e.y - bob, px)
     end
     if e.plagueMarked then
         love.graphics.setColor(.5, .9, .35, .3 + math.sin(t * 8) * .12)
@@ -1769,9 +1866,16 @@ function ClearcutMode:drawWorldOverlay(game)
     end
     for _, e in ipairs(self.enemies) do drawEnemy(e, t) end
     for _, p in ipairs(self.projectiles) do
-        love.graphics.setColor(p.color[1], p.color[2], p.color[3], .3); love.graphics.circle("fill", p.x, p.y, 8)
-        love.graphics.setColor(p.color); love.graphics.circle("fill", p.x, p.y, 4.5)
-        love.graphics.setColor(0, 0, 0, .8); love.graphics.setLineWidth(1); love.graphics.circle("line", p.x, p.y, 4.5)
+        if p.kind == "thorn" then
+            love.graphics.setColor(1, .7, .3, .28); love.graphics.circle("fill", p.x, p.y, 9)
+            love.graphics.push(); love.graphics.translate(p.x, p.y); love.graphics.rotate(t * 12)
+            drawPixelGrid(thornRows, thornPalette, 0, 0, 2.6)
+            love.graphics.pop()
+        else
+            love.graphics.setColor(p.color[1], p.color[2], p.color[3], .3); love.graphics.circle("fill", p.x, p.y, 8)
+            love.graphics.setColor(p.color); love.graphics.circle("fill", p.x, p.y, 4.5)
+            love.graphics.setColor(0, 0, 0, .8); love.graphics.setLineWidth(1); love.graphics.circle("line", p.x, p.y, 4.5)
+        end
     end
     if self.invulnTimer > 0 then
         love.graphics.setColor(1, .2, .15, .35); love.graphics.circle("fill", game.player.x, game.player.y - 20, 26)
