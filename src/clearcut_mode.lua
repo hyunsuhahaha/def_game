@@ -1,5 +1,9 @@
 local UI = require("src.ui")
 local TraitFx = require("src.trait_fx")
+local Cigarette = require("src.cigarette_sprite")
+local CigaretteButts = require("src.cigarette_butts")
+local CigaretteButtArt = require("src.cigarette_butt_art")
+local ForestArt = require("src.forest_arcade_art")
 
 local ClearcutMode = {}
 ClearcutMode.__index = ClearcutMode
@@ -11,7 +15,7 @@ local jobFor = {berserker = "physical", molotov = "fire", toxic_rain = "toxic", 
 local jobNames = {physical = "생계형 나무꾼", fire = "흡연자", toxic = "비건 단체 회장", developer = "부동산 개발업자"}
 local jobDesc = {
     physical = "그냥 오늘 할당량을 채우러 왔을 뿐이다. 대출은 갚아야 하니까.",
-    fire = "기본 공격이 도끼질 대신 마우스 위치에 담배꽁초를 튕기는 것으로 바뀝니다. 숲이 마른 건 내 탓이 아니다.",
+    fire = "마우스 위치에 꽁초를 튕깁니다. 꽁초는 바닥에 남아 타들어가며 주변 나무로 불씨를 확률적으로 옮깁니다. 착지 즉시 불붙지는 않습니다.",
     toxic = "기본 공격이 도끼질 대신 마우스 위치에 '친환경' 제초제를 살포하는 것으로 바뀝니다. 숲을 지키기 위해 숲을 없앤다.",
     developer = "기본 공격이 도끼질 대신 마우스 방향으로 중장비 돌진하는 것으로 바뀝니다. 여기에 아파트 지으면 됨."
 }
@@ -24,8 +28,8 @@ local definitions = {
     {id="shockwave", track="destroy", name="산재 위험수당", desc="나무를 쓰러뜨리면 주변 나무에도 충격파 피해를 줍니다.", max=3, color={1,.78,.2}, job="physical"},
     {id="domino", track="destroy", name="도미노", desc="쓰러지는 나무가 진행 방향의 다른 나무를 함께 쓰러뜨립니다.", max=3, color={.95,.55,.3}},
     -- 확산력 (spread) — 한 번의 행동으로 얼마나 넓게 없애느냐 [흡연자 전용]
-    {id="molotov", track="spread", name="꽁초 투척", desc="사거리와 폭발 범위가 늘어나고, 주기적으로 무심코 하나 더 튕깁니다.", max=3, color={1,.35,.12}, job="fire"},
-    {id="dry_forest", track="spread", name="건조주의보 무시", desc="불이 주변 나무로 더 빠르고 넓게 번집니다.", max=3, color={1,.5,.15}, job="fire"},
+    {id="molotov", track="spread", name="꽁초 투척", desc="사거리와 꽁초의 불씨 전이 범위가 늘어나고, 주기적으로 하나 더 튕깁니다. 바닥의 꽁초는 7초간 남아 주변 나무에 확률적으로 불을 옮깁니다.", max=3, color={1,.35,.12}, job="fire"},
+    {id="dry_forest", track="spread", name="건조주의보 무시", desc="꽁초의 착화 확률이 높아지고, 붙은 불이 주변 나무로 더 빠르고 넓게 번집니다.", max=3, color={1,.5,.15}, job="fire"},
     {id="oil_drum", track="spread", name="라이터 기름 유출", desc="나무가 다 타버리면 확률적으로 주변이 한꺼번에 폭발합니다.", max=3, color={1,.62,.1}, job="fire"},
     {id="embers", track="spread", name="바람 부는 날 흡연", desc="다 타버린 나무에서 불씨가 튀어 멀리 있는 나무에도 옮겨붙습니다.", max=3, color={1,.75,.25}, job="fire"},
     -- 억제력 (suppress) — 자연이 얼마나 다시 못 자라게 하느냐 [비건 단체 회장 전용 + 공용]
@@ -94,6 +98,7 @@ function ClearcutMode.new()
         rootHazards={}, rootedTimer=0, rootedCount=0,
         bees={}, beeSlow=false, beeSwarmsTriggered=0, beehiveTotal=0,
         streak=0, lastHitAt=-10, molotovTimer=0, wildfireTimer=0, toxicTimer=0, evolutions={}, molotovs={},
+        cigaretteButts={}, emberTransfers={}, emberArrivals={}, smokerGroundTime=0,
         job=nil, attackCooldown=0, dashing=nil, dashTrail={}, smoking=nil,
         smokerHeldLast=false, physicalAction=nil, veganAction=nil, developerAction=nil,
         actionAudit={physicalImpact=0,cigaretteFlick=0,veganBite=0,developerRemote=0},
@@ -138,6 +143,7 @@ function ClearcutMode:setup(game)
     game.world.treeVisual.scale = 1
     game.world.treeVisual.variantScale = {1, 1, 1, 1}
     game.world.treeVisual.shadowRx, game.world.treeVisual.shadowRy, game.world.treeVisual.frontBias = 58, 8, 82
+    if game.world.useArcadeForest then game.world:useArcadeForest() end
     local w, h = game.world.width, game.world.height
     local spawnX, spawnY = w / 2, h / 2
     game.player.x, game.player.y = spawnX, spawnY
@@ -178,6 +184,7 @@ end
 
 -- 스테이지 클리어: 세계수를 쓰러뜨리면 런을 끝내는 대신 더 큰 숲과 더 강한 저주로 다음 스테이지를 연다
 function ClearcutMode:advanceStage(game)
+    CigaretteButts.reset(self)
     self.stage = self.stage + 1
     self.stageBossHpMul = 1 + (self.stage - 1) * .55
     game.world.nodes, game.world.drops = {}, {}
@@ -363,7 +370,24 @@ function ClearcutMode:damageEnemiesInRadius(x, y, radius, damage, game)
         local dx, dy = e.x - x, e.y - y
         if dx*dx + dy*dy <= radius*radius then
             e.hp = e.hp - damage
+            e.visualHit = .14
             for _ = 1, 4 do game.world:addParticle(e.x, e.y - 12, {1, .32, .2}, true, false) end
+        end
+    end
+end
+
+function ClearcutMode:igniteEnemy(e, game, depth)
+    if self.rainSuppressFire or e.burning or e.hp <= 0 then return end
+    e.burning, e.burnTimer, e.fireTickTimer, e.spreadDepth = true, 0, 0, depth or 0
+    game.world:igniteFx(e.x, e.y, false)
+end
+
+function ClearcutMode:igniteEnemiesInRadius(x, y, radius, game, depth)
+    if self.rainSuppressFire then return end
+    for _, e in ipairs(self.enemies) do
+        if not e.burning then
+            local dx, dy = e.x - x, e.y - y
+            if dx*dx + dy*dy <= radius*radius then self:igniteEnemy(e, game, depth) end
         end
     end
 end
@@ -624,6 +648,7 @@ function ClearcutMode:spawnEnemyProjectile(e, game)
     local dx, dy = game.player.x - e.x, game.player.y - e.y
     local d = math.sqrt(dx*dx + dy*dy)
     if d <= 0 then return end
+    e.visualAttack = .24
     self.projectiles[#self.projectiles + 1] = {x = e.x, y = e.y, vx = dx / d * 150, vy = dy / d * 150, life = 3, damage = e.def.damage * (e.dmgMul or 1), color = e.def.color}
 end
 
@@ -632,6 +657,7 @@ function ClearcutMode:spawnThornProjectile(e, game)
     local dx, dy = game.player.x - e.x, game.player.y - e.y
     local d = math.sqrt(dx*dx + dy*dy)
     if d <= 0 then return end
+    e.visualAttack = .24
     self.projectiles[#self.projectiles + 1] = {
         x = e.x, y = e.y, vx = dx / d * 210, vy = dy / d * 210, life = 2.4,
         damage = e.def.damage * (e.dmgMul or 1) * .6, color = {.62, .42, .15}, kind = "thorn",
@@ -832,6 +858,10 @@ function ClearcutMode:updateEnemies(dt, game)
     for i = #self.enemies, 1, -1 do
         local e = self.enemies[i]
         local def = e.def
+        local previousX, previousY = e.x, e.y
+        e.visualTime = (e.visualTime or 0) + dt
+        e.visualHit = math.max(0, (e.visualHit or 0) - dt)
+        e.visualAttack = math.max(0, (e.visualAttack or 0) - dt)
         e.hitTimer = math.max(0, e.hitTimer - dt)
         if e.kind == "reaper" then
             self:updateReaperAI(e, dt, game)
@@ -854,10 +884,14 @@ function ClearcutMode:updateEnemies(dt, game)
                 e.moving = false
                 if e.hitTimer <= 0 then
                     e.hitTimer = def.hitCooldown
+                    e.visualAttack = .24
                     self:damagePlayer(def.damage * (e.dmgMul or 1), game)
                 end
             end
         end
+        local movedX, movedY = e.x-previousX, e.y-previousY
+        if math.abs(movedX) > .001 then e.facing = movedX < 0 and -1 or 1 end
+        e.moving = movedX*movedX + movedY*movedY > .000001
         if e.elite then
             e.eliteFireTimer = (e.eliteFireTimer or 2.4) - dt
             if e.eliteFireTimer <= 0 then
@@ -919,8 +953,9 @@ function ClearcutMode:throwMolotov(game)
     local dist = math.sqrt((target.x-game.player.x)^2 + (target.y-game.player.y)^2)
     local _,mouthY,_,tipX=self:smokerMouthPose(game)
     self.molotovs[#self.molotovs+1] = {
-        x0=tipX, y0=mouthY, x1=target.x, y1=target.y,
-        t=0, dur=math.max(.34, dist/850), target=target
+        x0=tipX, y0=mouthY, x1=target.x+28, y1=target.y+22,
+        t=0, dur=math.max(.34, dist/850), target=target,
+        radius=90+self:levelOf("molotov")*20, landingAngle=.18+math.sin(target.x*.013)*.6
     }
     self:trackMolotovBarrage(game)
 end
@@ -943,29 +978,14 @@ function ClearcutMode:hurlMolotovAt(tx, ty, game, isBarrage)
     local _,mouthY,_,tipX=self:smokerMouthPose(game)
     self.molotovs[#self.molotovs+1] = {
         x0=tipX, y0=mouthY, x1=tx, y1=ty,
-        t=0, dur=math.max(.34, dist/850), manual=true, radius=90 + self:levelOf("molotov") * 20
+        t=0, dur=math.max(.34, dist/850), manual=true, radius=90 + self:levelOf("molotov") * 20,
+        landingAngle=.18+math.sin(tx*.013+ty*.017)*.6
     }
     if not isBarrage then self:trackMolotovBarrage(game) end
 end
 
 function ClearcutMode:updateMolotovs(dt, game)
-    for i = #self.molotovs, 1, -1 do
-        local m = self.molotovs[i]
-        m.t = m.t + dt
-        if m.t >= m.dur then
-            if m.manual then
-                self:igniteNear({x=m.x1, y=m.y1}, game, m.radius, 99, 0)
-                self:damageEnemiesInRadius(m.x1, m.y1, m.radius, 9, game)
-                game.world:igniteFx(m.x1, m.y1, true)
-            elseif m.target.active and not m.target.burning and not self.rainSuppressFire then
-                m.target.burning, m.target.burnTimer, m.target.igniting, m.target.spreadDepth, m.target.fireTickTimer = true, 0, nil, 0, 0
-                game.world:igniteFx(m.target.x, m.target.y, true)
-            elseif m.target then
-                m.target.igniting = nil
-            end
-            table.remove(self.molotovs, i)
-        end
-    end
+    CigaretteButts.update(self,dt,game)
 end
 
 function ClearcutMode:onTreeBurnedDown(node, game)
@@ -1037,6 +1057,7 @@ function ClearcutMode:updateFire(dt, game)
                 node.fireTickTimer = .5
                 local falloff = .5 ^ (node.spreadDepth or 0)
                 self:damageEnemiesInRadius(node.x, node.y, 75, 3 * falloff, game)
+                self:igniteEnemiesInRadius(node.x, node.y, 75, game, node.spreadDepth)
             end
             if node.burnTimer >= burnDuration then
                 node.burning = false
@@ -1044,6 +1065,27 @@ function ClearcutMode:updateFire(dt, game)
                 self:fellTree(node, game)
             elseif love.math.random() < spreadChancePerSec * dt then
                 self:igniteNear(node, game, spreadRadius, 1)
+            end
+        end
+    end
+    local emberLevel = self:levelOf("embers")
+    local enemyBurnDamage = 5 + molotovLevel * 3 + emberLevel * 2
+    for _, e in ipairs(self.enemies) do
+        if e.burning then
+            e.burnTimer = e.burnTimer + dt
+            e.fireTickTimer = (e.fireTickTimer or 0) - dt
+            if e.fireTickTimer <= 0 then
+                e.fireTickTimer = .5
+                local falloff = .5 ^ (e.spreadDepth or 0)
+                e.hp = e.hp - enemyBurnDamage * falloff
+                e.visualHit = .14
+                for _ = 1, 3 do game.world:addParticle(e.x, e.y - 12, {1, .35, .18}, true, false) end
+            end
+            if e.burnTimer >= burnDuration then
+                e.burning = false
+                if emberLevel > 0 and e.hp > 0 then
+                    self:igniteEnemiesInRadius(e.x, e.y, 90 + emberLevel * 30, game, (e.spreadDepth or 0) + 1)
+                end
             end
         end
     end
@@ -1190,7 +1232,8 @@ function ClearcutMode:updateFireAttack(dt, game, heldOverride)
     local smoking = self.smoking
     local pressed = held and not self.smokerHeldLast
     self.smokerHeldLast = held
-    game.player.facing = tx < game.player.x and -1 or 1
+    -- Movement owns facing while smoking/ready. Mouse aim only turns the body
+    -- during an actual throw, and that throw keeps its original direction.
 
     if smoking.phase == "reload" then
         smoking.t = math.min(smoking.dur, smoking.t + dt)
@@ -1206,10 +1249,13 @@ function ClearcutMode:updateFireAttack(dt, game, heldOverride)
         if not pressed then return false end
         smoking.phase, smoking.t, smoking.dur = "flick", 0, math.max(.38, .52 / ((game.tools.axe.speed or 1) * game.player.gather))
         smoking.loaded, smoking.fired, smoking.tx, smoking.ty = false, false, tx, ty
+        smoking.facing = tx < game.player.x and -1 or 1
+        game.player.facing = smoking.facing
         if game.player.setClearcutAction then game.player:setClearcutAction(.5) end
         return false
     end
 
+    game.player.facing = smoking.facing or game.player.facing
     smoking.t = math.min(smoking.dur, smoking.t + dt)
     local progress = smoking.t / smoking.dur
     if game.player.setClearcutAction then game.player:setClearcutAction(.5 + progress * .499) end
@@ -1249,7 +1295,8 @@ function ClearcutMode:smokerMouthPose(game)
         local scale = sprite.scale or .61
         local mouthX = player.x + (anchor[1] - player.clearcutFrameWidth / 2) * scale * flip
         local mouthY = player.y - bob + (anchor[2] - foot) * scale
-        return mouthX, mouthY, facing, mouthX + 4 * scale * facing
+        local length = sprite.cigarette and sprite.cigarette.length or 4 * scale
+        return mouthX, mouthY, facing, mouthX + length * facing
     end
 
     if self.smoking and self.smoking.phase == "reload" and progress ~= nil
@@ -1863,6 +1910,8 @@ end
 -- 나무는 고해상도로 미리 그려둔 채색 이미지를 축소해서 쓰기 때문에 매끈한데, 몹은 셀 10~20개짜리
 -- 픽셀 그리드를 그대로 확대해서 각진 사각형이 그대로 드러났다. 그래서 몹도 한 번만 캔버스에 구워두고
 -- (linear 필터로) 그 캔버스를 늘려서 그린다 — 셀 경계가 매끄럽게 보간되어 "칠해진 그림"에 가까워진다.
+-- Legacy model/baker definitions retained for provenance only. The active v3
+-- bodies are ForestArt sprites, never these enlarged grids or linear canvases.
 local spriteCanvasCache = setmetatable({}, {__mode = "k"})
 local eliteSpriteCache = setmetatable({}, {__mode = "k"})
 local SPRITE_BAKE_PX = 22
@@ -2220,6 +2269,7 @@ local cigaretteIconRows = {
 }
 local cigaretteIconPalette = {W={.92,.9,.82,1}, F={1,.55,.15,1}, O={.35,.22,.13,1}}
 
+-- Legacy block model kept for provenance only; flights/ground use CigaretteButtArt.
 local cigaretteButtRows = {
     "....AA....",
     "...AHA....",
@@ -2253,33 +2303,21 @@ local cigaretteButtPalette = {
 
 function ClearcutMode:drawSmokerCigarette(game)
     if self.job~="fire" or not self.smoking or self.smoking.phase=="flick" then return false end
-    -- Production frames already contain the cigarette. Only legacy sprites
-    -- need the oversized fallback object; smoke still uses the mouth pose.
-    if game.player.clearcutSprite and game.player.clearcutSprite.walkMouth then return true end
     local mouthX,mouthY,facing,tipX=self:smokerMouthPose(game)
+    local sprite=game.player.clearcutSprite
+    if sprite and sprite.walkMouth then
+        if sprite.cigarette then
+            Cigarette.draw(sprite.cigarette,mouthX,mouthY,facing,love.timer.getTime())
+        end
+        return true
+    end
     drawFacingPixelGrid(cigaretteIconRows,cigaretteIconPalette,(mouthX+tipX)/2,mouthY-2,2,facing)
     return true
 end
 
 function ClearcutMode:drawCigaretteProjectiles(t)
-    local drawn=0
-    for _,m in ipairs(self.molotovs) do
-        local p=math.max(0,math.min(1,m.t/m.dur))
-        local x=m.x0+(m.x1-m.x0)*p
-        local y=m.y0+(m.y1-m.y0)*p-math.sin(p*math.pi)*120
-        love.graphics.setColor(.76,.75,.72,.22)
-        for i=1,4 do love.graphics.circle("fill",x-(m.x1-m.x0)*.012*i,y-(m.y1-m.y0)*.012*i+i*3,2+i*.8) end
-        love.graphics.push(); love.graphics.translate(math.floor(x+.5),math.floor(y+.5)); love.graphics.rotate(p*14)
-        local buttPx=1.05
-        local emberY=-(#cigaretteButtRows*buttPx/2)+4*buttPx
-        local flicker=.72+math.sin((t or 0)*30)*.28
-        love.graphics.setColor(.18,.08,.03,.72); love.graphics.rectangle("fill",-4,math.floor(emberY)-4,8,8)
-        love.graphics.setColor(1,.42,.08,.9*flicker); love.graphics.rectangle("fill",-3,math.floor(emberY)-3,6,6)
-        drawPixelGrid(cigaretteButtRows,cigaretteButtPalette,0,0,buttPx)
-        love.graphics.pop()
-        drawn=drawn+1
-    end
-    return drawn
+    for _,flight in ipairs(self.molotovs) do CigaretteButtArt.drawFlight(flight,self.smokerGroundTime) end
+    return #self.molotovs
 end
 
 local leafIconRows = {
@@ -2449,14 +2487,12 @@ ClearcutMode.icons = {
 }
 ClearcutMode.drawPixelGrid = drawPixelGrid
 
-local function drawEnemy(e, t)
+-- Threat markers remain above the canopy for combat readability; bodies do not.
+local function drawEnemyThreat(e, t)
     local def = e.def
     local walking = def.speed > 0 and (e.moving or false)
     local seed = e.seed or 0
     local bob = walking and math.abs(math.sin(t * 6 + seed)) * def.radius * .05 or (def.boss and math.sin(t * 1.6 + seed) * def.radius * .03 or 0)
-    local sprite = enemySprites[e.kind]
-    love.graphics.setColor(0, 0, 0, .32)
-    love.graphics.ellipse("fill", e.x, e.y + def.radius * .8, def.radius * .95, def.radius * .3)
     if e.elite then
         local pulse = .5 + math.sin(t * 3.5 + seed) * .5
         love.graphics.setColor(1, .78, .2, .25 + pulse * .2)
@@ -2483,22 +2519,40 @@ local function drawEnemy(e, t)
             love.graphics.line(e.x + math.cos(a) * r1, e.y - bob + math.sin(a) * r1 * .6, e.x + math.cos(a) * r2, e.y - bob + math.sin(a) * r2 * .6)
         end
     end
-    if sprite then
-        local px = (def.radius * 2.1) / #sprite.rows[1]
-        local drawSprite = e.elite and getEliteSprite(sprite) or sprite
-        drawShadedSprite(drawSprite, e.x, e.y - bob, px)
+    ForestArt.drawHealth(e,t)
+end
+
+-- Shared by the real world depth queue and headless renderer tests.
+ClearcutMode.drawEnemy = ForestArt.drawBody
+function ClearcutMode:queueWorldActors(queue,t)
+    local groundTime=self.smokerGroundTime
+    for _,value in ipairs(self.cigaretteButts) do
+        local butt=value
+        queue[#queue+1]={y=butt.y+3,draw=function() CigaretteButtArt.drawGround(butt,groundTime) end}
     end
-    if e.plagueMarked then
-        love.graphics.setColor(.5, .9, .35, .3 + math.sin(t * 8) * .12)
-        love.graphics.rectangle("fill", e.x - def.radius, e.y - bob - def.radius, def.radius * 2, def.radius * 2)
+    for _, value in ipairs(self.enemies) do
+        local enemy=value
+        queue[#queue+1]={y=ForestArt.footY(enemy),draw=function() ForestArt.drawBody(enemy,t) end}
     end
-    local hpPct = math.max(0, e.hp / e.maxHp)
-    local barW = def.radius * 2.2
-    love.graphics.setColor(0, 0, 0, .7); love.graphics.rectangle("fill", math.floor(e.x - barW/2), math.floor(e.y - def.radius - 16), math.floor(barW), 6)
-    love.graphics.setColor(hpPct > .3 and 1 or 1, hpPct > .3 and .3 or .12, .16, 1)
-    love.graphics.rectangle("fill", math.floor(e.x - barW/2), math.floor(e.y - def.radius - 16), math.floor(barW * hpPct), 6)
-    love.graphics.setColor(1, 1, 1, .5); love.graphics.setLineWidth(1)
-    love.graphics.rectangle("line", math.floor(e.x - barW/2), math.floor(e.y - def.radius - 16), math.floor(barW), 6)
+    for _, value in ipairs(self.vineSpawns) do
+        local sprout=value
+        local grow=1-math.max(0,sprout.timer)/1.15
+        if grow>.3 then
+            local growth=math.min(1,(grow-.3)/.7)
+            queue[#queue+1]={y=sprout.y,draw=function() ForestArt.drawSprout(sprout.x,sprout.y,growth,t) end}
+        end
+    end
+end
+
+function ClearcutMode:drawCigaretteTreeFire(node)
+    CigaretteButtArt.drawTreeFire(node,self.smokerGroundTime)
+end
+
+function ClearcutMode:drawCigaretteGroundEffects()
+    local t=self.smokerGroundTime
+    for _,butt in ipairs(self.cigaretteButts) do CigaretteButtArt.drawSmolder(butt,t) end
+    for _,transfer in ipairs(self.emberTransfers) do CigaretteButtArt.drawTransfer(transfer,t) end
+    for _,arrival in ipairs(self.emberArrivals) do CigaretteButtArt.drawArrival(arrival,t) end
 end
 
 function ClearcutMode:drawDeveloperMachinery(game, t)
@@ -2533,19 +2587,21 @@ function ClearcutMode:drawWorldOverlay(game)
             local mouthX,mouthY,facing,tipX=self:smokerMouthPose(game)
             local progress=smoking.phase=="loaded" and 1 or math.min(1,smoking.t/smoking.dur)
             local breath=smoking.phase=="loaded" and .58 or (.55+math.sin(progress*math.pi)*.45)
-            -- A cigarette emits a thin wisp, not a chimney of overlapping discs.
-            -- Keep the first pixel at the tip and let sparse fragments rise away.
-            for i=0,13 do
-                local rise=i*1.5
-                local drift=math.sin(t*1.65-i*.34)*i*.13+facing*i*.08
-                local alpha=(.30-i*.018)*breath
-                love.graphics.setColor(.78,.79,.75,alpha)
-                love.graphics.rectangle("fill",math.floor(tipX+drift+.5),math.floor(mouthY-rise-1),1,1)
+            local equipment=game.player.clearcutSprite and game.player.clearcutSprite.cigarette
+            if equipment then
+                Cigarette.drawSmoke(equipment,tipX,mouthY,facing,t)
+            else
+                -- Legacy fallback for sprites without the authored equipment.
+                for i=0,13 do
+                    local rise=i*3
+                    local drift=math.sin(t*1.65-i*.34)*i*.26+facing*i*.16
+                    local alpha=(.30-i*.018)*breath
+                    love.graphics.setColor(.78,.79,.75,alpha)
+                    love.graphics.rectangle("fill",math.floor(tipX+drift+.5),math.floor(mouthY-rise-2),2,2)
+                end
+                love.graphics.setColor(.92,.34,.10,.55+math.sin(t*8)*.12)
+                love.graphics.rectangle("fill",math.floor(tipX+.5),math.floor(mouthY-.5),2,2)
             end
-            -- The atlas owns the white paper/filter/ember. A single dim pixel
-            -- may brighten its tip, but must never cover the paper or the face.
-            love.graphics.setColor(.92,.34,.10,.55+math.sin(t*8)*.12)
-            love.graphics.rectangle("fill",math.floor(tipX+.5),math.floor(mouthY+.5),1,1)
         end
     elseif self.job == "toxic" then
         local bob = math.sin(t * 2.4) * 2
@@ -2714,6 +2770,7 @@ function ClearcutMode:drawWorldOverlay(game)
         end
     end
     self:drawCigaretteProjectiles(t)
+    self:drawCigaretteGroundEffects()
     for _, tel in ipairs(self.bossTelegraphs) do
         if tel.kind == "line" then
             if tel.phase == "warn" then
@@ -2791,17 +2848,8 @@ function ClearcutMode:drawWorldOverlay(game)
             love.graphics.setColor(.5, .9, .4, glowT * (.35 + math.sin(t * 10) * .12))
             love.graphics.ellipse("fill", v.x, v.y, 14 * glowT, 6 * glowT)
         end
-        if grow > .3 then
-            local tipT = math.min(1, (grow - .3) / .7)
-            local wobble = math.sin(t * 9 + crackSeed) * (1 - tipT) * 4
-            local px = (5 + tipT * 4.2)
-            local cx, cy = v.x + wobble, v.y - tipT * 15
-            local outline = darkenPalette(vineSproutTipPalette, .1, 1)
-            drawPixelGrid(vineSproutTipRows, outline, cx, cy, px * 1.16)
-            drawPixelGrid(vineSproutTipRows, vineSproutTipPalette, cx, cy, px)
-        end
     end
-    for _, e in ipairs(self.enemies) do drawEnemy(e, t) end
+    for _, e in ipairs(self.enemies) do drawEnemyThreat(e, t) end
     for _, p in ipairs(self.projectiles) do
         if p.kind == "thorn" then
             love.graphics.setColor(1, .7, .3, .28); love.graphics.circle("fill", p.x, p.y, 9)
@@ -3484,7 +3532,7 @@ ClearcutMode.characters = {
         detail="왜 이렇게까지 하냐고? 대출이 있다. 쉬지 않고 벨수록 손이 미친 듯이 빨라진다. 사거리 안에서 자동으로 가장 가까운 나무를 벱니다."},
     {id="fire", name="흡연자", icon="cigarette", color={1,.35,.12},
         tagline="담배꽁초 하나가 뭐 대수라고.",
-        detail="마우스 위치에 무심코 꽁초를 튕깁니다. 숲이 마른 건 내 탓이 아니다. 붙은 불은 알아서 번지고 퍼집니다."},
+        detail="마우스 위치에 꽁초를 튕깁니다. 꽁초는 바닥에서 7초간 타들어가며 주변 나무에 확률적으로 불씨를 옮깁니다. 날아간 불씨가 나무에 닿아야 불이 붙습니다."},
     {id="toxic", name="비건 단체 회장", icon="leaf", color={.55,.85,.45},
         tagline="나무도 생명이지만... 일단 먹어야 한다.",
         detail="마우스 위치에 '친환경' 제초제를 살포합니다. 숲을 지키기 위해 숲을 없앱니다. 화력은 약하지만 재생력 자체를 짓누릅니다."},
