@@ -748,7 +748,7 @@ end
 
 function ClearcutMode:startSmoking(tx, ty, game)
     local speed = (game.tools.axe.speed or 1) * game.player.gather
-    self.smoking = {tx = tx, ty = ty, t = 0, dur = math.max(.3, .58 / speed)}
+    self.smoking = {tx = tx, ty = ty, t = 0, dur = math.max(.75, 1.25 / speed)}
 end
 
 function ClearcutMode:updateSmoking(dt, game)
@@ -1396,18 +1396,31 @@ function ClearcutMode:drawWorldOverlay(game)
         drawPixelGrid(cigaretteIconRows, cigaretteIconPalette, px, py, 2.4)
         local emberGlow = (.42 + math.sin(t * (6 + drag * 12)) * .28) * (.7 + drag * .3)
         love.graphics.setColor(1, .55, .15, emberGlow); love.graphics.circle("fill", px + 15, py + 2, 2.2 + drag * 2.8)
-        local puffCount = 4 + math.floor(drag * 2 + .5)
-        for i = 1, puffCount do
-            local phase = (t * .55 + drag * .8 + i / puffCount) % 1
-            local rise = phase * (24 + drag * 18)
-            local widen = 1 + phase * (1 + drag * 1.8)
-            local driftX = math.sin(t * 1.5 + i * 1.7) * (4 + phase * (6 + drag * 8))
-            local alpha = (1 - phase) * (.42 + drag * .18)
-            love.graphics.setColor(.85, .85, .88, alpha * .5)
-            love.graphics.circle("fill", px - 9 + driftX, py - 4 - rise, (2.6 + phase * 4.4) * widen)
-            love.graphics.setColor(.92, .92, .94, alpha)
-            love.graphics.circle("fill", px - 9 + driftX, py - 4 - rise, (1.4 + phase * 2.2) * widen)
+        local sx, sy = px + 15, py + 1
+        local strandCount = 2 + (drag > .1 and 1 or 0)
+        local height = 50 + drag * 34
+        local segments = 16
+        local baseAlpha = .5 + drag * .3
+        love.graphics.setLineStyle("smooth")
+        for strand = 1, strandCount do
+            local seed = strand * 3.1
+            local px0, py0 = sx, sy
+            for j = 1, segments do
+                local rp = j / segments
+                local sway = math.sin(rp * 4.4 + t * (1.5 + strand * .35) + seed) * (3 + rp * (11 + drag * 9))
+                local wobble = math.sin(rp * 10.5 + t * 3.3 + seed * 1.6) * rp * 3
+                local x1 = sx + sway + wobble
+                local y1 = sy - rp * height
+                local alpha = baseAlpha * (1 - rp) ^ 1.5
+                if alpha > .01 then
+                    love.graphics.setLineWidth(math.max(.6, (3.4 - rp * 2.8) * (1 + drag * .35)))
+                    love.graphics.setColor(.9, .9, .93, alpha)
+                    love.graphics.line(px0, py0, x1, y1)
+                end
+                px0, py0 = x1, y1
+            end
         end
+        love.graphics.setLineStyle("rough")
     elseif self.job == "toxic" then
         local bob = math.sin(t * 2.4) * 2
         drawPixelGrid(leafIconRows, leafIconPalette, px, py + bob, 2.4)
