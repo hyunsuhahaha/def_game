@@ -4,22 +4,24 @@ local Cigarette = require("src.cigarette_sprite")
 local CigaretteButts = require("src.cigarette_butts")
 local CigaretteButtArt = require("src.cigarette_butt_art")
 local ForestArt = require("src.forest_arcade_art")
+local ForestScenery = require("src.forest_scenery")
 local Fusions = require("src.clearcut_fusions")
 
 local ClearcutMode = {}
 ClearcutMode.__index = ClearcutMode
 
-local trackLabels = {destroy = "파괴력", spread = "확산력", suppress = "억제력", develop = "개발력", dig = "굴착력"}
+local trackLabels = {destroy = "파괴력", spread = "확산력", suppress = "억제력", develop = "개발력", dig = "굴착력", venom = "독설력"}
 
 -- 시그니처 업그레이드를 처음 고르면 1차 전직이 확정되고 기본 공격 자체가 바뀐다.
-local jobFor = {berserker = "physical", molotov = "fire", toxic_rain = "toxic", heavy_machinery = "developer", detector = "miner"}
-local jobNames = {physical = "생계형 나무꾼", fire = "흡연자", toxic = "비건 단체 회장", developer = "부동산 개발업자", miner = "코인 채굴꾼"}
+local jobFor = {berserker = "physical", molotov = "fire", toxic_rain = "toxic", heavy_machinery = "developer", detector = "miner", monologue = "philosopher"}
+local jobNames = {physical = "생계형 나무꾼", fire = "흡연자", toxic = "비건 단체 회장", developer = "부동산 개발업자", miner = "코인 채굴꾼", philosopher = "차라투스트라는 이렇게 말했다"}
 local jobDesc = {
     physical = "그냥 오늘 할당량을 채우러 왔을 뿐이다. 대출은 갚아야 하니까.",
     fire = "마우스 위치에 꽁초를 튕깁니다. 꽁초는 바닥에 남아 타들어가며 주변 나무로 불씨를 확률적으로 옮깁니다. 착지 즉시 불붙지는 않습니다.",
     toxic = "기본 공격이 도끼질 대신 마우스 위치에 '친환경' 제초제를 살포하는 것으로 바뀝니다. 숲을 지키기 위해 숲을 없앤다.",
     developer = "기본 공격이 도끼질 대신 마우스 방향으로 중장비 돌진하는 것으로 바뀝니다. 여기에 아파트 지으면 됨.",
-    miner = "기본 공격이 도끼질 대신 마우스 위치를 곡괭이로 파헤치는 것으로 바뀝니다. 그 시절 그 USB는 대체 어디 묻힌 걸까."
+    miner = "기본 공격이 도끼질 대신 마우스 위치를 곡괭이로 파헤치는 것으로 바뀝니다. 그 시절 그 USB는 대체 어디 묻힌 걸까.",
+    philosopher = "기본 공격이 도끼질 대신 마우스 방향으로 끝없는 일장연설이 됩니다. 침이 사방으로 튀고, 말이 길어질수록 사거리와 독성이 강해집니다."
 }
 
 -- job이 있는 카드는 해당 전직에서만 뜨는 전직 전용 카드다. job이 없으면 모든 전직에 공용으로 뜬다.
@@ -49,6 +51,11 @@ local definitions = {
     {id="deep_scan", track="dig", name="정밀 탐사", desc="탐지 반경이 넓어지고 판정 속도가 빨라집니다.", max=3, color={.95,.82,.35}, job="miner"},
     {id="backhoe", track="dig", name="굴착기 대여", desc="굴착 한 방의 범위와 위력이 커집니다. 렌탈비는... 나중에 생각하자.", max=3, color={.75,.55,.2}, job="miner"},
     {id="jackpot", track="dig", name="이번엔 진짜 있을 것 같다", desc="가끔 '발견!' 판정이 터져 훨씬 넓은 범위가 한 번에 무너지고 목재를 왕창 얻습니다.", max=3, color={1,.84,.3}, job="miner"},
+    -- 독설력 (venom) — 말을 오래 붙잡을수록 사거리와 독성이 강해진다 [차라투스트라는 이렇게 말했다 전용]
+    {id="monologue", track="venom", name="아무 말 대잔치", desc="기본 공격이 장광설로 바뀝니다. 마우스 방향으로 계속 침을 튀기며, 말이 길어질수록 사거리와 피해가 늘어납니다.", max=3, color={.75,.85,.3}, job="philosopher"},
+    {id="footnote", track="venom", name="각주 남발", desc="말하는 속도가 빨라져 침이 더 자주 튑니다.", max=3, color={.85,.9,.4}, job="philosopher"},
+    {id="loud_voice", track="venom", name="목청 키우기", desc="침이 닿는 범위가 넓어집니다.", max=3, color={.65,.8,.3}, job="philosopher"},
+    {id="saliva_gland", track="venom", name="침샘 발달", desc="침에 맞은 대상은 서서히 중독되어 지속 피해를 입습니다.", max=3, color={.55,.72,.25}, job="philosopher"},
 }
 
 local upgradeById = {}
@@ -178,7 +185,7 @@ function ClearcutMode:generateForest(game, target)
         local x = love.math.random(130, w - 130)
         local y = love.math.random(130, h - 130)
         local sdx, sdy = x - spawnX, y - spawnY
-        local clearSpawn = sdx*sdx + sdy*sdy > 260*260
+        local clearSpawn = sdx*sdx + sdy*sdy > 260*260 and not ForestScenery.isOpen(x,y,w,h)
         local separated = true
         for _, node in ipairs(game.world.nodes) do
             local ndx, ndy = x - node.x, y - node.y
@@ -187,12 +194,13 @@ function ClearcutMode:generateForest(game, target)
         if clearSpawn and separated then
             local beehive = love.math.random() < .07
             local variantCount = math.max(1, #(game.world.images.treeVariants or {}))
-            local treeVariant = (#game.world.nodes % variantCount) + 1
+            local treeVariant = ForestScenery.treeVariant(x,y,w,h,self.stage,#game.world.nodes+1,variantCount)
             game.world.nodes[#game.world.nodes+1] = {kind="tree",x=x,y=y,work=0,workTime=1,active=true,respawn=0,rushTree=true,rushHp=3,rushMaxHp=3,beehive=beehive,treeVariant=treeVariant}
             if beehive then self.beehiveTotal = self.beehiveTotal + 1 end
         end
     end
     self.initialTrees, self.remainingTrees = #game.world.nodes, #game.world.nodes
+    ForestScenery.generate(game.world,self.stage)
 end
 
 -- 스테이지 클리어: 세계수를 쓰러뜨리면 런을 끝내는 대신 더 큰 숲과 더 강한 저주로 다음 스테이지를 연다
@@ -1221,6 +1229,7 @@ function ClearcutMode:updateHeldAxe(dt, game, heldOverride)
     if self.job == "toxic" then return self:updateToxicAttack(dt, game, heldOverride) end
     if self.job == "developer" then return self:updateDeveloperAttack(dt, game, heldOverride) end
     if self.job == "miner" then return self:updateMinerAttack(dt, game, heldOverride) end
+    if self.job == "philosopher" then return self:updatePhilosopherAttack(dt, game, heldOverride) end
     return self:updatePhysicalAttack(dt, game, heldOverride)
 end
 
@@ -1486,6 +1495,70 @@ function ClearcutMode:updateMining(dt, game)
         game:setNotice("골드러시 — 자동 굴착 발생!", "food")
         self:applyDig(game.player.x + math.cos(a) * r, game.player.y + math.sin(a) * r, game)
     end
+end
+
+function ClearcutMode:updatePhilosopherAttack(dt, game, heldOverride)
+    local held = heldOverride
+    if held == nil then held = love.mouse.isDown(1) end
+    local maxRange = 200 + self:levelOf("monologue") * 30 + self:levelOf("loud_voice") * 30
+    local tx, ty = self:aimPoint(game, maxRange)
+    game.player.facing = tx < game.player.x and -1 or 1
+    if held then
+        self.rantTimer = math.min(3, (self.rantTimer or 0) + dt)
+    else
+        self.rantTimer = math.max(0, (self.rantTimer or 0) - dt * 2)
+    end
+    local verbosity = math.min(1, (self.rantTimer or 0) / 3)
+    self.aimX, self.aimY = tx, ty
+    self.aimRadius = (55 + self:levelOf("monologue") * 10 + self:levelOf("loud_voice") * 20) * (1 + verbosity * .55)
+    if game.player.setClearcutAction then game.player:setClearcutAction(.5 + verbosity * .3) end
+    local wasHeld = self.rantHeldLast
+    self.rantHeldLast = held
+    if not held then
+        if wasHeld and verbosity >= .999 and self.evolutions.eternal_return then
+            self:applySpit(self.aimX, self.aimY, 1, game, true)
+        end
+        if game.player.clearClearcutAction then game.player:clearClearcutAction() end
+        return false
+    end
+    self.spitTimer = (self.spitTimer or 0) - dt
+    if self.spitTimer > 0 then return false end
+    local rate = math.max(.14, .5 - self:levelOf("footnote") * .1 - verbosity * .2)
+    self.spitTimer = rate
+    self:applySpit(tx, ty, verbosity, game)
+    return true
+end
+
+function ClearcutMode:applySpit(tx, ty, verbosity, game, isBonus)
+    local radius = (self.aimRadius or 60) * (isBonus and 1.8 or 1)
+    local dmg = 2 + self:levelOf("monologue") + verbosity * 2
+    local salivaLevel = self:levelOf("saliva_gland")
+    for _, node in ipairs(game.world.nodes) do
+        if node.rushTree and node.active then
+            local dx, dy = node.x - tx, node.y - ty
+            if dx*dx + dy*dy <= radius*radius then
+                node.rushHp = (node.rushHp or node.rushMaxHp) - dmg
+                game.world:impactNode(node, game, true)
+                if node.rushHp <= 0 then self:fellTree(node, game)
+                elseif salivaLevel > 0 and not node.plagueMarked then
+                    node.plagueMarked = true
+                    self.plagued[#self.plagued+1] = {kind="tree", ref=node, timer=isBonus and 7 or 4, tickTimer=0}
+                end
+            end
+        end
+    end
+    if salivaLevel > 0 then
+        for _, e in ipairs(self.enemies) do
+            local dx, dy = e.x - tx, e.y - ty
+            if dx*dx + dy*dy <= radius*radius and not e.plagueMarked then
+                e.plagueMarked = true
+                self.plagued[#self.plagued+1] = {kind="enemy", ref=e, timer=isBonus and 7 or 4, tickTimer=0}
+            end
+        end
+    end
+    self:damageEnemiesInRadius(tx, ty, radius, dmg * 2.2, game)
+    game.world:toxicPulseFx(tx, ty, radius)
+    if game.camera then game.camera.trauma = math.min(1, game.camera.trauma + (isBonus and .3 or .08)) end
 end
 
 function ClearcutMode:updateDeveloperAttack(dt, game, heldOverride)
@@ -2492,6 +2565,18 @@ local pickaxeIconRows = {
 }
 local pickaxeIconPalette = {O={.12,.1,.08,1}, M={.75,.77,.8,1}, H={.45,.3,.15,1}}
 
+local speechIconRows = {
+    "OOOOOOOO",
+    "OWWWWWWO",
+    "OWWSWSWO",
+    "OWWWWWWO",
+    "OWSWWSWO",
+    "OOOOOOOO",
+    "..OO....",
+    ".O......",
+}
+local speechIconPalette = {O={.16,.2,.06,1}, W={.92,.97,.82,1}, S={.6,.78,.28,1}}
+
 -- 업그레이드 카드용 아이콘: 원형/다이아몬드/사각/막대 4가지 실루엣 틀을 색상·세부만 바꿔 재사용한다.
 local diamondRows = {
     "....O....",
@@ -2562,6 +2647,9 @@ local toxicRainPalette = {O={.14,.24,.1,1}, H={.9,.98,.85,1}, W={.6,.85,.5,1}}
 local deepScanPalette = {O={.25,.2,.05,1}, H={.98,.9,.55,1}, W={.95,.82,.35,1}}
 local backhoePalette = {O={.2,.14,.05,1}, H={.9,.72,.35,1}, W={.75,.55,.2,1}, D={.45,.32,.1,1}}
 local jackpotPalette = {O={.3,.22,.02,1}, H={1,.95,.7,1}, W={1,.84,.3,1}}
+local footnotePalette = {O={.16,.22,.04,1}, H={.9,.98,.6,1}, W={.85,.9,.4,1}}
+local loudVoicePalette = {O={.1,.16,.04,1}, H={.82,.95,.5,1}, W={.65,.8,.3,1}}
+local salivaGlandPalette = {O={.1,.15,.03,1}, H={.78,.92,.42,1}, W={.55,.72,.25,1}}
 
 local dominoRows = {
     ".OOOOOOO.",
@@ -2640,6 +2728,11 @@ ClearcutMode.icons = {
     deep_scan = {rows = diamondRows, palette = deepScanPalette},
     backhoe = {rows = boxRows, palette = backhoePalette},
     jackpot = {rows = blobRows, palette = jackpotPalette},
+    speech = {rows = speechIconRows, palette = speechIconPalette},
+    monologue = {rows = speechIconRows, palette = speechIconPalette},
+    footnote = {rows = stickRows, palette = footnotePalette},
+    loud_voice = {rows = diamondRows, palette = loudVoicePalette},
+    saliva_gland = {rows = blobRows, palette = salivaGlandPalette},
 }
 ClearcutMode.drawPixelGrid = drawPixelGrid
 
@@ -2769,9 +2862,12 @@ function ClearcutMode:drawWorldOverlay(game)
     elseif self.job == "miner" then
         local bob = math.sin(t * 2.6) * 2
         drawPixelGrid(pickaxeIconRows, pickaxeIconPalette, px, py + bob, 2.2)
+    elseif self.job == "philosopher" then
+        local jitter = math.sin(t * 9) * 1.5
+        drawPixelGrid(speechIconRows, speechIconPalette, px + jitter, py, 2.2)
     end
-    if (self.job == "fire" or self.job == "toxic" or self.job == "miner") and self.aimX then
-        local ringColor = self.job == "fire" and {1, .5, .15} or self.job == "toxic" and {.55, .85, .45} or {.85, .68, .22}
+    if (self.job == "fire" or self.job == "toxic" or self.job == "miner" or self.job == "philosopher") and self.aimX then
+        local ringColor = self.job == "fire" and {1, .5, .15} or self.job == "toxic" and {.55, .85, .45} or self.job == "miner" and {.85, .68, .22} or {.75, .9, .35}
         love.graphics.setColor(ringColor[1], ringColor[2], ringColor[3], .16); love.graphics.circle("fill", self.aimX, self.aimY, self.aimRadius)
         love.graphics.setLineWidth(2); love.graphics.setColor(ringColor[1], ringColor[2], ringColor[3], .85)
         love.graphics.circle("line", self.aimX, self.aimY, self.aimRadius)
@@ -3313,7 +3409,7 @@ local function octagonPoints(cx, cy, r, rot)
     return pts
 end
 
-local jobFlavorColors = {physical = {.68, .5, .3, 1}, fire = {1, .42, .14, 1}, toxic = {.45, .82, .35, 1}, developer = {1, .72, .15, 1}, miner = {.85, .68, .22, 1}}
+local jobFlavorColors = {physical = {.68, .5, .3, 1}, fire = {1, .42, .14, 1}, toxic = {.45, .82, .35, 1}, developer = {1, .72, .15, 1}, miner = {.85, .68, .22, 1}, philosopher = {.75, .9, .35, 1}}
 local universalColor = {.56, .57, .6, 1}
 
 local function drawShadedRivet(cx, cy, color)
@@ -3404,6 +3500,15 @@ local function drawJobFlavorBg(x, y, w, h, job, t)
                 love.graphics.setColor(1, .84, .3, sparkle * (1 - life) * .5)
                 love.graphics.circle("fill", px + 4, py - 4, 1.4)
             end
+        end
+    elseif job == "philosopher" then
+        for i = 1, 6 do
+            local seed = i * 2.7
+            local life = (t * .9 + i * .29) % 1
+            local px = x + w * (.1 + (i - 1) * .16) + math.sin(t * 2.1 + seed) * 4
+            local py = y + h * .08 + life * h * .8
+            love.graphics.setColor(.65, .82, .3, (1 - life) * .5)
+            love.graphics.circle("fill", px, py, 1.6 + math.sin(t * 5 + seed) * .5)
         end
     else
         for i = 1, 4 do
@@ -3738,7 +3843,10 @@ ClearcutMode.characters = {
         detail="조준 방향으로 직접 돌진하며 경로상의 모든 것을 밀어버립니다. 넓은 범위를 순식간에 밀어내지만 재사용까지 잠깐 숨을 고릅니다."},
     {id="miner", name="코인 채굴꾼", icon="pickaxe", color={.85,.68,.22},
         tagline="어릴 적 등산 갔다가 잃어버린 그 USB, 지금 시세로 수백억이다.",
-        detail="마우스 위치를 곡괭이로 내려찍어 반경 안의 나무를 뿌리째 파헤칩니다. 사거리는 짧지만 가끔 '발견!' 판정이 터져 훨씬 넓은 범위가 한 번에 무너집니다."}
+        detail="마우스 위치를 곡괭이로 내려찍어 반경 안의 나무를 뿌리째 파헤칩니다. 사거리는 짧지만 가끔 '발견!' 판정이 터져 훨씬 넓은 범위가 한 번에 무너집니다."},
+    {id="philosopher", name="차라투스트라는 이렇게 말했다", icon="speech", color={.75,.9,.35},
+        tagline="말이 너무 많다. 침이 마를 날이 없다.",
+        detail="마우스 방향으로 끝없이 일장연설을 쏟아내며 침을 튀깁니다. 버튼을 오래 붙잡을수록 사거리와 독성이 강해지고, 맞은 대상은 서서히 중독됩니다."}
 }
 
 return ClearcutMode

@@ -274,7 +274,7 @@ function Game:keypressed(key)
     end
     if self.mode == "clearcut_select" then
         if key=="t" then self.characterTraitReturnMode="clearcut_select"; self.mode="character_traits"
-        elseif key=="1" or key=="2" or key=="3" or key=="4" or key=="5" then self:chooseClearcutCharacter(tonumber(key))
+        elseif key=="1" or key=="2" or key=="3" or key=="4" or key=="5" or key=="6" then self:chooseClearcutCharacter(tonumber(key))
         elseif key=="escape" then self.mode="lobby" end
         return
     end

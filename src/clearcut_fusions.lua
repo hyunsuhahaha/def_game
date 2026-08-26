@@ -16,6 +16,8 @@ Fusions.definitions = {
         desc="돌진 종료 지점의 반경 160을 추가로 정지합니다. 범위 안의 나무와 그루터기는 모두 불모지가 되어 다시 자라지 않습니다."},
     {id="goldrush",job="miner",name="골드러시",needs={"deep_scan","jackpot"},color={1,.82,.25},
         desc="4초마다 근처 무작위 지점에서 자동으로 큰 굴착이 발생합니다. '발견!' 확률도 함께 오릅니다."},
+    {id="eternal_return",job="philosopher",name="영원회귀",needs={"footnote","saliva_gland"},color={.75,.9,.35},
+        desc="말을 최고조로 끌고 가다 마우스에서 손을 떼면, 마지막 지점에 큰 침 웅덩이가 남아 반경 안 모두를 오래 중독시킵니다."},
 }
 
 function Fusions.forJob(mode)
