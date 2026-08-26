@@ -303,7 +303,46 @@ function SelfTest.run(game)
     local cardDrawOk, cardDrawErr = pcall(game.draw, game)
     assert(cardDrawOk, "업그레이드 카드 프레임 렌더 실패: " .. tostring(cardDrawErr))
     game.mode = "playing"
-    print("SELF_TEST_OK: LOBBY_DUAL_MODE RUSH_3MIN RUSH_FOREST RUSH_HOLD_TO_CHOP RUSH_MULTI_HIT RUSH_CHAIN_FELL RUSH_AUTO_PICKUP RUSH_THREE_CHOICES RUSH_AUTO_FRONT RUSH_RESULTS LOBBY_AUX_NAV SETTINGS BIG_TREE_SINGLE TREE_PER_HIT_DROP TREE_PROXIMITY_PICKUP QUARRY_GROUNDED QUARRY_PER_HIT_DROP QUARRY_ORE_RATIO QUARRY_PROXIMITY_PICKUP FARM TREE QUARRY_INFINITE TOOL_SPEED IMPACT_SYNC HARVEST_FEEDBACK VISIBLE_TURRET VISIBLE_DRONE VISIBLE_REPAIR_STATION MINING_DRILL_VFX RUN_LEVELUP THREE_CHOICES AUTOMATION EVOLUTION WALL_UPGRADE WALL_BLOCK HAMMER_REPAIR CRIT_CHANCE PRESTIGE_RUN MOVE_WHILE_FARM TURRET_SLOT_BASE TURRET_SLOT_TRAIT TURRET_SLOT_OCCUPIED TURRET_NEARBY TURRET_F_INTERACT TURRET_UPGRADE TURRET_AIM VISIBLE_BULLET MUZZLE_FLASH CHAIN_COIL_VFX EXPLOSIVE_SHELL_VFX META_SAVE TRAIT_TREE TRAIT_APPLY RUN_REWARD TEST_CURRENCY TEST_RESOURCES TEST_LEVELS TEST_RESET CIGARETTE_SMOKE_WINDUP CLEARCUT_CARD_FRAME")
+    game:startClearcut("physical")
+    game.clearcut.elapsed = 0
+    assert(math.abs(game.clearcut:curseLevel() - 1) < .001, "초기 저주 레벨 실패")
+    local baseEnemy = game.clearcut:spawnEnemy("squirrel", game.player.x, game.player.y)
+    local baseHp, baseSpeedMul, baseDmgMul = baseEnemy.maxHp, baseEnemy.speedMul, baseEnemy.dmgMul
+    game.clearcut.enemies = {}
+    game.clearcut.elapsed = 600
+    assert(game.clearcut:curseLevel() > 1.5, "저주 레벨 시간 경과 상승 실패")
+    local scaledEnemy = game.clearcut:spawnEnemy("squirrel", game.player.x, game.player.y)
+    assert(scaledEnemy.maxHp > baseHp and scaledEnemy.speedMul > baseSpeedMul and scaledEnemy.dmgMul > baseDmgMul, "저주 레벨에 따른 적 스탯 스케일링 실패")
+    game.clearcut.enemies = {}
+    game.clearcut.elapsed = 0
+    game.clearcut:spawnWave({squirrel = 2}, game)
+    local baseWaveCount = #game.clearcut.enemies
+    game.clearcut.enemies = {}
+    game.clearcut.elapsed = 900
+    game.clearcut:spawnWave({squirrel = 2}, game)
+    assert(#game.clearcut.enemies > baseWaveCount, "시간 경과에 따른 웨이브 물량 스케일링 실패")
+    game.clearcut.enemies = {}
+    game.clearcut.timeSpawnTimer = 0
+    game.clearcut:updateTimeSpawner(.01, game)
+    assert(#game.clearcut.enemies > 0, "경과시간 기반 지속 스포너 실패")
+    game.clearcut.enemies = {}
+    game.clearcut.eliteTimer = 0
+    game.clearcut:updateEliteTimer(.01, game)
+    local eliteFound = false
+    for _, e in ipairs(game.clearcut.enemies) do if e.elite then eliteFound = true end end
+    assert(eliteFound, "정예 개체 스폰 실패")
+    game.clearcut.enemies = {}
+    game.clearcut.reaperSpawned, game.clearcut.elapsed = false, 300
+    game.clearcut:updateReaper(.01, game)
+    assert(not game.clearcut.reaperSpawned, "사신 조기 등장 방지 실패")
+    game.clearcut.elapsed = 650
+    game.clearcut:updateReaper(.01, game)
+    assert(game.clearcut.reaperSpawned, "사신 등장 실패")
+    local reaperFound = false
+    for _, e in ipairs(game.clearcut.enemies) do if e.kind == "reaper" then reaperFound = true end end
+    assert(reaperFound, "사신 개체 실제 스폰 실패")
+    game.clearcut.enemies = {}
+    print("SELF_TEST_OK: LOBBY_DUAL_MODE RUSH_3MIN RUSH_FOREST RUSH_HOLD_TO_CHOP RUSH_MULTI_HIT RUSH_CHAIN_FELL RUSH_AUTO_PICKUP RUSH_THREE_CHOICES RUSH_AUTO_FRONT RUSH_RESULTS LOBBY_AUX_NAV SETTINGS BIG_TREE_SINGLE TREE_PER_HIT_DROP TREE_PROXIMITY_PICKUP QUARRY_GROUNDED QUARRY_PER_HIT_DROP QUARRY_ORE_RATIO QUARRY_PROXIMITY_PICKUP FARM TREE QUARRY_INFINITE TOOL_SPEED IMPACT_SYNC HARVEST_FEEDBACK VISIBLE_TURRET VISIBLE_DRONE VISIBLE_REPAIR_STATION MINING_DRILL_VFX RUN_LEVELUP THREE_CHOICES AUTOMATION EVOLUTION WALL_UPGRADE WALL_BLOCK HAMMER_REPAIR CRIT_CHANCE PRESTIGE_RUN MOVE_WHILE_FARM TURRET_SLOT_BASE TURRET_SLOT_TRAIT TURRET_SLOT_OCCUPIED TURRET_NEARBY TURRET_F_INTERACT TURRET_UPGRADE TURRET_AIM VISIBLE_BULLET MUZZLE_FLASH CHAIN_COIL_VFX EXPLOSIVE_SHELL_VFX META_SAVE TRAIT_TREE TRAIT_APPLY RUN_REWARD TEST_CURRENCY TEST_RESOURCES TEST_LEVELS TEST_RESET CIGARETTE_SMOKE_WINDUP CLEARCUT_CARD_FRAME CURSE_SCALING SWARM_SCALING TIME_SPAWNER ELITE_SPAWN REAPER_SPAWN")
 end
 
 return SelfTest

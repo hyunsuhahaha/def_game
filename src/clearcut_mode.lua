@@ -54,7 +54,8 @@ local enemyDefs = {
     ent = {name="엘더 트렌트", hp=260, speed=48, damage=16, radius=42, color={.33,.21,.12}, hitCooldown=1, boss=true,
         slamInterval=3.2, slamRadius=110, slamDamage=20, reward=40},
     worldtree = {name="세계수", hp=950, speed=0, damage=0, radius=92, color={.26,.5,.22}, boss=true, finalBoss=true,
-        slamInterval=4, slamRadius=150, slamDamage=18, summonInterval=7, reward=0}
+        slamInterval=4, slamRadius=150, slamDamage=18, summonInterval=7, reward=0},
+    reaper = {name="숲의 사신", hp=550, speed=118, damage=14, radius=24, color={.1,.03,.05}, hitCooldown=.65, reward=60}
 }
 
 local function formatTime(value)
@@ -74,7 +75,8 @@ function ClearcutMode.new()
         job=nil, attackCooldown=0, dashing=nil, dashTrail={}, smoking=nil,
         hp=100, maxHp=100, invulnTimer=0, dead=false,
         enemies={}, projectiles={}, bossTelegraphs={}, waveFired={}, worldTreeSpawned=false, readyToFinish=false, activeBoss=nil, kills=0,
-        chests={}, chestPending=false, molotovShots=0, wildburstTimer=10, plagued={}, dodges=0
+        chests={}, chestPending=false, molotovShots=0, wildburstTimer=10, plagued={}, dodges=0,
+        timeSpawnTimer=18, eliteTimer=200, reaperSpawned=false
     }, ClearcutMode)
 end
 
@@ -82,6 +84,8 @@ function ClearcutMode:levelOf(id) return self.levels[id] or 0 end
 function ClearcutMode:pickupRadius() return 165 + self:levelOf("magnet") * 95 end
 function ClearcutMode:pickupSpeed() return 15 + self:levelOf("magnet") * 4 end
 function ClearcutMode:destructionPct() return self.initialTrees > 0 and math.min(100, (1 - self.remainingTrees / self.initialTrees) * 100) or 0 end
+-- 뱀서라이크식 단일 난이도 다이얼: 진행도와 무관하게 순수 경과시간으로만 오른다 (농성 방지)
+function ClearcutMode:curseLevel() return 1 + (self.elapsed / 60) ^ 1.25 * .16 end
 
 function ClearcutMode:setup(game)
     game.runType, game.clearcut = "clearcut", self
@@ -131,6 +135,9 @@ function ClearcutMode:update(dt, game)
     self:updateFire(dt, game)
     self:updateMolotovs(dt, game)
     self:updateToxicRain(dt, game)
+    self:updateTimeSpawner(dt, game)
+    self:updateEliteTimer(dt, game)
+    self:updateReaper(dt, game)
     self:updateEnemies(dt, game)
     self:updateProjectiles(dt, game)
     self:updateBossTelegraphs(dt, game)
@@ -273,24 +280,73 @@ function ClearcutMode:damageEnemiesInRadius(x, y, radius, damage, game)
     end
 end
 
-function ClearcutMode:spawnEnemy(kind, x, y)
+function ClearcutMode:spawnEnemy(kind, x, y, opts)
     local def = enemyDefs[kind]
     if not def then return end
-    local e = {kind = kind, def = def, x = x, y = y, hp = def.hp, maxHp = def.hp, hitTimer = 0, fireTimer = def.fireInterval, slamTimer = def.slamInterval, summonTimer = def.summonInterval, seed = love.math.random() * 10}
+    opts = opts or {}
+    local curse = self:curseLevel()
+    local hp = def.hp * (1 + (curse - 1) * .55) * (opts.hpMul or 1)
+    local e = {
+        kind = kind, def = def, x = x, y = y, hp = hp, maxHp = hp, hitTimer = 0,
+        fireTimer = def.fireInterval, slamTimer = def.slamInterval, summonTimer = def.summonInterval, seed = love.math.random() * 10,
+        speedMul = (1 + (curse - 1) * .22) * (opts.speedMul or 1),
+        dmgMul = (1 + (curse - 1) * .35) * (opts.dmgMul or 1),
+        elite = opts.elite,
+    }
     self.enemies[#self.enemies + 1] = e
     if def.boss then self.activeBoss = e end
     return e
 end
 
 function ClearcutMode:spawnWave(counts, game)
+    local swarmMul = 1 + (self:curseLevel() - 1) * .6
     for kind, count in pairs(counts) do
-        for _ = 1, count do
+        local scaledCount = math.max(count, math.floor(count * swarmMul + .5))
+        for _ = 1, scaledCount do
             local a = love.math.random() * math.pi * 2
             local r = 480 + love.math.random() * 180
             self:spawnEnemy(kind, game.player.x + math.cos(a) * r, game.player.y + math.sin(a) * r)
         end
     end
     game:setNotice("적이 몰려온다!", "ore")
+end
+
+-- 뱀서라이크식 "시간이 지나면 화면이 적으로 가득 찬다" 압박: 파괴율과 무관하게 계속 스폰
+function ClearcutMode:updateTimeSpawner(dt, game)
+    self.timeSpawnTimer = self.timeSpawnTimer - dt
+    if self.timeSpawnTimer > 0 then return end
+    local curse = self:curseLevel()
+    self.timeSpawnTimer = math.max(1.6, 6.5 - curse * 1.1)
+    local count = math.floor(1 + curse * 1.4)
+    local pool = {"squirrel", "squirrel", "boar"}
+    for _ = 1, count do
+        local kind = pool[love.math.random(#pool)]
+        local a = love.math.random() * math.pi * 2
+        local r = 520 + love.math.random() * 200
+        self:spawnEnemy(kind, game.player.x + math.cos(a) * r, game.player.y + math.sin(a) * r)
+    end
+end
+
+-- 정기 엘리트: 진행도와 무관하게 몇 분마다 훨씬 강한 개체가 등장
+function ClearcutMode:updateEliteTimer(dt, game)
+    self.eliteTimer = self.eliteTimer - dt
+    if self.eliteTimer > 0 then return end
+    self.eliteTimer = 200
+    local kind = love.math.random() < .5 and "boar" or "squirrel"
+    local a = love.math.random() * math.pi * 2
+    local e = self:spawnEnemy(kind, game.player.x + math.cos(a) * 520, game.player.y + math.sin(a) * 520, {hpMul = 6, speedMul = 1.15, dmgMul = 1.8, elite = true})
+    game:setNotice((e and e.def.name or "적") .. " 정예 개체가 나타났다!", "ore")
+    if game.camera then game.camera.trauma = math.min(1, game.camera.trauma + .3) end
+end
+
+-- 뱀서라이크식 "사신" — 농성 방지용 무한 추격자, 오래 버틸수록 등장
+function ClearcutMode:updateReaper(dt, game)
+    if self.reaperSpawned or self.elapsed < 600 then return end
+    self.reaperSpawned = true
+    local a = love.math.random() * math.pi * 2
+    self:spawnEnemy("reaper", game.player.x + math.cos(a) * 700, game.player.y + math.sin(a) * 700)
+    game:setNotice("숲의 사신이 깨어났다 — 멈추면 죽는다.", "ore")
+    if game.camera then game.camera.trauma = math.min(1, game.camera.trauma + .35) end
 end
 
 function ClearcutMode:spawnBoss(kind, game)
@@ -312,7 +368,7 @@ function ClearcutMode:spawnEnemyProjectile(e, game)
     local dx, dy = game.player.x - e.x, game.player.y - e.y
     local d = math.sqrt(dx*dx + dy*dy)
     if d <= 0 then return end
-    self.projectiles[#self.projectiles + 1] = {x = e.x, y = e.y, vx = dx / d * 150, vy = dy / d * 150, life = 3, damage = e.def.damage, color = e.def.color}
+    self.projectiles[#self.projectiles + 1] = {x = e.x, y = e.y, vx = dx / d * 150, vy = dy / d * 150, life = 3, damage = e.def.damage * (e.dmgMul or 1), color = e.def.color}
 end
 
 function ClearcutMode:updateProjectiles(dt, game)
@@ -331,7 +387,7 @@ function ClearcutMode:updateProjectiles(dt, game)
 end
 
 function ClearcutMode:bossSlam(e, game)
-    self.bossTelegraphs[#self.bossTelegraphs + 1] = {x = e.x, y = e.y, radius = e.def.slamRadius, phase = "warn", timer = .75, damage = e.def.slamDamage}
+    self.bossTelegraphs[#self.bossTelegraphs + 1] = {x = e.x, y = e.y, radius = e.def.slamRadius, phase = "warn", timer = .75, damage = e.def.slamDamage * (e.dmgMul or 1)}
 end
 
 function ClearcutMode:updateBossTelegraphs(dt, game)
@@ -409,14 +465,15 @@ function ClearcutMode:updateEnemies(dt, game)
         elseif def.speed > 0 or not def.boss then
             local dx, dy = game.player.x - e.x, game.player.y - e.y
             local dist = math.sqrt(dx*dx + dy*dy)
+            local speed = def.speed * (e.speedMul or 1)
             if dist > def.radius + 20 then
-                e.x, e.y = e.x + dx / dist * def.speed * dt, e.y + dy / dist * def.speed * dt
+                e.x, e.y = e.x + dx / dist * speed * dt, e.y + dy / dist * speed * dt
                 e.moving = true
             else
                 e.moving = false
                 if e.hitTimer <= 0 then
                     e.hitTimer = def.hitCooldown
-                    self:damagePlayer(def.damage, game)
+                    self:damagePlayer(def.damage * (e.dmgMul or 1), game)
                 end
             end
         end
@@ -1256,12 +1313,15 @@ local worldTreeRows = {
 }
 local worldTreePalette = {O={.08,.05,.02,1}, G={.18,.4,.16,1}, g={.26,.56,.24,1}, B={.32,.2,.1,1}, Y={1,.9,.45,1}}
 
+local reaperPalette = {O={.02,.01,.01,1}, D={.09,.05,.06,1}, E={1,.12,.08,1}, W={.32,.06,.08,1}, L={.05,.02,.02,1}}
+
 local enemySprites = {
     squirrel = {rows = squirrelRows, palette = squirrelPalette},
     boar = {rows = boarRows, palette = boarPalette},
     turret = {rows = turretRows, palette = turretPalette},
     ent = {rows = entRows, palette = entPalette},
     worldtree = {rows = worldTreeRows, palette = worldTreePalette},
+    reaper = {rows = boarRows, palette = reaperPalette},
 }
 
 local chestRows = {
@@ -1497,6 +1557,17 @@ local function drawEnemy(e, t)
     local sprite = enemySprites[e.kind]
     love.graphics.setColor(0, 0, 0, .32)
     love.graphics.ellipse("fill", e.x, e.y + def.radius * .8, def.radius * .95, def.radius * .3)
+    if e.elite then
+        local pulse = .5 + math.sin(t * 3.5 + seed) * .5
+        love.graphics.setColor(1, .78, .2, .25 + pulse * .2)
+        love.graphics.circle("fill", e.x, e.y - bob, def.radius * 1.35)
+        love.graphics.setLineWidth(2); love.graphics.setColor(1, .84, .3, .8 + pulse * .2)
+        love.graphics.circle("line", e.x, e.y - bob, def.radius * 1.35)
+    elseif e.kind == "reaper" then
+        local pulse = .5 + math.sin(t * 5 + seed) * .5
+        love.graphics.setColor(1, .12, .1, .3 + pulse * .18)
+        love.graphics.circle("fill", e.x, e.y - bob, def.radius * 1.5)
+    end
     if sprite then
         local px = (def.radius * 2.1) / #sprite.rows[1]
         drawPixelGrid(sprite.rows, sprite.palette, e.x, e.y - bob, px)
