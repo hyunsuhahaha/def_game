@@ -127,10 +127,13 @@ function Game:startRush()
     self.mode="playing"
 end
 
-function Game:startClearcut(characterId)
+function Game:startClearcut(characterId, mapId)
+    mapId=mapId or (self.clearcut and self.clearcut.mapId) or self.selectedClearcutMap or "forest"
     self:resetRun()
     self.clearcut=ClearcutMode.new()
     self.clearcut.job = characterId
+    self.clearcut.mapId=require("src.clearcut_maps").get(mapId).id
+    self.selectedClearcutMap=self.clearcut.mapId
     self.player:setClearcutSprite(self.clearcutSprites[characterId] or self.clearcutSprites.physical, characterId)
     self.clearcut:setup(self)
     self.mode="playing"
@@ -226,7 +229,7 @@ end
 function Game:update(dt)
     if self.mode == "lobby" then self.lobby:update(dt); return end
     if self.mode == "settings" then self.lobby:update(dt); return end
-    if self.mode == "clearcut_select" then return end
+    if self.mode == "clearcut_select" or self.mode == "clearcut_map_select" then return end
     if self.mode == "character_traits" then self.characterTraitBoard:update(dt); return end
     if self.mode == "test_options" then self.testResetTime=math.max(0,(self.testResetTime or 0)-dt); if self.testResetTime<=0 then self.testResetArmed=false end; return end
     if self.mode == "meta" then self.traitTree:update(dt); return end
@@ -272,6 +275,11 @@ function Game:keypressed(key)
         end
         return
     end
+    if self.mode == "clearcut_map_select" then
+        if key=="escape" then self.mode="clearcut_select"
+        elseif key=="1" or key=="2" or key=="3" or key=="4" then self:chooseClearcutMap(tonumber(key)) end
+        return
+    end
     if self.mode == "clearcut_select" then
         if key=="t" then self.characterTraitReturnMode="clearcut_select"; self.mode="character_traits"
         elseif key=="1" or key=="2" or key=="3" or key=="4" or key=="5" or key=="6" then self:chooseClearcutCharacter(tonumber(key))
@@ -287,6 +295,7 @@ function Game:keypressed(key)
     if self.mode == "upgrade" then if key == "1" or key == "2" or key == "3" then self:selectRunUpgrade(tonumber(key)) end; return end
     if self.mode == "rush_upgrade" then if key=="1" or key=="2" or key=="3" then self.rush:choose(tonumber(key),self) end; return end
     if self.mode == "clearcut_upgrade" then
+        if self.clearcut:choicesLocked() then return end
         if self.clearcut.selectionKind=="fusion" and (key=="return" or key=="kpenter" or key=="space") then
             self.clearcut:choose(1,self)
         elseif key=="1" or key=="2" or key=="3" then self.clearcut:choose(tonumber(key),self) end
@@ -376,6 +385,10 @@ function Game:mousepressed(x, y, button)
         if self.characterTraitBoard:mousepressed(x,y,button)=="back" then self.mode=self.characterTraitReturnMode or "clearcut_select" end
         return
     end
+    if self.mode=="clearcut_map_select" then
+        if button==1 then local i=require("src.clearcut_map_select").at(x,y);if i then self:chooseClearcutMap(i) end end
+        return
+    end
     if self.mode == "settings" then
         if button == 1 then
             local w = love.graphics.getWidth()
@@ -396,7 +409,12 @@ function Game:mousepressed(x, y, button)
     if self.mode == "meta" then if self.traitTree:mousepressed(x, y, button) == "back" then self.mode = "lobby" end; return end
     if self.mode == "upgrade" then if button == 1 then local index = self.upgrades:choiceAt(x, y); if index then self:selectRunUpgrade(index) end end; return end
     if self.mode == "rush_upgrade" then if button==1 then local index=self.rush:choiceAt(x,y); if index then self.rush:choose(index,self) end end; return end
-    if self.mode == "clearcut_upgrade" then if button==1 then local index=self.clearcut:choiceAt(x,y); if index then self.clearcut:choose(index,self) end end; return end
+    if self.mode == "clearcut_upgrade" then
+        if button==1 and not self.clearcut:choicesLocked() then
+            local index=self.clearcut:choiceAt(x,y); if index then self.clearcut:choose(index,self) end
+        end
+        return
+    end
     if self.mode == "build_select" then
         if button == 1 then
             if x >= 28 and x <= 176 and y >= 25 and y <= 67 then self.mode = "playing"; return end
@@ -491,6 +509,7 @@ end
 function Game:wheelmoved(x, y)
     if self.mode=="character_traits" then self.characterTraitBoard:wheelmoved(x,y); return end
     if self.mode ~= "playing" or y == 0 then return end
+    if self.world.overviewBounds then return end -- keep every coastline visible
     if not (love.keyboard.isDown("lctrl") or love.keyboard.isDown("rctrl")) then return end
     local factor = y > 0 and 1.1 or 1 / 1.1
     self.camera.zoom = math.max(.6, math.min(1.8, self.camera.zoom * factor))
@@ -768,13 +787,21 @@ end
 function Game:chooseClearcutCharacter(index)
     local c = ClearcutMode.characters[index]
     if not c then return end
-    self:startClearcut(c.id)
+    self.pendingClearcutCharacter=c.id
+    self.mode="clearcut_map_select"
+end
+
+function Game:chooseClearcutMap(index)
+    local def=require("src.clearcut_maps").catalog[index]
+    if not def or not self.pendingClearcutCharacter then return end
+    self:startClearcut(self.pendingClearcutCharacter,def.id)
 end
 
 function Game:draw()
     if self.mode=="test_options" then self:drawTestOptions(); return end
     if self.mode == "lobby" then self.lobby:draw(); return end
     if self.mode == "clearcut_select" then self:drawClearcutSelect(); return end
+    if self.mode == "clearcut_map_select" then require("src.clearcut_map_select").draw(self); return end
     if self.mode == "character_traits" then
         local w,h=love.graphics.getDimensions(); self.lobby:drawBackground(w,h); self.characterTraitBoard:draw(); return
     end

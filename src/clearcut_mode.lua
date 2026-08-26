@@ -7,6 +7,7 @@ local ForestArt = require("src.forest_arcade_art")
 local ForestScenery = require("src.forest_scenery")
 local Fusions = require("src.clearcut_fusions")
 local BiomeEnemies = require("src.biome_enemies")
+local SupplementArt = require("src.supplement_art")
 
 local ClearcutMode = {}
 ClearcutMode.__index = ClearcutMode
@@ -213,7 +214,9 @@ function ClearcutMode:generateForest(game, target)
     local w, h = game.world.width, game.world.height
     local spawnX, spawnY = w / 2, h / 2
     local attempts, minSep = 0, game.world.clearcutMap=="island" and 70 or 108
-    while #game.world.nodes < target and attempts < 12000 do
+    -- Large islands need more land samples in later stages; keep sea and paths empty.
+    local attemptLimit=game.world.clearcutMap=="island" and math.max(12000,target*70) or 12000
+    while #game.world.nodes < target and attempts < attemptLimit do
         attempts = attempts + 1
         -- New open pockets must not reduce later stages' tree objectives.
         -- Relax spacing only after a dense placement pass stalls; never fill paths.
@@ -249,6 +252,7 @@ end
 -- 스테이지 클리어: 세계수를 쓰러뜨리면 런을 끝내는 대신 더 큰 숲과 더 강한 저주로 다음 스테이지를 연다
 function ClearcutMode:advanceStage(game)
     CigaretteButts.reset(self)
+    self.supplementImpacts, self.crowFx, self.whipFx, self.lightningFx = {}, {}, {}, {}
     self.stage = self.stage + 1
     self.stageBossHpMul = 1 + (self.stage - 1) * .55
     game.world.nodes, game.world.drops = {}, {}
@@ -266,6 +270,7 @@ function ClearcutMode:advanceStage(game)
     if #self:arcanaPool() > 0 then
         self.selectionKind = "arcana"
         self:rollArcanaChoices()
+        self.choicesRevealAt = love.timer.getTime()
         game.mode = "clearcut_upgrade"
     else
         self:openUpgradeChoices(game)
@@ -927,6 +932,7 @@ function ClearcutMode:openChest(game)
     self.chestPending = true
     self.selectionKind, self.banishArmed = "upgrade", false
     self.specialCard = nil
+    self.choicesRevealAt = love.timer.getTime()
     game.mode = "clearcut_upgrade"
     game:setNotice("보물상자 — 전직 전용 스킬을 하나 고르세요!", "food")
 end
@@ -1218,7 +1224,7 @@ function ClearcutMode:updatePlague(dt, game)
             if alive and p.tickTimer <= 0 then
                 p.tickTimer = .6
                 game.world:addParticle(p.ref.x, p.ref.y - 60, {.5, .85, .35}, false, false)
-                p.ref.rushHp = (p.ref.rushHp or p.ref.rushMaxHp) - 1
+                p.ref.rushHp = (p.ref.rushHp or p.ref.rushMaxHp) - (p.dmg or 1)
                 game.world:impactNode(p.ref, game, false)
                 if p.ref.rushHp <= 0 then self:fellTree(p.ref, game) end
             end
@@ -1226,7 +1232,7 @@ function ClearcutMode:updatePlague(dt, game)
             alive = p.ref.hp > 0
             if alive and p.tickTimer <= 0 then
                 p.tickTimer = .6
-                p.ref.hp = p.ref.hp - 2
+                p.ref.hp = p.ref.hp - (p.dmg or 2)
                 game.world:addParticle(p.ref.x, p.ref.y - 10, {.5, .85, .35}, false, false)
             end
         end
@@ -1573,8 +1579,9 @@ function ClearcutMode:updateMining(dt, game)
     end
 end
 
--- 보조력: 기본 공격/직업과 무관하게 항상 돌아가는 공용 패시브 3종.
+-- 공용 보조 스킬 8종과 직업 전용 스킬. 시각 이벤트는 전투 시간으로만 진행한다.
 function ClearcutMode:updateSupplementSkills(dt, game)
+    SupplementArt.update(self,dt)
     self:updateBatSwarm(dt, game)
     self:updateThornAura(dt, game)
     self:updateCrowStrike(dt, game)
@@ -1629,8 +1636,8 @@ function ClearcutMode:updateThornAura(dt, game)
     if level <= 0 then return end
     self.auraTimer = (self.auraTimer or 0) - dt
     if self.auraTimer > 0 then return end
-    self.auraTimer = math.max(.5, 1.1 - level * .15)
-    local radius = 60 + level * 25
+    self.auraTimer = math.max(1, 1.9 - level * .3)
+    local radius = 50 + level * 18
     local dmg = 1 + level
     for _, node in ipairs(game.world.nodes) do
         if node.rushTree and node.active then
@@ -1684,7 +1691,7 @@ function ClearcutMode:updateCrowStrike(dt, game)
         best.visualHit = .14
     end
     self:damageEnemiesInRadius(best.x, best.y, radius, dmg * .5, game)
-    self.crowFx[#self.crowFx+1] = {x=best.x, y=best.y, life=.32, maxLife=.32}
+    self.crowFx[#self.crowFx+1] = {x=best.x, y=best.y, angle=math.atan2(best.y-game.player.y,best.x-game.player.x), life=.32, maxLife=.32}
     if game.camera then game.camera.trauma = math.min(1, game.camera.trauma + .12) end
 end
 
@@ -1699,7 +1706,7 @@ function ClearcutMode:updateVineWhip(dt, game)
     if level <= 0 then return end
     self.whipTimer = (self.whipTimer or 0) - dt
     if self.whipTimer > 0 then return end
-    self.whipTimer = math.max(.7, 1.6 - level * .3)
+    self.whipTimer = math.max(3.5, 8 - level * 1.5)
     local range = 130 + level * 25
     local nearest, nearestD2 = nil, range * range
     for _, node in ipairs(game.world.nodes) do
@@ -1718,8 +1725,8 @@ function ClearcutMode:updateVineWhip(dt, game)
     local angle
     if nearest then angle = atan2(nearest.y - game.player.y, nearest.x - game.player.x)
     else angle = (game.player.facing or 1) > 0 and 0 or math.pi end
-    local dmg = 2 + level * 1.5
-    local cone = .9
+    local dmg = 4 + level * 2.5
+    local cone = .75
     for _, node in ipairs(game.world.nodes) do
         if node.rushTree and node.active then
             local dx, dy = node.x - game.player.x, node.y - game.player.y
@@ -1747,7 +1754,7 @@ function ClearcutMode:updateVineWhip(dt, game)
             end
         end
     end
-    self.whipFx[#self.whipFx+1] = {angle=angle, range=range, life=.22, maxLife=.22}
+    self.whipFx[#self.whipFx+1] = {x=game.player.x,y=game.player.y,angle=angle, range=range, life=.22, maxLife=.22}
 end
 
 function ClearcutMode:updateBoomerangAxe(dt, game)
@@ -1756,11 +1763,14 @@ function ClearcutMode:updateBoomerangAxe(dt, game)
     local speed = 480
     for i = #self.boomerangs, 1, -1 do
         local b = self.boomerangs[i]
-        local remove = false
+        local remove, turning = false, false
+        b.trail=b.trail or {}
+        table.insert(b.trail,1,{x=b.x,y=b.y,angle=(self.supplementTime or 0)*17})
+        if #b.trail>5 then table.remove(b.trail) end
         if b.phase == "out" then
             b.x, b.y = b.x + b.dx * speed * dt, b.y + b.dy * speed * dt
             b.traveled = b.traveled + speed * dt
-            if b.traveled >= b.maxDist then b.phase = "back" end
+            turning = b.traveled >= b.maxDist
         else
             local dx, dy = game.player.x - b.x, game.player.y - b.y
             local dist = math.sqrt(dx*dx + dy*dy)
@@ -1778,6 +1788,7 @@ function ClearcutMode:updateBoomerangAxe(dt, game)
                     local dx2, dy2 = node.x - b.x, node.y - b.y
                     if dx2*dx2 + dy2*dy2 <= 30*30 then
                         b.hitSet[node] = true
+                        SupplementArt.impact(self,"axe",node.x,node.y,24)
                         node.rushHp = (node.rushHp or node.rushMaxHp) - b.dmg
                         game.world:impactNode(node, game, false)
                         if node.rushHp <= 0 then self:fellTree(node, game) end
@@ -1789,12 +1800,16 @@ function ClearcutMode:updateBoomerangAxe(dt, game)
                     local dx2, dy2 = e.x - b.x, e.y - b.y
                     if dx2*dx2 + dy2*dy2 <= 30*30 then
                         b.hitSet[e] = true
+                        SupplementArt.impact(self,"axe",e.x,e.y,24)
                         e.hp = e.hp - b.dmg
                         e.visualHit = .14
                     end
                 end
             end
         end
+        -- Finish the outbound collision first, including its endpoint. Each leg
+        -- may hit a target once; the return must not inherit outbound immunity.
+        if turning and not remove then b.phase="back";b.hitSet={} end
     end
     if level <= 0 then return end
     self.boomerangTimer = (self.boomerangTimer or 0) - dt
@@ -1826,6 +1841,7 @@ function ClearcutMode:updateSeedMine(dt, game)
                 end
             end
             self:damageEnemiesInRadius(s.x, s.y, radius, s.dmg, game)
+            SupplementArt.impact(self,"seed",s.x,s.y,radius)
             table.remove(self.seeds, i)
         end
     end
@@ -1897,21 +1913,23 @@ function ClearcutMode:updateSporeCloud(dt, game)
     local level = self:levelOf("spore_cloud")
     if level <= 0 then self.spore = nil; return end
     self.spore = self.spore or {angle=0, hitTimer=0}
-    local radius = 150 + level * 30
-    self.spore.angle = self.spore.angle + dt * .8
+    local radius = 90 + level * 20
+    self.spore.angle = self.spore.angle + dt * 1.1
     self.spore.hitTimer = math.max(0, self.spore.hitTimer - dt)
     local sx = game.player.x + math.cos(self.spore.angle) * radius
     local sy = game.player.y + math.sin(self.spore.angle) * radius * .6
     self.spore.x, self.spore.y = sx, sy
+    local plagueDmg = 2 + level
     if self.spore.hitTimer <= 0 then
-        self.spore.hitTimer = .5
-        local hitRadius = 38 + level * 6
+        self.spore.hitTimer = .4
+        local hitRadius = 42 + level * 8
         for _, node in ipairs(game.world.nodes) do
             if node.rushTree and node.active and not node.plagueMarked then
                 local dx, dy = node.x - sx, node.y - sy
                 if dx*dx + dy*dy <= hitRadius*hitRadius then
                     node.plagueMarked = true
-                    self.plagued[#self.plagued+1] = {kind="tree", ref=node, timer=3 + level, tickTimer=0}
+                    self.plagued[#self.plagued+1] = {kind="tree", ref=node, timer=4 + level * 1.5, tickTimer=0, dmg=plagueDmg}
+                    SupplementArt.impact(self,"infection",node.x,node.y,24)
                 end
             end
         end
@@ -1920,7 +1938,8 @@ function ClearcutMode:updateSporeCloud(dt, game)
                 local dx, dy = e.x - sx, e.y - sy
                 if dx*dx + dy*dy <= hitRadius*hitRadius then
                     e.plagueMarked = true
-                    self.plagued[#self.plagued+1] = {kind="enemy", ref=e, timer=3 + level, tickTimer=0}
+                    self.plagued[#self.plagued+1] = {kind="enemy", ref=e, timer=4 + level * 1.5, tickTimer=0, dmg=plagueDmg}
+                    SupplementArt.impact(self,"infection",e.x,e.y,24)
                 end
             end
         end
@@ -2493,7 +2512,14 @@ function ClearcutMode:openUpgradeChoices(game)
         self.specialCard = pool[love.math.random(#pool)]
         self.specialCardRevealAt = love.timer.getTime()
     end
+    -- 렙업 순간에 마우스를 누른 채로 공격 중이면 카드가 뜨자마자 클릭돼버리므로,
+    -- 카드가 뒤집혀 등장하는 짧은 시간 동안은 선택 입력을 잠근다.
+    self.choicesRevealAt = love.timer.getTime()
     game.mode = "clearcut_upgrade"
+end
+
+function ClearcutMode:choicesLocked()
+    return love.timer.getTime() - (self.choicesRevealAt or 0) < .62
 end
 
 function ClearcutMode:rerollChoice(game)
@@ -2548,6 +2574,7 @@ function ClearcutMode:checkEvolutions(game)
     self.specialCard=nil
     self.banishArmed=false
     self.choiceBoxes={}
+    self.choicesRevealAt = love.timer.getTime()
     game.mode="clearcut_upgrade"
     return true
 end
@@ -3646,94 +3673,7 @@ function ClearcutMode:drawDeveloperMachinery(game, t)
 end
 
 function ClearcutMode:drawSupplementSkills(game, t)
-    if self.auraPulse and self.auraPulse > 0 and self.auraRadius then
-        love.graphics.setColor(.42, .7, .3, self.auraPulse * .28)
-        love.graphics.circle("fill", game.player.x, game.player.y, self.auraRadius)
-        love.graphics.setLineWidth(2)
-        love.graphics.setColor(.6, .9, .42, self.auraPulse * .8)
-        love.graphics.circle("line", game.player.x, game.player.y, self.auraRadius * (1 + (1 - self.auraPulse) * .3))
-        love.graphics.setLineWidth(1)
-    end
-    if self.bats then
-        for _, bat in ipairs(self.bats) do
-            if bat.x then
-                local flap = 1 + math.sin(t * 14 + bat.angle * 3) * .22
-                love.graphics.push()
-                love.graphics.translate(bat.x, bat.y)
-                love.graphics.scale(1, flap)
-                drawPixelGrid(batIconRows, batIconPalette, 0, 0, 2)
-                love.graphics.pop()
-            end
-        end
-    end
-    if self.crowFx then
-        for _, fx in ipairs(self.crowFx) do
-            local p = 1 - fx.life / fx.maxLife
-            love.graphics.setLineWidth(2)
-            love.graphics.setColor(.85, .3, .2, (1 - p) * .85)
-            love.graphics.circle("line", fx.x, fx.y, 10 + p * 34)
-            love.graphics.setLineWidth(1)
-            drawPixelGrid(crowIconRows, crowIconPalette, fx.x, fx.y - (1 - p) * 46, 2.4)
-        end
-    end
-    if self.whipFx then
-        for _, fx in ipairs(self.whipFx) do
-            local a = fx.life / fx.maxLife
-            love.graphics.setLineWidth(6 * a + 1)
-            love.graphics.setColor(.45, .7, .28, a * .85)
-            local steps = 10
-            local pts = {}
-            for i = 0, steps do
-                local sweep = fx.angle + (i / steps - .5) * 1.6
-                pts[#pts+1] = game.player.x + math.cos(sweep) * fx.range
-                pts[#pts+1] = game.player.y + math.sin(sweep) * fx.range
-            end
-            love.graphics.line(pts)
-            love.graphics.setLineWidth(1)
-        end
-    end
-    if self.boomerangs then
-        for _, b in ipairs(self.boomerangs) do
-            love.graphics.push()
-            love.graphics.translate(b.x, b.y)
-            love.graphics.rotate(t * 16)
-            drawPixelGrid(axeIconRows, boomerangAxePalette, 0, 0, 2)
-            love.graphics.pop()
-        end
-    end
-    if self.seeds then
-        for _, s in ipairs(self.seeds) do
-            local p = 1 - s.fuse / s.maxFuse
-            drawPixelGrid(seedIconRows, seedIconPalette, s.x, s.y, 1.8 + math.sin(t * 10) * .1)
-            love.graphics.setLineWidth(2)
-            love.graphics.setColor(1, .35, .2, .4 + p * .5)
-            love.graphics.circle("line", s.x, s.y, s.radius * p)
-            love.graphics.setLineWidth(1)
-        end
-    end
-    if self.lightningFx then
-        for _, fx in ipairs(self.lightningFx) do
-            local a = fx.life / fx.maxLife
-            local pts = {}
-            for _, pt in ipairs(fx.points) do pts[#pts+1] = pt.x; pts[#pts+1] = pt.y end
-            if #pts >= 4 then
-                love.graphics.setLineWidth(4)
-                love.graphics.setColor(.55, .9, 1, a * .3)
-                love.graphics.line(pts)
-                love.graphics.setLineWidth(2)
-                love.graphics.setColor(.85, .98, 1, a * .95)
-                love.graphics.line(pts)
-                love.graphics.setLineWidth(1)
-            end
-        end
-    end
-    if self.spore then
-        local pulse = .5 + math.sin(t * 3) * .5
-        love.graphics.setColor(.62, .45, .72, .18 + pulse * .1)
-        love.graphics.circle("fill", self.spore.x, self.spore.y, 30 + pulse * 8)
-        love.graphics.setColor(.78, .6, .85, .5 + pulse * .3)
-        love.graphics.circle("line", self.spore.x, self.spore.y, 22)
-    end
+    SupplementArt.draw(self,game,t)
     if self.digits and #self.digits > 0 and game.fonts then
         love.graphics.setFont(game.fonts.small)
         for _, d in ipairs(self.digits) do
@@ -4590,37 +4530,38 @@ local function specialCardFlip(elapsed)
 end
 
 local specialBackFont = nil
-local function drawCardBack(x,y,w,h,t)
+local function drawCardBack(x,y,w,h,t,backColor)
+    local color = backColor or specialColor
     local cx, cy = x + w/2, y + h/2
     love.graphics.stencil(function() love.graphics.rectangle("fill",x,y,w,h,14,14) end, "replace", 1)
     love.graphics.setStencilTest("greater", 0)
     love.graphics.setColor(.1,.07,.17,1); love.graphics.rectangle("fill",x,y,w,h)
     for i = 0, 10 do
         local p = i / 10
-        love.graphics.setColor(specialColor[1]*.4, specialColor[2]*.3, specialColor[3]*.5, .1*(1-p))
+        love.graphics.setColor(color[1]*.4, color[2]*.3, color[3]*.5, .1*(1-p))
         love.graphics.circle("fill", cx, cy, (w*.75)*(1-p))
     end
     love.graphics.setStencilTest()
-    love.graphics.setColor(specialColor[1],specialColor[2],specialColor[3],.85); love.graphics.setLineWidth(3)
+    love.graphics.setColor(color[1],color[2],color[3],.85); love.graphics.setLineWidth(3)
     love.graphics.rectangle("line",x+6,y+6,w-12,h-12,10,10)
-    love.graphics.setLineWidth(1); love.graphics.setColor(specialColor[1],specialColor[2],specialColor[3],.5)
+    love.graphics.setLineWidth(1); love.graphics.setColor(color[1],color[2],color[3],.5)
     love.graphics.rectangle("line",x+12,y+12,w-24,h-24,6,6)
     for _, corner in ipairs({{x+16,y+16,1,1},{x+w-16,y+16,-1,1},{x+16,y+h-16,1,-1},{x+w-16,y+h-16,-1,-1}}) do
-        love.graphics.setColor(specialColor[1],specialColor[2],specialColor[3],.7)
+        love.graphics.setColor(color[1],color[2],color[3],.7)
         love.graphics.line(corner[1], corner[2], corner[1]+10*corner[3], corner[2])
         love.graphics.line(corner[1], corner[2], corner[1], corner[2]+10*corner[4])
     end
     local pulse = .5+math.sin(t*6)*.5
     for i = 1, 8 do
         local ang = i/8*math.pi*2 + t*.6
-        love.graphics.setColor(specialColor[1],specialColor[2],specialColor[3],.25+pulse*.15)
+        love.graphics.setColor(color[1],color[2],color[3],.25+pulse*.15)
         love.graphics.line(cx,cy, cx+math.cos(ang)*(30+pulse*6), cy+math.sin(ang)*(30+pulse*6))
     end
-    love.graphics.setColor(specialColor[1],specialColor[2],specialColor[3],.6+pulse*.3)
+    love.graphics.setColor(color[1],color[2],color[3],.6+pulse*.3)
     love.graphics.circle("line", cx, cy, 26)
     specialBackFont = specialBackFont or love.graphics.newFont(46)
     love.graphics.setFont(specialBackFont)
-    love.graphics.setColor(specialColor[1],specialColor[2],specialColor[3],.55+pulse*.35)
+    love.graphics.setColor(color[1],color[2],color[3],.55+pulse*.35)
     love.graphics.printf("?",x,y+h/2-30,w,"center")
 end
 
@@ -4656,22 +4597,44 @@ function ClearcutMode:drawSelectionContent(game,fonts,w,h)
     if self.selectionKind == "arcana" then
         love.graphics.setFont(fonts.title); love.graphics.setColor(arcanaColor); love.graphics.printf("아르카나 — 룰을 바꾸는 선택",0,66,w,"center")
         love.graphics.setFont(fonts.small); love.graphics.setColor(.85,.78,.95); love.graphics.printf("되돌릴 수 없습니다. 한 번 고르면 이번 판 내내 유지됩니다",0,112,w,"center")
-        local gap,cardW,cardH=24,math.min(320,(w-96)/3),360
+        local gap,cardW,cardH=24,math.min(320,(w-96)/3),430
         local startX=w/2-(cardW*3+gap*2)/2
         local mx,my=self:selectionMousePosition()
+        local revealElapsed = t - (self.choicesRevealAt or t)
         for i,def in ipairs(self.arcanaChoices) do
             local x,y=startX+(i-1)*(cardW+gap),165
             self.choiceBoxes[i]={x=x,y=y,w=cardW,h=cardH}
             local hovered = mx>=x and mx<=x+cardW and my>=y and my<=y+cardH
+            local cx = x+cardW/2
+            local scaleX = specialCardFlip(math.max(0, revealElapsed - (i-1)*.08))
+            love.graphics.push(); love.graphics.translate(cx,y+cardH/2); love.graphics.scale(scaleX,1); love.graphics.translate(-cx,-(y+cardH/2))
+            if scaleX < .5 then
+                drawCardBack(x,y,cardW,cardH,t,arcanaColor)
+            else
             drawUpgradeCardFrame(x,y,cardW,cardH,arcanaColor,hovered,nil,t)
             local iconDef = {rows=arcanaShapeRows[def.icon], palette=arcanaIconPalette(def.color)}
             drawIconSocket(x+cardW/2,y+108,arcanaColor,iconDef,t)
             love.graphics.setColor(.06,.09,.08,.92); love.graphics.rectangle("fill",x+16,y+16,34,30,7,7)
             love.graphics.setFont(fonts.heading); love.graphics.setColor(1,1,1); love.graphics.printf(tostring(i),x+16,y+21,34,"center")
-            love.graphics.setFont(fonts.small); love.graphics.setColor(arcanaColor[1],arcanaColor[2],arcanaColor[3],.95); love.graphics.printf("아르카나", x, y+18, cardW, "center")
-            love.graphics.setFont(fonts.heading); love.graphics.setColor(1,1,1); love.graphics.printf(def.name,x+16,y+195,cardW-32,"center")
-            love.graphics.setFont(fonts.body); love.graphics.setColor(.78,.72,.88); love.graphics.printf(def.desc,x+28,y+245,cardW-56,"center")
-            love.graphics.setColor(arcanaColor); love.graphics.printf("영구 효과 · 되돌릴 수 없음",x+20,y+320,cardW-40,"center")
+            love.graphics.setFont(fonts.heading); love.graphics.setColor(1,1,1); love.graphics.printf(def.name,x+16,y+182,cardW-32,"center")
+            do
+                local tagText = "아르카나"
+                love.graphics.setFont(fonts.small)
+                local tagW = math.min(cardW-40, fonts.small:getWidth(tagText)+28)
+                local tagX = cx - tagW/2
+                love.graphics.setColor(arcanaColor[1],arcanaColor[2],arcanaColor[3],.22); love.graphics.rectangle("fill",tagX,y+211,tagW,22,11,11)
+                love.graphics.setColor(arcanaColor[1],arcanaColor[2],arcanaColor[3],.9); love.graphics.setLineWidth(1.3); love.graphics.rectangle("line",tagX,y+211,tagW,22,11,11)
+                love.graphics.setColor(1,.96,.85,1); love.graphics.printf(tagText,tagX,y+216,tagW,"center")
+            end
+            love.graphics.setColor(1,1,1,.14); love.graphics.line(x+22,y+245,x+cardW-22,y+245)
+            love.graphics.setFont(fonts.small); love.graphics.setColor(.86,.82,.92)
+            love.graphics.printf(def.desc,x+22,y+256,cardW-44,"center")
+            love.graphics.setColor(1,1,1,.14); love.graphics.line(x+22,y+352,x+cardW-22,y+352)
+            love.graphics.setColor(arcanaColor[1],arcanaColor[2],arcanaColor[3],.14); love.graphics.rectangle("fill",x+16,y+362,cardW-32,58,8,8)
+            love.graphics.setFont(fonts.heading); love.graphics.setColor(arcanaColor)
+            love.graphics.printf("영구 효과 · 되돌릴 수 없음",x+20,y+382,cardW-40,"center")
+            end
+            love.graphics.pop()
         end
         return
     end
@@ -4681,29 +4644,67 @@ function ClearcutMode:drawSelectionContent(game,fonts,w,h)
     local numCards = self.specialCard and 4 or 3
     local gap = 22
     local cardW = math.min(300, (w-96-gap*(numCards-1))/numCards)
-    local cardH = 360
+    local cardH = 430
     local startX = w/2-(cardW*numCards+gap*(numCards-1))/2
     local mx,my=self:selectionMousePosition()
+    local revealElapsed = t - (self.choicesRevealAt or t)
     for i,def in ipairs(self.choices) do
         local x,y=startX+(i-1)*(cardW+gap),165
         self.choiceBoxes[i]={x=x,y=y,w=cardW,h=cardH}
         local hovered = mx>=x and mx<=x+cardW and my>=y and my<=y+cardH
         local jobColor = jobFlavorColors[def.job] or universalColor
+        local scaleX, flipP = specialCardFlip(math.max(0, revealElapsed - (i-1)*.08))
+        local cx = x+cardW/2
+        love.graphics.push(); love.graphics.translate(cx,y+cardH/2); love.graphics.scale(scaleX,1); love.graphics.translate(-cx,-(y+cardH/2))
+        if scaleX < .5 then
+            drawCardBack(x,y,cardW,cardH,t,jobColor)
+        else
         drawUpgradeCardFrame(x,y,cardW,cardH,jobColor,hovered,def.job,t)
         local iconDef = ClearcutMode.icons[def.id == "molotov" and "cigarette" or def.id]
         drawIconSocket(x+cardW/2,y+108,jobColor,iconDef,t)
         love.graphics.setColor(.06,.09,.08,.92); love.graphics.rectangle("fill",x+16,y+16,34,30,7,7)
         love.graphics.setFont(fonts.heading); love.graphics.setColor(1,1,1); love.graphics.printf(tostring(i),x+16,y+21,34,"center")
-        love.graphics.setFont(fonts.small); love.graphics.setColor(jobColor[1],jobColor[2],jobColor[3],.95); love.graphics.printf(trackLabels[def.track] or "", x, y+18, cardW, "center")
         if self.banishArmed and not jobFor[def.id] then
             love.graphics.setColor(1,.3,.25,.5+math.sin(t*8)*.15); love.graphics.setLineWidth(3)
             love.graphics.rectangle("line",x+3,y+3,cardW-6,cardH-6,12,12)
         end
-        love.graphics.setFont(fonts.heading); love.graphics.setColor(1,1,1); love.graphics.printf(def.name,x+16,y+195,cardW-32,"center")
-        love.graphics.setFont(fonts.body); love.graphics.setColor(.72,.82,.77); love.graphics.printf(def.desc,x+28,y+245,cardW-56,"center")
-        love.graphics.setColor(1,.75,.25)
-        local label=def.recovery and "체력 +20" or ("Lv."..self:levelOf(def.id).." → Lv."..(self:levelOf(def.id)+1))
-        love.graphics.printf(label,x+20,y+320,cardW-40,"center")
+        -- 이름 · 트랙 태그 칩 · 구분선 · 설명 · 구분선 · 레벨 진행도 순으로 명확히 분리한다.
+        love.graphics.setFont(fonts.heading); love.graphics.setColor(1,1,1); love.graphics.printf(def.name,x+16,y+182,cardW-32,"center")
+        local trackText = trackLabels[def.track] or ""
+        if trackText ~= "" then
+            love.graphics.setFont(fonts.small)
+            local tagW = math.min(cardW-40, fonts.small:getWidth(trackText)+28)
+            local tagX = cx - tagW/2
+            love.graphics.setColor(jobColor[1],jobColor[2],jobColor[3],.22); love.graphics.rectangle("fill",tagX,y+211,tagW,22,11,11)
+            love.graphics.setColor(jobColor[1],jobColor[2],jobColor[3],.9); love.graphics.setLineWidth(1.3); love.graphics.rectangle("line",tagX,y+211,tagW,22,11,11)
+            love.graphics.setColor(jobColor[1]*.4+.6,jobColor[2]*.4+.6,jobColor[3]*.4+.6,1); love.graphics.printf(trackText,tagX,y+216,tagW,"center")
+        end
+        love.graphics.setColor(1,1,1,.14); love.graphics.line(x+22,y+245,x+cardW-22,y+245)
+        love.graphics.setFont(fonts.small); love.graphics.setColor(.8,.87,.83)
+        love.graphics.printf(def.desc,x+22,y+256,cardW-44,"center")
+        love.graphics.setColor(1,1,1,.14); love.graphics.line(x+22,y+352,x+cardW-22,y+352)
+        love.graphics.setColor(jobColor[1],jobColor[2],jobColor[3],.14); love.graphics.rectangle("fill",x+16,y+362,cardW-32,58,8,8)
+        local curLevel = self:levelOf(def.id)
+        local label=def.recovery and "체력 +20" or ("Lv."..curLevel.."  →  Lv."..(curLevel+1))
+        love.graphics.setFont(fonts.heading); love.graphics.setColor(1,.8,.32)
+        love.graphics.printf(label,x+20,y+370,cardW-40,"center")
+        if not def.recovery and def.max and def.max > 1 then
+            local dotGap, dotR = 15, 4
+            local dotsW = (def.max-1)*dotGap
+            local dx0 = cx - dotsW/2
+            for lvl = 1, def.max do
+                local px = dx0 + (lvl-1)*dotGap
+                if lvl <= curLevel then
+                    love.graphics.setColor(jobColor[1],jobColor[2],jobColor[3],1); love.graphics.circle("fill",px,y+404,dotR)
+                elseif lvl == curLevel+1 then
+                    love.graphics.setColor(1,.8,.32,.6+math.sin(t*5)*.3); love.graphics.setLineWidth(2); love.graphics.circle("line",px,y+404,dotR+1)
+                else
+                    love.graphics.setColor(1,1,1,.22); love.graphics.setLineWidth(1); love.graphics.circle("line",px,y+404,dotR)
+                end
+            end
+        end
+        end
+        love.graphics.pop()
     end
 
     if self.specialCard then
@@ -4724,10 +4725,23 @@ function ClearcutMode:drawSelectionContent(game,fonts,w,h)
             drawIconSocket(x+cardW/2,y+108,specialColor,iconDef,t,true)
             love.graphics.setColor(.06,.09,.08,.92); love.graphics.rectangle("fill",x+16,y+16,34,30,7,7)
             love.graphics.setFont(fonts.heading); love.graphics.setColor(1,1,1); love.graphics.printf("4",x+16,y+21,34,"center")
-            love.graphics.setFont(fonts.small); love.graphics.setColor(specialColor[1],specialColor[2],specialColor[3],.95); love.graphics.printf("★ 스페셜 카드", x, y+18, cardW, "center")
-            love.graphics.setFont(fonts.heading); love.graphics.setColor(1,1,1); love.graphics.printf(def.name,x+16,y+195,cardW-32,"center")
-            love.graphics.setFont(fonts.body); love.graphics.setColor(.85,.8,.65); love.graphics.printf(def.desc,x+28,y+245,cardW-56,"center")
-            love.graphics.setColor(specialColor); love.graphics.printf("영구 효과 · 되돌릴 수 없음",x+20,y+320,cardW-40,"center")
+            love.graphics.setFont(fonts.heading); love.graphics.setColor(1,1,1); love.graphics.printf(def.name,x+16,y+182,cardW-32,"center")
+            do
+                local tagText = "★ 스페셜 카드"
+                love.graphics.setFont(fonts.small)
+                local tagW = math.min(cardW-40, fonts.small:getWidth(tagText)+28)
+                local tagX = cx - tagW/2
+                love.graphics.setColor(specialColor[1],specialColor[2],specialColor[3],.22); love.graphics.rectangle("fill",tagX,y+211,tagW,22,11,11)
+                love.graphics.setColor(specialColor[1],specialColor[2],specialColor[3],.9); love.graphics.setLineWidth(1.3); love.graphics.rectangle("line",tagX,y+211,tagW,22,11,11)
+                love.graphics.setColor(1,.95,.75,1); love.graphics.printf(tagText,tagX,y+216,tagW,"center")
+            end
+            love.graphics.setColor(1,1,1,.14); love.graphics.line(x+22,y+245,x+cardW-22,y+245)
+            love.graphics.setFont(fonts.small); love.graphics.setColor(.9,.86,.72)
+            love.graphics.printf(def.desc,x+22,y+256,cardW-44,"center")
+            love.graphics.setColor(1,1,1,.14); love.graphics.line(x+22,y+352,x+cardW-22,y+352)
+            love.graphics.setColor(specialColor[1],specialColor[2],specialColor[3],.14); love.graphics.rectangle("fill",x+16,y+362,cardW-32,58,8,8)
+            love.graphics.setFont(fonts.heading); love.graphics.setColor(specialColor)
+            love.graphics.printf("영구 효과 · 되돌릴 수 없음",x+20,y+382,cardW-40,"center")
         end
         love.graphics.pop()
         if p >= 1 then
