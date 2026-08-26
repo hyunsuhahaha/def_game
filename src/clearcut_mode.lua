@@ -60,6 +60,11 @@ local definitions = {
     {id="bat_swarm", track="supplement", name="박쥐 떼", desc="박쥐가 주위를 맴돌며 닿는 나무와 적에게 지속적으로 피해를 줍니다.", max=3, color={.55,.42,.72}},
     {id="thorn_aura", track="supplement", name="가시 오라", desc="몸 주위에 가시덩굴이 돋아나 주기적으로 주변 나무와 적에게 피해를 줍니다.", max=3, color={.42,.68,.32}},
     {id="crow_strike", track="supplement", name="까마귀 습격", desc="주기적으로 까마귀가 급강하해 사거리 내 가장 먼 나무나 적을 공격합니다.", max=3, color={.3,.28,.36}},
+    {id="vine_whip", track="supplement", name="덩굴 채찍", desc="주기적으로 덩굴을 채찍처럼 휘둘러 가장 가까운 방향의 부채꼴 범위를 가격합니다.", max=3, color={.35,.55,.22}},
+    {id="boomerang_axe", track="supplement", name="부메랑 도끼", desc="주기적으로 도끼가 날아가 나무와 적을 가르고 손으로 돌아옵니다.", max=3, color={.6,.6,.65}},
+    {id="seed_mine", track="supplement", name="씨앗 지뢰", desc="주기적으로 씨앗 지뢰를 심습니다. 잠시 후 터져 주변 나무와 적에게 피해를 줍니다.", max=3, color={.65,.45,.2}},
+    {id="chain_lightning", track="supplement", name="번개 사슬", desc="주기적으로 번개가 근처 나무·적 사이를 연쇄로 튀며 피해를 줍니다.", max=3, color={.35,.75,.95}},
+    {id="spore_cloud", track="supplement", name="포자 구름", desc="포자 구름이 멀찍이 느리게 맴돌며 닿는 나무와 적을 서서히 중독시킵니다.", max=3, color={.55,.4,.65}},
 }
 
 local upgradeById = {}
@@ -1559,6 +1564,11 @@ function ClearcutMode:updateSupplementSkills(dt, game)
     self:updateBatSwarm(dt, game)
     self:updateThornAura(dt, game)
     self:updateCrowStrike(dt, game)
+    self:updateVineWhip(dt, game)
+    self:updateBoomerangAxe(dt, game)
+    self:updateSeedMine(dt, game)
+    self:updateChainLightning(dt, game)
+    self:updateSporeCloud(dt, game)
     if self.auraPulse then self.auraPulse = math.max(0, self.auraPulse - dt * 2.2) end
 end
 
@@ -1657,6 +1667,245 @@ function ClearcutMode:updateCrowStrike(dt, game)
     self:damageEnemiesInRadius(best.x, best.y, radius, dmg * .5, game)
     self.crowFx[#self.crowFx+1] = {x=best.x, y=best.y, life=.32, maxLife=.32}
     if game.camera then game.camera.trauma = math.min(1, game.camera.trauma + .12) end
+end
+
+function ClearcutMode:updateVineWhip(dt, game)
+    local level = self:levelOf("vine_whip")
+    self.whipFx = self.whipFx or {}
+    for i = #self.whipFx, 1, -1 do
+        local fx = self.whipFx[i]
+        fx.life = fx.life - dt
+        if fx.life <= 0 then table.remove(self.whipFx, i) end
+    end
+    if level <= 0 then return end
+    self.whipTimer = (self.whipTimer or 0) - dt
+    if self.whipTimer > 0 then return end
+    self.whipTimer = math.max(.7, 1.6 - level * .3)
+    local range = 130 + level * 25
+    local nearest, nearestD2 = nil, range * range
+    for _, node in ipairs(game.world.nodes) do
+        if node.rushTree and node.active then
+            local dx, dy = node.x - game.player.x, node.y - game.player.y
+            local d2 = dx*dx + dy*dy
+            if d2 <= nearestD2 then nearest, nearestD2 = node, d2 end
+        end
+    end
+    for _, e in ipairs(self.enemies) do
+        local dx, dy = e.x - game.player.x, e.y - game.player.y
+        local d2 = dx*dx + dy*dy
+        if d2 <= nearestD2 then nearest, nearestD2 = e, d2 end
+    end
+    local atan2 = math.atan2 or math.atan
+    local angle
+    if nearest then angle = atan2(nearest.y - game.player.y, nearest.x - game.player.x)
+    else angle = (game.player.facing or 1) > 0 and 0 or math.pi end
+    local dmg = 2 + level * 1.5
+    local cone = .9
+    for _, node in ipairs(game.world.nodes) do
+        if node.rushTree and node.active then
+            local dx, dy = node.x - game.player.x, node.y - game.player.y
+            local d2 = dx*dx + dy*dy
+            if d2 <= range*range then
+                local a = atan2(dy, dx)
+                local diff = math.abs((a - angle + math.pi) % (math.pi * 2) - math.pi)
+                if diff <= cone then
+                    node.rushHp = (node.rushHp or node.rushMaxHp) - dmg
+                    game.world:impactNode(node, game, false)
+                    if node.rushHp <= 0 then self:fellTree(node, game) end
+                end
+            end
+        end
+    end
+    for _, e in ipairs(self.enemies) do
+        local dx, dy = e.x - game.player.x, e.y - game.player.y
+        local d2 = dx*dx + dy*dy
+        if d2 <= range*range then
+            local a = atan2(dy, dx)
+            local diff = math.abs((a - angle + math.pi) % (math.pi * 2) - math.pi)
+            if diff <= cone then
+                e.hp = e.hp - dmg
+                e.visualHit = .14
+            end
+        end
+    end
+    self.whipFx[#self.whipFx+1] = {angle=angle, range=range, life=.22, maxLife=.22}
+end
+
+function ClearcutMode:updateBoomerangAxe(dt, game)
+    local level = self:levelOf("boomerang_axe")
+    self.boomerangs = self.boomerangs or {}
+    local speed = 480
+    for i = #self.boomerangs, 1, -1 do
+        local b = self.boomerangs[i]
+        local remove = false
+        if b.phase == "out" then
+            b.x, b.y = b.x + b.dx * speed * dt, b.y + b.dy * speed * dt
+            b.traveled = b.traveled + speed * dt
+            if b.traveled >= b.maxDist then b.phase = "back" end
+        else
+            local dx, dy = game.player.x - b.x, game.player.y - b.y
+            local dist = math.sqrt(dx*dx + dy*dy)
+            if dist < 24 then
+                remove = true
+            else
+                b.x, b.y = b.x + dx / dist * speed * dt, b.y + dy / dist * speed * dt
+            end
+        end
+        if remove then
+            table.remove(self.boomerangs, i)
+        else
+            for _, node in ipairs(game.world.nodes) do
+                if node.rushTree and node.active and not b.hitSet[node] then
+                    local dx2, dy2 = node.x - b.x, node.y - b.y
+                    if dx2*dx2 + dy2*dy2 <= 30*30 then
+                        b.hitSet[node] = true
+                        node.rushHp = (node.rushHp or node.rushMaxHp) - b.dmg
+                        game.world:impactNode(node, game, false)
+                        if node.rushHp <= 0 then self:fellTree(node, game) end
+                    end
+                end
+            end
+            for _, e in ipairs(self.enemies) do
+                if not b.hitSet[e] then
+                    local dx2, dy2 = e.x - b.x, e.y - b.y
+                    if dx2*dx2 + dy2*dy2 <= 30*30 then
+                        b.hitSet[e] = true
+                        e.hp = e.hp - b.dmg
+                        e.visualHit = .14
+                    end
+                end
+            end
+        end
+    end
+    if level <= 0 then return end
+    self.boomerangTimer = (self.boomerangTimer or 0) - dt
+    if self.boomerangTimer > 0 then return end
+    self.boomerangTimer = math.max(1.2, 2.6 - level * .4)
+    local a = love.math.random() * math.pi * 2
+    self.boomerangs[#self.boomerangs+1] = {
+        x=game.player.x, y=game.player.y, dx=math.cos(a), dy=math.sin(a),
+        traveled=0, maxDist=220 + level * 40, phase="out", hitSet={}, dmg=3 + level * 2, angle=a
+    }
+end
+
+function ClearcutMode:updateSeedMine(dt, game)
+    local level = self:levelOf("seed_mine")
+    self.seeds = self.seeds or {}
+    for i = #self.seeds, 1, -1 do
+        local s = self.seeds[i]
+        s.fuse = s.fuse - dt
+        if s.fuse <= 0 then
+            local radius = s.radius
+            for _, node in ipairs(game.world.nodes) do
+                if node.rushTree and node.active then
+                    local dx, dy = node.x - s.x, node.y - s.y
+                    if dx*dx + dy*dy <= radius*radius then
+                        node.rushHp = (node.rushHp or node.rushMaxHp) - s.dmg
+                        game.world:impactNode(node, game, true)
+                        if node.rushHp <= 0 then self:fellTree(node, game) end
+                    end
+                end
+            end
+            self:damageEnemiesInRadius(s.x, s.y, radius, s.dmg, game)
+            table.remove(self.seeds, i)
+        end
+    end
+    if level <= 0 then return end
+    self.seedTimer = (self.seedTimer or 0) - dt
+    if self.seedTimer > 0 then return end
+    self.seedTimer = math.max(1.6, 3.2 - level * .5)
+    local a = love.math.random() * math.pi * 2
+    local r = 40 + love.math.random() * 120
+    self.seeds[#self.seeds+1] = {
+        x=game.player.x + math.cos(a) * r, y=game.player.y + math.sin(a) * r,
+        fuse=1.1, maxFuse=1.1, radius=55 + level * 15, dmg=4 + level * 3
+    }
+end
+
+function ClearcutMode:updateChainLightning(dt, game)
+    local level = self:levelOf("chain_lightning")
+    self.lightningFx = self.lightningFx or {}
+    for i = #self.lightningFx, 1, -1 do
+        local fx = self.lightningFx[i]
+        fx.life = fx.life - dt
+        if fx.life <= 0 then table.remove(self.lightningFx, i) end
+    end
+    if level <= 0 then return end
+    self.lightningTimer = (self.lightningTimer or 0) - dt
+    if self.lightningTimer > 0 then return end
+    self.lightningTimer = math.max(1.8, 4 - level * .6)
+    local jumps = 2 + level
+    local hopRange = 260
+    local dmg = 3 + level * 2
+    local visited = {}
+    local cx, cy = game.player.x, game.player.y
+    local points = {{x=cx, y=cy}}
+    for _ = 1, jumps do
+        local target, bestD2 = nil, hopRange * hopRange
+        for _, node in ipairs(game.world.nodes) do
+            if node.rushTree and node.active and not visited[node] then
+                local dx, dy = node.x - cx, node.y - cy
+                local d2 = dx*dx + dy*dy
+                if d2 <= bestD2 then target, bestD2 = node, d2 end
+            end
+        end
+        for _, e in ipairs(self.enemies) do
+            if not visited[e] then
+                local dx, dy = e.x - cx, e.y - cy
+                local d2 = dx*dx + dy*dy
+                if d2 <= bestD2 then target, bestD2 = e, d2 end
+            end
+        end
+        if not target then break end
+        visited[target] = true
+        if target.rushTree then
+            target.rushHp = (target.rushHp or target.rushMaxHp) - dmg
+            game.world:impactNode(target, game, true)
+            if target.rushHp <= 0 then self:fellTree(target, game) end
+        else
+            target.hp = target.hp - dmg
+            target.visualHit = .14
+        end
+        points[#points+1] = {x=target.x, y=target.y}
+        cx, cy = target.x, target.y
+    end
+    if #points > 1 then
+        self.lightningFx[#self.lightningFx+1] = {points=points, life=.25, maxLife=.25}
+    end
+end
+
+function ClearcutMode:updateSporeCloud(dt, game)
+    local level = self:levelOf("spore_cloud")
+    if level <= 0 then self.spore = nil; return end
+    self.spore = self.spore or {angle=0, hitTimer=0}
+    local radius = 150 + level * 30
+    self.spore.angle = self.spore.angle + dt * .8
+    self.spore.hitTimer = math.max(0, self.spore.hitTimer - dt)
+    local sx = game.player.x + math.cos(self.spore.angle) * radius
+    local sy = game.player.y + math.sin(self.spore.angle) * radius * .6
+    self.spore.x, self.spore.y = sx, sy
+    if self.spore.hitTimer <= 0 then
+        self.spore.hitTimer = .5
+        local hitRadius = 38 + level * 6
+        for _, node in ipairs(game.world.nodes) do
+            if node.rushTree and node.active and not node.plagueMarked then
+                local dx, dy = node.x - sx, node.y - sy
+                if dx*dx + dy*dy <= hitRadius*hitRadius then
+                    node.plagueMarked = true
+                    self.plagued[#self.plagued+1] = {kind="tree", ref=node, timer=3 + level, tickTimer=0}
+                end
+            end
+        end
+        for _, e in ipairs(self.enemies) do
+            if not e.plagueMarked then
+                local dx, dy = e.x - sx, e.y - sy
+                if dx*dx + dy*dy <= hitRadius*hitRadius then
+                    e.plagueMarked = true
+                    self.plagued[#self.plagued+1] = {kind="enemy", ref=e, timer=3 + level, tickTimer=0}
+                end
+            end
+        end
+    end
 end
 
 function ClearcutMode:updatePhilosopherAttack(dt, game, heldOverride)
@@ -2808,6 +3057,42 @@ local crowIconRows = {
 }
 local crowIconPalette = {O={.08,.07,.1,1}, W={.85,.3,.2,1}}
 
+local vineIconRows = {
+    "..O......",
+    ".OVO.....",
+    "..OVO....",
+    "...OVO...",
+    "....OVO..",
+    "...OVO.O.",
+    "..OVO.OVO",
+    ".O......O",
+}
+local vineIconPalette = {O={.1,.2,.06,1}, V={.4,.65,.24,1}}
+
+local seedIconRows = {
+    "...O....",
+    "..OVO...",
+    ".OVVVO..",
+    "OVVVVVO.",
+    "OVVVVVO.",
+    ".OVVVO..",
+    "..OVO...",
+    "...O....",
+}
+local seedIconPalette = {O={.22,.14,.05,1}, V={.72,.5,.24,1}}
+
+local lightningIconRows = {
+    "...OO...",
+    "..OZO...",
+    ".OZO....",
+    "OZOOOO..",
+    "..OOZO..",
+    "....OZO.",
+    "....OZ..",
+    "....O...",
+}
+local lightningIconPalette = {O={.08,.24,.32,1}, Z={.55,.9,1,1}}
+
 -- 업그레이드 카드용 아이콘: 원형/다이아몬드/사각/막대 4가지 실루엣 틀을 색상·세부만 바꿔 재사용한다.
 local diamondRows = {
     "....O....",
@@ -2881,6 +3166,8 @@ local jackpotPalette = {O={.3,.22,.02,1}, H={1,.95,.7,1}, W={1,.84,.3,1}}
 local footnotePalette = {O={.16,.22,.04,1}, H={.9,.98,.6,1}, W={.85,.9,.4,1}}
 local loudVoicePalette = {O={.1,.16,.04,1}, H={.82,.95,.5,1}, W={.65,.8,.3,1}}
 local salivaGlandPalette = {O={.1,.15,.03,1}, H={.78,.92,.42,1}, W={.55,.72,.25,1}}
+local boomerangAxePalette = {O={.14,.09,.05,1}, M={.75,.77,.8,1}, H={.55,.55,.6,1}}
+local sporeCloudPalette = {O={.2,.14,.24,1}, H={.85,.72,.95,1}, W={.62,.45,.72,1}}
 
 local dominoRows = {
     ".OOOOOOO.",
@@ -2967,6 +3254,11 @@ ClearcutMode.icons = {
     bat_swarm = {rows = batIconRows, palette = batIconPalette},
     thorn_aura = {rows = thornIconRows, palette = thornIconPalette},
     crow_strike = {rows = crowIconRows, palette = crowIconPalette},
+    vine_whip = {rows = vineIconRows, palette = vineIconPalette},
+    boomerang_axe = {rows = axeIconRows, palette = boomerangAxePalette},
+    seed_mine = {rows = seedIconRows, palette = seedIconPalette},
+    chain_lightning = {rows = lightningIconRows, palette = lightningIconPalette},
+    spore_cloud = {rows = blobRows, palette = sporeCloudPalette},
 }
 ClearcutMode.drawPixelGrid = drawPixelGrid
 
@@ -3089,6 +3381,64 @@ function ClearcutMode:drawSupplementSkills(game, t)
             love.graphics.setLineWidth(1)
             drawPixelGrid(crowIconRows, crowIconPalette, fx.x, fx.y - (1 - p) * 46, 2.4)
         end
+    end
+    if self.whipFx then
+        for _, fx in ipairs(self.whipFx) do
+            local a = fx.life / fx.maxLife
+            love.graphics.setLineWidth(6 * a + 1)
+            love.graphics.setColor(.45, .7, .28, a * .85)
+            local steps = 10
+            local pts = {}
+            for i = 0, steps do
+                local sweep = fx.angle + (i / steps - .5) * 1.6
+                pts[#pts+1] = game.player.x + math.cos(sweep) * fx.range
+                pts[#pts+1] = game.player.y + math.sin(sweep) * fx.range
+            end
+            love.graphics.line(pts)
+            love.graphics.setLineWidth(1)
+        end
+    end
+    if self.boomerangs then
+        for _, b in ipairs(self.boomerangs) do
+            love.graphics.push()
+            love.graphics.translate(b.x, b.y)
+            love.graphics.rotate(t * 16)
+            drawPixelGrid(axeIconRows, boomerangAxePalette, 0, 0, 2)
+            love.graphics.pop()
+        end
+    end
+    if self.seeds then
+        for _, s in ipairs(self.seeds) do
+            local p = 1 - s.fuse / s.maxFuse
+            drawPixelGrid(seedIconRows, seedIconPalette, s.x, s.y, 1.8 + math.sin(t * 10) * .1)
+            love.graphics.setLineWidth(2)
+            love.graphics.setColor(1, .35, .2, .4 + p * .5)
+            love.graphics.circle("line", s.x, s.y, s.radius * p)
+            love.graphics.setLineWidth(1)
+        end
+    end
+    if self.lightningFx then
+        for _, fx in ipairs(self.lightningFx) do
+            local a = fx.life / fx.maxLife
+            local pts = {}
+            for _, pt in ipairs(fx.points) do pts[#pts+1] = pt.x; pts[#pts+1] = pt.y end
+            if #pts >= 4 then
+                love.graphics.setLineWidth(4)
+                love.graphics.setColor(.55, .9, 1, a * .3)
+                love.graphics.line(pts)
+                love.graphics.setLineWidth(2)
+                love.graphics.setColor(.85, .98, 1, a * .95)
+                love.graphics.line(pts)
+                love.graphics.setLineWidth(1)
+            end
+        end
+    end
+    if self.spore then
+        local pulse = .5 + math.sin(t * 3) * .5
+        love.graphics.setColor(.62, .45, .72, .18 + pulse * .1)
+        love.graphics.circle("fill", self.spore.x, self.spore.y, 30 + pulse * 8)
+        love.graphics.setColor(.78, .6, .85, .5 + pulse * .3)
+        love.graphics.circle("line", self.spore.x, self.spore.y, 22)
     end
 end
 
