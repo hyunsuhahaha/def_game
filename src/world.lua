@@ -37,97 +37,6 @@ local function image(path)
     return value
 end
 
--- 나무: 캐노피는 중심부로 갈수록 밝아지는 3톤 밴딩(D 외곽 그림자 / G 중간 / H 밝은 안쪽), 줄기는
--- 어두운 결/중간 결/밝은 결 3톤 + 뿌리 플레어. 좌표 대칭이라 절반만 손으로 그리고 실수 없이 미러링했다.
-local treeRows = {
-    ".........HHH.........",
-    ".......DGHHHGD.......",
-    "......DGHHHHHGD......",
-    ".....DGHHHHHHHGD.....",
-    "....DGHHHHHHHHHGD....",
-    "...DGHHHHHHHHHHHGD...",
-    "..DGHHHHHHHHHHHHHGD..",
-    ".DGHHHHHHHHHHHHHHHGD.",
-    "DGHHHHHHHHHHHHHHHHHGD",
-    "DGHHHHHHHHHHHHHHHHHGD",
-    ".DGHHHHHHHHHHHHHHHGD.",
-    "..DGHHHHHHHHHHHHHGD..",
-    "...DGHHHHHHHHHHHGD...",
-    "....DGHHHHHHHHHGD....",
-    "......DGHHHHHGD......",
-    ".......DGHHHGD.......",
-    "........KBLBK........",
-    "........KBLBK........",
-    "........KBLBK........",
-    "........KBLBK........",
-    "........KBLBK........",
-    "........KBLBK........",
-    "........KBLBK........",
-    "........KBLBK........",
-    ".......KKBLBKK.......",
-    "......KKBBLBBKK......",
-    ".....KKKBBLBBKKK.....",
-}
-local treePalette = {
-    D = {.09, .24, .07, 1}, G = {.17, .4, .14, 1}, H = {.34, .6, .24, 1},
-    K = {.13, .08, .05, 1}, B = {.27, .17, .09, 1}, L = {.42, .28, .15, 1},
-}
-
-local function darkenPalette(base, mul)
-    local out = {}
-    for k, c in pairs(base) do out[k] = {c[1] * mul, c[2] * mul, c[3] * mul, c[4]} end
-    return out
-end
-
-local function drawPixelTreeGrid(rows, palette, cx, cy, px)
-    local gh, gw = #rows, #rows[1]
-    local ox, oy = gw * px / 2, gh * px / 2
-    for ry = 1, gh do
-        local row = rows[ry]
-        for rx = 1, gw do
-            local col = palette[row:sub(rx, rx)]
-            if col then
-                love.graphics.setColor(col)
-                love.graphics.rectangle("fill", math.floor(cx - ox + (rx - 1) * px), math.floor(cy - oy + (ry - 1) * px), px + 1, px + 1)
-            end
-        end
-    end
-end
-
--- 매 프레임 그리는 대신 한 번만 캔버스에 구워서(외곽선 이중 패스 + 스텐실 클립 하이라이트/그림자 워시)
--- 이후엔 평범한 이미지처럼 값싸게 그린다 — 숲 하나에 나무가 수백 그루씩 있어도 안전하다.
-local cachedTreeCanvas = nil
--- 런을 새로 시작할 때마다 World.new()가 호출되므로, 캔버스를 매번 다시 굽지 않고 한 번만 굽고 캐싱해 재사용한다
-local function bakeTreeCanvas()
-    if cachedTreeCanvas then return cachedTreeCanvas end
-    local px = 12
-    local gw, gh = #treeRows[1], #treeRows
-    local contentW, contentH = gw * px, gh * px
-    local canvasW, canvasH = math.ceil(contentW * 1.22), math.ceil(contentH * 1.16)
-    local canvas = love.graphics.newCanvas(canvasW, canvasH)
-    canvas:setFilter("nearest", "nearest")
-    local prevCanvas = love.graphics.getCanvas()
-    love.graphics.setCanvas({canvas, stencil = true})
-    love.graphics.clear(0, 0, 0, 0)
-    love.graphics.push()
-    love.graphics.origin()
-    local cx, cy = canvasW / 2, canvasH / 2
-    local outline = darkenPalette(treePalette, .1)
-    drawPixelTreeGrid(treeRows, outline, cx, cy, px * 1.16)
-    drawPixelTreeGrid(treeRows, treePalette, cx, cy, px)
-    love.graphics.stencil(function() drawPixelTreeGrid(treeRows, treePalette, cx, cy, px) end, "replace", 1)
-    love.graphics.setStencilTest("greater", 0)
-    love.graphics.setColor(1, 1, 1, .17)
-    love.graphics.ellipse("fill", cx - contentW * .16, cy - contentH * .3, contentW * .36, contentH * .28)
-    love.graphics.setColor(0, 0, 0, .18)
-    love.graphics.ellipse("fill", cx + contentW * .15, cy + contentH * .24, contentW * .33, contentH * .27)
-    love.graphics.setStencilTest()
-    love.graphics.pop()
-    love.graphics.setCanvas(prevCanvas)
-    cachedTreeCanvas = canvas
-    return canvas
-end
-
 local function resource(kind, x, y, workTime)
     return {kind = kind, x = x, y = y, work = 0, workTime = workTime, active = true, respawn = 0}
 end
@@ -154,12 +63,11 @@ function World.new()
         industrial = image("assets/floor-industrial.png"), farm = image("assets/floor-biofarm.png"), quarry = image("assets/floor-quarry.png"),
         forestGround = image("assets/forest-ground-tile-v1.png"),
         core = image("assets/supply-core-v2.png"), turret = image("assets/turret-v1.png"), drone = image("assets/combat-drone-v1.png"), crop = image("assets/crop-pod.png"), ore = image("assets/ore-node.png"),
-        stone = image("assets/stone-v1.png"), lumber = image("assets/lumber-drop-v1.png"),
+        tree = image("assets/tree-v1.png"), stone = image("assets/stone-v1.png"), lumber = image("assets/lumber-drop-v1.png"),
         workerWalk = image("assets/worker-walk-v3.png"), workerActions = image("assets/worker-actions-v1.png"), workerRepair = image("assets/worker-repair-v1.png"),
         turretBase = image("assets/turret-base-v1.png"), turretHead = image("assets/turret-head-v2.png"),
         muzzleFlash = image("assets/muzzle-flash-v1.png")
     }
-    self.images.tree = bakeTreeCanvas()
     self.buildingIcons = {}
     for _, def in ipairs(buildingDefs) do self.buildingIcons[def.id] = image(def.icon or ("assets/upgrades/" .. def.id .. ".png")) end
     self.nodes, self.enemies, self.defenders, self.turrets, self.buildings, self.shots, self.drops, self.helpers = {}, {}, {}, {}, {}, {}, {}, {}
@@ -167,7 +75,7 @@ function World.new()
     self.particles, self.popups, self.harvestChain, self.harvestChainTime = {}, {}, 0, 0
     self.effectFont = love.graphics.newFont("assets/font-korean-bold.ttf", 18)
     self.quarryVisual = {shadowX = 5, shadowY = 7, shadowRx = 104, shadowRy = 11, shadowAlpha = .22, frontBias = 130}
-    self.treeVisual = {scale = .97, shadowX = 4, shadowY = 9, shadowRx = 92, shadowRy = 12, shadowAlpha = .22, frontBias = 120}
+    self.treeVisual = {scale = .28, shadowX = 4, shadowY = 9, shadowRx = 92, shadowRy = 12, shadowAlpha = .22, frontBias = 120}
     self.spawnTimer, self.wave, self.kills = 3, 0, 0
     self:build()
     return self

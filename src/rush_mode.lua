@@ -41,7 +41,7 @@ function RushMode:setup(game)
     game.camera.x, game.camera.y, game.camera.zoom = game.player.x, game.player.y, .86
     game.world.nodes, game.world.drops, game.world.enemies, game.world.buildings = {}, {}, {}, {}
     game.world.theme = "forest"
-    game.world.treeVisual.scale = .62
+    game.world.treeVisual.scale = .18
     game.world.treeVisual.shadowRx, game.world.treeVisual.shadowRy, game.world.treeVisual.frontBias = 58, 8, 82
     local attempts = 0
     while #game.world.nodes < 78 and attempts < 1800 do

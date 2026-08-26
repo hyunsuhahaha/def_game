@@ -105,7 +105,7 @@ function ClearcutMode:setup(game)
     game.world.spawnTimer = math.huge
     game.world.theme = "forest"
     game.world.hideBase = true
-    game.world.treeVisual.scale = .55
+    game.world.treeVisual.scale = .16
     game.world.treeVisual.shadowRx, game.world.treeVisual.shadowRy, game.world.treeVisual.frontBias = 58, 8, 82
     local w, h = game.world.width, game.world.height
     local spawnX, spawnY = w / 2, h / 2
