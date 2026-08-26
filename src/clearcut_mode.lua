@@ -3306,24 +3306,45 @@ local cigaretteButtPalette = {
     O={.16,.11,.08,1}, W={.93,.91,.85,1}, Y={.82,.68,.32,1}, F={.78,.55,.28,1}, f={.55,.36,.18,1}
 }
 
--- 재장전(다음 꽁초를 던질 수 있을 때까지의 대기시간) 게이지. 채워지는 방향을
--- 오른쪽 끝에 고정해, 남은 대기시간이 줄어들수록 게이지가 오른쪽에서 왼쪽으로
--- 자라나며 왼쪽 끝에 닿는 순간(=가득 참) 던질 수 있다는 걸 보여준다.
-function ClearcutMode:drawSmokerReloadGauge(fonts)
+-- 재장전(다음 꽁초를 던질 수 있을 때까지의 대기시간) 바. 캡슐 오른쪽 끝을
+-- 고정하고 그 안을 빗금 텍스처로 채워, 대기시간이 줄어들수록 빗금 채움이
+-- 오른쪽에서 왼쪽으로 자라나 왼쪽 끝에 닿는 순간(=가득 참) 던질 수 있다.
+function ClearcutMode:drawSmokerReloadBar(game)
     local smoking = self.smoking
+    if not smoking then return end
     local ready = smoking.phase ~= "reload"
     local charge = ready and 1 or math.min(1, smoking.t / smoking.dur)
-    local gx, gy, gw, gh = 96, 230, 270, 16
-    love.graphics.setFont(fonts.small)
-    love.graphics.setColor(ready and {.45, 1, .55, 1} or {1, .75, .4, 1})
-    love.graphics.print(smoking.phase == "flick" and "투척!" or ready and "투척 준비" or "재장전", 20, 230)
-    love.graphics.setColor(.08, .11, .13, .95); love.graphics.rectangle("fill", gx, gy, gw, gh, 3, 3)
+    local w, h = 108, 26
+    local x, y = game.player.x - w / 2, game.player.y - 96
+    local r = h / 2
+    love.graphics.setColor(.05, .05, .06, .85)
+    love.graphics.rectangle("fill", x, y, w, h, r, r)
     if charge > 0 then
-        local fillW = gw * charge
-        love.graphics.setColor(ready and {.45, 1, .55, 1} or {1, .58, .22, 1})
-        love.graphics.rectangle("fill", gx + gw - fillW, gy, fillW, gh, 3, 3)
+        local fillW = w * charge
+        local fx = x + w - fillW
+        local fillColor = ready and {.5, 1, .6, 1} or {1, .66, .28, 1}
+        love.graphics.setColor(fillColor)
+        love.graphics.rectangle("fill", fx, y, fillW, h, r, r)
+        -- The rounded-rect call above rounds BOTH ends of the fill piece; square the
+        -- left one back off (a growing wedge, not the capsule's actual end) unless the
+        -- fill has reached the full width, where it should match the left cap exactly.
+        if fillW < w - .5 then love.graphics.rectangle("fill", fx, y, math.min(r, fillW), h) end
+        love.graphics.setLineWidth(3)
+        love.graphics.setColor(0, 0, 0, .3)
+        -- No stencil/scissor in this headless-testable draw path, so each hatch line
+        -- is clipped to the fill rect by hand via its line-parameter range.
+        for lx = fx - h, x + w, 9 do
+            local tmin = math.max(0, (fx - lx) / h)
+            local tmax = math.min(1, (fx + fillW - lx) / h)
+            if tmin < tmax then
+                love.graphics.line(lx + tmin * h, y + h - tmin * h, lx + tmax * h, y + h - tmax * h)
+            end
+        end
     end
-    love.graphics.setColor(1, 1, 1, .14); love.graphics.rectangle("line", gx, gy, gw, gh, 3, 3)
+    love.graphics.setLineWidth(2)
+    love.graphics.setColor(1, 1, 1, .55)
+    love.graphics.rectangle("line", x, y, w, h, r, r)
+    love.graphics.setLineWidth(1)
 end
 
 function ClearcutMode:drawSmokerCigarette(game)
@@ -3800,6 +3821,7 @@ function ClearcutMode:drawWorldOverlay(game)
     if self.job == "fire" then
         local smoking = self.smoking
         if smoking and smoking.phase ~= "flick" then
+            self:drawSmokerReloadBar(game)
             self:drawSmokerCigarette(game)
             local mouthX,mouthY,facing,tipX=self:smokerMouthPose(game)
             local progress=smoking.phase=="loaded" and 1 or math.min(1,smoking.t/smoking.dur)
@@ -4307,8 +4329,6 @@ function ClearcutMode:drawHUD(game,fonts)
     love.graphics.setFont(fonts.small); love.graphics.setColor(1,.4,.35); love.graphics.print("HP",30,199)
     UI.bar(66,199,296,18,math.max(0,self.hp/self.maxHp),{1,.32,.26,1},{.14,.06,.05,.95})
     love.graphics.setFont(fonts.small); love.graphics.setColor(1,1,1); love.graphics.printf(math.ceil(self.hp).." / "..self.maxHp,66,201,296,"center")
-
-    if self.job == "fire" and self.smoking then self:drawSmokerReloadGauge(fonts) end
 
     local pct = self:destructionPct()
     local barW = 300
