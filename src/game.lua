@@ -9,6 +9,8 @@ local Feedback = require("src.feedback")
 local RunUpgrades = require("src.run_upgrades")
 local RushMode = require("src.rush_mode")
 local ClearcutMode = require("src.clearcut_mode")
+local CharacterTraits = require("src.character_traits")
+local CharacterTraitBoard = require("src.character_trait_board")
 local Buildings = require("src.buildings")
 local resourceLabels = {wood = "목재", stone = "돌", ore = "광석", food = "식량"}
 
@@ -26,9 +28,31 @@ local function makeFonts()
     return {small = love.graphics.newFont(regular, 14), body = love.graphics.newFont(regular, 17), heading = love.graphics.newFont(bold, 21), big = love.graphics.newFont(bold, 28), title = love.graphics.newFont(bold, 36)}
 end
 
+local function loadClearcutSprites()
+    local specs = {
+        physical = {file="logger-atlas-pixel-v2.png", walkFeet={190,190,190,190,190,190}, actionFeet={190,190,190,190,190,190}, scale=.61},
+        fire = {file="smoker-atlas-pixel-v2.png", walkFeet={190,190,190,190,190,190}, actionFeet={190,190,190,190,190,190}, scale=.61},
+        toxic = {file="vegan-atlas-pixel-v2.png", walkFeet={190,190,190,190,190,190}, actionFeet={190,190,190,190,190,190}, scale=.61},
+        developer = {file="developer-atlas-pixel-v2.png", walkFeet={190,190,190,190,190,190}, actionFeet={190,190,190,190,190,190}, scale=.61}
+    }
+    for _, spec in pairs(specs) do
+        spec.image = love.graphics.newImage("assets/characters/ingame/" .. spec.file)
+        spec.image:setFilter("nearest", "nearest")
+    end
+    return specs
+end
+
 function Game.new()
     local self = setmetatable({}, Game)
     self.fonts, self.light, self.feedback = makeFonts(), radial(512), Feedback.new()
+    self.clearcutSprites = loadClearcutSprites()
+    self.clearcutMachineryImage = love.graphics.newImage("assets/characters/ingame/developer-bulldozer-pixel-v2.png")
+    self.clearcutMachineryImage:setFilter("nearest", "nearest")
+    self.clearcutBossImages = {
+        ent = love.graphics.newImage("assets/characters/ingame/elder-treant-boss-v1.png"),
+        worldtree = love.graphics.newImage("assets/characters/ingame/world-tree-boss-v1.png")
+    }
+    for _, image in pairs(self.clearcutBossImages) do image:setFilter("nearest", "nearest") end
     self.settings = {fullscreen = love.window.getFullscreen(), screenShake = true}
     self.tools = {
         axe = {name = "나무 도끼", speed = .8, type = "벌목"},
@@ -40,8 +64,10 @@ function Game.new()
     self.wallCosts = {{wood = 0, stone = 0}, {wood = 12, stone = 8}, {wood = 22, stone = 16}, {wood = 36, stone = 28}}
     local temporaryProfile = os.getenv("LAST_HAUL_SELF_TEST") or os.getenv("LAST_HAUL_CAPTURE_META") or os.getenv("LAST_HAUL_CAPTURE_RESULTS") or os.getenv("LAST_HAUL_CAPTURE_TEST_OPTIONS") or os.getenv("LAST_HAUL_CAPTURE_TURRET_PROMPT") or os.getenv("LAST_HAUL_CAPTURE_TURRET_PLACEMENT")
     self.progression = Progression.new(temporaryProfile ~= nil)
+    self.characterTraits = CharacterTraits.new(temporaryProfile ~= nil)
     self.world = World.new(); self.lobby = Lobby.new(self.world.images, self.fonts)
     self.traitTree = TraitTree.new(self.progression, self.fonts, self.world.images, self.world.buildingIcons)
+    self.characterTraitBoard = CharacterTraitBoard.new(self.characterTraits, self.fonts, self.clearcutSprites)
     self.mode, self.notice, self.noticeKind, self.noticeTime = "lobby", "", "core", 0
     self:resetRun(); self.mode = "lobby"
     return self
@@ -103,6 +129,7 @@ function Game:startClearcut(characterId)
     self:resetRun()
     self.clearcut=ClearcutMode.new()
     self.clearcut.job = characterId
+    self.player:setClearcutSprite(self.clearcutSprites[characterId] or self.clearcutSprites.physical, characterId)
     self.clearcut:setup(self)
     self.mode="playing"
 end
@@ -198,6 +225,7 @@ function Game:update(dt)
     if self.mode == "lobby" then self.lobby:update(dt); return end
     if self.mode == "settings" then self.lobby:update(dt); return end
     if self.mode == "clearcut_select" then return end
+    if self.mode == "character_traits" then self.characterTraitBoard:update(dt); return end
     if self.mode == "test_options" then self.testResetTime=math.max(0,(self.testResetTime or 0)-dt); if self.testResetTime<=0 then self.testResetArmed=false end; return end
     if self.mode == "meta" then self.traitTree:update(dt); return end
     if self.mode == "results" or self.mode == "rush_results" or self.mode == "clearcut_results" then return end
@@ -233,14 +261,23 @@ function Game:keypressed(key)
     if key=="f10" then self:openTestOptions(self.mode); return end
     if self.mode == "lobby" then
         if key == "escape" then love.event.quit(); return end
-        if key == "t" then self.mode = "meta"; return end
         local action=self.lobby:keypressed(key)
-        if action=="start" then self:startRun() elseif action=="rush" then self:startRush() elseif action=="clearcut" then self.mode="clearcut_select" end
+        if action=="clearcut" then
+            self.mode="clearcut_select"
+        elseif action=="character_traits" then
+            self.characterTraitReturnMode="lobby"
+            self.mode="character_traits"
+        end
         return
     end
     if self.mode == "clearcut_select" then
-        if key=="1" or key=="2" or key=="3" or key=="4" then self:chooseClearcutCharacter(tonumber(key))
+        if key=="t" then self.characterTraitReturnMode="clearcut_select"; self.mode="character_traits"
+        elseif key=="1" or key=="2" or key=="3" or key=="4" then self:chooseClearcutCharacter(tonumber(key))
         elseif key=="escape" then self.mode="lobby" end
+        return
+    end
+    if self.mode == "character_traits" then
+        if self.characterTraitBoard:keypressed(key)=="back" then self.mode=self.characterTraitReturnMode or "clearcut_select" end
         return
     end
     if self.mode == "settings" then if key == "escape" then self.mode = "lobby" end; return end
@@ -316,15 +353,20 @@ function Game:mousepressed(x, y, button)
     end
     if self.mode == "lobby" then
         local action = self.lobby:mousepressed(x, y, button)
-        if action == "start" then self:startRun()
-        elseif action == "rush" then self:startRush()
-        elseif action == "clearcut" then self.mode = "clearcut_select"
-        elseif action == "meta" then self.mode = "meta"
+        if action == "clearcut" then self.mode = "clearcut_select"
+        elseif action == "character_traits" then self.characterTraitReturnMode="lobby"; self.mode = "character_traits"
         elseif action == "settings" then self.mode = "settings" end
         return
     end
     if self.mode == "clearcut_select" then
-        if button==1 then local index=self:clearcutCharAt(x,y); if index then self:chooseClearcutCharacter(index) end end
+        if button==1 then
+            if self.clearcutTraitBox and x>=self.clearcutTraitBox.x and x<=self.clearcutTraitBox.x+self.clearcutTraitBox.w and y>=self.clearcutTraitBox.y and y<=self.clearcutTraitBox.y+self.clearcutTraitBox.h then self.characterTraitReturnMode="clearcut_select"; self.mode="character_traits"; return end
+            local index=self:clearcutCharAt(x,y); if index then self:chooseClearcutCharacter(index) end
+        end
+        return
+    end
+    if self.mode == "character_traits" then
+        if self.characterTraitBoard:mousepressed(x,y,button)=="back" then self.mode=self.characterTraitReturnMode or "clearcut_select" end
         return
     end
     if self.mode == "settings" then
@@ -440,6 +482,7 @@ function Game:mousepressed(x, y, button)
 end
 
 function Game:wheelmoved(x, y)
+    if self.mode=="character_traits" then self.characterTraitBoard:wheelmoved(x,y); return end
     if self.mode ~= "playing" or y == 0 then return end
     if not (love.keyboard.isDown("lctrl") or love.keyboard.isDown("rctrl")) then return end
     local factor = y > 0 and 1.1 or 1 / 1.1
@@ -677,6 +720,9 @@ function Game:drawClearcutSelect()
     love.graphics.setColor(.015, .035, .025, .92); love.graphics.rectangle("fill", 0, 0, w, h)
     love.graphics.setFont(f.title); love.graphics.setColor(1, .82, .3); love.graphics.printf("캐릭터 선택 — 숲 전멸 실험실", 0, 66, w, "center")
     love.graphics.setFont(f.small); love.graphics.setColor(.72, .88, .76); love.graphics.printf("선택한 캐릭터의 기본 공격 방식이 이번 런 내내 유지됩니다", 0, 112, w, "center")
+    self.clearcutTraitBox={x=w-226,y=28,w=190,h=44}
+    UI.button(self.clearcutTraitBox.x,self.clearcutTraitBox.y,self.clearcutTraitBox.w,self.clearcutTraitBox.h,"캐릭터 특성  [T]",true,f.small)
+    love.graphics.setColor(1,.78,.3); love.graphics.print("성과 포인트 "..self.characterTraits.data.currency,38,42)
     local characters = ClearcutMode.characters
     local count = #characters
     local gap = 20
@@ -689,10 +735,14 @@ function Game:drawClearcutSelect()
         local hovered = self:clearcutCharAt(love.mouse.getPosition()) == i
         love.graphics.setLineStyle("rough")
         UI.panel(x, y, cardW, cardH, {c.color[1], c.color[2], c.color[3], 1}, hovered and .99 or .94)
-        love.graphics.setColor(c.color[1], c.color[2], c.color[3], .18); love.graphics.circle("fill", x + cardW / 2, y + 105, 62)
-        love.graphics.setColor(c.color); love.graphics.setLineWidth(hovered and 5 or 3); love.graphics.circle("line", x + cardW / 2, y + 105, 38)
-        local icon = ClearcutMode.icons[c.icon]
-        if icon then ClearcutMode.drawPixelGrid(icon.rows, icon.palette, x + cardW / 2, y + 105, 6.4) end
+        local sprite = self.clearcutSprites[c.id]
+        if sprite then
+            local fw, fh = sprite.image:getWidth() / 6, sprite.image:getHeight() / 2
+            local quad = love.graphics.newQuad(0, 0, fw, fh, sprite.image:getDimensions())
+            local previewScale = math.min(150 / fw, 165 / fh)
+            love.graphics.setColor(1, 1, 1, 1)
+            love.graphics.draw(sprite.image, quad, x + cardW / 2, y + 172, 0, previewScale, previewScale, fw / 2, sprite.walkFeet[1])
+        end
         love.graphics.setLineStyle("smooth")
         love.graphics.setFont(f.small); love.graphics.setColor(1, 1, 1, .85); love.graphics.printf(tostring(i), x + cardW - 40, y + 20, 24, "center")
         love.graphics.setFont(f.heading); love.graphics.printf(c.name, x + 16, y + 190, cardW - 32, "center")
@@ -718,6 +768,9 @@ function Game:draw()
     if self.mode=="test_options" then self:drawTestOptions(); return end
     if self.mode == "lobby" then self.lobby:draw(); return end
     if self.mode == "clearcut_select" then self:drawClearcutSelect(); return end
+    if self.mode == "character_traits" then
+        local w,h=love.graphics.getDimensions(); self.lobby:drawBackground(w,h); self.characterTraitBoard:draw(); return
+    end
     if self.mode == "settings" then self:drawSettings(); return end
     if self.mode == "meta" then self.traitTree:draw(); return end
     if self.mode == "build_select" then self:drawBuildSelect(); return end

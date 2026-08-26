@@ -68,6 +68,12 @@ function World.new()
         turretBase = image("assets/turret-base-v1.png"), turretHead = image("assets/turret-head-v2.png"),
         muzzleFlash = image("assets/muzzle-flash-v1.png")
     }
+    self.images.treeVariants = {
+        image("assets/trees/broadleaf-tree-pixel-v2.png"),
+        image("assets/trees/pine-tree-pixel-v2.png"),
+        image("assets/trees/birch-tree-pixel-v2.png"),
+        image("assets/trees/maple-tree-pixel-v2.png")
+    }
     self.buildingIcons = {}
     for _, def in ipairs(buildingDefs) do self.buildingIcons[def.id] = image(def.icon or ("assets/upgrades/" .. def.id .. ".png")) end
     self.nodes, self.enemies, self.defenders, self.turrets, self.buildings, self.shots, self.drops, self.helpers = {}, {}, {}, {}, {}, {}, {}, {}
@@ -75,7 +81,11 @@ function World.new()
     self.particles, self.popups, self.harvestChain, self.harvestChainTime = {}, {}, 0, 0
     self.effectFont = love.graphics.newFont("assets/font-korean-bold.ttf", 18)
     self.quarryVisual = {shadowX = 5, shadowY = 7, shadowRx = 104, shadowRy = 11, shadowAlpha = .22, frontBias = 130}
-    self.treeVisual = {scale = .28, shadowX = 4, shadowY = 9, shadowRx = 92, shadowRy = 12, shadowAlpha = .22, frontBias = 120}
+    self.treeVisual = {
+        scale = .28, shadowX = 4, shadowY = 9, shadowRx = 92, shadowRy = 12, shadowAlpha = .22, frontBias = 120,
+        variantScale = {1, .92, .88, .92},
+        variantShadow = {1, .7, .78, 1}
+    }
     self.spawnTimer, self.wave, self.kills = 3, 0, 0
     self:build()
     return self
@@ -1090,6 +1100,11 @@ local function centered(img, x, y, scale) love.graphics.setColor(1, 1, 1, 1); lo
 local function grounded(img, x, y, scale) love.graphics.setColor(1, 1, 1, 1); love.graphics.draw(img, x, y, 0, scale, scale, img:getWidth() / 2, img:getHeight() * .91) end
 local function groundedRotated(img, x, y, scale, angle) love.graphics.setColor(1, 1, 1, 1); love.graphics.draw(img, x, y, angle, scale, scale, img:getWidth() / 2, img:getHeight() * .91) end
 
+local function treeRenderSpec(world, node)
+    local index = math.max(1, math.min(#world.images.treeVariants, node.treeVariant or 1))
+    return world.images.treeVariants[index], world.treeVisual.variantScale[index] or 1, world.treeVisual.variantShadow[index] or 1
+end
+
 function World:drawForestGround()
     love.graphics.setColor(.36, .53, .13, 1)
     love.graphics.rectangle("fill", 0, 0, self.width, self.height)
@@ -1357,13 +1372,14 @@ function World:draw(player)
                 local bump = 1 + (node.hitFlash or 0) * .32
                 if node.fallT and node.fallT < node.fallDur then
                     local visual = self.treeVisual
+                    local treeImage, variantScale, shadowScale = treeRenderSpec(self, node)
                     local ft = node.fallT / node.fallDur
                     local ease = 1 - (1 - ft) * (1 - ft)
                     local angle = ease * math.pi * .42 * node.fallDir
                     if ft > .82 then angle = angle + math.sin((ft - .82) / .18 * math.pi) * .05 * node.fallDir end
                     love.graphics.setColor(0, 0, 0, visual.shadowAlpha * (1 - ft * .4))
-                    love.graphics.ellipse("fill", node.x + visual.shadowX + ease * 30 * node.fallDir, node.y + visual.shadowY, visual.shadowRx * (1 + ease * .5), visual.shadowRy)
-                    groundedRotated(self.images.tree, node.x, node.y, visual.scale, angle)
+                    love.graphics.ellipse("fill", node.x + visual.shadowX + ease * 30 * node.fallDir, node.y + visual.shadowY, visual.shadowRx * shadowScale * (1 + ease * .5), visual.shadowRy)
+                    groundedRotated(treeImage, node.x, node.y, visual.scale * variantScale, angle)
                     return
                 elseif not node.active and node.rushTree then
                     self:drawRushStump(node)
@@ -1374,8 +1390,9 @@ function World:draw(player)
                 if node.kind == "plot" then love.graphics.push(); love.graphics.translate(ox, oy); self:drawPlot(node); love.graphics.pop()
                 elseif node.kind == "tree" then
                     local visual = self.treeVisual
+                    local treeImage, variantScale, shadowScale = treeRenderSpec(self, node)
                     love.graphics.setColor(0, 0, 0, visual.shadowAlpha)
-                    love.graphics.ellipse("fill", node.x + visual.shadowX, node.y + visual.shadowY, visual.shadowRx, visual.shadowRy)
+                    love.graphics.ellipse("fill", node.x + visual.shadowX, node.y + visual.shadowY, visual.shadowRx * shadowScale, visual.shadowRy)
                     if node.berserkFlash and node.berserkFlash > 0 then
                         local bft = love.timer.getTime()
                         local bpulse = .5 + math.sin(bft * 14) * .5
@@ -1389,7 +1406,7 @@ function World:draw(player)
                             love.graphics.line(node.x, node.y + 6, node.x + math.cos(ang) * reach, node.y + 6 + math.sin(ang) * reach * .5)
                         end
                     end
-                    groundedRotated(self.images.tree, node.x + ox, node.y + oy, visual.scale * bump, node.swayAngle or 0)
+                    groundedRotated(treeImage, node.x + ox, node.y + oy, visual.scale * variantScale * bump, node.swayAngle or 0)
                     if node.burning then
                         local ft = love.timer.getTime()
                         local flicker = .7 + math.sin(ft * 20 + node.x) * .3

@@ -15,8 +15,6 @@ function Lobby.new(images, fonts)
         displayFont = love.graphics.newFont("assets/font-korean-bold.ttf", 48),
         labelFont = love.graphics.newFont("assets/font-korean-regular.ttf", 13),
         time = 0,
-        hover = 0,
-        rushHover = 0,
         clearcutHover = 0
     }, Lobby)
 end
@@ -24,26 +22,19 @@ end
 function Lobby:update(dt)
     self.time = self.time + dt
     local mx, my = love.mouse.getPosition()
-    local target = inside(self.startBox, mx, my) and 1 or 0
-    local rushTarget = inside(self.rushBox, mx, my) and 1 or 0
     local clearcutTarget = inside(self.clearcutBox, mx, my) and 1 or 0
-    self.hover = self.hover + (target - self.hover) * math.min(1, dt * 11)
-    self.rushHover = self.rushHover + (rushTarget - self.rushHover) * math.min(1, dt * 11)
     self.clearcutHover = self.clearcutHover + (clearcutTarget - self.clearcutHover) * math.min(1, dt * 11)
 end
 
 function Lobby:keypressed(key)
-    if key == "return" or key == "space" then return "start" end
-    if key == "r" then return "rush" end
-    if key == "c" then return "clearcut" end
+    if key == "return" or key == "space" or key == "c" then return "clearcut" end
+    if key == "t" then return "character_traits" end
 end
 
 function Lobby:mousepressed(x, y, button)
     if button ~= 1 then return end
-    if inside(self.startBox, x, y) then return "start" end
-    if inside(self.rushBox, x, y) then return "rush" end
     if inside(self.clearcutBox, x, y) then return "clearcut" end
-    if inside(self.traitsBox, x, y) then return "meta" end
+    if inside(self.traitsBox, x, y) then return "character_traits" end
     if inside(self.settingsBox, x, y) then return "settings" end
 end
 
@@ -78,7 +69,7 @@ function Lobby:draw()
     local navY, navGap, navW = 24, 10, 116
     self.settingsBox = {x = w - 30 - navW, y = navY, w = navW, h = 38}
     self.traitsBox = {x = self.settingsBox.x - navGap - navW, y = navY, w = navW, h = 38}
-    for _, item in ipairs({{box = self.traitsBox, label = "영구 특성"}, {box = self.settingsBox, label = "설정"}}) do
+    for _, item in ipairs({{box = self.traitsBox, label = "캐릭터 특성"}, {box = self.settingsBox, label = "설정"}}) do
         local hovered = inside(item.box, love.mouse.getPosition())
         love.graphics.setColor(.025, .055, .045, hovered and .84 or .66)
         love.graphics.rectangle("fill", item.box.x, item.box.y, item.box.w, item.box.h, 7, 7)
@@ -91,58 +82,27 @@ function Lobby:draw()
     local left = math.max(42, w * .052)
     local titleY = math.max(74, h * .14)
     love.graphics.setFont(self.labelFont)
-    love.graphics.setColor(.95, .7, .3, .95)
-    love.graphics.print("LAST HAUL  ·  전진 보급대", left, titleY)
+    love.graphics.setColor(.82, .68, .32, .95)
+    love.graphics.print("인간 문명 최후의 벌목 사업", left, titleY)
 
     love.graphics.setFont(self.displayFont)
     love.graphics.setColor(.98, .98, .92, 1)
-    love.graphics.print("거점을 키우고", left - 2, titleY + 31)
-    love.graphics.print("전선을 지키세요", left - 2, titleY + 82)
+    love.graphics.print("숲이 다시 자라기 전에", left - 2, titleY + 31)
+    love.graphics.print("전부 없애세요", left - 2, titleY + 82)
 
     love.graphics.setFont(fonts.body)
     love.graphics.setColor(.84, .89, .83, .78)
-    love.graphics.printf("자원 생산과 설비 조합은\n작전 안에서 자유롭게 결정됩니다.", left, titleY + 152, math.min(390, w * .38), "left")
+    love.graphics.printf("숲의 재생력은 계속 강해집니다.\n캐릭터의 방식으로 파괴율 100%를 달성하세요.", left, titleY + 152, math.min(430, w * .4), "left")
 
-    local buttonW, buttonH = math.min(320, w * .34), 68
-    self.startBox = {x = left, y = math.min(h - 220, titleY + 238), w = buttonW, h = buttonH}
-    local lift = self.hover * 3
-    local x, y = self.startBox.x, self.startBox.y - lift
-    love.graphics.setColor(.08, .07, .035, .3)
-    love.graphics.rectangle("fill", x + 3, y + 8, buttonW, buttonH, 11, 11)
-    love.graphics.setColor(
-        .91 + self.hover * .06,
-        .59 + self.hover * .12,
-        .2 + self.hover * .08,
-        1
-    )
-    love.graphics.rectangle("fill", x, y, buttonW, buttonH, 10, 10)
-    love.graphics.setColor(1, .9, .58, .32 + self.hover * .22)
-    love.graphics.rectangle("line", x + .5, y + .5, buttonW - 1, buttonH - 1, 10, 10)
-
-    love.graphics.setFont(fonts.heading)
-    love.graphics.setColor(.075, .065, .035, 1)
-    love.graphics.print("기존 15분 작전", x + 22, y + 19)
-    love.graphics.setFont(self.labelFont)
-    love.graphics.setColor(.14, .105, .05, .68)
-    love.graphics.printf("ENTER", x, y + 25, buttonW - 22, "right")
-
-    self.rushBox = {x=left,y=self.startBox.y+80,w=buttonW,h=64}
-    local rushLift=self.rushHover*3
-    local rx,ry=self.rushBox.x,self.rushBox.y-rushLift
-    love.graphics.setColor(.025,.08,.045,.5); love.graphics.rectangle("fill",rx+3,ry+8,buttonW,64,11,11)
-    love.graphics.setColor(.25+self.rushHover*.08,.82+self.rushHover*.12,.42+self.rushHover*.08,1); love.graphics.rectangle("fill",rx,ry,buttonW,64,10,10)
-    love.graphics.setColor(.75,1,.72,.4+self.rushHover*.3); love.graphics.rectangle("line",rx+.5,ry+.5,buttonW-1,63,10,10)
-    love.graphics.setFont(fonts.heading); love.graphics.setColor(.025,.11,.05,1); love.graphics.print("채집 러시 실험실",rx+22,ry+10)
-    love.graphics.setFont(self.labelFont); love.graphics.setColor(.04,.16,.075,.78); love.graphics.print("3분 · 벌목 폭주 · 전용 3택",rx+22,ry+39); love.graphics.printf("R",rx,ry+22,buttonW-22,"right")
-
-    self.clearcutBox = {x=left,y=self.rushBox.y+80,w=buttonW,h=64}
+    local buttonW, buttonH = math.min(390, w * .38), 82
+    self.clearcutBox = {x=left,y=math.min(h-150,titleY+255),w=buttonW,h=buttonH}
     local ccLift=self.clearcutHover*3
     local cx,cy=self.clearcutBox.x,self.clearcutBox.y-ccLift
-    love.graphics.setColor(.08,.03,.02,.5); love.graphics.rectangle("fill",cx+3,cy+8,buttonW,64,11,11)
-    love.graphics.setColor(.55+self.clearcutHover*.1,.2+self.clearcutHover*.08,.12+self.clearcutHover*.06,1); love.graphics.rectangle("fill",cx,cy,buttonW,64,10,10)
-    love.graphics.setColor(1,.62,.35,.4+self.clearcutHover*.3); love.graphics.rectangle("line",cx+.5,cy+.5,buttonW-1,63,10,10)
-    love.graphics.setFont(fonts.heading); love.graphics.setColor(.14,.045,.02,1); love.graphics.print("숲 전멸 실험실",cx+22,cy+10)
-    love.graphics.setFont(self.labelFont); love.graphics.setColor(.2,.06,.03,.78); love.graphics.print("시간 무제한 · 숲 파괴율 100%",cx+22,cy+39); love.graphics.printf("C",cx,cy+22,buttonW-22,"right")
+    love.graphics.setColor(.055,.07,.025,.38); love.graphics.rectangle("fill",cx+4,cy+9,buttonW,buttonH,13,13)
+    love.graphics.setColor(.82+self.clearcutHover*.08,.68+self.clearcutHover*.1,.3+self.clearcutHover*.06,1); love.graphics.rectangle("fill",cx,cy,buttonW,buttonH,11,11)
+    love.graphics.setColor(1,.93,.66,.42+self.clearcutHover*.3); love.graphics.rectangle("line",cx+.5,cy+.5,buttonW-1,buttonH-1,11,11)
+    love.graphics.setFont(fonts.heading); love.graphics.setColor(.09,.085,.035,1); love.graphics.print("숲 전멸 시작",cx+24,cy+16)
+    love.graphics.setFont(self.labelFont); love.graphics.setColor(.18,.15,.06,.78); love.graphics.print("캐릭터 선택 후 즉시 투입",cx+24,cy+50); love.graphics.printf("ENTER",cx,cy+33,buttonW-24,"right")
 
     love.graphics.setFont(self.labelFont)
     love.graphics.setColor(.9, .95, .9, .5)

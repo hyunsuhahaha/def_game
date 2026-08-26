@@ -58,7 +58,9 @@ function RushMode:setup(game)
             if ndx*ndx + ndy*ndy < 132*132 then separated = false; break end
         end
         if clearCore and clearTrail and separated then
-            game.world.nodes[#game.world.nodes+1] = {kind="tree",x=x,y=y,work=0,workTime=1,active=true,respawn=0,rushTree=true,rushHp=2,rushMaxHp=2}
+            local variantCount = #(game.world.images.treeVariants or {game.world.images.tree})
+            local treeVariant = ((#game.world.nodes * 3 + 1) % variantCount) + 1
+            game.world.nodes[#game.world.nodes+1] = {kind="tree",x=x,y=y,work=0,workTime=1,active=true,respawn=0,rushTree=true,rushHp=2,rushMaxHp=2,treeVariant=treeVariant}
         end
     end
     game.world.wall.maxHp, game.world.wall.hp = 520, 520

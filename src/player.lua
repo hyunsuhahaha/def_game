@@ -56,6 +56,26 @@ function Player:playAutoAxeSwing(targetX)
     if targetX then self.facing = targetX < self.x and -1 or 1 end
 end
 
+function Player:setClearcutSprite(sprite, job)
+    self.clearcutSprite, self.clearcutJob = sprite, job
+    self.clearcutActionProgress = nil
+    self.clearcutFrames = {walk = {}, action = {}}
+    local fw, fh = sprite.image:getWidth() / 6, sprite.image:getHeight() / 2
+    self.clearcutFrameWidth, self.clearcutFrameHeight = fw, fh
+    for i = 0, 5 do
+        self.clearcutFrames.walk[i + 1] = love.graphics.newQuad(i * fw, 0, fw, fh, sprite.image:getDimensions())
+        self.clearcutFrames.action[i + 1] = love.graphics.newQuad(i * fw, fh, fw, fh, sprite.image:getDimensions())
+    end
+end
+
+function Player:setClearcutAction(progress)
+    self.clearcutActionProgress = math.max(0, math.min(.999, progress or 0))
+end
+
+function Player:clearClearcutAction()
+    self.clearcutActionProgress = nil
+end
+
 function Player:update(dt, world, game)
     if self.autoAxeClock then
         self.autoAxeClock = self.autoAxeClock + dt
@@ -121,6 +141,18 @@ function Player:draw()
     end
     love.graphics.setColor(0, 0, 0, .42); love.graphics.ellipse("fill", self.x + 3, self.y + 3, 22 - math.abs(pulse) * 2, 7)
     love.graphics.setColor(1, 1, 1)
+    if self.clearcutSprite then
+        local action = self.clearcutActionProgress ~= nil
+        local frame = action and (math.floor(self.clearcutActionProgress * 6) + 1)
+            or (self.isMoving and (math.floor(self.walkClock) % 6 + 1) or 1)
+        local anchors = action and self.clearcutSprite.actionFeet or self.clearcutSprite.walkFeet
+        local foot = anchors[frame]
+        local scale = self.clearcutSprite.scale or .23
+        love.graphics.draw(self.clearcutSprite.image, action and self.clearcutFrames.action[frame] or self.clearcutFrames.walk[frame],
+            self.x, self.y - (action and 0 or math.abs(pulse)), 0, scale * self.facing, scale,
+            self.clearcutFrameWidth / 2, foot)
+        return
+    end
     if self.repairingWall then
         local frame = math.floor(self.actionClock / .32) % 2 + 1
         love.graphics.draw(self.repairSheet, self.repairFrames[frame], self.x, self.y, 0, .145 * self.facing, .145, self.repairFrameWidth / 2, self.repairFootAnchors[frame])

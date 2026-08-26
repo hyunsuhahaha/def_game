@@ -1,4 +1,5 @@
 local UI = require("src.ui")
+local TraitFx = require("src.trait_fx")
 
 local ClearcutMode = {}
 ClearcutMode.__index = ClearcutMode
@@ -94,6 +95,8 @@ function ClearcutMode.new()
         bees={}, beeSlow=false, beeSwarmsTriggered=0, beehiveTotal=0,
         streak=0, lastHitAt=-10, molotovTimer=0, wildfireTimer=0, toxicTimer=0, evolutions={}, molotovs={},
         job=nil, attackCooldown=0, dashing=nil, dashTrail={}, smoking=nil,
+        smokerHeldLast=false, physicalAction=nil, veganAction=nil, developerAction=nil,
+        actionAudit={physicalImpact=0,cigaretteFlick=0,veganBite=0,developerRemote=0},
         hp=100, maxHp=100, invulnTimer=0, dead=false,
         enemies={}, projectiles={}, bossTelegraphs={}, waveFired={}, worldTreeSpawned=false, readyToFinish=false, activeBoss=nil, kills=0,
         chests={}, chestPending=false, molotovShots=0, wildburstTimer=10, plagued={}, dodges=0,
@@ -106,7 +109,8 @@ function ClearcutMode.new()
         permanentTraits={},
         vinePlantTimer=24, vineSpawns={},
         disasterState="idle", disasterTimer=75, disasterType=nil, rainSuppressFire=false, quakeShakes={},
-        offscreenPulse=0
+        offscreenPulse=0,
+        traitFx=TraitFx.new()
     }, ClearcutMode)
 end
 
@@ -130,7 +134,9 @@ function ClearcutMode:setup(game)
     game.world.spawnTimer = math.huge
     game.world.theme = "forest"
     game.world.hideBase = true
-    game.world.treeVisual.scale = .16
+    -- The clear-cut variants are pre-baked at their final on-screen size.
+    game.world.treeVisual.scale = 1
+    game.world.treeVisual.variantScale = {1, 1, 1, 1}
     game.world.treeVisual.shadowRx, game.world.treeVisual.shadowRy, game.world.treeVisual.frontBias = 58, 8, 82
     local w, h = game.world.width, game.world.height
     local spawnX, spawnY = w / 2, h / 2
@@ -161,7 +167,9 @@ function ClearcutMode:generateForest(game, target)
         end
         if clearSpawn and separated then
             local beehive = love.math.random() < .07
-            game.world.nodes[#game.world.nodes+1] = {kind="tree",x=x,y=y,work=0,workTime=1,active=true,respawn=0,rushTree=true,rushHp=3,rushMaxHp=3,beehive=beehive}
+            local variantCount = math.max(1, #(game.world.images.treeVariants or {}))
+            local treeVariant = (#game.world.nodes % variantCount) + 1
+            game.world.nodes[#game.world.nodes+1] = {kind="tree",x=x,y=y,work=0,workTime=1,active=true,respawn=0,rushTree=true,rushHp=3,rushMaxHp=3,beehive=beehive,treeVariant=treeVariant}
             if beehive then self.beehiveTotal = self.beehiveTotal + 1 end
         end
     end
@@ -215,6 +223,7 @@ function ClearcutMode:update(dt, game)
     self:updateBossTelegraphs(dt, game)
     self:updateChests(dt, game)
     self:updatePlague(dt, game)
+    self.traitFx:update(dt)
     for i = #self.dashTrail, 1, -1 do
         local dtr = self.dashTrail[i]
         dtr.life = dtr.life - dt
@@ -908,9 +917,10 @@ function ClearcutMode:throwMolotov(game)
     local target = candidates[love.math.random(#candidates)]
     target.igniting = true
     local dist = math.sqrt((target.x-game.player.x)^2 + (target.y-game.player.y)^2)
+    local _,mouthY,_,tipX=self:smokerMouthPose(game)
     self.molotovs[#self.molotovs+1] = {
-        x0=game.player.x, y0=game.player.y-40, x1=target.x, y1=target.y,
-        t=0, dur=math.max(.28, dist/900), target=target
+        x0=tipX, y0=mouthY, x1=target.x, y1=target.y,
+        t=0, dur=math.max(.34, dist/850), target=target
     }
     self:trackMolotovBarrage(game)
 end
@@ -930,9 +940,10 @@ end
 
 function ClearcutMode:hurlMolotovAt(tx, ty, game, isBarrage)
     local dist = math.sqrt((tx-game.player.x)^2 + (ty-game.player.y)^2)
+    local _,mouthY,_,tipX=self:smokerMouthPose(game)
     self.molotovs[#self.molotovs+1] = {
-        x0=game.player.x, y0=game.player.y-40, x1=tx, y1=ty,
-        t=0, dur=math.max(.2, dist/1100), manual=true, radius=90 + self:levelOf("molotov") * 20
+        x0=tipX, y0=mouthY, x1=tx, y1=ty,
+        t=0, dur=math.max(.34, dist/850), manual=true, radius=90 + self:levelOf("molotov") * 20
     }
     if not isBarrage then self:trackMolotovBarrage(game) end
 end
@@ -1176,30 +1187,112 @@ function ClearcutMode:updateFireAttack(dt, game, heldOverride)
     local tx, ty = self:aimPoint(game, maxRange)
     self.aimX, self.aimY, self.aimRadius = tx, ty, 90 + self:levelOf("molotov") * 20
     if not self.smoking then self:startSmoking(game) end
-    self.smoking.t = self.smoking.t + dt
-    if self.smoking.t < self.smoking.dur then return false end
+    local smoking = self.smoking
+    local pressed = held and not self.smokerHeldLast
+    self.smokerHeldLast = held
+    game.player.facing = tx < game.player.x and -1 or 1
+
+    if smoking.phase == "reload" then
+        smoking.t = math.min(smoking.dur, smoking.t + dt)
+        if game.player.setClearcutAction then game.player:setClearcutAction(math.min(.48, (smoking.t / smoking.dur) * .48)) end
+        if smoking.t >= smoking.dur then
+            smoking.phase, smoking.loaded = "loaded", true
+            if game.player.clearClearcutAction then game.player:clearClearcutAction() end
+        end
+        return false
+    end
+
+    if smoking.phase == "loaded" then
+        if not pressed then return false end
+        smoking.phase, smoking.t, smoking.dur = "flick", 0, math.max(.38, .52 / ((game.tools.axe.speed or 1) * game.player.gather))
+        smoking.loaded, smoking.fired, smoking.tx, smoking.ty = false, false, tx, ty
+        if game.player.setClearcutAction then game.player:setClearcutAction(.5) end
+        return false
+    end
+
+    smoking.t = math.min(smoking.dur, smoking.t + dt)
+    local progress = smoking.t / smoking.dur
+    if game.player.setClearcutAction then game.player:setClearcutAction(.5 + progress * .499) end
     local fired = false
-    if held then
-        self:hurlMolotovAt(tx, ty, game)
+    if not smoking.fired and progress >= .58 then
+        smoking.fired = true
+        self:hurlMolotovAt(smoking.tx, smoking.ty, game)
+        self.actionAudit.cigaretteFlick = self.actionAudit.cigaretteFlick + 1
         fired = true
     end
-    self:startSmoking(game)
+    if smoking.t >= smoking.dur then self:startSmoking(game) end
     return fired
 end
 
 function ClearcutMode:startSmoking(game)
     local speed = (game.tools.axe.speed or 1) * game.player.gather
-    self.smoking = {t = 0, dur = math.max(.75, 1.25 / speed)}
+    self.smoking = {phase="reload",t=0,dur=math.max(.75,1.25/speed),loaded=false,fired=false}
+    if game.player.setClearcutAction then game.player:setClearcutAction(0) end
+end
+
+-- Mouth anchors inside each 96x192 smoker action cell. The action row moves
+-- the head independently from the idle pose, so the cigarette must follow the
+-- active cell instead of remaining at the idle world-space offset.
+local smokerActionMouthAnchors = {
+    {68, 30}, {68, 30}, {68, 31}, {68, 31}, {68, 31}, {68, 31},
+}
+
+function ClearcutMode:smokerMouthPose(game)
+    local player = game.player
+    local facing = player.facing or 1
+    local progress = player.clearcutActionProgress
+    local sprite = player.clearcutSprite
+
+    if self.smoking and self.smoking.phase == "reload" and progress ~= nil
+        and sprite and player.clearcutFrameWidth then
+        local frame = math.max(1, math.min(#smokerActionMouthAnchors, math.floor(progress * 6) + 1))
+        local anchor = smokerActionMouthAnchors[frame]
+        local scale = sprite.scale or .61
+        local foot = (sprite.actionFeet or {})[frame] or 190
+        local mouthX = player.x + (anchor[1] - player.clearcutFrameWidth / 2) * scale * facing
+        local mouthY = player.y + (anchor[2] - foot) * scale
+        return mouthX, mouthY, facing, mouthX + 16 * facing
+    end
+
+    local mouthX, mouthY = player.x + 8 * facing, player.y - 91
+    return mouthX, mouthY, facing, mouthX + 16 * facing
 end
 
 function ClearcutMode:updateToxicAttack(dt, game, heldOverride)
     local held = heldOverride
     if held == nil then held = love.mouse.isDown(1) end
-    self.attackCooldown = math.max(0, self.attackCooldown - dt)
     local maxRange = 260 + self:levelOf("toxic_rain") * 40
     local tx, ty = self:aimPoint(game, maxRange)
     self.aimX, self.aimY, self.aimRadius = tx, ty, 90 + self:levelOf("toxic_rain") * 25
+    if self.veganAction then
+        local action = self.veganAction
+        action.t = math.min(action.dur, action.t + dt)
+        local progress = action.t / action.dur
+        if game.player.setClearcutAction then game.player:setClearcutAction(progress) end
+        local bit = false
+        if not action.bit and progress >= .55 then
+            action.bit = true
+            self:applyVeganBite(action.tx, action.ty, game)
+            self.actionAudit.veganBite = self.actionAudit.veganBite + 1
+            bit = true
+        end
+        if action.t >= action.dur then
+            self.veganAction = nil
+            self.attackCooldown = .1
+            if game.player.clearClearcutAction then game.player:clearClearcutAction() end
+        end
+        return bit
+    end
+    self.attackCooldown = math.max(0, self.attackCooldown - dt)
     if not held or self.attackCooldown > 0 then return false end
+    local speed = (game.tools.axe.speed or 1) * game.player.gather
+    self.veganAction = {t=0,dur=math.max(.48,.72/speed),tx=tx,ty=ty,bit=false}
+    game.player.facing = tx < game.player.x and -1 or 1
+    if game.player.setClearcutAction then game.player:setClearcutAction(0) end
+    return false
+end
+
+function ClearcutMode:applyVeganBite(tx, ty, game)
     local dmg = 2 + self:levelOf("toxic_rain")
     local plagueLv3 = self:levelOf("toxic_rain") >= 3
     for _, node in ipairs(game.world.nodes) do
@@ -1234,43 +1327,52 @@ function ClearcutMode:updateToxicAttack(dt, game, heldOverride)
     self:damageEnemiesInRadius(tx, ty, self.aimRadius, dmg * 3, game)
     game.world:toxicPulseFx(tx, ty, self.aimRadius)
     if game.camera then game.camera.trauma = math.min(1, game.camera.trauma + .18) end
-    local speed = (game.tools.axe.speed or 1) * game.player.gather
-    self.attackCooldown = .85 / speed
     return true
 end
 
 function ClearcutMode:updateDeveloperAttack(dt, game, heldOverride)
     if self.dashing then
+        if game.player.setClearcutAction then game.player:setClearcutAction(.62) end
         self:updateDash(dt, game)
         return true
     end
     local held = heldOverride
     if held == nil then held = love.mouse.isDown(1) end
     self.attackCooldown = math.max(0, self.attackCooldown - dt)
-    local maxRange = 460
+    local maxRange = self:developerDashDistance()
     local tx, ty = self:aimPoint(game, maxRange)
     self.aimX, self.aimY = tx, ty
-    self.aimRadius = 55 + self:levelOf("heavy_machinery") * 20
+    self.aimRadius = self:developerDashWidth()
     if not held or self.attackCooldown > 0 then return false end
     self:startDash(tx, ty, game)
     return true
+end
+
+function ClearcutMode:developerDashDistance()
+    return 200 + self:levelOf("pile_driving") * 70
+end
+
+function ClearcutMode:developerDashWidth()
+    return 55 + self:levelOf("heavy_machinery") * 20
 end
 
 function ClearcutMode:startDash(tx, ty, game)
     local dx, dy = tx - game.player.x, ty - game.player.y
     local dist = math.sqrt(dx*dx + dy*dy)
     if dist < 1 then return end
-    local pileLevel = self:levelOf("pile_driving")
     local heavyLevel = self:levelOf("heavy_machinery")
-    local width = 55 + heavyLevel * 20
+    local width = self:developerDashWidth()
     local megaProject = heavyLevel >= 3 and love.math.random() < .2
     if megaProject then width = width * 2.2 end
     self.dashing = {
         dx = dx / dist, dy = dy / dist,
-        remaining = 200 + pileLevel * 70,
+        angle = (math.atan2 and math.atan2(dy, dx) or math.atan(dy, dx)),
+        remaining = math.min(dist, self:developerDashDistance()),
         width = width,
         hitSet = {}
     }
+    game.player.facing = dx < 0 and -1 or 1
+    if game.player.setClearcutAction then game.player:setClearcutAction(.58) end
     game:setNotice(megaProject and "초고층 프로젝트 — 중장비 투입 만렙 특수효과!" or "돌진!", "food")
     if game.camera then game.camera.trauma = math.min(1, game.camera.trauma + .2) end
 end
@@ -1281,8 +1383,9 @@ function ClearcutMode:updateDash(dt, game)
     local moveDist = math.min(d.remaining, speed * dt)
     local px, py = game.player.x, game.player.y
     game.player.x, game.player.y = game.player.x + d.dx * moveDist, game.player.y + d.dy * moveDist
+    self.traitFx:emit("construction_dash",px,py,{angle=d.angle,radius=42,particles=3})
     d.remaining = d.remaining - moveDist
-    self.dashTrail[#self.dashTrail + 1] = {x = px, y = py, life = .3, maxLife = .3}
+    self.dashTrail[#self.dashTrail + 1] = {x=px,y=py,dx=d.dx,dy=d.dy,angle=d.angle,width=d.width,life=.42,maxLife=.42}
     for _, node in ipairs(game.world.nodes) do
         if node.rushTree and node.active and not d.hitSet[node] then
             local segX, segY = game.player.x - px, game.player.y - py
@@ -1304,6 +1407,7 @@ function ClearcutMode:updateDash(dt, game)
     self:damageEnemiesInRadius((px + game.player.x) / 2, (py + game.player.y) / 2, d.width + 20, 12, game)
     if d.remaining <= 0 then
         self.dashing = nil
+        if game.player.clearClearcutAction then game.player:clearClearcutAction() end
         if self:levelOf("demolition") > 0 then self:demolitionBlast(game.player.x, game.player.y, game) end
         if self.evolutions.newtown then
             local radius = 160
@@ -1313,7 +1417,7 @@ function ClearcutMode:updateDash(dt, game)
                     if dx*dx + dy*dy <= radius*radius then node.sterile = true end
                 end
             end
-            game.world:toxicPulseFx(game.player.x, game.player.y, radius)
+            self.traitFx:emit("construction_blast",game.player.x,game.player.y,{radius=radius,particles=42,power=1.45})
         end
         local pileLevel = self:levelOf("pile_driving")
         self.attackCooldown = math.max(1, 3.2 - pileLevel * .7)
@@ -1327,7 +1431,7 @@ end
 function ClearcutMode:demolitionBlast(x, y, game)
     local demoLevel = self:levelOf("demolition")
     local radius = 90 + demoLevel * 30
-    game.world:igniteFx(x, y, true)
+    self.traitFx:emit("construction_blast",x,y,{radius=radius,particles=36,power=1.35})
     if game.camera then game.camera.trauma = math.min(1, game.camera.trauma + .35) end
     self:damageEnemiesInRadius(x, y, radius, 22, game)
     local felled = {}
@@ -1349,7 +1453,7 @@ end
 
 function ClearcutMode:demolitionEcho(x, y, game)
     local radius = 70
-    game.world:igniteFx(x, y, false)
+    self.traitFx:emit("construction_blast",x,y,{radius=radius,particles=20,power=.9})
     self:damageEnemiesInRadius(x, y, radius, 14, game)
     for _, node in ipairs(game.world.nodes) do
         if node.rushTree and node.active then
@@ -1720,6 +1824,22 @@ local function drawPixelGrid(rows, palette, cx, cy, px)
             if col then
                 love.graphics.setColor(col)
                 love.graphics.rectangle("fill", math.floor(cx - ox + (rx - 1) * px), math.floor(cy - oy + (ry - 1) * px), px + 1, px + 1)
+            end
+        end
+    end
+end
+
+local function drawFacingPixelGrid(rows, palette, cx, cy, px, facing)
+    local gh, gw = #rows, #rows[1]
+    local ox, oy = gw * px / 2, gh * px / 2
+    for ry=1,gh do
+        local row=rows[ry]
+        for rx=1,gw do
+            local sourceX=facing<0 and (gw-rx+1) or rx
+            local col=palette[row:sub(sourceX,sourceX)]
+            if col then
+                love.graphics.setColor(col)
+                love.graphics.rectangle("fill",math.floor(cx-ox+(rx-1)*px),math.floor(cy-oy+(ry-1)*px),px+1,px+1)
             end
         end
     end
@@ -2122,6 +2242,34 @@ local cigaretteButtPalette = {
     O={.16,.11,.08,1}, W={.93,.91,.85,1}, Y={.82,.68,.32,1}, F={.78,.55,.28,1}, f={.55,.36,.18,1}
 }
 
+function ClearcutMode:drawSmokerCigarette(game)
+    if self.job~="fire" or not self.smoking or self.smoking.phase=="flick" then return false end
+    local mouthX,mouthY,facing,tipX=self:smokerMouthPose(game)
+    drawFacingPixelGrid(cigaretteIconRows,cigaretteIconPalette,(mouthX+tipX)/2,mouthY-2,2,facing)
+    return true
+end
+
+function ClearcutMode:drawCigaretteProjectiles(t)
+    local drawn=0
+    for _,m in ipairs(self.molotovs) do
+        local p=math.max(0,math.min(1,m.t/m.dur))
+        local x=m.x0+(m.x1-m.x0)*p
+        local y=m.y0+(m.y1-m.y0)*p-math.sin(p*math.pi)*120
+        love.graphics.setColor(.76,.75,.72,.22)
+        for i=1,4 do love.graphics.circle("fill",x-(m.x1-m.x0)*.012*i,y-(m.y1-m.y0)*.012*i+i*3,2+i*.8) end
+        love.graphics.push(); love.graphics.translate(math.floor(x+.5),math.floor(y+.5)); love.graphics.rotate(p*14)
+        local buttPx=1.05
+        local emberY=-(#cigaretteButtRows*buttPx/2)+4*buttPx
+        local flicker=.72+math.sin((t or 0)*30)*.28
+        love.graphics.setColor(.18,.08,.03,.72); love.graphics.rectangle("fill",-4,math.floor(emberY)-4,8,8)
+        love.graphics.setColor(1,.42,.08,.9*flicker); love.graphics.rectangle("fill",-3,math.floor(emberY)-3,6,6)
+        drawPixelGrid(cigaretteButtRows,cigaretteButtPalette,0,0,buttPx)
+        love.graphics.pop()
+        drawn=drawn+1
+    end
+    return drawn
+end
+
 local leafIconRows = {
     "...OO...",
     "..OGGO..",
@@ -2341,43 +2489,61 @@ local function drawEnemy(e, t)
     love.graphics.rectangle("line", math.floor(e.x - barW/2), math.floor(e.y - def.radius - 16), math.floor(barW), 6)
 end
 
+function ClearcutMode:drawDeveloperMachinery(game, t)
+    local d, image = self.dashing, game.clearcutMachineryImage
+    if not d or not image then return false end
+    local imageW, imageH = image:getDimensions()
+    local targetWidth = 174 + self:levelOf("heavy_machinery") * 9
+    local scale = targetWidth / imageW
+    local bounce = math.floor(math.sin((t or 0) * 28) * 1.4)
+    love.graphics.push()
+    love.graphics.translate(math.floor(game.player.x+.5),math.floor(game.player.y+.5))
+    love.graphics.rotate(d.angle or 0)
+    love.graphics.setColor(0,0,0,.32)
+    love.graphics.ellipse("fill",-7,17,targetWidth*.43,targetWidth*.13)
+    love.graphics.setColor(1,1,1,1)
+    love.graphics.draw(image,0,2+bounce,0,scale,scale,imageW/2,imageH/2)
+    local beaconX,beaconY=math.floor(-targetWidth*.23),math.floor(-targetWidth*.22)
+    love.graphics.setColor(.22,.08,.04,.9); love.graphics.rectangle("fill",beaconX-5,beaconY-5,10,10)
+    love.graphics.setColor(1,.24,.08,.65+math.sin((t or 0)*18)*.3); love.graphics.rectangle("fill",beaconX-3,beaconY-3,6,6)
+    love.graphics.pop()
+    return true
+end
+
 function ClearcutMode:drawWorldOverlay(game)
     love.graphics.setLineStyle("rough")
     local t = love.timer.getTime()
     local px, py = game.player.x + 14, game.player.y - 34
     if self.job == "fire" then
         local smoking = self.smoking
-        local drag = smoking and math.min(1, smoking.t / smoking.dur) or 0
-        local facing = game.player.facing or 1
-        local mx, my = game.player.x + 3 * facing, game.player.y - 61
-        drawPixelGrid(cigaretteIconRows, cigaretteIconPalette, mx, my, 2.4)
-        local emberGlow = (.42 + math.sin(t * (6 + drag * 12)) * .28) * (.7 + drag * .3)
-        love.graphics.setColor(1, .55, .15, emberGlow); love.graphics.circle("fill", mx + 9 * facing, my + 2, 2.2 + drag * 2.8)
-        local sx, sy = mx + 9 * facing, my + 1
-        local strandCount = 2 + (drag > .1 and 1 or 0)
-        local height = 50 + drag * 34
-        local segments = 16
-        local baseAlpha = .5 + drag * .3
-        love.graphics.setLineStyle("smooth")
-        for strand = 1, strandCount do
-            local seed = strand * 3.1
-            local px0, py0 = sx, sy
-            for j = 1, segments do
-                local rp = j / segments
-                local sway = math.sin(rp * 4.4 + t * (1.5 + strand * .35) + seed) * (3 + rp * (11 + drag * 9))
-                local wobble = math.sin(rp * 10.5 + t * 3.3 + seed * 1.6) * rp * 3
-                local x1 = sx + sway + wobble
-                local y1 = sy - rp * height
-                local alpha = baseAlpha * (1 - rp) ^ 1.5
-                if alpha > .01 then
-                    love.graphics.setLineWidth(math.max(.6, (3.4 - rp * 2.8) * (1 + drag * .35)))
-                    love.graphics.setColor(.9, .9, .93, alpha)
-                    love.graphics.line(px0, py0, x1, y1)
-                end
-                px0, py0 = x1, y1
+        if smoking and smoking.phase ~= "flick" then
+            self:drawSmokerCigarette(game)
+            local mouthX,mouthY,facing,tipX=self:smokerMouthPose(game)
+            local progress=smoking.phase=="loaded" and 1 or math.min(1,smoking.t/smoking.dur)
+            local breath=smoking.phase=="loaded" and .58 or (.55+math.sin(progress*math.pi)*.45)
+            for i=1,11 do
+                local rise=i*6.5
+                local drift=math.sin(t*1.65+i*1.17)*(2+i*.82)+facing*i*1.55
+                local radius=4.2+i*.7
+                local alpha=math.max(.035,(.36-i*.016)*breath)
+                -- A darker back-puff gives the pale smoke enough contrast over
+                -- both grass and bright tree crowns without becoming opaque.
+                love.graphics.setColor(.38,.4,.37,alpha*.44)
+                love.graphics.circle("fill",tipX+drift-facing*2,mouthY-rise+2,radius+2.2)
+                love.graphics.setColor(.88,.89,.85,alpha)
+                love.graphics.circle("fill",tipX+drift,mouthY-rise,radius)
             end
+            -- Draw the ember last so smoke never washes it out. Three hard
+            -- pixel layers keep it readable against every forest backdrop.
+            local emberPulse=.82+math.sin(t*13)*.18
+            local ex,ey=math.floor(tipX+.5),math.floor(mouthY+.5)
+            love.graphics.setColor(.22,.07,.025,.88)
+            love.graphics.rectangle("fill",ex-5,ey-5,10,10)
+            love.graphics.setColor(1,.32,.035,.9*emberPulse)
+            love.graphics.rectangle("fill",ex-3,ey-3,6,6)
+            love.graphics.setColor(1,.88,.32,.96)
+            love.graphics.rectangle("fill",ex-1,ey-1,3,3)
         end
-        love.graphics.setLineStyle("rough")
     elseif self.job == "toxic" then
         local bob = math.sin(t * 2.4) * 2
         drawPixelGrid(leafIconRows, leafIconPalette, px, py + bob, 2.4)
@@ -2401,28 +2567,40 @@ function ClearcutMode:drawWorldOverlay(game)
             local nx, ny = dx / dist, dy / dist
             local perpx, perpy = -ny, nx
             local hw = self.aimRadius
-            local ax, ay = game.player.x + nx * hw * .4, game.player.y + ny * hw * .4
             local bx, by = self.aimX, self.aimY
-            love.graphics.setColor(1, .74, .1, .18)
-            love.graphics.polygon("fill",
-                ax + perpx * hw, ay + perpy * hw,
-                bx + perpx * hw, by + perpy * hw,
-                bx - perpx * hw, by - perpy * hw,
-                ax - perpx * hw, ay - perpy * hw)
-            love.graphics.setLineWidth(2); love.graphics.setColor(1, .74, .1, .8)
-            love.graphics.line(ax + perpx * hw, ay + perpy * hw, bx + perpx * hw, by + perpy * hw)
-            love.graphics.line(ax - perpx * hw, ay - perpy * hw, bx - perpx * hw, by - perpy * hw)
-            love.graphics.setLineWidth(1.5)
-            love.graphics.line(bx - 8, by - 8, bx + 8, by + 8); love.graphics.line(bx - 8, by + 8, bx + 8, by - 8)
+            local steps = math.max(1, math.floor(dist / 32))
+            for i=1,steps do
+                local along=math.min(dist,i*32)
+                local cx,cy=game.player.x+nx*along,game.player.y+ny*along
+                for side=-1,1,2 do
+                    local mx,my=math.floor(cx+perpx*hw*side+.5),math.floor(cy+perpy*hw*side+.5)
+                    love.graphics.setColor(.16,.12,.07,.72); love.graphics.rectangle("fill",mx-7,my-5,14,10)
+                    love.graphics.setColor(.96,.57,.12,.44+(i%2)*.2); love.graphics.rectangle("fill",mx-5,my-3,10,6)
+                end
+            end
+            local ex,ey=math.floor(bx+.5),math.floor(by+.5)
+            love.graphics.setColor(.16,.11,.07,.82); love.graphics.rectangle("fill",ex-12,ey-4,24,8); love.graphics.rectangle("fill",ex-4,ey-12,8,24)
+            love.graphics.setColor(1,.66,.16,.9); love.graphics.rectangle("fill",ex-9,ey-2,18,4); love.graphics.rectangle("fill",ex-2,ey-9,4,18)
         end
     end
     if self.job == "developer" and #self.dashTrail > 0 then
         for _, tr in ipairs(self.dashTrail) do
             local a = math.max(0, tr.life / tr.maxLife)
-            love.graphics.setColor(1, .74, .1, a * .35)
-            love.graphics.circle("fill", tr.x, tr.y, 26 * a + 6)
+            local nx,ny=tr.dx or 1,tr.dy or 0
+            local pxn,pyn=-ny,nx
+            local trackGap=math.min(34,(tr.width or 55)*.42)
+            for side=-1,1,2 do
+                local ox,oy=pxn*trackGap*side,pyn*trackGap*side
+                love.graphics.push(); love.graphics.translate(math.floor(tr.x+ox+.5),math.floor(tr.y+oy+.5)); love.graphics.rotate(tr.angle or 0)
+                love.graphics.setColor(.12,.09,.055,a*.56); love.graphics.rectangle("fill",-25,-6,48,12)
+                love.graphics.setColor(.42,.29,.14,a*.34)
+                for block=-20,16,9 do love.graphics.rectangle("fill",block,-4,6,8) end
+                love.graphics.pop()
+            end
         end
     end
+    if self.job=="developer" then self:drawDeveloperMachinery(game,t) end
+    self.traitFx:draw()
     for _, node in ipairs(game.world.nodes) do
         if node.rushTree and node.active and node.beehive then
             drawBeehive(node.x, node.y - 150, t)
@@ -2532,23 +2710,7 @@ function ClearcutMode:drawWorldOverlay(game)
             love.graphics.pop()
         end
     end
-    for _, m in ipairs(self.molotovs) do
-        local p = m.t / m.dur
-        local x = m.x0 + (m.x1 - m.x0) * p
-        local y = m.y0 + (m.y1 - m.y0) * p - math.sin(p * math.pi) * 120
-        love.graphics.setColor(.78, .78, .8, .2)
-        for i = 1, 3 do love.graphics.circle("fill", x - (m.x1 - m.x0) * .015 * i, y - (m.y1 - m.y0) * .015 * i + i * 2.5, 2.5 + i * 1.1) end
-        love.graphics.push(); love.graphics.translate(x, y); love.graphics.rotate(p * 20)
-        local buttPx = 0.5
-        local buttScale = buttPx / 3.2
-        love.graphics.setColor(0, 0, 0, .3); love.graphics.ellipse("fill", 1 * buttScale, 34 * buttScale, 7 * buttScale, 3 * buttScale)
-        local emberLocalY = -(#cigaretteButtRows * buttPx / 2) + 4 * buttPx
-        local fl = .7 + math.sin(t * 30) * .3
-        love.graphics.setColor(1, .5, .12, .5 * fl); love.graphics.circle("fill", 0, emberLocalY, 11 * fl * buttScale)
-        love.graphics.setColor(1, .78, .3, .35 * fl); love.graphics.circle("fill", 0, emberLocalY, 6 * fl * buttScale)
-        drawPixelGrid(cigaretteButtRows, cigaretteButtPalette, 0, 0, buttPx)
-        love.graphics.pop()
-    end
+    self:drawCigaretteProjectiles(t)
     for _, tel in ipairs(self.bossTelegraphs) do
         if tel.kind == "line" then
             if tel.phase == "warn" then
