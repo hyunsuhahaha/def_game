@@ -19,16 +19,13 @@ function Butts.reset(mode)
     mode.smokerGroundTime=0
 end
 
-local function land(mode,flight,at,game)
+-- Landing only creates a ground object. No ignition or enemy damage here.
+local function land(mode,flight,at)
     if flight.target then flight.target.igniting=nil end
     local butt={x=flight.x1,y=flight.y1,bornAt=at,expiresAt=at+Butts.lifetime,
         nextAttemptAt=at+Butts.firstAttempt,radius=flight.radius or (90+mode:levelOf("molotov")*20),
         angle=flight.landingAngle or .25,phase="smolder",attempts=0}
     mode.cigaretteButts[#mode.cigaretteButts+1]=butt
-    if game then
-        mode:damageEnemiesInRadius(flight.x1,flight.y1,butt.radius,8+mode:levelOf("molotov")*5,game)
-        mode:igniteEnemiesInRadius(flight.x1,flight.y1,butt.radius,game,0)
-    end
     return butt
 end
 
@@ -81,7 +78,7 @@ function Butts.update(mode,dt,game)
         local flight=mode.molotovs[i]
         local remaining=math.max(0,flight.dur-flight.t)
         flight.t=flight.t+dt
-        if remaining<=dt then land(mode,flight,start+remaining,game); table.remove(mode.molotovs,i) end
+        if remaining<=dt then land(mode,flight,start+remaining); table.remove(mode.molotovs,i) end
     end
     if mode.rainSuppressFire then
         for _,transfer in ipairs(mode.emberTransfers) do release(transfer) end
