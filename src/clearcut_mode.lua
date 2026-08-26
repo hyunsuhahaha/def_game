@@ -51,6 +51,7 @@ local definitions = {
     {id="deep_scan", track="dig", name="정밀 탐사", desc="탐지 반경이 넓어지고 판정 속도가 빨라집니다.", max=3, color={.95,.82,.35}, job="miner"},
     {id="backhoe", track="dig", name="굴착기 대여", desc="굴착 한 방의 범위와 위력이 커집니다. 렌탈비는... 나중에 생각하자.", max=3, color={.75,.55,.2}, job="miner"},
     {id="jackpot", track="dig", name="이번엔 진짜 있을 것 같다", desc="가끔 '발견!' 판정이 터져 훨씬 넓은 범위가 한 번에 무너지고 목재를 왕창 얻습니다.", max=3, color={1,.84,.3}, job="miner"},
+    {id="brute_force", track="dig", name="브루트포스 어택", desc="주기적으로 무작위 숫자 조합을 사방으로 흩뿌려 닿는 나무와 적에게 피해를 줍니다.", max=3, color={.3,.9,.4}, job="miner"},
     -- 독설력 (venom) — 말을 오래 붙잡을수록 사거리와 독성이 강해진다 [차라투스트라는 이렇게 말했다 전용]
     {id="monologue", track="venom", name="아무 말 대잔치", desc="기본 공격이 장광설로 바뀝니다. 마우스 방향으로 계속 침을 튀기며, 말이 길어질수록 사거리와 피해가 늘어납니다.", max=3, color={.75,.85,.3}, job="philosopher"},
     {id="footnote", track="venom", name="각주 남발", desc="말하는 속도가 빨라져 침이 더 자주 튑니다.", max=3, color={.85,.9,.4}, job="philosopher"},
@@ -225,7 +226,8 @@ function ClearcutMode:generateForest(game, target)
         if clearSpawn and separated then
             local beehive = love.math.random() < .07
             local variantCount = math.max(1, #(game.world.images.treeVariants or {}))
-            local treeVariant = ForestScenery.treeVariant(x,y,w,h,self.stage,#game.world.nodes+1,variantCount)
+            local treeVariant = Maps.treeVariant(game.world,x,y,#game.world.nodes+1)
+                or ForestScenery.treeVariant(x,y,w,h,self.stage,#game.world.nodes+1,variantCount)
             game.world.nodes[#game.world.nodes+1] = {kind="tree",x=x,y=y,work=0,workTime=1,active=true,respawn=0,rushTree=true,rushHp=3,rushMaxHp=3,beehive=beehive,treeVariant=treeVariant}
             if beehive then self.beehiveTotal = self.beehiveTotal + 1 end
         end
@@ -1569,6 +1571,7 @@ function ClearcutMode:updateSupplementSkills(dt, game)
     self:updateSeedMine(dt, game)
     self:updateChainLightning(dt, game)
     self:updateSporeCloud(dt, game)
+    self:updateBruteForce(dt, game)
     if self.auraPulse then self.auraPulse = math.max(0, self.auraPulse - dt * 2.2) end
 end
 
@@ -1906,6 +1909,59 @@ function ClearcutMode:updateSporeCloud(dt, game)
             end
         end
     end
+end
+
+-- 코인 채굴꾼 전용: 무작위 숫자 조합을 사방으로 흩뿌려 하드월렛 비밀번호를 브루트포스한다.
+function ClearcutMode:updateBruteForce(dt, game)
+    self.digits = self.digits or {}
+    for i = #self.digits, 1, -1 do
+        local d = self.digits[i]
+        d.x, d.y = d.x + d.vx * dt, d.y + d.vy * dt
+        d.life = d.life - dt
+        if d.life <= 0 then
+            table.remove(self.digits, i)
+        else
+            for _, node in ipairs(game.world.nodes) do
+                if node.rushTree and node.active and not d.hitSet[node] then
+                    local dx, dy = node.x - d.x, node.y - d.y
+                    if dx*dx + dy*dy <= 18*18 then
+                        d.hitSet[node] = true
+                        node.rushHp = (node.rushHp or node.rushMaxHp) - d.dmg
+                        game.world:impactNode(node, game, false)
+                        if node.rushHp <= 0 then self:fellTree(node, game) end
+                    end
+                end
+            end
+            for _, e in ipairs(self.enemies) do
+                if not d.hitSet[e] then
+                    local dx, dy = e.x - d.x, e.y - d.y
+                    if dx*dx + dy*dy <= 18*18 then
+                        d.hitSet[e] = true
+                        e.hp = e.hp - d.dmg
+                        e.visualHit = .14
+                    end
+                end
+            end
+        end
+    end
+    if self.job ~= "miner" then return end
+    local level = self:levelOf("brute_force")
+    if level <= 0 then return end
+    self.bruteTimer = (self.bruteTimer or 0) - dt
+    if self.bruteTimer > 0 then return end
+    self.bruteTimer = math.max(.9, 2.2 - level * .4)
+    local count = 5 + level * 3
+    local dmg = 2 + level
+    local speed = 340
+    for _ = 1, count do
+        local a = love.math.random() * math.pi * 2
+        self.digits[#self.digits+1] = {
+            x=game.player.x, y=game.player.y,
+            vx=math.cos(a) * speed, vy=math.sin(a) * speed,
+            life=.9, dmg=dmg, hitSet={}, glyph=tostring(love.math.random(0, 9))
+        }
+    end
+    game:setNotice("브루트포스 어택 — 숫자 조합 흩뿌리기!", "food")
 end
 
 function ClearcutMode:updatePhilosopherAttack(dt, game, heldOverride)
@@ -3168,6 +3224,7 @@ local loudVoicePalette = {O={.1,.16,.04,1}, H={.82,.95,.5,1}, W={.65,.8,.3,1}}
 local salivaGlandPalette = {O={.1,.15,.03,1}, H={.78,.92,.42,1}, W={.55,.72,.25,1}}
 local boomerangAxePalette = {O={.14,.09,.05,1}, M={.75,.77,.8,1}, H={.55,.55,.6,1}}
 local sporeCloudPalette = {O={.2,.14,.24,1}, H={.85,.72,.95,1}, W={.62,.45,.72,1}}
+local bruteForcePalette = {O={.05,.2,.08,1}, H={.55,1,.6,1}, W={.25,.85,.35,1}}
 
 local dominoRows = {
     ".OOOOOOO.",
@@ -3259,6 +3316,7 @@ ClearcutMode.icons = {
     seed_mine = {rows = seedIconRows, palette = seedIconPalette},
     chain_lightning = {rows = lightningIconRows, palette = lightningIconPalette},
     spore_cloud = {rows = blobRows, palette = sporeCloudPalette},
+    brute_force = {rows = boxRows, palette = bruteForcePalette},
 }
 ClearcutMode.drawPixelGrid = drawPixelGrid
 
@@ -3439,6 +3497,16 @@ function ClearcutMode:drawSupplementSkills(game, t)
         love.graphics.circle("fill", self.spore.x, self.spore.y, 30 + pulse * 8)
         love.graphics.setColor(.78, .6, .85, .5 + pulse * .3)
         love.graphics.circle("line", self.spore.x, self.spore.y, 22)
+    end
+    if self.digits and #self.digits > 0 and game.fonts then
+        love.graphics.setFont(game.fonts.small)
+        for _, d in ipairs(self.digits) do
+            local a = math.max(0, d.life / .9)
+            love.graphics.setColor(.1, .35, .12, a * .5)
+            love.graphics.print(d.glyph, math.floor(d.x + 1.5), math.floor(d.y + 1.5))
+            love.graphics.setColor(.4, 1, .5, a)
+            love.graphics.print(d.glyph, math.floor(d.x - 5), math.floor(d.y - 8))
+        end
     end
 end
 
