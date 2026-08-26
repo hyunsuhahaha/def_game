@@ -1394,19 +1394,19 @@ function ClearcutMode:drawWorldOverlay(game)
         local smoking = self.smoking
         local drag = smoking and math.min(1, smoking.t / smoking.dur) or 0
         drawPixelGrid(cigaretteIconRows, cigaretteIconPalette, px, py, 2.4)
-        local emberGlow = smoking and (.55 + math.sin(t * 18) * .35) or (.25 + math.sin(t * 3) * .15)
-        love.graphics.setColor(1, .55, .15, emberGlow); love.graphics.circle("fill", px + 15, py + 2, smoking and (3.5 + drag * 2.5) or 2)
-        local puffCount = smoking and 6 or 2
+        local emberGlow = (.42 + math.sin(t * (6 + drag * 12)) * .28) * (.7 + drag * .3)
+        love.graphics.setColor(1, .55, .15, emberGlow); love.graphics.circle("fill", px + 15, py + 2, 2.2 + drag * 2.8)
+        local puffCount = 4 + math.floor(drag * 2 + .5)
         for i = 1, puffCount do
-            local phase = smoking and ((drag * 1.4 + i / puffCount) % 1) or ((t * .6 + i * .5) % 1)
-            local rise = phase * (smoking and 34 or 22)
-            local widen = 1 + phase * (smoking and 2.6 or .6)
-            local driftX = math.sin(t * 1.6 + i * 1.7) * (smoking and (4 + phase * 10) or 3)
-            local alpha = (1 - phase) * (smoking and .55 or .4)
+            local phase = (t * .55 + drag * .8 + i / puffCount) % 1
+            local rise = phase * (24 + drag * 18)
+            local widen = 1 + phase * (1 + drag * 1.8)
+            local driftX = math.sin(t * 1.5 + i * 1.7) * (4 + phase * (6 + drag * 8))
+            local alpha = (1 - phase) * (.42 + drag * .18)
             love.graphics.setColor(.85, .85, .88, alpha * .5)
-            love.graphics.circle("fill", px - 9 + driftX, py - 4 - rise, (3 + phase * 5) * widen)
+            love.graphics.circle("fill", px - 9 + driftX, py - 4 - rise, (2.6 + phase * 4.4) * widen)
             love.graphics.setColor(.92, .92, .94, alpha)
-            love.graphics.circle("fill", px - 9 + driftX, py - 4 - rise, (1.6 + phase * 2.6) * widen)
+            love.graphics.circle("fill", px - 9 + driftX, py - 4 - rise, (1.4 + phase * 2.2) * widen)
         end
     elseif self.job == "toxic" then
         local bob = math.sin(t * 2.4) * 2
