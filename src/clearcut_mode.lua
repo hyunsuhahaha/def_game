@@ -1763,31 +1763,71 @@ function ClearcutMode:drawHUD(game,fonts)
     love.graphics.setColor(.82,.9,.84); love.graphics.print("마우스 누른 채 이동: 범위 자동 벌목  ·  WASD: 이동  ·  ESC: 로비",30,h-43)
 end
 
+local function octagonPoints(cx, cy, r, rot)
+    local pts = {}
+    for i = 0, 7 do
+        local a = (i / 8) * math.pi * 2 + (rot or math.pi / 8)
+        pts[#pts + 1] = cx + math.cos(a) * r
+        pts[#pts + 1] = cy + math.sin(a) * r
+    end
+    return pts
+end
+
+local function drawUpgradeCardFrame(x, y, w, h, color, hovered)
+    UI.verticalGradient(x, y, w, h, 12, {.05, .045, .04, .98}, {.1, .07, .045, .98}, 22)
+    love.graphics.setLineWidth(1); love.graphics.setColor(1, 1, 1, .07)
+    love.graphics.rectangle("line", x, y, w, h, 12, 12)
+    love.graphics.setLineWidth(hovered and 3 or 2)
+    love.graphics.setColor(color[1], color[2], color[3], hovered and 1 or .65)
+    love.graphics.rectangle("line", x + 4, y + 4, w - 8, h - 8, 9, 9)
+    love.graphics.setColor(color[1], color[2], color[3], .8)
+    local corners = {{x + 10, y + 10}, {x + w - 10, y + 10}, {x + 10, y + h - 10}, {x + w - 10, y + h - 10}}
+    for _, c in ipairs(corners) do love.graphics.circle("fill", c[1], c[2], 2.6) end
+end
+
+local function drawIconSocket(cx, cy, color, iconDef, t)
+    local r = 58
+    local pulse = .5 + math.sin(t * 2.4) * .5
+    love.graphics.setColor(color[1], color[2], color[3], .3 + pulse * .12)
+    love.graphics.circle("fill", cx, cy, r + 14)
+    love.graphics.setColor(.035, .04, .05, 1)
+    love.graphics.polygon("fill", octagonPoints(cx, cy, r))
+    love.graphics.setLineWidth(3); love.graphics.setColor(color[1], color[2], color[3], .85 + pulse * .15)
+    love.graphics.polygon("line", octagonPoints(cx, cy, r))
+    love.graphics.setLineWidth(1); love.graphics.setColor(1, 1, 1, .45)
+    love.graphics.polygon("line", octagonPoints(cx, cy, r - 4))
+    love.graphics.setColor(color[1], color[2], color[3], .9)
+    love.graphics.polygon("fill", cx - 7, cy - r - 3, cx + 7, cy - r - 3, cx, cy - r - 13)
+    love.graphics.polygon("fill", cx - 7, cy + r + 3, cx + 7, cy + r + 3, cx, cy + r + 13)
+    if iconDef then
+        love.graphics.setColor(0, 0, 0, .3); love.graphics.ellipse("fill", cx + 2, cy + r * .58, 34, 9)
+        drawPixelGrid(iconDef.rows, iconDef.palette, cx, cy, 96 / #iconDef.rows)
+    end
+end
+
 function ClearcutMode:drawSelection(game,fonts)
     local w,h=love.graphics.getDimensions()
+    local t = love.timer.getTime()
     love.graphics.setColor(.015,.035,.025,.84); love.graphics.rectangle("fill",0,0,w,h)
     love.graphics.setFont(fonts.title); love.graphics.setColor(1,.82,.3); love.graphics.printf("벌목 방식 진화",0,66,w,"center")
     love.graphics.setFont(fonts.small); love.graphics.setColor(.72,.88,.76); love.graphics.printf("계속 움직이고 더 많은 숲을 한 번에 쓸어버리세요",0,112,w,"center")
     local gap,cardW,cardH=24,math.min(320,(w-96)/3),360
     local startX=w/2-(cardW*3+gap*2)/2
+    local mx,my=love.mouse.getPosition()
     self.choiceBoxes={}
     for i,def in ipairs(self.choices) do
         local x,y=startX+(i-1)*(cardW+gap),165
         self.choiceBoxes[i]={x=x,y=y,w=cardW,h=cardH}
-        UI.panel(x,y,cardW,cardH,{def.color[1],def.color[2],def.color[3],1},.97)
-        love.graphics.setColor(def.color[1],def.color[2],def.color[3],.2); love.graphics.circle("fill",x+cardW/2,y+105,64)
-        love.graphics.setLineWidth(2.5); love.graphics.setColor(def.color[1],def.color[2],def.color[3],.75); love.graphics.circle("line",x+cardW/2,y+105,64)
+        local hovered = mx>=x and mx<=x+cardW and my>=y and my<=y+cardH
+        drawUpgradeCardFrame(x,y,cardW,cardH,def.color,hovered)
         local iconDef = ClearcutMode.icons[def.id == "molotov" and "cigarette" or def.id]
-        if iconDef then
-            love.graphics.setColor(0,0,0,.28); love.graphics.ellipse("fill",x+cardW/2+2,y+140,34,9)
-            drawPixelGrid(iconDef.rows, iconDef.palette, x+cardW/2, y+105, 100/#iconDef.rows)
-        end
+        drawIconSocket(x+cardW/2,y+108,def.color,iconDef,t)
         love.graphics.setColor(.06,.09,.08,.92); love.graphics.rectangle("fill",x+16,y+16,34,30,7,7)
         love.graphics.setFont(fonts.heading); love.graphics.setColor(1,1,1); love.graphics.printf(tostring(i),x+16,y+21,34,"center")
         love.graphics.setFont(fonts.small); love.graphics.setColor(def.color[1],def.color[2],def.color[3],.9); love.graphics.printf(trackLabels[def.track] or "", x, y+18, cardW, "center")
-        love.graphics.setFont(fonts.heading); love.graphics.setColor(1,1,1); love.graphics.printf(def.name,x+16,y+190,cardW-32,"center")
-        love.graphics.setFont(fonts.body); love.graphics.setColor(.72,.82,.77); love.graphics.printf(def.desc,x+28,y+242,cardW-56,"center")
-        love.graphics.setColor(1,.75,.25); love.graphics.printf("Lv."..self:levelOf(def.id).." → Lv."..(self:levelOf(def.id)+1),x+20,y+318,cardW-40,"center")
+        love.graphics.setFont(fonts.heading); love.graphics.setColor(1,1,1); love.graphics.printf(def.name,x+16,y+195,cardW-32,"center")
+        love.graphics.setFont(fonts.body); love.graphics.setColor(.72,.82,.77); love.graphics.printf(def.desc,x+28,y+245,cardW-56,"center")
+        love.graphics.setColor(1,.75,.25); love.graphics.printf("Lv."..self:levelOf(def.id).." → Lv."..(self:levelOf(def.id)+1),x+20,y+320,cardW-40,"center")
     end
 end
 
