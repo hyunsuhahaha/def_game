@@ -1773,13 +1773,76 @@ local function octagonPoints(cx, cy, r, rot)
     return pts
 end
 
+local jobFlavorColors = {physical = {.68, .5, .3, 1}, fire = {1, .42, .14, 1}, toxic = {.45, .82, .35, 1}, developer = {1, .72, .15, 1}}
+local universalColor = {.56, .57, .6, 1}
+
 local function drawShadedRivet(cx, cy, color)
     love.graphics.setColor(.05, .04, .03, 1); love.graphics.circle("fill", cx, cy, 3.2)
     love.graphics.setColor(color[1] * .6, color[2] * .6, color[3] * .6, 1); love.graphics.circle("fill", cx, cy, 2.6)
     love.graphics.setColor(1, 1, 1, .55); love.graphics.circle("fill", cx - .7, cy - .7, 1.1)
 end
 
-local function drawUpgradeCardFrame(x, y, w, h, color, hovered)
+-- job별 배경 이펙트: 흡연자=불씨, 비건=나뭇잎, 나무꾼=톱밥, 개발업자=먼지+청사진 격자, 공용=은은한 회색 먼지
+local function drawJobFlavorBg(x, y, w, h, job, t)
+    if job == "fire" then
+        for i = 1, 5 do
+            local seed = i * 3.7
+            local life = (t * .6 + i * .37) % 1
+            local px = x + w * (.14 + (i - 1) * .18) + math.sin(t * 1.3 + seed) * 6
+            local py = y + h - 12 - life * (h * .58)
+            local size = (1 - life) * 9 + 3
+            love.graphics.setColor(1, .45, .12, (1 - life) * .5)
+            love.graphics.circle("fill", px, py, size)
+            love.graphics.setColor(1, .82, .32, (1 - life) * .35)
+            love.graphics.circle("fill", px, py, size * .5)
+        end
+    elseif job == "toxic" then
+        for i = 1, 5 do
+            local seed = i * 2.3
+            local life = (t * .25 + i * .41) % 1
+            local px = x + w * (.12 + (i - 1) * .2) + math.sin(t * .8 + seed) * 10
+            local py = y + 16 + life * (h - 32)
+            love.graphics.push(); love.graphics.translate(px, py); love.graphics.rotate(math.sin(t + seed) * .6)
+            love.graphics.setColor(.4, .75, .3, (1 - math.abs(life - .5) * 1.7) * .4)
+            love.graphics.ellipse("fill", 0, 0, 7, 3.4)
+            love.graphics.pop()
+        end
+    elseif job == "physical" then
+        for i = 1, 5 do
+            local seed = i * 4.1
+            local life = (t * .7 + i * .31) % 1
+            local px = x + w * (.15 + (i - 1) * .18) + math.sin(t * 1.7 + seed) * 5
+            local py = y + h * .12 + life * h * .76
+            love.graphics.push(); love.graphics.translate(px, py); love.graphics.rotate(t * 3 + seed)
+            love.graphics.setColor(.62, .44, .2, (1 - life) * .42)
+            love.graphics.rectangle("fill", -4, -2, 8, 4)
+            love.graphics.pop()
+        end
+    elseif job == "developer" then
+        love.graphics.setLineWidth(1); love.graphics.setColor(1, .72, .15, .06)
+        for gx = 0, w, 26 do love.graphics.line(x + gx, y, x + gx, y + h) end
+        for gy = 0, h, 26 do love.graphics.line(x, y + gy, x + w, y + gy) end
+        for i = 1, 4 do
+            local seed = i * 5.2
+            local life = (t * .35 + i * .27) % 1
+            local px = x + w * (.2 + (i - 1) * .22)
+            local py = y + h - life * h * .55
+            love.graphics.setColor(.62, .57, .5, (1 - life) * .3)
+            love.graphics.circle("fill", px, py, 4 + life * 6)
+        end
+    else
+        for i = 1, 4 do
+            local seed = i * 6.1
+            local life = (t * .15 + i * .24) % 1
+            local px = x + w * (.15 + (i - 1) * .24) + math.sin(t * .5 + seed) * 8
+            local py = y + h * .18 + life * h * .62
+            love.graphics.setColor(.62, .62, .64, (1 - math.abs(life - .5) * 2) * .28)
+            love.graphics.circle("fill", px, py, 2)
+        end
+    end
+end
+
+local function drawUpgradeCardFrame(x, y, w, h, color, hovered, job, t)
     for i = 3, 1, -1 do
         love.graphics.setColor(color[1], color[2], color[3], .05 * i)
         love.graphics.rectangle("fill", x - i * 4, y - i * 4, w + i * 8, h + i * 8, 14 + i * 3, 14 + i * 3)
@@ -1787,6 +1850,7 @@ local function drawUpgradeCardFrame(x, y, w, h, color, hovered)
     UI.verticalGradient(x, y, w, h, 12, {.045, .04, .038, .99}, {.1, .075, .05, .99}, 64)
     love.graphics.stencil(function() love.graphics.rectangle("fill", x, y, w, h, 12, 12) end, "replace", 1)
     love.graphics.setStencilTest("greater", 0)
+    drawJobFlavorBg(x, y, w, h, job, t)
     love.graphics.setColor(1, 1, 1, .05)
     love.graphics.polygon("fill", x - 20, y, x + w * .38, y, x + w * .1, y + h, x - 60, y + h)
     love.graphics.setStencilTest()
@@ -1844,12 +1908,13 @@ function ClearcutMode:drawSelection(game,fonts)
         local x,y=startX+(i-1)*(cardW+gap),165
         self.choiceBoxes[i]={x=x,y=y,w=cardW,h=cardH}
         local hovered = mx>=x and mx<=x+cardW and my>=y and my<=y+cardH
-        drawUpgradeCardFrame(x,y,cardW,cardH,def.color,hovered)
+        local jobColor = jobFlavorColors[def.job] or universalColor
+        drawUpgradeCardFrame(x,y,cardW,cardH,jobColor,hovered,def.job,t)
         local iconDef = ClearcutMode.icons[def.id == "molotov" and "cigarette" or def.id]
-        drawIconSocket(x+cardW/2,y+108,def.color,iconDef,t)
+        drawIconSocket(x+cardW/2,y+108,jobColor,iconDef,t)
         love.graphics.setColor(.06,.09,.08,.92); love.graphics.rectangle("fill",x+16,y+16,34,30,7,7)
         love.graphics.setFont(fonts.heading); love.graphics.setColor(1,1,1); love.graphics.printf(tostring(i),x+16,y+21,34,"center")
-        love.graphics.setFont(fonts.small); love.graphics.setColor(def.color[1],def.color[2],def.color[3],.9); love.graphics.printf(trackLabels[def.track] or "", x, y+18, cardW, "center")
+        love.graphics.setFont(fonts.small); love.graphics.setColor(jobColor[1],jobColor[2],jobColor[3],.95); love.graphics.printf(trackLabels[def.track] or "", x, y+18, cardW, "center")
         love.graphics.setFont(fonts.heading); love.graphics.setColor(1,1,1); love.graphics.printf(def.name,x+16,y+195,cardW-32,"center")
         love.graphics.setFont(fonts.body); love.graphics.setColor(.72,.82,.77); love.graphics.printf(def.desc,x+28,y+245,cardW-56,"center")
         love.graphics.setColor(1,.75,.25); love.graphics.printf("Lv."..self:levelOf(def.id).." → Lv."..(self:levelOf(def.id)+1),x+20,y+320,cardW-40,"center")
