@@ -1733,17 +1733,19 @@ end
 
 -- 모든 몹 스프라이트 공용 고품질 렌더: 굵은 외곽선 + 실루엣에 클립된 좌상단 하이라이트/우하단 그림자 워시로
 -- 픽셀아트 자체를 새로 안 그려도 확실한 음영 그라데이션이 생기게 한다
+-- 배경이 부드러운 채색 일러스트라서, 외곽선을 순검정 대신 톤을 살짝 남긴 색으로 얇게 두르고
+-- 하이라이트/그림자 워시도 옅게 눌러서 스티커처럼 튀지 않고 배경 위에 자연스럽게 앉도록 한다
 local function drawShadedSprite(sprite, cx, cy, px)
     local gw, gh = #sprite.rows[1], #sprite.rows
     local w, h = gw * px, gh * px
-    if not sprite.outline then sprite.outline = darkenPalette(sprite.palette, .08, 1) end
-    drawPixelGrid(sprite.rows, sprite.outline, cx, cy, px * 1.16)
+    if not sprite.outline then sprite.outline = darkenPalette(sprite.palette, .22, .88) end
+    drawPixelGrid(sprite.rows, sprite.outline, cx, cy, px * 1.08)
     drawPixelGrid(sprite.rows, sprite.palette, cx, cy, px)
     love.graphics.stencil(function() drawPixelGrid(sprite.rows, sprite.palette, cx, cy, px) end, "replace", 1)
     love.graphics.setStencilTest("greater", 0)
-    love.graphics.setColor(1, 1, 1, .17)
+    love.graphics.setColor(1, 1, 1, .11)
     love.graphics.ellipse("fill", cx - w * .18, cy - h * .28, w * .38, h * .32)
-    love.graphics.setColor(0, 0, 0, .2)
+    love.graphics.setColor(0, 0, 0, .13)
     love.graphics.ellipse("fill", cx + w * .16, cy + h * .22, w * .34, h * .3)
     love.graphics.setStencilTest()
 end
@@ -1866,9 +1868,10 @@ local vineSproutRows = {
     "....KKKBBLBBKKK....",
     "...KKKKBBLBBKKKK...",
 }
+-- 배경의 가을숲 채색과 어울리도록 네온 핑크 대신 흙빛이 도는 브릭레드/올리브 톤으로 눌렀다
 local vineSproutPalette = {
-    D={.08,.22,.06,1}, G={.16,.4,.13,1}, R={.72,.14,.22,1}, W={1,.55,.42,1}, S={.05,.14,.04,1},
-    K={.1,.22,.08,1}, B={.2,.42,.14,1}, L={.34,.6,.22,1},
+    D={.09,.16,.07,1}, G={.2,.3,.14,1}, R={.5,.19,.15,1}, W={.82,.52,.32,1}, S={.06,.11,.05,1},
+    K={.11,.15,.08,1}, B={.2,.26,.13,1}, L={.3,.38,.19,1},
 }
 
 -- 덩굴괴수 소환 텔레그래프 전용 새싹 스프라이트: 다 자라기 전 미리보기로, 자라날수록 스케일이 커진다
@@ -1882,7 +1885,7 @@ local vineSproutTipRows = {
     "..KBK..",
     ".KKBKK.",
 }
-local vineSproutTipPalette = {G={.46,.8,.32,1}, L={.34,.6,.22,1}, B={.2,.42,.14,1}, K={.1,.22,.08,1}}
+local vineSproutTipPalette = {G={.38,.56,.26,1}, L={.3,.38,.19,1}, B={.2,.26,.13,1}, K={.11,.15,.08,1}}
 
 local enemySprites = {
     squirrel = {rows = squirrelRows, palette = squirrelPalette},
