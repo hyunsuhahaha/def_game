@@ -1385,10 +1385,12 @@ function ClearcutMode:drawWorldOverlay(game)
     if self.job == "fire" then
         local smoking = self.smoking
         local drag = smoking and math.min(1, smoking.t / smoking.dur) or 0
-        drawPixelGrid(cigaretteIconRows, cigaretteIconPalette, px, py, 2.4)
+        local facing = game.player.facing or 1
+        local mx, my = game.player.x + 3 * facing, game.player.y - 61
+        drawPixelGrid(cigaretteIconRows, cigaretteIconPalette, mx, my, 2.4)
         local emberGlow = (.42 + math.sin(t * (6 + drag * 12)) * .28) * (.7 + drag * .3)
-        love.graphics.setColor(1, .55, .15, emberGlow); love.graphics.circle("fill", px + 15, py + 2, 2.2 + drag * 2.8)
-        local sx, sy = px + 15, py + 1
+        love.graphics.setColor(1, .55, .15, emberGlow); love.graphics.circle("fill", mx + 9 * facing, my + 2, 2.2 + drag * 2.8)
+        local sx, sy = mx + 9 * facing, my + 1
         local strandCount = 2 + (drag > .1 and 1 or 0)
         local height = 50 + drag * 34
         local segments = 16
@@ -1536,12 +1538,13 @@ function ClearcutMode:drawWorldOverlay(game)
         love.graphics.setColor(.78, .78, .8, .2)
         for i = 1, 3 do love.graphics.circle("fill", x - (m.x1 - m.x0) * .015 * i, y - (m.y1 - m.y0) * .015 * i + i * 2.5, 2.5 + i * 1.1) end
         love.graphics.push(); love.graphics.translate(x, y); love.graphics.rotate(p * 20)
-        love.graphics.setColor(0, 0, 0, .3); love.graphics.ellipse("fill", 1, 34, 7, 3)
-        local buttPx = 3.2
+        local buttPx = 0.5
+        local buttScale = buttPx / 3.2
+        love.graphics.setColor(0, 0, 0, .3); love.graphics.ellipse("fill", 1 * buttScale, 34 * buttScale, 7 * buttScale, 3 * buttScale)
         local emberLocalY = -(#cigaretteButtRows * buttPx / 2) + 4 * buttPx
         local fl = .7 + math.sin(t * 30) * .3
-        love.graphics.setColor(1, .5, .12, .5 * fl); love.graphics.circle("fill", 0, emberLocalY, 11 * fl)
-        love.graphics.setColor(1, .78, .3, .35 * fl); love.graphics.circle("fill", 0, emberLocalY, 6 * fl)
+        love.graphics.setColor(1, .5, .12, .5 * fl); love.graphics.circle("fill", 0, emberLocalY, 11 * fl * buttScale)
+        love.graphics.setColor(1, .78, .3, .35 * fl); love.graphics.circle("fill", 0, emberLocalY, 6 * fl * buttScale)
         drawPixelGrid(cigaretteButtRows, cigaretteButtPalette, 0, 0, buttPx)
         love.graphics.pop()
     end
