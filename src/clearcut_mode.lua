@@ -472,14 +472,75 @@ function ClearcutMode:bossSlam(e, game)
     self.bossTelegraphs[#self.bossTelegraphs + 1] = {x = e.x, y = e.y, radius = e.def.slamRadius, phase = "warn", timer = .75, damage = e.def.slamDamage * (e.dmgMul or 1)}
 end
 
+-- 세계수 전용 패턴 1: 플레이어 주변에 여러 지점 동시 예열 후 뿌리가 솟구침 (제자리 회피만으론 못 피함)
+function ClearcutMode:worldTreeRootSpikes(e, game)
+    local count = e.enraged and 6 or 4
+    local dmg = 14 * (e.dmgMul or 1)
+    for i = 1, count do
+        local a = (i / count) * math.pi * 2 + love.math.random() * .6
+        local r = 70 + love.math.random() * 190
+        self.bossTelegraphs[#self.bossTelegraphs + 1] = {
+            x = game.player.x + math.cos(a) * r, y = game.player.y + math.sin(a) * r,
+            radius = 48, phase = "warn", timer = .8, damage = dmg,
+        }
+    end
+    game:setNotice("뿌리가 솟구친다!", "ore")
+end
+
+-- 세계수 전용 패턴 2: 플레이어 방향으로 긴 직선 채찍 — 옆으로 피해야 하는 지향성 공격
+function ClearcutMode:worldTreeVineWhip(e, game)
+    local dx, dy = game.player.x - e.x, game.player.y - e.y
+    local dist = math.sqrt(dx*dx + dy*dy)
+    if dist <= 0 then return end
+    local nx, ny = dx / dist, dy / dist
+    local reach = 420
+    self.bossTelegraphs[#self.bossTelegraphs + 1] = {
+        kind = "line", x1 = e.x, y1 = e.y, x2 = e.x + nx * reach, y2 = e.y + ny * reach,
+        halfWidth = 46, phase = "warn", timer = .65, damage = 16 * (e.dmgMul or 1),
+    }
+    game:setNotice("덩굴 채찍이 날아온다!", "ore")
+end
+
+-- 세계수 종합 AI: 기존 슬램·소환에 더해 뿌리 폭발/덩굴 채찍을 번갈아 쓰고, 체력 35% 이하부터는 격노해서 더 자주 공격한다
+function ClearcutMode:updateWorldTreeAI(e, dt, game)
+    e.rootSpikeTimer = (e.rootSpikeTimer or 3) - dt
+    e.vineWhipTimer = (e.vineWhipTimer or 5.5) - dt
+    e.enraged = e.hp <= e.maxHp * .35
+    if e.enraged and not e.enrageAnnounced then
+        e.enrageAnnounced = true
+        game:setNotice("세계수가 격노한다 — 뿌리와 덩굴이 미쳐 날뛴다!", "ore")
+        if game.camera then game.camera.trauma = math.min(1, game.camera.trauma + .4) end
+    end
+    if e.rootSpikeTimer <= 0 then
+        e.rootSpikeTimer = e.enraged and 2.6 or 4.2
+        self:worldTreeRootSpikes(e, game)
+    end
+    if e.vineWhipTimer <= 0 then
+        e.vineWhipTimer = e.enraged and 3.4 or 5.5
+        self:worldTreeVineWhip(e, game)
+    end
+end
+
 function ClearcutMode:updateBossTelegraphs(dt, game)
     for i = #self.bossTelegraphs, 1, -1 do
         local t = self.bossTelegraphs[i]
         t.timer = t.timer - dt
         if t.phase == "warn" and t.timer <= 0 then
             t.phase, t.timer = "active", .25
-            local dx, dy = game.player.x - t.x, game.player.y - t.y
-            if dx*dx + dy*dy <= t.radius * t.radius then self:damagePlayer(t.damage, game) end
+            local hit
+            if t.kind == "line" then
+                local ex, ey = t.x2 - t.x1, t.y2 - t.y1
+                local len2 = ex * ex + ey * ey
+                local rx, ry = game.player.x - t.x1, game.player.y - t.y1
+                local proj = len2 > 0 and math.max(0, math.min(1, (rx * ex + ry * ey) / len2)) or 0
+                local nx, ny = t.x1 + ex * proj, t.y1 + ey * proj
+                local ddx, ddy = game.player.x - nx, game.player.y - ny
+                hit = ddx * ddx + ddy * ddy <= (t.halfWidth or 40) ^ 2
+            else
+                local dx, dy = game.player.x - t.x, game.player.y - t.y
+                hit = dx * dx + dy * dy <= t.radius * t.radius
+            end
+            if hit then self:damagePlayer(t.damage, game) end
             if game.camera then game.camera.trauma = math.min(1, game.camera.trauma + .4) end
         elseif t.phase == "active" and t.timer <= 0 then
             table.remove(self.bossTelegraphs, i)
@@ -568,6 +629,7 @@ function ClearcutMode:updateEnemies(dt, game)
                 self:spawnThornProjectile(e, game)
             end
         end
+        if e.kind == "worldtree" then self:updateWorldTreeAI(e, dt, game) end
         if def.slamInterval then
             e.slamTimer = e.slamTimer - dt
             if e.slamTimer <= 0 then
@@ -1333,6 +1395,29 @@ local function drawPixelGrid(rows, palette, cx, cy, px)
     end
 end
 
+local function darkenPalette(base, mul, alphaMul)
+    local out = {}
+    for k, c in pairs(base) do out[k] = {c[1] * mul, c[2] * mul, c[3] * mul, c[4] * (alphaMul or 1)} end
+    return out
+end
+
+-- 모든 몹 스프라이트 공용 고품질 렌더: 굵은 외곽선 + 실루엣에 클립된 좌상단 하이라이트/우하단 그림자 워시로
+-- 픽셀아트 자체를 새로 안 그려도 확실한 음영 그라데이션이 생기게 한다
+local function drawShadedSprite(sprite, cx, cy, px)
+    local gw, gh = #sprite.rows[1], #sprite.rows
+    local w, h = gw * px, gh * px
+    if not sprite.outline then sprite.outline = darkenPalette(sprite.palette, .08, 1) end
+    drawPixelGrid(sprite.rows, sprite.outline, cx, cy, px * 1.16)
+    drawPixelGrid(sprite.rows, sprite.palette, cx, cy, px)
+    love.graphics.stencil(function() drawPixelGrid(sprite.rows, sprite.palette, cx, cy, px) end, "replace", 1)
+    love.graphics.setStencilTest("greater", 0)
+    love.graphics.setColor(1, 1, 1, .17)
+    love.graphics.ellipse("fill", cx - w * .18, cy - h * .28, w * .38, h * .32)
+    love.graphics.setColor(0, 0, 0, .2)
+    love.graphics.ellipse("fill", cx + w * .16, cy + h * .22, w * .34, h * .3)
+    love.graphics.setStencilTest()
+end
+
 local squirrelRows = {
     "..OO....",
     ".OBBO.TT",
@@ -1387,25 +1472,31 @@ local entRows = {
 }
 local entPalette = {O={.1,.07,.03,1}, G={.2,.42,.14,1}, g={.28,.55,.2,1}, B={.42,.27,.14,1}, E={1,.82,.2,1}, L={.24,.15,.07,1}}
 
+-- 세계수: 원형 그라데이션 밴딩(중심부일수록 밝게)으로 캐노피 음영을 넣고, 줄기는 짙은/중간/밝은 나무결 3톤 + 황금빛 눈으로 마무리
 local worldTreeRows = {
-    "...OOOOOOOOOOO...",
-    "..OGGGGGGGGGGGO..",
-    ".OGGgGGGGGgGGGGO.",
-    "OGGGGGGgGGGGGGGGO",
-    "OGGgGGGGGGGgGGGGO",
-    ".OGGGGGGGGGGGGGO.",
-    "..OGGGGGGGGGGGO..",
-    "...OOBBBBBBBOO...",
-    "....OBBYYYBBOO...",
-    "....OBBYYYBBOO...",
-    "....OBBBBBBBOO...",
-    "...OOBB.BBBOO....",
-    "..OO.BB.BB.OO....",
-    ".OO..BB.BB..OO...",
-    "OO...OO.OO...OO..",
-    "O....O...O....O..",
+    "........ODO........",
+    ".....ODGGHGGDO.....",
+    "...ODGGGHHHGGGDO...",
+    "..ODGGGGHHHGGGGDO..",
+    ".ODGGGGHHWHHGGGGDO.",
+    ".ODGGGGHHWHHGGGGDO.",
+    ".ODGGGGHHWHHGGGGDO.",
+    "..ODGGGGHHHGGGGDO..",
+    "....ODGGHHHGGDO....",
+    "......ODGHGDO......",
+    ".....OKBBLBBKO.....",
+    ".....OKBYLYBKO.....",
+    ".....OKBYLYBKO.....",
+    "......OKBLBKO......",
+    "......OKBLBKO......",
+    "....OKBBBLBBBKO....",
+    "...OKBBBBLBBBBKO...",
+    "..OKBBBBBLBBBBBKO..",
 }
-local worldTreePalette = {O={.08,.05,.02,1}, G={.18,.4,.16,1}, g={.26,.56,.24,1}, B={.32,.2,.1,1}, Y={1,.9,.45,1}}
+local worldTreePalette = {
+    O={.05,.03,.02,1}, D={.1,.24,.09,1}, G={.18,.4,.16,1}, H={.36,.62,.28,1}, W={.55,.82,.4,1},
+    K={.16,.1,.05,1}, B={.32,.2,.1,1}, L={.5,.36,.2,1}, Y={1,.92,.5,1},
+}
 
 -- 숲의 사신: 짐승이 아니라 두건 쓴 망령 실루엣 — 낫을 든 도끼 사냥꾼 컨셉
 local reaperRows = {
@@ -1694,11 +1785,25 @@ local function drawEnemy(e, t)
             love.graphics.setLineWidth(3); love.graphics.setColor(1, .2, .12, .5 + pulse * .3)
             love.graphics.line(e.x, e.y - bob, e.x + e.reaperDashDx * 260, e.y - bob + e.reaperDashDy * 260)
         end
+    elseif e.kind == "worldtree" and e.enraged then
+        local pulse = .5 + math.sin(t * 6 + seed) * .5
+        love.graphics.setColor(1, .15, .08, .16 + pulse * .12)
+        love.graphics.circle("fill", e.x, e.y - bob - def.radius * .2, def.radius * 1.2)
+        for i = 1, 5 do
+            local a = i / 5 * math.pi * 2 + t * .6
+            local r1, r2 = def.radius * .3, def.radius * (.75 + pulse * .25)
+            love.graphics.setLineWidth(2 + pulse); love.graphics.setColor(1, .25, .1, .6 + pulse * .3)
+            love.graphics.line(e.x + math.cos(a) * r1, e.y - bob + math.sin(a) * r1 * .6, e.x + math.cos(a) * r2, e.y - bob + math.sin(a) * r2 * .6)
+        end
     end
     if sprite then
         local px = (def.radius * 2.1) / #sprite.rows[1]
-        local palette = e.elite and eliteTintPalette(sprite.palette) or sprite.palette
-        drawPixelGrid(sprite.rows, palette, e.x, e.y - bob, px)
+        local drawSprite = sprite
+        if e.elite then
+            local tinted = eliteTintPalette(sprite.palette)
+            drawSprite = {rows = sprite.rows, palette = tinted, outline = darkenPalette(tinted, .08)}
+        end
+        drawShadedSprite(drawSprite, e.x, e.y - bob, px)
     end
     if e.plagueMarked then
         love.graphics.setColor(.5, .9, .35, .3 + math.sin(t * 8) * .12)
@@ -1884,7 +1989,21 @@ function ClearcutMode:drawWorldOverlay(game)
         love.graphics.pop()
     end
     for _, tel in ipairs(self.bossTelegraphs) do
-        if tel.phase == "warn" then
+        if tel.kind == "line" then
+            if tel.phase == "warn" then
+                local pulse = 1 - math.max(0, tel.timer) / .65
+                love.graphics.setLineWidth((tel.halfWidth or 40) * 2 * pulse); love.graphics.setColor(1, .3, .15, .3)
+                love.graphics.line(tel.x1, tel.y1, tel.x2, tel.y2)
+                love.graphics.setLineWidth(4); love.graphics.setColor(1, .4, .2, .85 - pulse * .3)
+                love.graphics.line(tel.x1, tel.y1, tel.x2, tel.y2)
+            else
+                local fade = math.max(0, tel.timer) / .25
+                love.graphics.setLineWidth((tel.halfWidth or 40) * 2); love.graphics.setColor(1, .55, .25, fade * .55)
+                love.graphics.line(tel.x1, tel.y1, tel.x2, tel.y2)
+                love.graphics.setLineWidth(8); love.graphics.setColor(1, .85, .35, fade)
+                love.graphics.line(tel.x1, tel.y1, tel.x2, tel.y2)
+            end
+        elseif tel.phase == "warn" then
             local pulse = 1 - math.max(0, tel.timer) / .75
             love.graphics.setLineWidth(4); love.graphics.setColor(1, .3, .15, .85 - pulse * .3)
             love.graphics.circle("line", tel.x, tel.y, tel.radius * pulse)

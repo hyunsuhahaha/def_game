@@ -27,13 +27,12 @@ function SelfTest.run(game)
     assert(blocked == false, "선행 특성 잠금 실패")
     assert(game.progression:buy("quick_work") and game.progression:buy("quick_work"), "기초 특성 구매 실패")
     assert(game.progression:buy("cargo_rig"), "연결 특성 구매 실패")
-    game.lobby.startBox = {x = 10, y = 10, w = 100, h = 50}
-    game.lobby.rushBox = {x = 10, y = 70, w = 100, h = 50}
+    game.lobby.clearcutBox = {x = 10, y = 10, w = 100, h = 50}
     game.lobby.traitsBox = {x = 120, y = 10, w = 100, h = 50}
     game.lobby.settingsBox = {x = 230, y = 10, w = 100, h = 50}
-    assert(game.lobby:keypressed("return") == "start" and game.lobby:mousepressed(30, 30, 1) == "start", "로비 기본 작전 버튼 실패")
-    assert(game.lobby:keypressed("r") == "rush" and game.lobby:mousepressed(30, 90, 1) == "rush", "로비 채집 러시 버튼 실패")
-    assert(game.lobby:mousepressed(140, 30, 1) == "meta" and game.lobby:mousepressed(250, 30, 1) == "settings", "로비 보조 메뉴 진입 실패")
+    assert(game.lobby:keypressed("return") == "clearcut" and game.lobby:mousepressed(30, 30, 1) == "clearcut", "숲 전멸 전용 로비 시작 버튼 실패")
+    assert(game.lobby:keypressed("t") == "character_traits", "캐릭터 특성 단축키 실패")
+    assert(game.lobby:mousepressed(140, 30, 1) == "character_traits" and game.lobby:mousepressed(250, 30, 1) == "settings", "로비 보조 메뉴 진입 실패")
     game:startRush()
     assert(game.runType=="rush" and game.world.theme=="forest" and game.time==180 and game.player.capacity==99999 and #game.world.nodes>=60, "3분 채집 러시 숲 맵 초기화 실패")
     local rushTree=game.world.nodes[1]
@@ -368,12 +367,37 @@ function SelfTest.run(game)
     assert(game.clearcut.initialTrees > stageBeforeTrees, "다음 스테이지 숲 규모 증가 실패")
     assert(game.clearcut.worldTreeSpawned == false and game.clearcut.worldTree == nil, "스테이지 전환 시 세계수 상태 초기화 실패")
     assert(game.clearcut.pending == pendingBefore + 1 and game.mode == "clearcut_upgrade", "스테이지 클리어 보상 3택 지급 실패")
-    local stage2BossHpMul = game.clearcut.stageBossHpMul
-    assert(stage2BossHpMul > 1, "스테이지 보스 강화 배율 실패")
+    assert(game.clearcut.stageBossHpMul > 1, "스테이지 보스 강화 배율 실패")
     game.clearcut:choose(1, game)
     game.mode = "playing"
     game.clearcut.enemies = {}
-    print("SELF_TEST_OK: LOBBY_DUAL_MODE RUSH_3MIN RUSH_FOREST RUSH_HOLD_TO_CHOP RUSH_MULTI_HIT RUSH_CHAIN_FELL RUSH_AUTO_PICKUP RUSH_THREE_CHOICES RUSH_AUTO_FRONT RUSH_RESULTS LOBBY_AUX_NAV SETTINGS BIG_TREE_SINGLE TREE_PER_HIT_DROP TREE_PROXIMITY_PICKUP QUARRY_GROUNDED QUARRY_PER_HIT_DROP QUARRY_ORE_RATIO QUARRY_PROXIMITY_PICKUP FARM TREE QUARRY_INFINITE TOOL_SPEED IMPACT_SYNC HARVEST_FEEDBACK VISIBLE_TURRET VISIBLE_DRONE VISIBLE_REPAIR_STATION MINING_DRILL_VFX RUN_LEVELUP THREE_CHOICES AUTOMATION EVOLUTION WALL_UPGRADE WALL_BLOCK HAMMER_REPAIR CRIT_CHANCE PRESTIGE_RUN MOVE_WHILE_FARM TURRET_SLOT_BASE TURRET_SLOT_TRAIT TURRET_SLOT_OCCUPIED TURRET_NEARBY TURRET_F_INTERACT TURRET_UPGRADE TURRET_AIM VISIBLE_BULLET MUZZLE_FLASH CHAIN_COIL_VFX EXPLOSIVE_SHELL_VFX META_SAVE TRAIT_TREE TRAIT_APPLY RUN_REWARD TEST_CURRENCY TEST_RESOURCES TEST_LEVELS TEST_RESET CIGARETTE_SMOKE_WINDUP CLEARCUT_CARD_FRAME CURSE_SCALING SWARM_SCALING TIME_SPAWNER ELITE_SPAWN REAPER_SPAWN REAPER_DASH_AI ELITE_THORN_FIRE STAGE_PROGRESSION")
+
+    game.clearcut.bossTelegraphs = {}
+    local wtree = game.clearcut:spawnEnemy("worldtree", game.player.x, game.player.y)
+    game.clearcut:worldTreeRootSpikes(wtree, game)
+    assert(#game.clearcut.bossTelegraphs >= 4, "세계수 뿌리 솟구침 텔레그래프 생성 실패")
+    for _, tel in ipairs(game.clearcut.bossTelegraphs) do
+        assert(tel.phase == "warn" and tel.radius and tel.kind ~= "line", "세계수 뿌리 솟구침 텔레그래프 형태 실패")
+    end
+    game.clearcut.bossTelegraphs = {}
+    wtree.x, wtree.y = game.player.x - 200, game.player.y
+    game.clearcut:worldTreeVineWhip(wtree, game)
+    assert(#game.clearcut.bossTelegraphs == 1 and game.clearcut.bossTelegraphs[1].kind == "line", "세계수 덩굴 채찍 텔레그래프 생성 실패")
+    local vine = game.clearcut.bossTelegraphs[1]
+    vine.phase, vine.timer = "warn", 0
+    game.clearcut.invulnTimer, game.clearcut.dead = 0, false
+    local playerHpBefore = game.clearcut.hp
+    game.clearcut:updateBossTelegraphs(.01, game)
+    assert(vine.phase == "active", "세계수 덩굴 채찍 판정 전환 실패")
+    assert(game.clearcut.hp < playerHpBefore, "세계수 덩굴 채찍 직선 판정 피해 실패")
+
+    wtree.hp, wtree.maxHp = 30, 100
+    wtree.rootSpikeTimer, wtree.vineWhipTimer = 3, 5.5
+    game.clearcut:updateWorldTreeAI(wtree, .01, game)
+    assert(wtree.enraged == true, "세계수 격노 전환 실패")
+    assert(wtree.rootSpikeTimer < 3 and wtree.vineWhipTimer < 5.5, "세계수 격노 후 공격 주기 단축 실패")
+
+    print("SELF_TEST_OK: LOBBY_DUAL_MODE RUSH_3MIN RUSH_FOREST RUSH_HOLD_TO_CHOP RUSH_MULTI_HIT RUSH_CHAIN_FELL RUSH_AUTO_PICKUP RUSH_THREE_CHOICES RUSH_AUTO_FRONT RUSH_RESULTS LOBBY_AUX_NAV SETTINGS BIG_TREE_SINGLE TREE_PER_HIT_DROP TREE_PROXIMITY_PICKUP QUARRY_GROUNDED QUARRY_PER_HIT_DROP QUARRY_ORE_RATIO QUARRY_PROXIMITY_PICKUP FARM TREE QUARRY_INFINITE TOOL_SPEED IMPACT_SYNC HARVEST_FEEDBACK VISIBLE_TURRET VISIBLE_DRONE VISIBLE_REPAIR_STATION MINING_DRILL_VFX RUN_LEVELUP THREE_CHOICES AUTOMATION EVOLUTION WALL_UPGRADE WALL_BLOCK HAMMER_REPAIR CRIT_CHANCE PRESTIGE_RUN MOVE_WHILE_FARM TURRET_SLOT_BASE TURRET_SLOT_TRAIT TURRET_SLOT_OCCUPIED TURRET_NEARBY TURRET_F_INTERACT TURRET_UPGRADE TURRET_AIM VISIBLE_BULLET MUZZLE_FLASH CHAIN_COIL_VFX EXPLOSIVE_SHELL_VFX META_SAVE TRAIT_TREE TRAIT_APPLY RUN_REWARD TEST_CURRENCY TEST_RESOURCES TEST_LEVELS TEST_RESET CIGARETTE_SMOKE_WINDUP CLEARCUT_CARD_FRAME CURSE_SCALING SWARM_SCALING TIME_SPAWNER ELITE_SPAWN REAPER_SPAWN REAPER_DASH_AI ELITE_THORN_FIRE STAGE_PROGRESSION WORLDTREE_ATTACKS WORLDTREE_ENRAGE SHADED_SPRITES")
 end
 
 return SelfTest
