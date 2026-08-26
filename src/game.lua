@@ -277,7 +277,7 @@ function Game:keypressed(key)
     end
     if self.mode == "clearcut_map_select" then
         if key=="escape" then self.mode="clearcut_select"
-        elseif key=="1" or key=="2" or key=="3" or key=="4" then self:chooseClearcutMap(tonumber(key)) end
+        elseif key=="1" or key=="2" or key=="3" or key=="4" or key=="5" then self:chooseClearcutMap(tonumber(key)) end
         return
     end
     if self.mode == "clearcut_select" then
