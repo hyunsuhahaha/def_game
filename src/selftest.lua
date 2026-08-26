@@ -397,7 +397,39 @@ function SelfTest.run(game)
     assert(wtree.enraged == true, "세계수 격노 전환 실패")
     assert(wtree.rootSpikeTimer < 3 and wtree.vineWhipTimer < 5.5, "세계수 격노 후 공격 주기 단축 실패")
 
-    print("SELF_TEST_OK: LOBBY_DUAL_MODE RUSH_3MIN RUSH_FOREST RUSH_HOLD_TO_CHOP RUSH_MULTI_HIT RUSH_CHAIN_FELL RUSH_AUTO_PICKUP RUSH_THREE_CHOICES RUSH_AUTO_FRONT RUSH_RESULTS LOBBY_AUX_NAV SETTINGS BIG_TREE_SINGLE TREE_PER_HIT_DROP TREE_PROXIMITY_PICKUP QUARRY_GROUNDED QUARRY_PER_HIT_DROP QUARRY_ORE_RATIO QUARRY_PROXIMITY_PICKUP FARM TREE QUARRY_INFINITE TOOL_SPEED IMPACT_SYNC HARVEST_FEEDBACK VISIBLE_TURRET VISIBLE_DRONE VISIBLE_REPAIR_STATION MINING_DRILL_VFX RUN_LEVELUP THREE_CHOICES AUTOMATION EVOLUTION WALL_UPGRADE WALL_BLOCK HAMMER_REPAIR CRIT_CHANCE PRESTIGE_RUN MOVE_WHILE_FARM TURRET_SLOT_BASE TURRET_SLOT_TRAIT TURRET_SLOT_OCCUPIED TURRET_NEARBY TURRET_F_INTERACT TURRET_UPGRADE TURRET_AIM VISIBLE_BULLET MUZZLE_FLASH CHAIN_COIL_VFX EXPLOSIVE_SHELL_VFX META_SAVE TRAIT_TREE TRAIT_APPLY RUN_REWARD TEST_CURRENCY TEST_RESOURCES TEST_LEVELS TEST_RESET CIGARETTE_SMOKE_WINDUP CLEARCUT_CARD_FRAME CURSE_SCALING SWARM_SCALING TIME_SPAWNER ELITE_SPAWN REAPER_SPAWN REAPER_DASH_AI ELITE_THORN_FIRE STAGE_PROGRESSION WORLDTREE_ATTACKS WORLDTREE_ENRAGE SHADED_SPRITES")
+    game.clearcut.enemies = {}
+    game.clearcut.berserkState, game.clearcut.berserkTimer, game.clearcut.berserkCycleCount = "idle", 0, 0
+    game.clearcut:updateBerserk(.01, game)
+    assert(game.clearcut.berserkState == "warn", "광폭화 경고 단계 진입 실패")
+    game.clearcut.berserkTimer = 0
+    game.clearcut:updateBerserk(.01, game)
+    assert(game.clearcut.berserkState == "active" and game.clearcut.berserkCycleCount == 1, "광폭화 진행 단계 진입 실패")
+    local berserkEliteFound = false
+    for _, e in ipairs(game.clearcut.enemies) do if e.elite then berserkEliteFound = true end end
+    assert(berserkEliteFound, "광폭화 시작 시 강제 정예 스폰 실패")
+    assert(game.clearcut:berserkMultiplier() > 2, "광폭화 진행 중 스폰 배율 실패")
+    game.clearcut.berserkTimer = 0
+    game.clearcut.kills = game.clearcut.berserkKillsStart + 3
+    game.clearcut:updateBerserk(.01, game)
+    assert(game.clearcut.berserkState == "cooldown", "광폭화 냉각 단계 진입 실패")
+    game.clearcut.berserkTimer = 0
+    game.clearcut:updateBerserk(.01, game)
+    assert(game.clearcut.berserkState == "idle" and game.clearcut.berserkTimer > 0, "광폭화 냉각 후 대기 복귀 실패")
+
+    game.clearcut.rootHazards = {}
+    game.world.nodes[#game.world.nodes+1] = {kind="tree", x=game.player.x+40, y=game.player.y, work=0, workTime=1, active=true, respawn=0, rushTree=true, rushHp=3, rushMaxHp=3}
+    game.clearcut.berserkCycleCount = 2
+    game.clearcut:berserkTreeLash(game)
+    assert(#game.clearcut.rootHazards > 0 and game.clearcut.rootHazards[1].berserk == true, "광폭화 나무 반격 텔레그래프 생성 실패")
+    local berserkHazard = game.clearcut.rootHazards[1]
+    berserkHazard.x, berserkHazard.y = game.player.x, game.player.y
+    berserkHazard.phase, berserkHazard.timer = "warn", 0
+    game.clearcut.invulnTimer, game.clearcut.dead = 0, false
+    local berserkHpBefore = game.clearcut.hp
+    game.clearcut:updateRootHazards(.01, game)
+    assert(game.clearcut.hp < berserkHpBefore, "광폭화 나무 반격 피해 판정 실패")
+
+    print("SELF_TEST_OK: LOBBY_DUAL_MODE RUSH_3MIN RUSH_FOREST RUSH_HOLD_TO_CHOP RUSH_MULTI_HIT RUSH_CHAIN_FELL RUSH_AUTO_PICKUP RUSH_THREE_CHOICES RUSH_AUTO_FRONT RUSH_RESULTS LOBBY_AUX_NAV SETTINGS BIG_TREE_SINGLE TREE_PER_HIT_DROP TREE_PROXIMITY_PICKUP QUARRY_GROUNDED QUARRY_PER_HIT_DROP QUARRY_ORE_RATIO QUARRY_PROXIMITY_PICKUP FARM TREE QUARRY_INFINITE TOOL_SPEED IMPACT_SYNC HARVEST_FEEDBACK VISIBLE_TURRET VISIBLE_DRONE VISIBLE_REPAIR_STATION MINING_DRILL_VFX RUN_LEVELUP THREE_CHOICES AUTOMATION EVOLUTION WALL_UPGRADE WALL_BLOCK HAMMER_REPAIR CRIT_CHANCE PRESTIGE_RUN MOVE_WHILE_FARM TURRET_SLOT_BASE TURRET_SLOT_TRAIT TURRET_SLOT_OCCUPIED TURRET_NEARBY TURRET_F_INTERACT TURRET_UPGRADE TURRET_AIM VISIBLE_BULLET MUZZLE_FLASH CHAIN_COIL_VFX EXPLOSIVE_SHELL_VFX META_SAVE TRAIT_TREE TRAIT_APPLY RUN_REWARD TEST_CURRENCY TEST_RESOURCES TEST_LEVELS TEST_RESET CIGARETTE_SMOKE_WINDUP CLEARCUT_CARD_FRAME CURSE_SCALING SWARM_SCALING TIME_SPAWNER ELITE_SPAWN REAPER_SPAWN REAPER_DASH_AI ELITE_THORN_FIRE STAGE_PROGRESSION WORLDTREE_ATTACKS WORLDTREE_ENRAGE SHADED_SPRITES BERSERK_ROUND")
 end
 
 return SelfTest

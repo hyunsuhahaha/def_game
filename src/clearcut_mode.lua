@@ -77,7 +77,8 @@ function ClearcutMode.new()
         enemies={}, projectiles={}, bossTelegraphs={}, waveFired={}, worldTreeSpawned=false, readyToFinish=false, activeBoss=nil, kills=0,
         chests={}, chestPending=false, molotovShots=0, wildburstTimer=10, plagued={}, dodges=0,
         timeSpawnTimer=18, eliteTimer=200, reaperSpawned=false,
-        stage=1, stageBossHpMul=1
+        stage=1, stageBossHpMul=1,
+        berserkState="idle", berserkTimer=85, berserkCycleCount=0, berserkTreeTimer=0, berserkKillsStart=0
     }, ClearcutMode)
 end
 
@@ -87,6 +88,12 @@ function ClearcutMode:pickupSpeed() return 15 + self:levelOf("magnet") * 4 end
 function ClearcutMode:destructionPct() return self.initialTrees > 0 and math.min(100, (1 - self.remainingTrees / self.initialTrees) * 100) or 0 end
 -- 뱀서라이크식 단일 난이도 다이얼: 진행도와 무관하게 순수 경과시간으로만 오른다 (농성 방지)
 function ClearcutMode:curseLevel() return 1 + (self.elapsed / 60) ^ 1.25 * .16 end
+-- 광폭화 라운드 중 스폰/물량 배율: 경고 단계부터 서서히 조여오다 광란 단계에서 폭증한다
+function ClearcutMode:berserkMultiplier()
+    if self.berserkState == "active" then return 2.4 + self.berserkCycleCount * .25 end
+    if self.berserkState == "warn" then return 1.3 end
+    return 1
+end
 
 function ClearcutMode:setup(game)
     game.runType, game.clearcut = "clearcut", self
@@ -166,6 +173,7 @@ function ClearcutMode:update(dt, game)
     self:updateTimeSpawner(dt, game)
     self:updateEliteTimer(dt, game)
     self:updateReaper(dt, game)
+    self:updateBerserk(dt, game)
     self:updateEnemies(dt, game)
     self:updateProjectiles(dt, game)
     self:updateBossTelegraphs(dt, game)
@@ -253,8 +261,13 @@ function ClearcutMode:updateRootHazards(dt, game)
             if dx*dx + dy*dy <= hazard.radius*hazard.radius then
                 self.rootedTimer = math.max(self.rootedTimer, 1.3)
                 self.rootedCount = self.rootedCount + 1
-                game:setNotice("가시덩굴이 발목을 붙잡았다!", "ore")
                 if game.camera then game.camera.trauma = math.min(1, game.camera.trauma + .3) end
+                if hazard.berserk then
+                    game:setNotice("미쳐버린 나무뿌리가 살을 파고든다!", "ore")
+                    self:damagePlayer(9 + self.berserkCycleCount * 1.5, game)
+                else
+                    game:setNotice("가시덩굴이 발목을 붙잡았다!", "ore")
+                end
             end
             for _ = 1, 14 do game.world:addParticle(hazard.x, hazard.y - 20, {.42, .62, .18}, true, false) end
         elseif hazard.phase == "active" and hazard.timer <= 0 then
@@ -327,7 +340,7 @@ function ClearcutMode:spawnEnemy(kind, x, y, opts)
 end
 
 function ClearcutMode:spawnWave(counts, game)
-    local swarmMul = 1 + (self:curseLevel() - 1) * .6
+    local swarmMul = (1 + (self:curseLevel() - 1) * .6) * self:berserkMultiplier()
     for kind, count in pairs(counts) do
         local scaledCount = math.max(count, math.floor(count * swarmMul + .5))
         for _ = 1, scaledCount do
@@ -344,8 +357,9 @@ function ClearcutMode:updateTimeSpawner(dt, game)
     self.timeSpawnTimer = self.timeSpawnTimer - dt
     if self.timeSpawnTimer > 0 then return end
     local curse = self:curseLevel()
-    self.timeSpawnTimer = math.max(1.6, 6.5 - curse * 1.1)
-    local count = math.floor(1 + curse * 1.4)
+    local berserkMul = self:berserkMultiplier()
+    self.timeSpawnTimer = math.max(.5, (6.5 - curse * 1.1) / berserkMul)
+    local count = math.floor((1 + curse * 1.4) * berserkMul)
     local pool = {"squirrel", "squirrel", "boar"}
     for _ = 1, count do
         local kind = pool[love.math.random(#pool)]
@@ -375,6 +389,66 @@ function ClearcutMode:updateReaper(dt, game)
     self:spawnEnemy("reaper", game.player.x + math.cos(a) * 700, game.player.y + math.sin(a) * 700)
     game:setNotice("숲의 사신이 깨어났다 — 멈추면 죽는다.", "ore")
     if game.camera then game.camera.trauma = math.min(1, game.camera.trauma + .35) end
+end
+
+-- 광폭화 라운드: 주기적으로 찾아오는 하드코어 서지 이벤트. 경고 → 광란 → 냉각 3단계로 돌며,
+-- 광란 중엔 스폰이 폭증하고 근처에 남아있는 나무들이 직접 뿌리를 뻗어 플레이어를 물어뜯는다.
+function ClearcutMode:updateBerserk(dt, game)
+    self.berserkTimer = self.berserkTimer - dt
+    if self.berserkState == "idle" then
+        if self.berserkTimer <= 0 then
+            self.berserkState, self.berserkTimer = "warn", 3.4
+            game:setNotice("숲의 공기가 달라졌다...", "ore")
+            if game.camera then game.camera.trauma = math.min(1, game.camera.trauma + .2) end
+        end
+    elseif self.berserkState == "warn" then
+        if self.berserkTimer <= 0 then
+            self.berserkCycleCount = self.berserkCycleCount + 1
+            local dur = math.min(32, 16 + self.berserkCycleCount * 2.5)
+            self.berserkState, self.berserkTimer, self.berserkTreeTimer, self.berserkKillsStart = "active", dur, 0, self.kills
+            game:setNotice("광폭화 — 숲 전체가 미쳐 날뛴다!!", "ore")
+            if game.camera then game.camera.trauma = math.min(1, game.camera.trauma + .55) end
+            local a = love.math.random() * math.pi * 2
+            self:spawnEnemy(love.math.random() < .5 and "boar" or "squirrel", game.player.x + math.cos(a) * 520, game.player.y + math.sin(a) * 520,
+                {hpMul = 6 + self.berserkCycleCount, speedMul = 1.15, dmgMul = 1.8, elite = true})
+        end
+    elseif self.berserkState == "active" then
+        if game.camera then game.camera.trauma = math.min(1, game.camera.trauma + dt * .12) end
+        self.berserkTreeTimer = self.berserkTreeTimer - dt
+        if self.berserkTreeTimer <= 0 then
+            self.berserkTreeTimer = math.max(.45, 1.6 - self.berserkCycleCount * .1)
+            self:berserkTreeLash(game)
+        end
+        if self.berserkTimer <= 0 then
+            local killed = math.max(0, self.kills - self.berserkKillsStart)
+            local bonus = killed * 4
+            if bonus > 0 then self:onWood(bonus, game) end
+            game:setNotice(string.format("광폭화가 잦아들었다 — 처치 보너스 목재 +%d", bonus), "food")
+            self.berserkState, self.berserkTimer = "cooldown", 1.5
+        end
+    else -- cooldown
+        if self.berserkTimer <= 0 then
+            self.berserkState, self.berserkTimer = "idle", math.max(42, 92 - self.berserkCycleCount * 6)
+        end
+    end
+end
+
+-- 광폭화 중엔 근처에 남아있는 나무가 직접 뿌리를 뻗어 공격한다 (일반 재생 가시덩굴보다 훨씬 아픔)
+function ClearcutMode:berserkTreeLash(game)
+    local candidates = {}
+    for _, node in ipairs(game.world.nodes) do
+        if node.rushTree and node.active then
+            local dx, dy = node.x - game.player.x, node.y - game.player.y
+            if dx*dx + dy*dy < 620*620 then candidates[#candidates+1] = node end
+        end
+    end
+    if #candidates == 0 then return end
+    for i = #candidates, 2, -1 do local j = love.math.random(i); candidates[i], candidates[j] = candidates[j], candidates[i] end
+    local count = math.min(#candidates, 2 + math.floor(self.berserkCycleCount * .4))
+    for i = 1, count do
+        local node = candidates[i]
+        self.rootHazards[#self.rootHazards+1] = {x = node.x, y = node.y, phase = "warn", timer = .5, radius = 105, berserk = true}
+    end
 end
 
 function ClearcutMode:spawnBoss(kind, game)
@@ -2033,8 +2107,42 @@ function ClearcutMode:drawWorldOverlay(game)
     love.graphics.setLineStyle("smooth")
 end
 
+-- 광폭화 경고/진행 중 화면 전체에 붉은 비네트 + 흩날리는 낙엽 파편으로 위협감을 준다 (상태만으로 계산, 별도 입자 리스트 불필요)
+local function drawBerserkOverlay(state, w, h, t)
+    if state ~= "warn" and state ~= "active" then return end
+    local active = state == "active"
+    local pulse = .5 + math.sin(t * (active and 5.5 or 2)) * .5
+    local peak = active and (.4 + pulse * .18) or (.16 + pulse * .1)
+    local depth = active and 170 or 90
+    local steps = 18
+    for i = 0, steps do
+        local p = i / steps
+        local a = peak * (1 - p) ^ 1.6
+        local band = depth / steps + 1
+        love.graphics.setColor(.5, .03, .02, a)
+        love.graphics.rectangle("fill", 0, i * band, w, band)
+        love.graphics.rectangle("fill", 0, h - (i + 1) * band, w, band)
+        love.graphics.rectangle("fill", i * band, 0, band, h)
+        love.graphics.rectangle("fill", w - (i + 1) * band, 0, band, h)
+    end
+    if active then
+        for i = 1, 14 do
+            local seed = i * 3.37
+            local speed = 90 + (i % 5) * 40
+            local x = (t * speed + seed * 220) % (w + 160) - 80
+            local y = (h * ((seed * 1.7) % 1)) + math.sin(t * 2 + seed) * 26
+            love.graphics.push(); love.graphics.translate(x, y); love.graphics.rotate(t * 3 + seed)
+            love.graphics.setColor(.3, .16, .08, .5)
+            love.graphics.polygon("fill", -5, 0, 0, -8, 5, 0, 0, 8)
+            love.graphics.pop()
+        end
+    end
+end
+
 function ClearcutMode:drawHUD(game,fonts)
     local w,h=love.graphics.getDimensions()
+    local t = love.timer.getTime()
+    drawBerserkOverlay(self.berserkState, w, h, t)
     UI.panel(16,16,360,168,{.35,1,.52,1},.94)
     love.graphics.setFont(fonts.big); love.graphics.setColor(1,1,1); love.graphics.print(formatTime(self.elapsed),32,27)
     love.graphics.setFont(fonts.body); love.graphics.setColor(.95,.7,.25); love.graphics.print("STAGE " .. self.stage .. "  ·  " .. (jobNames[self.job] or "벌목꾼"),155,35)
@@ -2074,6 +2182,21 @@ function ClearcutMode:drawHUD(game,fonts)
         UI.panel(w/2-bw/2,96,bw,42,{1,.3,.15,1},.95)
         love.graphics.setFont(fonts.small); love.graphics.setColor(1,.85,.7); love.graphics.printf(boss.def.name,w/2-bw/2,102,bw,"center")
         UI.bar(w/2-bw/2+14,120,bw-28,12,math.max(0,boss.hp/boss.maxHp),{1,.3,.2,1},{.12,.05,.04,.95})
+    end
+
+    if self.berserkState == "warn" or self.berserkState == "active" then
+        local active = self.berserkState == "active"
+        local pulse = .5 + math.sin(t * (active and 6 or 2.4)) * .5
+        local bbw = 300
+        local bbx = w - 16 - bbw
+        love.graphics.setColor(.16 + pulse*.05, .02, .02, .92)
+        love.graphics.rectangle("fill", bbx, 16, bbw, 54, 8, 8)
+        love.graphics.setColor(1, .28 + pulse*.22, .14, .95)
+        love.graphics.rectangle("line", bbx + .5, 16.5, bbw - 1, 53, 8, 8)
+        love.graphics.setFont(fonts.body); love.graphics.setColor(1, .93, .82, 1)
+        love.graphics.printf(active and "광폭화 진행 중" or "광폭화 임박", bbx, 23, bbw, "center")
+        love.graphics.setFont(fonts.small); love.graphics.setColor(1, .78, .68, .92)
+        love.graphics.printf(active and string.format("%.0f초만 버텨라", math.max(0,self.berserkTimer)) or "숲이 곧 폭주한다...", bbx, 47, bbw, "center")
     end
 
     local xpBarW = math.min(520, w*.42)
