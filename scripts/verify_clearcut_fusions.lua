@@ -70,7 +70,8 @@ love.graphics.getDimensions=function() return 1280,720 end
 
 -- One last shockwave level unlocks TWO recipes. Both guaranteed; backlog retained.
 local m,g=setup("physical")
-m.levels={berserker=3,domino=3,shockwave=2};m.pending=3
+local shockwaveMax=m:getUpgradeDefinition("shockwave").max
+m.levels={berserker=m:getUpgradeDefinition("berserker").max,domino=m:getUpgradeDefinition("domino").max,shockwave=shockwaveMax-1};m.pending=3
 m.choices={m:getUpgradeDefinition("shockwave")};g.mode="clearcut_upgrade"
 assert(m:choose(1,g) and m.fusionChoice.id=="collapse" and m.pending==2)
 assert(m:choose(1,g) and m.fusionChoice.id=="frenzy" and m.pending==2)
@@ -83,14 +84,15 @@ fixture.reset();Fusions.drawProgress(m,fonts)
 if FUSION_CAPTURE then fixture.save("docs/previews/fusion-progress-draws.json") end
 
 -- Chest reward is separate from pending XP. Banish cannot sneak through a chest.
-local chest,cg=setup("fire");chest.pending=2;chest.levels={molotov=3,oil_drum=2}
+local chest,cg=setup("fire");chest.pending=2;chest.levels={molotov=chest:getUpgradeDefinition("molotov").max,oil_drum=chest:getUpgradeDefinition("oil_drum").max-1}
 chest.banishArmed=true;chest:openChest(cg)
 assert(not chest.banishArmed and chest.chestPending)
 chest.choices={chest:getUpgradeDefinition("oil_drum")}
 assert(chest:choose(1,cg) and chest.selectionKind=="fusion" and chest.pending==2)
 assert(chest:choose(1,cg) and chest.pending==2 and chest.selectionKind=="upgrade")
 -- A ready fusion cannot consume a newly collected chest or overwrite another modal.
-local deferred,dfg=setup("fire");deferred.levels={molotov=3,oil_drum=3}
+local deferred,dfg=setup("fire");local moloMax,oilMax=deferred:getUpgradeDefinition("molotov").max,deferred:getUpgradeDefinition("oil_drum").max
+deferred.levels={molotov=moloMax,oil_drum=oilMax}
 deferred:openChest(dfg);assert(deferred.selectionKind=="fusion")
 assert(deferred:choose(1,dfg) and deferred.chestPending and #deferred.choices>0)
 local nearby,ng=setup("fire");ng.player.x=0
@@ -111,7 +113,8 @@ assert(banned:choose(1,bg) and banned.choices[1].recovery,"empty banish pool dea
 
 -- Requirement levels come from upgrade definitions, not a second hardcoded max.
 local dynamic,dyg=setup("fire");maxIngredients(dynamic,Fusions.definitions[1])
-local ingredient=dynamic:getUpgradeDefinition("oil_drum");local oldMax=ingredient.max;ingredient.max=4
+local ingredient=dynamic:getUpgradeDefinition("oil_drum");local oldMax=ingredient.max
+ingredient.max=4;dynamic.levels.oil_drum=3
 assert(not Fusions.ready(dynamic,Fusions.definitions[1]))
 dynamic.levels.oil_drum=4;assert(Fusions.ready(dynamic,Fusions.definitions[1]));ingredient.max=oldMax
 
