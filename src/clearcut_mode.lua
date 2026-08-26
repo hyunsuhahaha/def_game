@@ -1356,11 +1356,136 @@ local hardhatIconRows = {
 }
 local hardhatIconPalette = {O={.25,.17,.02,1}, Y={1,.78,.12,1}, W={1,.96,.72,1}}
 
+-- 업그레이드 카드용 아이콘: 원형/다이아몬드/사각/막대 4가지 실루엣 틀을 색상·세부만 바꿔 재사용한다.
+local diamondRows = {
+    "....O....",
+    "...OHO...",
+    "..OHWHO..",
+    ".OHWWWHO.",
+    "OHWWWWWHO",
+    ".OHWWWHO.",
+    "..OHWHO..",
+    "...OHO...",
+    "....O....",
+}
+local blobRows = {
+    "...OOO...",
+    "..OHHHO..",
+    ".OHWWWHO.",
+    "OHWWWWWHO",
+    "OHWWWWWHO",
+    "OHWWWWWHO",
+    ".OHWWWHO.",
+    "..OHHHO..",
+    "...OOO...",
+}
+local boxRows = {
+    ".OOOOOOO.",
+    "OHHHHHHHO",
+    "OHWWWWWHO",
+    "OHWWWWWHO",
+    "OHDDDDDHO",
+    "OHWWWWWHO",
+    "OHWWWWWHO",
+    "OHHHHHHHO",
+    ".OOOOOOO.",
+}
+local stickRows = {
+    "....O....",
+    "...OHO...",
+    "...OHO...",
+    "....O....",
+    "...OTO...",
+    "...OTO...",
+    "...OTO...",
+    "...OTO...",
+    "..OOOOO..",
+}
+
+local wideBladePalette = {O={.15,.17,.2,1}, H={1,1,1,1}, W={.75,.8,.86,1}}
+local berserkerPalette = {O={.28,.08,.04,1}, H={1,.7,.55,1}, W={.85,.42,.3,1}, D={.5,.18,.1,1}}
+local shockwavePalette = {O={.4,.28,.02,1}, H={1,.96,.7,1}, W={1,.8,.25,1}}
+local dryForestPalette = {O={.3,.08,.02,1}, H={1,.85,.4,1}, W={1,.42,.1,1}}
+local demolitionPalette = {O={.3,.05,.02,1}, H={1,.75,.35,1}, W={1,.35,.15,1}}
+local oilDrumPalette = {O={.18,.11,.02,1}, H={1,.82,.4,1}, W={.75,.5,.15,1}, D={.4,.24,.05,1}}
+local siteClearancePalette = {O={.15,.15,.16,1}, H={.85,.85,.85,1}, W={.55,.5,.5,1}, D={.35,.32,.32,1}}
+local herbicidePalette = {O={.2,.1,.28,1}, H={.9,.8,1,1}, T={.6,.4,.85,1}}
+local forcedGrowthPalette = {O={.16,.22,.05,1}, H={.85,.95,.6,1}, T={.4,.72,.22,1}}
+local pileDrivingPalette = {O={.2,.14,.06,1}, H={.92,.85,.7,1}, T={.55,.4,.2,1}}
+local toxicRainPalette = {O={.14,.24,.1,1}, H={.9,.98,.85,1}, W={.6,.85,.5,1}}
+
+local dominoRows = {
+    ".OOOOOOO.",
+    "OHHHHHHHO",
+    "OHWPWPWHO",
+    "OHWWWWWHO",
+    "OHWPWPWHO",
+    "OHWWWWWHO",
+    "OHWPWPWHO",
+    "OHHHHHHHO",
+    ".OOOOOOO.",
+}
+local dominoPalette = {O={.28,.16,.06,1}, H={.95,.88,.72,1}, W={.88,.78,.58,1}, P={.2,.14,.08,1}}
+
+local rootCuttingRows = {
+    "....O....",
+    "...OHO...",
+    "...OHO...",
+    "...OXO...",
+    "..BOTOB..",
+    "...OTO...",
+    "..BOTOB..",
+    "...OTO...",
+    "..OOOOO..",
+}
+local rootCuttingPalette = {O={.15,.18,.24,1}, H={.85,.9,.95,1}, T={.55,.62,.72,1}, B={.4,.48,.58,1}, X={1,.3,.25,1}}
+
+local heavyMachineryRows = {
+    "...OOO...",
+    "..OHHHO..",
+    ".OHWTWHO.",
+    "OHWTWTWHO",
+    "OHWWDWWHO",
+    "OHWTWTWHO",
+    ".OHWTWHO.",
+    "..OHHHO..",
+    "...OOO...",
+}
+local heavyMachineryPalette = {O={.22,.16,.02,1}, H={1,.9,.55,1}, W={.85,.62,.15,1}, T={.6,.42,.08,1}, D={.28,.19,.03,1}}
+
+local embersRows = {
+    "O........",
+    ".........",
+    "....O....",
+    ".........",
+    "..O......",
+    ".........",
+    "......O..",
+    ".........",
+    "O....O...",
+}
+local embersPalette = {O={1,.7,.25,.95}}
+
 ClearcutMode.icons = {
     axe = {rows = axeIconRows, palette = axeIconPalette},
     cigarette = {rows = cigaretteIconRows, palette = cigaretteIconPalette},
     leaf = {rows = leafIconRows, palette = leafIconPalette},
     hardhat = {rows = hardhatIconRows, palette = hardhatIconPalette},
+    wide_blade = {rows = diamondRows, palette = wideBladePalette},
+    berserker = {rows = boxRows, palette = berserkerPalette},
+    shockwave = {rows = diamondRows, palette = shockwavePalette},
+    domino = {rows = dominoRows, palette = dominoPalette},
+    dry_forest = {rows = diamondRows, palette = dryForestPalette},
+    oil_drum = {rows = boxRows, palette = oilDrumPalette},
+    embers = {rows = embersRows, palette = embersPalette},
+    herbicide = {rows = stickRows, palette = herbicidePalette},
+    root_cutting = {rows = rootCuttingRows, palette = rootCuttingPalette},
+    toxic_rain = {rows = blobRows, palette = toxicRainPalette},
+    forced_growth = {rows = stickRows, palette = forcedGrowthPalette},
+    pile_driving = {rows = stickRows, palette = pileDrivingPalette},
+    heavy_machinery = {rows = heavyMachineryRows, palette = heavyMachineryPalette},
+    demolition = {rows = diamondRows, palette = demolitionPalette},
+    site_clearance = {rows = boxRows, palette = siteClearancePalette},
 }
 ClearcutMode.drawPixelGrid = drawPixelGrid
 
@@ -1650,9 +1775,15 @@ function ClearcutMode:drawSelection(game,fonts)
         local x,y=startX+(i-1)*(cardW+gap),165
         self.choiceBoxes[i]={x=x,y=y,w=cardW,h=cardH}
         UI.panel(x,y,cardW,cardH,{def.color[1],def.color[2],def.color[3],1},.97)
-        love.graphics.setColor(def.color[1],def.color[2],def.color[3],.18); love.graphics.circle("fill",x+cardW/2,y+105,62)
-        love.graphics.setColor(def.color); love.graphics.setLineWidth(6); love.graphics.circle("line",x+cardW/2,y+105,38)
-        love.graphics.setFont(fonts.big); love.graphics.setColor(1,1,1); love.graphics.printf(tostring(i),x,y+85,cardW,"center")
+        love.graphics.setColor(def.color[1],def.color[2],def.color[3],.2); love.graphics.circle("fill",x+cardW/2,y+105,64)
+        love.graphics.setLineWidth(2.5); love.graphics.setColor(def.color[1],def.color[2],def.color[3],.75); love.graphics.circle("line",x+cardW/2,y+105,64)
+        local iconDef = ClearcutMode.icons[def.id == "molotov" and "cigarette" or def.id]
+        if iconDef then
+            love.graphics.setColor(0,0,0,.28); love.graphics.ellipse("fill",x+cardW/2+2,y+140,34,9)
+            drawPixelGrid(iconDef.rows, iconDef.palette, x+cardW/2, y+105, 100/#iconDef.rows)
+        end
+        love.graphics.setColor(.06,.09,.08,.92); love.graphics.rectangle("fill",x+16,y+16,34,30,7,7)
+        love.graphics.setFont(fonts.heading); love.graphics.setColor(1,1,1); love.graphics.printf(tostring(i),x+16,y+21,34,"center")
         love.graphics.setFont(fonts.small); love.graphics.setColor(def.color[1],def.color[2],def.color[3],.9); love.graphics.printf(trackLabels[def.track] or "", x, y+18, cardW, "center")
         love.graphics.setFont(fonts.heading); love.graphics.setColor(1,1,1); love.graphics.printf(def.name,x+16,y+190,cardW-32,"center")
         love.graphics.setFont(fonts.body); love.graphics.setColor(.72,.82,.77); love.graphics.printf(def.desc,x+28,y+242,cardW-56,"center")
