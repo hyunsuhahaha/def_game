@@ -1953,6 +1953,8 @@ local function bakeVineSproutCanvas(rows)
     local gw, gh = #rows[1], #rows
     local headRows = 19
     local px = SPRITE_BAKE_PX
+    local SUBDIV = 4
+    local subPx = px / SUBDIV
     local w, h = gw * px, gh * px
     local canvasW, canvasH = math.ceil(w * 1.22), math.ceil(h * 1.12)
     local canvas = love.graphics.newCanvas(canvasW, canvasH, {mipmaps = "manual"})
@@ -1981,26 +1983,34 @@ local function bakeVineSproutCanvas(rows)
             end
         end
         if first then
+            -- 칸 하나를 4x4(=16칸)로 더 쪼개서, 칸 경계에서 색이 뚝 끊기는 대신
+            -- 서브셀 단위 연속 좌표로 그라데이션을 다시 계산한다 — 칸당 단색이 아니라
+            -- 칸 "안"에서도 위치에 따라 색이 계속 바뀌게 만드는 게 핵심.
+            local midPx = originX + ((first - 1) + (last - first + 1) / 2) * px
+            local halfSpanPx = math.max(px, ((last - first + 1) / 2) * px)
             for rx = first, last do
                 if row:sub(rx, rx) ~= "." then
-                    local cx, cy = originX + (rx - .5) * px, originY + (ry - .5) * px
-                    local r, g, b
-                    if ry <= headRows then
-                        local dx, dy = (cx - headCx) / headRx, (cy - headCy) / headRy
-                        local dist = math.min(1, math.sqrt(dx * dx + dy * dy))
-                        local t = dist ^ 1.25
-                        if t < .5 then r, g, b = lerp3(W3, R3, t / .5) else r, g, b = lerp3(R3, D3, (t - .5) / .5) end
-                    else
-                        local mid = (first + last) / 2
-                        local halfSpan = math.max(1, (last - first) / 2)
-                        local t = math.min(1, math.abs(rx - mid) / halfSpan)
-                        if t < .5 then r, g, b = lerp3(L3, B3, t / .5) else r, g, b = lerp3(B3, K3, (t - .5) / .5) end
-                        local depth = (ry - headRows) / (gh - headRows) * .12
-                        r, g, b = r - depth, g - depth, b - depth
+                    for syi = 0, SUBDIV - 1 do
+                        for sxi = 0, SUBDIV - 1 do
+                            local cx = originX + (rx - 1) * px + (sxi + .5) * subPx
+                            local cy = originY + (ry - 1) * px + (syi + .5) * subPx
+                            local r, g, b
+                            if ry <= headRows then
+                                local dx, dy = (cx - headCx) / headRx, (cy - headCy) / headRy
+                                local dist = math.min(1, math.sqrt(dx * dx + dy * dy))
+                                local t = dist ^ 1.25
+                                if t < .5 then r, g, b = lerp3(W3, R3, t / .5) else r, g, b = lerp3(R3, D3, (t - .5) / .5) end
+                            else
+                                local t = math.min(1, math.abs(cx - midPx) / halfSpanPx)
+                                if t < .5 then r, g, b = lerp3(L3, B3, t / .5) else r, g, b = lerp3(B3, K3, (t - .5) / .5) end
+                                local depth = (ry - headRows) / (gh - headRows) * .12
+                                r, g, b = r - depth, g - depth, b - depth
+                            end
+                            local n = (rng:random() - .5) * .045
+                            love.graphics.setColor(math.max(0, r + n), math.max(0, g + n), math.max(0, b + n), 1)
+                            love.graphics.rectangle("fill", cx - subPx / 2, cy - subPx / 2, subPx + 1, subPx + 1)
+                        end
                     end
-                    local n = (rng:random() - .5) * .07
-                    love.graphics.setColor(math.max(0, r + n), math.max(0, g + n), math.max(0, b + n), 1)
-                    love.graphics.rectangle("fill", cx - px / 2, cy - px / 2, px + 1, px + 1)
                 end
             end
         end
