@@ -6,6 +6,7 @@ local CigaretteButtArt = require("src.cigarette_butt_art")
 local ForestArt = require("src.forest_arcade_art")
 local ForestScenery = require("src.forest_scenery")
 local Fusions = require("src.clearcut_fusions")
+local BiomeEnemies = require("src.biome_enemies")
 
 local ClearcutMode = {}
 ClearcutMode.__index = ClearcutMode
@@ -52,6 +53,10 @@ local definitions = {
     {id="backhoe", track="dig", name="굴착기 대여", desc="굴착 한 방의 범위와 위력이 커집니다. 렌탈비는... 나중에 생각하자.", max=3, color={.75,.55,.2}, job="miner"},
     {id="jackpot", track="dig", name="이번엔 진짜 있을 것 같다", desc="가끔 '발견!' 판정이 터져 훨씬 넓은 범위가 한 번에 무너지고 목재를 왕창 얻습니다.", max=3, color={1,.84,.3}, job="miner"},
     {id="brute_force", track="dig", name="브루트포스 어택", desc="주기적으로 무작위 숫자 조합을 사방으로 흩뿌려 닿는 나무와 적에게 피해를 줍니다.", max=3, color={.3,.9,.4}, job="miner"},
+    {id="ddos_attack", track="dig", name="디도스 공격", desc="주기적으로 가장 가까운 대상에게 패킷을 연사해 집중 피해를 줍니다.", max=3, color={1,.45,.25}, job="miner"},
+    {id="ransomware", track="dig", name="랜섬웨어", desc="나무 하나를 감염시켜 지속 피해를 주고, 쓰러지면 가까운 나무로 감염이 옮겨붙습니다.", max=3, color={.7,.15,.2}, job="miner"},
+    {id="zeroday_exploit", track="dig", name="제로데이 익스플로잇", desc="아주 가끔 알려지지 않은 취약점을 찾아내 대상 하나에게 압도적인 피해를 입힙니다.", max=3, color={1,.92,.35}, job="miner"},
+    {id="port_scan", track="dig", name="포트 스캔", desc="주기적으로 주변을 스캔해, 체력이 낮은 나무나 적을 즉시 처리합니다.", max=3, color={.3,.85,.9}, job="miner"},
     -- 독설력 (venom) — 말을 오래 붙잡을수록 사거리와 독성이 강해진다 [차라투스트라는 이렇게 말했다 전용]
     {id="monologue", track="venom", name="아무 말 대잔치", desc="기본 공격이 장광설로 바뀝니다. 마우스 방향으로 계속 침을 튀기며, 말이 길어질수록 사거리와 피해가 늘어납니다.", max=3, color={.75,.85,.3}, job="philosopher"},
     {id="footnote", track="venom", name="각주 남발", desc="말하는 속도가 빨라져 침이 더 자주 튑니다.", max=3, color={.85,.9,.4}, job="philosopher"},
@@ -112,6 +117,8 @@ local enemyDefs = {
     reaper = {name="숲의 사신", hp=550, speed=118, damage=14, radius=24, color={.1,.03,.05}, hitCooldown=.65, reward=60},
     vineSprout = {name="식충 덩굴괴수", hp=42, speed=0, damage=6, radius=27, color={.35,.65,.25}, ranged=true, thornAttack=true, range=360, fireInterval=1.55, reward=7, hitCooldown=1}
 }
+
+for kind,def in pairs(BiomeEnemies.definitions) do enemyDefs[kind]=def end
 
 local function formatTime(value)
     value = math.max(0, math.floor(value))
@@ -184,6 +191,7 @@ function ClearcutMode:setup(game)
     self.mapId=Maps.get(self.mapId).id
     Maps.configure(game.world,self.mapId)
     self.mapWorld=game.world
+    self.mapPlayer=game.player
     local w, h = game.world.width, game.world.height
     local spawnX, spawnY = w / 2, h / 2
     game.player.x, game.player.y = spawnX, spawnY
@@ -452,8 +460,10 @@ function ClearcutMode:igniteEnemiesInRadius(x, y, radius, game, depth)
 end
 
 function ClearcutMode:spawnEnemy(kind, x, y, opts)
+    kind=BiomeEnemies.resolve(self.mapId,kind)
     local def = enemyDefs[kind]
     if not def then return end
+    x,y=BiomeEnemies.spawnPoint(self.mapWorld,self.mapPlayer,kind,x,y)
     x,y=require("src.clearcut_maps").constrain(self.mapWorld,x,y,(def.radius or 20)+8)
     opts = opts or {}
     local curse = self:curseLevel()
@@ -930,7 +940,9 @@ function ClearcutMode:updateEnemies(dt, game)
         e.visualHit = math.max(0, (e.visualHit or 0) - dt)
         e.visualAttack = math.max(0, (e.visualAttack or 0) - dt)
         e.hitTimer = math.max(0, e.hitTimer - dt)
-        if e.kind == "reaper" then
+        if BiomeEnemies.update(e,dt,self,game) then
+            -- Regional attacks own their windup, swept hit and recovery phases.
+        elseif e.kind == "reaper" then
             self:updateReaperAI(e, dt, game)
         elseif def.ranged then
             local dx, dy = game.player.x - e.x, game.player.y - e.y
@@ -1572,6 +1584,10 @@ function ClearcutMode:updateSupplementSkills(dt, game)
     self:updateChainLightning(dt, game)
     self:updateSporeCloud(dt, game)
     self:updateBruteForce(dt, game)
+    self:updateDdosAttack(dt, game)
+    self:updateRansomware(dt, game)
+    self:updateZeroDay(dt, game)
+    self:updatePortScan(dt, game)
     if self.auraPulse then self.auraPulse = math.max(0, self.auraPulse - dt * 2.2) end
 end
 
@@ -1962,6 +1978,217 @@ function ClearcutMode:updateBruteForce(dt, game)
         }
     end
     game:setNotice("브루트포스 어택 — 숫자 조합 흩뿌리기!", "food")
+end
+
+function ClearcutMode:updateDdosAttack(dt, game)
+    self.packets = self.packets or {}
+    for i = #self.packets, 1, -1 do
+        local p = self.packets[i]
+        p.x, p.y = p.x + p.vx * dt, p.y + p.vy * dt
+        p.life = p.life - dt
+        local hit = false
+        if p.life <= 0 then
+            table.remove(self.packets, i)
+        else
+            for _, node in ipairs(game.world.nodes) do
+                if node.rushTree and node.active then
+                    local dx, dy = node.x - p.x, node.y - p.y
+                    if dx*dx + dy*dy <= 14*14 then
+                        node.rushHp = (node.rushHp or node.rushMaxHp) - p.dmg
+                        game.world:impactNode(node, game, false)
+                        if node.rushHp <= 0 then self:fellTree(node, game) end
+                        hit = true
+                        break
+                    end
+                end
+            end
+            if not hit then
+                for _, e in ipairs(self.enemies) do
+                    local dx, dy = e.x - p.x, e.y - p.y
+                    if dx*dx + dy*dy <= 14*14 then
+                        e.hp = e.hp - p.dmg
+                        e.visualHit = .14
+                        hit = true
+                        break
+                    end
+                end
+            end
+            if hit then table.remove(self.packets, i) end
+        end
+    end
+    if self.job ~= "miner" then return end
+    local level = self:levelOf("ddos_attack")
+    if level <= 0 then return end
+    self.ddosBurst = self.ddosBurst or 0
+    self.ddosShotTimer = (self.ddosShotTimer or 0) - dt
+    if self.ddosBurst > 0 and self.ddosShotTimer <= 0 then
+        self.ddosShotTimer = .07
+        self.ddosBurst = self.ddosBurst - 1
+        local dx, dy = self.ddosTargetX - game.player.x, self.ddosTargetY - game.player.y
+        local d = math.sqrt(dx*dx + dy*dy)
+        if d > 0 then
+            self.packets[#self.packets+1] = {x=game.player.x, y=game.player.y, vx=dx/d*620, vy=dy/d*620, life=1, dmg=2+level}
+        end
+    end
+    self.ddosTimer = (self.ddosTimer or 0) - dt
+    if self.ddosTimer > 0 then return end
+    self.ddosTimer = math.max(1.6, 3.4 - level * .5)
+    local best, bestD2 = nil, 620 * 620
+    for _, node in ipairs(game.world.nodes) do
+        if node.rushTree and node.active then
+            local dx, dy = node.x - game.player.x, node.y - game.player.y
+            local d2 = dx*dx + dy*dy
+            if d2 <= bestD2 then best, bestD2 = node, d2 end
+        end
+    end
+    for _, e in ipairs(self.enemies) do
+        local dx, dy = e.x - game.player.x, e.y - game.player.y
+        local d2 = dx*dx + dy*dy
+        if d2 <= bestD2 then best, bestD2 = e, d2 end
+    end
+    if not best then return end
+    self.ddosTargetX, self.ddosTargetY = best.x, best.y
+    self.ddosBurst = 5 + level * 2
+    game:setNotice("DDoS 공격 — 트래픽 폭주!", "food")
+end
+
+function ClearcutMode:updateRansomware(dt, game)
+    self.infections = self.infections or {}
+    for i = #self.infections, 1, -1 do
+        local inf = self.infections[i]
+        local node = inf.node
+        local alive = node.rushTree and node.active
+        if alive then
+            inf.tickTimer = (inf.tickTimer or 0) - dt
+            if inf.tickTimer <= 0 then
+                inf.tickTimer = .6
+                node.rushHp = (node.rushHp or node.rushMaxHp) - inf.dmg
+                game.world:impactNode(node, game, false)
+                if node.rushHp <= 0 then
+                    self:fellTree(node, game)
+                    alive = false
+                    local spreadRadius = 140
+                    local target, bestD2 = nil, spreadRadius * spreadRadius
+                    for _, other in ipairs(game.world.nodes) do
+                        if other.rushTree and other.active and not other.ransomwareMarked then
+                            local dx, dy = other.x - node.x, other.y - node.y
+                            local d2 = dx*dx + dy*dy
+                            if d2 <= bestD2 then target, bestD2 = other, d2 end
+                        end
+                    end
+                    if target then
+                        target.ransomwareMarked = true
+                        self.infections[#self.infections+1] = {node=target, dmg=inf.dmg, tickTimer=.6}
+                    end
+                end
+            end
+        end
+        if not alive then
+            node.ransomwareMarked = nil
+            table.remove(self.infections, i)
+        end
+    end
+    if self.job ~= "miner" then return end
+    local level = self:levelOf("ransomware")
+    if level <= 0 then return end
+    self.ransomwareTimer = (self.ransomwareTimer or 0) - dt
+    if self.ransomwareTimer > 0 then return end
+    self.ransomwareTimer = math.max(2.5, 5 - level)
+    local range = 460
+    local target, bestD2 = nil, range * range
+    for _, node in ipairs(game.world.nodes) do
+        if node.rushTree and node.active and not node.ransomwareMarked then
+            local dx, dy = node.x - game.player.x, node.y - game.player.y
+            local d2 = dx*dx + dy*dy
+            if d2 <= bestD2 then target, bestD2 = node, d2 end
+        end
+    end
+    if not target then return end
+    target.ransomwareMarked = true
+    self.infections[#self.infections+1] = {node=target, dmg=1.5 + level * 1.2, tickTimer=0}
+end
+
+function ClearcutMode:updateZeroDay(dt, game)
+    self.zerodayFx = self.zerodayFx or {}
+    for i = #self.zerodayFx, 1, -1 do
+        local fx = self.zerodayFx[i]
+        fx.life = fx.life - dt
+        if fx.life <= 0 then table.remove(self.zerodayFx, i) end
+    end
+    if self.job ~= "miner" then return end
+    local level = self:levelOf("zeroday_exploit")
+    if level <= 0 then return end
+    self.zerodayTimer = (self.zerodayTimer or 0) - dt
+    if self.zerodayTimer > 0 then return end
+    self.zerodayTimer = math.max(6, 13 - level * 2.5)
+    local range = 700
+    local candidates = {}
+    for _, node in ipairs(game.world.nodes) do
+        if node.rushTree and node.active then
+            local dx, dy = node.x - game.player.x, node.y - game.player.y
+            if dx*dx + dy*dy <= range*range then candidates[#candidates+1] = node end
+        end
+    end
+    for _, e in ipairs(self.enemies) do
+        local dx, dy = e.x - game.player.x, e.y - game.player.y
+        if dx*dx + dy*dy <= range*range then candidates[#candidates+1] = e end
+    end
+    if #candidates == 0 then return end
+    local target = candidates[love.math.random(#candidates)]
+    local dmg = 40 + level * 30
+    if target.rushTree then
+        target.rushHp = (target.rushHp or target.rushMaxHp) - dmg
+        game.world:impactNode(target, game, true)
+        if target.rushHp <= 0 then self:fellTree(target, game) end
+    else
+        target.hp = target.hp - dmg
+        target.visualHit = .2
+    end
+    self:damageEnemiesInRadius(target.x, target.y, 70, dmg * .4, game)
+    self.zerodayFx[#self.zerodayFx+1] = {x=target.x, y=target.y, life=.5, maxLife=.5}
+    game:setNotice("제로데이 익스플로잇 — 치명적 취약점 발견!", "food")
+    if game.camera then game.camera.trauma = math.min(1, game.camera.trauma + .4) end
+end
+
+function ClearcutMode:updatePortScan(dt, game)
+    self.portScanFx = self.portScanFx or {}
+    for i = #self.portScanFx, 1, -1 do
+        local fx = self.portScanFx[i]
+        fx.life = fx.life - dt
+        if fx.life <= 0 then table.remove(self.portScanFx, i) end
+    end
+    if self.job ~= "miner" then return end
+    local level = self:levelOf("port_scan")
+    if level <= 0 then return end
+    self.portScanTimer = (self.portScanTimer or 0) - dt
+    if self.portScanTimer > 0 then return end
+    self.portScanTimer = math.max(1.8, 3.6 - level * .6)
+    local range = 500
+    local threshold = .18 + level * .07
+    for _, node in ipairs(game.world.nodes) do
+        if node.rushTree and node.active then
+            local dx, dy = node.x - game.player.x, node.y - game.player.y
+            if dx*dx + dy*dy <= range*range then
+                local frac = (node.rushHp or node.rushMaxHp) / node.rushMaxHp
+                if frac > 0 and frac <= threshold then
+                    node.rushHp = 0
+                    game.world:impactNode(node, game, true)
+                    self:fellTree(node, game)
+                    self.portScanFx[#self.portScanFx+1] = {x=node.x, y=node.y, life=.3, maxLife=.3}
+                end
+            end
+        end
+    end
+    for _, e in ipairs(self.enemies) do
+        local dx, dy = e.x - game.player.x, e.y - game.player.y
+        if dx*dx + dy*dy <= range*range then
+            local frac = e.hp / e.maxHp
+            if frac > 0 and frac <= threshold then
+                e.hp = 0
+                self.portScanFx[#self.portScanFx+1] = {x=e.x, y=e.y, life=.3, maxLife=.3}
+            end
+        end
+    end
 end
 
 function ClearcutMode:updatePhilosopherAttack(dt, game, heldOverride)
@@ -3225,6 +3452,10 @@ local salivaGlandPalette = {O={.1,.15,.03,1}, H={.78,.92,.42,1}, W={.55,.72,.25,
 local boomerangAxePalette = {O={.14,.09,.05,1}, M={.75,.77,.8,1}, H={.55,.55,.6,1}}
 local sporeCloudPalette = {O={.2,.14,.24,1}, H={.85,.72,.95,1}, W={.62,.45,.72,1}}
 local bruteForcePalette = {O={.05,.2,.08,1}, H={.55,1,.6,1}, W={.25,.85,.35,1}}
+local ddosPalette = {O={.28,.08,.02,1}, H={1,.7,.4,1}, W={1,.4,.2,1}, D={.6,.2,.08,1}}
+local ransomwarePalette = {O={.18,.03,.04,1}, H={.85,.35,.4,1}, W={.55,.1,.14,1}}
+local zerodayPalette = {O={.28,.24,.02,1}, H={1,1,.75,1}, W={1,.9,.3,1}}
+local portScanPalette = {O={.03,.2,.22,1}, H={.7,.98,1,1}, W={.3,.8,.88,1}}
 
 local dominoRows = {
     ".OOOOOOO.",
@@ -3317,11 +3548,16 @@ ClearcutMode.icons = {
     chain_lightning = {rows = lightningIconRows, palette = lightningIconPalette},
     spore_cloud = {rows = blobRows, palette = sporeCloudPalette},
     brute_force = {rows = boxRows, palette = bruteForcePalette},
+    ddos_attack = {rows = boxRows, palette = ddosPalette},
+    ransomware = {rows = blobRows, palette = ransomwarePalette},
+    zeroday_exploit = {rows = diamondRows, palette = zerodayPalette},
+    port_scan = {rows = boxRows, palette = portScanPalette},
 }
 ClearcutMode.drawPixelGrid = drawPixelGrid
 
 -- Threat markers remain above the canopy for combat readability; bodies do not.
 local function drawEnemyThreat(e, t)
+    BiomeEnemies.drawWarning(e)
     local def = e.def
     local walking = def.speed > 0 and (e.moving or false)
     local seed = e.seed or 0
@@ -3506,6 +3742,52 @@ function ClearcutMode:drawSupplementSkills(game, t)
             love.graphics.print(d.glyph, math.floor(d.x + 1.5), math.floor(d.y + 1.5))
             love.graphics.setColor(.4, 1, .5, a)
             love.graphics.print(d.glyph, math.floor(d.x - 5), math.floor(d.y - 8))
+        end
+    end
+    if self.packets then
+        for _, p in ipairs(self.packets) do
+            love.graphics.push()
+            love.graphics.translate(p.x, p.y)
+            love.graphics.rotate(math.atan2 and math.atan2(p.vy, p.vx) or math.atan(p.vy, p.vx))
+            love.graphics.setColor(1, .45, .2, .9)
+            love.graphics.rectangle("fill", -6, -3, 12, 6)
+            love.graphics.setColor(1, .85, .5, .9)
+            love.graphics.rectangle("fill", -2, -1.5, 6, 3)
+            love.graphics.pop()
+        end
+    end
+    if self.infections then
+        for _, inf in ipairs(self.infections) do
+            local node = inf.node
+            if node.rushTree and node.active then
+                local pulse = .5 + math.sin(t * 6) * .5
+                love.graphics.setColor(.75, .15, .2, .3 + pulse * .25)
+                love.graphics.circle("fill", node.x, node.y - 20, 26 + pulse * 6)
+                love.graphics.setLineWidth(2)
+                love.graphics.setColor(1, .3, .3, .8)
+                love.graphics.circle("line", node.x, node.y - 20, 26)
+                love.graphics.setLineWidth(1)
+            end
+        end
+    end
+    if self.zerodayFx then
+        for _, fx in ipairs(self.zerodayFx) do
+            local p = 1 - fx.life / fx.maxLife
+            love.graphics.setLineWidth(4 * (1 - p) + 1)
+            love.graphics.setColor(1, .95, .4, (1 - p) * .95)
+            love.graphics.circle("line", fx.x, fx.y, 12 + p * 90)
+            love.graphics.setColor(1, 1, .8, (1 - p) * .5)
+            love.graphics.circle("fill", fx.x, fx.y, 30 * (1 - p))
+            love.graphics.setLineWidth(1)
+        end
+    end
+    if self.portScanFx then
+        for _, fx in ipairs(self.portScanFx) do
+            local p = 1 - fx.life / fx.maxLife
+            love.graphics.setLineWidth(2)
+            love.graphics.setColor(.4, .95, 1, (1 - p) * .9)
+            love.graphics.circle("line", fx.x, fx.y, 8 + p * 44)
+            love.graphics.setLineWidth(1)
         end
     end
 end
