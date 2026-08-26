@@ -164,8 +164,27 @@ end
 
 function ClearcutMode:levelOf(id) return self.levels[id] or 0 end
 function ClearcutMode:getUpgradeDefinition(id) return upgradeById[id] end
-function ClearcutMode:pickupRadius() return 165 + self:levelOf("magnet") * 95 end
-function ClearcutMode:pickupSpeed() return 15 + self:levelOf("magnet") * 4 end
+-- 레벨→실질 파워 곡선 (만렙 3→6 확장에 맞춘 재설계).
+-- 초반 픽은 완만하고, 3레벨이 옛 만렙과 거의 같고, 6레벨에서 옛 만렙의 약 1.87배로 마무리된다.
+-- 파워 스케일링(범위/피해/사거리 등)엔 이걸 쓰고, "만렙에서만" 발동하는 보너스 판정은 levelOf(id)>=6으로 확인한다.
+local levelCurve = {0, .5, 1.2, 2.0, 3.0, 4.2, 5.6}
+function ClearcutMode:power(id)
+    local lvl = self:levelOf(id)
+    if lvl <= 0 then return 0 end
+    if lvl >= 6 then return levelCurve[7] end
+    local lo, hi = math.floor(lvl), math.ceil(lvl)
+    if lo == hi then return levelCurve[lo + 1] end
+    local frac = lvl - lo
+    return levelCurve[lo + 1] + (levelCurve[hi + 1] - levelCurve[lo + 1]) * frac
+end
+-- 개수/횟수처럼 정수여야 하는 값용: 커브를 따르되 한 포인트라도 찍으면 최소 1은 보장한다
+-- (그렇지 않으면 초반 커브 값이 1 미만이라 "찍었는데 아무 효과 없음"이 되어버린다).
+function ClearcutMode:powerCount(id)
+    if self:levelOf(id) <= 0 then return 0 end
+    return math.max(1, math.floor(self:power(id)))
+end
+function ClearcutMode:pickupRadius() return 165 + self:power("magnet") * 95 end
+function ClearcutMode:pickupSpeed() return 15 + self:power("magnet") * 4 end
 function ClearcutMode:destructionPct() return self.initialTrees > 0 and math.min(100, (1 - self.remainingTrees / self.initialTrees) * 100) or 0 end
 -- 뱀서라이크식 단일 난이도 다이얼: 진행도와 무관하게 순수 경과시간으로만 오른다 (농성 방지)
 function ClearcutMode:curseLevel() return 1 + (self.elapsed / 60) ^ 1.25 * .16 * (self.curseBoostMul or 1) end
@@ -213,14 +232,19 @@ function ClearcutMode:generateForest(game, target)
     local Maps=require("src.clearcut_maps")
     local w, h = game.world.width, game.world.height
     local spawnX, spawnY = w / 2, h / 2
-    local attempts, minSep = 0, game.world.clearcutMap=="island" and 70 or 108
-    -- Large islands need more land samples in later stages; keep sea and paths empty.
-    local attemptLimit=game.world.clearcutMap=="island" and math.max(12000,target*70) or 12000
+    local minSepBase = game.world.clearcutMap=="island" and 70 or (game.world.clearcutMap=="beginner" and 130 or 108)
+    local minSepFloor = game.world.clearcutMap=="island" and 42 or (game.world.clearcutMap=="beginner" and 64 or 60)
+    local attempts, minSep = 0, minSepBase
+    -- Large islands (and the beginner map's tighter world, which needs many relax cycles
+    -- to walk minSep down from its sparse starting value) need more land samples in later stages.
+    local attemptLimit=game.world.clearcutMap=="island" and math.max(12000,target*70)
+        or game.world.clearcutMap=="beginner" and math.max(30000,target*150)
+        or 12000
     while #game.world.nodes < target and attempts < attemptLimit do
         attempts = attempts + 1
         -- New open pockets must not reduce later stages' tree objectives.
         -- Relax spacing only after a dense placement pass stalls; never fill paths.
-        if attempts%1800==0 then minSep=math.max(game.world.clearcutMap=="island" and 42 or 60,minSep-8) end
+        if attempts%1800==0 then minSep=math.max(minSepFloor,minSep-8) end
         local x = love.math.random(130, w - 130)
         local y = love.math.random(130, h - 130)
         local sdx, sdy = x - spawnX, y - spawnY
@@ -332,8 +356,8 @@ function ClearcutMode:regrowPulse(game)
     if #activeTrees == 0 then return end
     local minutes = self.elapsed / 60
     local base = math.min(.16, .02 + minutes * .022)
-    local suppress = math.min(.75, self:levelOf("root_cutting") * .16)
-    local boost = self:levelOf("forced_growth") * .5
+    local suppress = math.min(.75, self:power("root_cutting") * .16)
+    local boost = self:power("forced_growth") * .5
     local regrowPct = base * (1 - suppress) * (1 + boost)
     local radius = 230
     local candidates = {}
@@ -420,7 +444,7 @@ end
 function ClearcutMode:damagePlayer(amount, game)
     if self.dead or self.invulnTimer > 0 or amount <= 0 then return end
     amount = amount * (self.dmgTakenMul or 1)
-    if self:levelOf("berserker") >= 3 and self.streak >= 10 then
+    if self:levelOf("berserker") >= 6 and self.streak >= 10 then
         self.dodges = self.dodges + 1
         self.invulnTimer = .2
         game:setNotice("칼퇴 직전 폭주 — 회피!", "food")
@@ -1041,7 +1065,7 @@ function ClearcutMode:throwMolotov(game)
     self.molotovs[#self.molotovs+1] = {
         x0=tipX, y0=mouthY, x1=target.x+28, y1=target.y+22,
         t=0, dur=math.max(.34, dist/850), target=target,
-        radius=90+self:levelOf("molotov")*20+self.permanentTraits.area, landingAngle=.18+math.sin(target.x*.013)*.6
+        radius=90+self:power("molotov")*20+self.permanentTraits.area, landingAngle=.18+math.sin(target.x*.013)*.6
     }
     self:trackMolotovBarrage(game)
     for _ = 1, math.floor(self.permanentTraits.extraFires) do
@@ -1050,7 +1074,7 @@ function ClearcutMode:throwMolotov(game)
 end
 
 function ClearcutMode:trackMolotovBarrage(game)
-    if self:levelOf("molotov") < 3 then return end
+    if self:levelOf("molotov") < 6 then return end
     self.molotovShots = self.molotovShots + 1
     if self.molotovShots % 3 == 0 then
         game:setNotice("줄담배 — 꽁초 투척 만렙 특수효과!", "food")
@@ -1067,7 +1091,7 @@ function ClearcutMode:hurlMolotovAt(tx, ty, game, isBarrage)
     local _,mouthY,_,tipX=self:smokerMouthPose(game)
     self.molotovs[#self.molotovs+1] = {
         x0=tipX, y0=mouthY, x1=tx, y1=ty,
-        t=0, dur=math.max(.34, dist/850), manual=true, radius=90 + self:levelOf("molotov") * 20 + self.permanentTraits.area,
+        t=0, dur=math.max(.34, dist/850), manual=true, radius=90 + self:power("molotov") * 20 + self.permanentTraits.area,
         landingAngle=.18+math.sin(tx*.013+ty*.017)*.6
     }
     if not isBarrage then
@@ -1084,9 +1108,9 @@ end
 
 function ClearcutMode:onTreeBurnedDown(node, game)
     local oilLevel = self:levelOf("oil_drum")
-    local oilChance = oilLevel >= 3 and 1 or oilLevel * .15
+    local oilChance = oilLevel >= 6 and 1 or self:power("oil_drum") * .15
     if oilLevel > 0 and love.math.random() < oilChance then
-        self:igniteNear(node, game, 90 + oilLevel * 30, 99)
+        self:igniteNear(node, game, 90 + self:power("oil_drum") * 30, 99)
         game.world:igniteFx(node.x, node.y, true)
     end
     local emberLevel = self:levelOf("embers")
@@ -1100,12 +1124,12 @@ function ClearcutMode:onTreeBurnedDown(node, game)
             end
         end
         table.sort(far, function(a, b) return a.d2 > b.d2 end)
-        for i = 1, math.min(emberLevel, #far) do
+        for i = 1, math.min(self:powerCount("embers"), #far) do
             local target = far[i].node
             target.burning, target.burnTimer, target.emberChained = true, 0, true
             target.spreadDepth, target.fireTickTimer = (node.spreadDepth or 0) + 1, 0
             game.world:igniteFx(target.x, target.y, false)
-            if emberLevel >= 3 then self:igniteNear(target, game, 90, 2, target.spreadDepth) end
+            if emberLevel >= 6 then self:igniteNear(target, game, 90, 2, target.spreadDepth) end
         end
     end
 end
@@ -1114,7 +1138,7 @@ function ClearcutMode:updateFire(dt, game)
     local molotovLevel = self:levelOf("molotov")
     if molotovLevel > 0 then
         self.molotovTimer = self.molotovTimer + dt
-        local interval = math.max(2.6, 8 - molotovLevel * 1.6)
+        local interval = math.max(2.6, 8 - self:power("molotov") * 1.6)
         if self.molotovTimer >= interval then
             self.molotovTimer = 0
             self:throwMolotov(game)
@@ -1128,14 +1152,15 @@ function ClearcutMode:updateFire(dt, game)
         end
     end
     local dryLevel = self:levelOf("dry_forest")
-    local spreadChancePerSec = .12 + dryLevel * .14 + self.permanentTraits.spreadChance
-    local spreadRadius = 130 + dryLevel * 45
+    local dryPower = self:power("dry_forest")
+    local spreadChancePerSec = .12 + dryPower * .14 + self.permanentTraits.spreadChance
+    local spreadRadius = 130 + dryPower * 45
     if self.evolutions.wildfire then
         spreadRadius=spreadRadius*1.35
         spreadChancePerSec=spreadChancePerSec*1.5
     end
-    local burnDuration = math.max(2.2, (3.6 - dryLevel * .35) / self.permanentTraits.burnSpeed)
-    if dryLevel >= 3 then
+    local burnDuration = math.max(2.2, (3.6 - dryPower * .35) / self.permanentTraits.burnSpeed)
+    if dryLevel >= 6 then
         self.wildburstTimer = self.wildburstTimer - dt
         if self.wildburstTimer <= 0 then
             self.wildburstTimer = 10
@@ -1167,7 +1192,7 @@ function ClearcutMode:updateFire(dt, game)
         end
     end
     local emberLevel = self:levelOf("embers")
-    local enemyBurnDamage = 5 + molotovLevel * 3 + emberLevel * 2
+    local enemyBurnDamage = 5 + self:power("molotov") * 3 + self:power("embers") * 2
     for _, e in ipairs(self.enemies) do
         if e.burning then
             e.burnTimer = e.burnTimer + dt
@@ -1182,7 +1207,7 @@ function ClearcutMode:updateFire(dt, game)
             if e.burnTimer >= burnDuration then
                 e.burning = false
                 if emberLevel > 0 and e.hp > 0 then
-                    self:igniteEnemiesInRadius(e.x, e.y, 90 + emberLevel * 30, game, (e.spreadDepth or 0) + 1)
+                    self:igniteEnemiesInRadius(e.x, e.y, 90 + self:power("embers") * 30, game, (e.spreadDepth or 0) + 1)
                 end
             end
         end
@@ -1192,18 +1217,19 @@ end
 function ClearcutMode:updateToxicRain(dt, game)
     local lvl = self:levelOf("toxic_rain")
     if lvl == 0 then return end
+    local power = self:power("toxic_rain")
     self.toxicTimer = self.toxicTimer + dt
-    local interval = math.max(2, 6 - lvl * 1.2)
+    local interval = math.max(2, 6 - power * 1.2)
     if self.toxicTimer < interval then return end
     self.toxicTimer = 0
-    local radius = 120 + lvl * 20
+    local radius = 120 + power * 20
     for _, node in ipairs(game.world.nodes) do
         if node.rushTree and (node.active or self.evolutions.necrosis) then
             local dx, dy = node.x - game.player.x, node.y - game.player.y
             if dx*dx + dy*dy <= radius*radius then
                 if self.evolutions.necrosis then node.sterile=true end
                 if node.active then
-                    node.rushHp = (node.rushHp or node.rushMaxHp) - lvl
+                    node.rushHp = (node.rushHp or node.rushMaxHp) - power
                     game.world:impactNode(node, game, false)
                     if node.rushHp <= 0 then self:fellTree(node, game) end
                 end
@@ -1247,7 +1273,7 @@ function ClearcutMode:onTreeFallen(node, game)
     local dominoLevel = self:levelOf("domino")
     if dominoLevel == 0 then return end
     if node.dominoChild and not self.evolutions.collapse then return end
-    local reach = 90 + dominoLevel * 40
+    local reach = 90 + self:power("domino") * 40
     local dirX = node.fallDir or 1
     local tx, ty = node.x + dirX * reach, node.y
     local best, bestD
@@ -1284,9 +1310,8 @@ function ClearcutMode:closestTreeInAxeRange(game)
 end
 
 function ClearcutMode:berserkerSpeedMult()
-    local lvl = self:levelOf("berserker")
-    if lvl == 0 then return 1 end
-    return 1 + lvl * .07 * math.min(self.streak, 14)
+    if self:levelOf("berserker") == 0 then return 1 end
+    return 1 + self:power("berserker") * .07 * math.min(self.streak, 14)
 end
 
 function ClearcutMode:updateHeldAxe(dt, game, heldOverride)
@@ -1302,7 +1327,7 @@ function ClearcutMode:updatePhysicalAttack(dt, game, heldOverride)
     local held = heldOverride
     if held == nil then held = love.mouse.isDown(1) end
     game.player.axeHolding = held
-    self.axeRange = 150 + self:levelOf("wide_blade") * 20 + self.permanentTraits.range
+    self.axeRange = 150 + self:power("wide_blade") * 20 + self.permanentTraits.range
     game.player.axeRange = self.axeRange
     self.axeCooldown = math.max(0, self.axeCooldown - dt)
     if not held or self.axeCooldown > 0 then return false end
@@ -1330,9 +1355,9 @@ end
 function ClearcutMode:updateFireAttack(dt, game, heldOverride)
     local held = heldOverride
     if held == nil then held = love.mouse.isDown(1) end
-    local maxRange = 320 + self:levelOf("molotov") * 40 + self.permanentTraits.range
+    local maxRange = 320 + self:power("molotov") * 40 + self.permanentTraits.range
     local tx, ty = self:aimPoint(game, maxRange)
-    self.aimX, self.aimY, self.aimRadius = tx, ty, 90 + self:levelOf("molotov") * 20 + self.permanentTraits.area
+    self.aimX, self.aimY, self.aimRadius = tx, ty, 90 + self:power("molotov") * 20 + self.permanentTraits.area
     if not self.smoking then self:startSmoking(game) end
     local smoking = self.smoking
     local pressed = held and not self.smokerHeldLast
@@ -1422,9 +1447,9 @@ end
 function ClearcutMode:updateToxicAttack(dt, game, heldOverride)
     local held = heldOverride
     if held == nil then held = love.mouse.isDown(1) end
-    local maxRange = 260 + self:levelOf("toxic_rain") * 40 + self.permanentTraits.range
+    local maxRange = 260 + self:power("toxic_rain") * 40 + self.permanentTraits.range
     local tx, ty = self:aimPoint(game, maxRange)
-    self.aimX, self.aimY, self.aimRadius = tx, ty, 90 + self:levelOf("toxic_rain") * 25 + self.permanentTraits.area
+    self.aimX, self.aimY, self.aimRadius = tx, ty, 90 + self:power("toxic_rain") * 25 + self.permanentTraits.area
     if self.veganAction then
         local action = self.veganAction
         action.t = math.min(action.dur, action.t + dt)
@@ -1454,8 +1479,8 @@ function ClearcutMode:updateToxicAttack(dt, game, heldOverride)
 end
 
 function ClearcutMode:applyVeganBite(tx, ty, game)
-    local dmg = 2 + self:levelOf("toxic_rain") + self.permanentTraits.biteDamage
-    local plagueLv3 = self:levelOf("toxic_rain") >= 3
+    local dmg = 2 + self:power("toxic_rain") + self.permanentTraits.biteDamage
+    local plagueLv3 = self:levelOf("toxic_rain") >= 6
     local plagueTimer = 4 + self.permanentTraits.plagueDuration
     -- Reach = however many trees fall inside the bite radius, plus a few more of the
     -- next-closest trees when extraTargets lets the bite snipe past its usual edge.
@@ -1504,9 +1529,9 @@ end
 function ClearcutMode:updateMinerAttack(dt, game, heldOverride)
     local held = heldOverride
     if held == nil then held = love.mouse.isDown(1) end
-    local maxRange = 220 + self:levelOf("detector") * 30 + self.permanentTraits.range
+    local maxRange = 220 + self:power("detector") * 30 + self.permanentTraits.range
     local tx, ty = self:aimPoint(game, maxRange)
-    self.aimX, self.aimY, self.aimRadius = tx, ty, 70 + self:levelOf("detector") * 12 + self:levelOf("deep_scan") * 22 + self.permanentTraits.area
+    self.aimX, self.aimY, self.aimRadius = tx, ty, 70 + self:power("detector") * 12 + self:power("deep_scan") * 22 + self.permanentTraits.area
     if self.digAction then
         local action = self.digAction
         action.t = math.min(action.dur, action.t + dt)
@@ -1527,7 +1552,7 @@ function ClearcutMode:updateMinerAttack(dt, game, heldOverride)
     end
     self.attackCooldown = math.max(0, self.attackCooldown - dt)
     if not held or self.attackCooldown > 0 then return false end
-    local speed = (game.tools.axe.speed or 1) * game.player.gather * (1 + self:levelOf("deep_scan") * .12) * self.permanentTraits.attackSpeed
+    local speed = (game.tools.axe.speed or 1) * game.player.gather * (1 + self:power("deep_scan") * .12) * self.permanentTraits.attackSpeed
     self.digAction = {t=0, dur=math.max(.42, .78/speed), tx=tx, ty=ty, dug=false}
     game.player.facing = tx < game.player.x and -1 or 1
     if game.player.setClearcutAction then game.player:setClearcutAction(0) end
@@ -1535,9 +1560,9 @@ function ClearcutMode:updateMinerAttack(dt, game, heldOverride)
 end
 
 function ClearcutMode:applyDig(tx, ty, game, isBonus)
-    local backhoeLevel = self:levelOf("backhoe")
-    local radius = (self.aimRadius or 70) * (isBonus and 2.2 or 1) + backhoeLevel * 14
-    local dmg = 4 + self:levelOf("detector") * 2 + backhoeLevel * 2.5 + self.permanentTraits.treeDamage
+    local backhoePower = self:power("backhoe")
+    local radius = (self.aimRadius or 70) * (isBonus and 2.2 or 1) + backhoePower * 14
+    local dmg = 4 + self:power("detector") * 2 + backhoePower * 2.5 + self.permanentTraits.treeDamage
     for _, node in ipairs(game.world.nodes) do
         if node.rushTree and node.active then
             local dx, dy = node.x - tx, node.y - ty
@@ -1552,11 +1577,12 @@ function ClearcutMode:applyDig(tx, ty, game, isBonus)
     self.traitFx:emit("construction_blast", tx, ty, {radius=radius, particles=isBonus and 40 or 20, power=isBonus and 1.4 or .95})
     if game.camera then game.camera.trauma = math.min(1, game.camera.trauma + (isBonus and .38 or .16)) end
     local jackpotLevel = self:levelOf("jackpot")
-    local jackpotChance = (jackpotLevel > 0 and (.06 + jackpotLevel * .07) or 0) + (self.evolutions.goldrush and .1 or 0) + self.permanentTraits.executeChance
+    local jackpotPower = self:power("jackpot")
+    local jackpotChance = (jackpotLevel > 0 and (.06 + jackpotPower * .07) or 0) + (self.evolutions.goldrush and .1 or 0) + self.permanentTraits.executeChance
     if not isBonus and jackpotChance > 0 and love.math.random() < jackpotChance then
         game:setNotice("발견?! — 대박 굴착 발생!", "food")
         self:applyDig(tx, ty, game, true)
-        self:onWood(30 + jackpotLevel * 20, game)
+        self:onWood(30 + jackpotPower * 20, game)
     end
     if not isBonus then
         for _ = 1, math.floor(self.permanentTraits.extraTargets) do
@@ -1601,14 +1627,15 @@ end
 function ClearcutMode:updateBatSwarm(dt, game)
     local level = self:levelOf("bat_swarm")
     if level <= 0 then self.bats = nil; return end
-    local count = level + 1
+    local power = self:power("bat_swarm")
+    local count = self:powerCount("bat_swarm") + 1
     self.bats = self.bats or {}
     for i = 1, count do
         self.bats[i] = self.bats[i] or {angle = (i / count) * math.pi * 2, hitTimer = 0}
     end
     for i = #self.bats, count + 1, -1 do self.bats[i] = nil end
-    local radius = 78 + level * 8
-    local dmg = 1 + level * .6
+    local radius = 78 + power * 8
+    local dmg = 1 + power * .6
     for _, bat in ipairs(self.bats) do
         bat.angle = bat.angle + dt * 2.6
         bat.hitTimer = math.max(0, bat.hitTimer - dt)
@@ -1636,9 +1663,10 @@ function ClearcutMode:updateThornAura(dt, game)
     if level <= 0 then return end
     self.auraTimer = (self.auraTimer or 0) - dt
     if self.auraTimer > 0 then return end
-    self.auraTimer = math.max(1, 1.9 - level * .3)
-    local radius = 50 + level * 18
-    local dmg = 1 + level
+    local power = self:power("thorn_aura")
+    self.auraTimer = math.max(1, 1.9 - power * .3)
+    local radius = 50 + power * 18
+    local dmg = 1 + power
     for _, node in ipairs(game.world.nodes) do
         if node.rushTree and node.active then
             local dx, dy = node.x - game.player.x, node.y - game.player.y
@@ -1664,7 +1692,8 @@ function ClearcutMode:updateCrowStrike(dt, game)
     if level <= 0 then return end
     self.crowTimer = (self.crowTimer or 0) - dt
     if self.crowTimer > 0 then return end
-    self.crowTimer = math.max(1.4, 3.6 - level * .8)
+    local power = self:power("crow_strike")
+    self.crowTimer = math.max(1.4, 3.6 - power * .8)
     local range = 620
     local best, bestD2 = nil, -1
     for _, node in ipairs(game.world.nodes) do
@@ -1680,8 +1709,8 @@ function ClearcutMode:updateCrowStrike(dt, game)
         if d2 <= range*range and d2 > bestD2 then best, bestD2 = e, d2 end
     end
     if not best then return end
-    local dmg = 6 + level * 5
-    local radius = 55 + level * 10
+    local dmg = 6 + power * 5
+    local radius = 55 + power * 10
     if best.rushTree then
         best.rushHp = (best.rushHp or best.rushMaxHp) - dmg
         game.world:impactNode(best, game, true)
@@ -1704,10 +1733,11 @@ function ClearcutMode:updateVineWhip(dt, game)
         if fx.life <= 0 then table.remove(self.whipFx, i) end
     end
     if level <= 0 then return end
+    local power = self:power("vine_whip")
     self.whipTimer = (self.whipTimer or 0) - dt
     if self.whipTimer > 0 then return end
-    self.whipTimer = math.max(3.5, 8 - level * 1.5)
-    local range = 130 + level * 25
+    self.whipTimer = math.max(3.5, 8 - power * 1.5)
+    local range = 130 + power * 25
     local nearest, nearestD2 = nil, range * range
     for _, node in ipairs(game.world.nodes) do
         if node.rushTree and node.active then
@@ -1725,7 +1755,7 @@ function ClearcutMode:updateVineWhip(dt, game)
     local angle
     if nearest then angle = atan2(nearest.y - game.player.y, nearest.x - game.player.x)
     else angle = (game.player.facing or 1) > 0 and 0 or math.pi end
-    local dmg = 4 + level * 2.5
+    local dmg = 4 + power * 2.5
     local cone = .75
     for _, node in ipairs(game.world.nodes) do
         if node.rushTree and node.active then
@@ -1812,13 +1842,14 @@ function ClearcutMode:updateBoomerangAxe(dt, game)
         if turning and not remove then b.phase="back";b.hitSet={} end
     end
     if level <= 0 then return end
+    local power = self:power("boomerang_axe")
     self.boomerangTimer = (self.boomerangTimer or 0) - dt
     if self.boomerangTimer > 0 then return end
-    self.boomerangTimer = math.max(1.2, 2.6 - level * .4)
+    self.boomerangTimer = math.max(1.2, 2.6 - power * .4)
     local a = love.math.random() * math.pi * 2
     self.boomerangs[#self.boomerangs+1] = {
         x=game.player.x, y=game.player.y, dx=math.cos(a), dy=math.sin(a),
-        traveled=0, maxDist=220 + level * 40, phase="out", hitSet={}, dmg=3 + level * 2, angle=a
+        traveled=0, maxDist=220 + power * 40, phase="out", hitSet={}, dmg=3 + power * 2, angle=a
     }
 end
 
@@ -1846,14 +1877,15 @@ function ClearcutMode:updateSeedMine(dt, game)
         end
     end
     if level <= 0 then return end
+    local power = self:power("seed_mine")
     self.seedTimer = (self.seedTimer or 0) - dt
     if self.seedTimer > 0 then return end
-    self.seedTimer = math.max(1.6, 3.2 - level * .5)
+    self.seedTimer = math.max(1.6, 3.2 - power * .5)
     local a = love.math.random() * math.pi * 2
     local r = 40 + love.math.random() * 120
     self.seeds[#self.seeds+1] = {
         x=game.player.x + math.cos(a) * r, y=game.player.y + math.sin(a) * r,
-        fuse=1.1, maxFuse=1.1, radius=55 + level * 15, dmg=4 + level * 3
+        fuse=1.1, maxFuse=1.1, radius=55 + power * 15, dmg=4 + power * 3
     }
 end
 
@@ -1866,12 +1898,13 @@ function ClearcutMode:updateChainLightning(dt, game)
         if fx.life <= 0 then table.remove(self.lightningFx, i) end
     end
     if level <= 0 then return end
+    local power = self:power("chain_lightning")
     self.lightningTimer = (self.lightningTimer or 0) - dt
     if self.lightningTimer > 0 then return end
-    self.lightningTimer = math.max(1.8, 4 - level * .6)
-    local jumps = 2 + level
+    self.lightningTimer = math.max(1.8, 4 - power * .6)
+    local jumps = 2 + self:powerCount("chain_lightning")
     local hopRange = 260
-    local dmg = 3 + level * 2
+    local dmg = 3 + power * 2
     local visited = {}
     local cx, cy = game.player.x, game.player.y
     local points = {{x=cx, y=cy}}
@@ -1913,22 +1946,23 @@ function ClearcutMode:updateSporeCloud(dt, game)
     local level = self:levelOf("spore_cloud")
     if level <= 0 then self.spore = nil; return end
     self.spore = self.spore or {angle=0, hitTimer=0}
-    local radius = 90 + level * 20
+    local power = self:power("spore_cloud")
+    local radius = 90 + power * 20
     self.spore.angle = self.spore.angle + dt * 1.1
     self.spore.hitTimer = math.max(0, self.spore.hitTimer - dt)
     local sx = game.player.x + math.cos(self.spore.angle) * radius
     local sy = game.player.y + math.sin(self.spore.angle) * radius * .6
     self.spore.x, self.spore.y = sx, sy
-    local plagueDmg = 2 + level
+    local plagueDmg = 2 + power
     if self.spore.hitTimer <= 0 then
         self.spore.hitTimer = .4
-        local hitRadius = 42 + level * 8
+        local hitRadius = 42 + power * 8
         for _, node in ipairs(game.world.nodes) do
             if node.rushTree and node.active and not node.plagueMarked then
                 local dx, dy = node.x - sx, node.y - sy
                 if dx*dx + dy*dy <= hitRadius*hitRadius then
                     node.plagueMarked = true
-                    self.plagued[#self.plagued+1] = {kind="tree", ref=node, timer=4 + level * 1.5, tickTimer=0, dmg=plagueDmg}
+                    self.plagued[#self.plagued+1] = {kind="tree", ref=node, timer=4 + power * 1.5, tickTimer=0, dmg=plagueDmg}
                     SupplementArt.impact(self,"infection",node.x,node.y,24)
                 end
             end
@@ -1938,7 +1972,7 @@ function ClearcutMode:updateSporeCloud(dt, game)
                 local dx, dy = e.x - sx, e.y - sy
                 if dx*dx + dy*dy <= hitRadius*hitRadius then
                     e.plagueMarked = true
-                    self.plagued[#self.plagued+1] = {kind="enemy", ref=e, timer=4 + level * 1.5, tickTimer=0, dmg=plagueDmg}
+                    self.plagued[#self.plagued+1] = {kind="enemy", ref=e, timer=4 + power * 1.5, tickTimer=0, dmg=plagueDmg}
                     SupplementArt.impact(self,"infection",e.x,e.y,24)
                 end
             end
@@ -1982,11 +2016,12 @@ function ClearcutMode:updateBruteForce(dt, game)
     if self.job ~= "miner" then return end
     local level = self:levelOf("brute_force")
     if level <= 0 then return end
+    local power = self:power("brute_force")
     self.bruteTimer = (self.bruteTimer or 0) - dt
     if self.bruteTimer > 0 then return end
-    self.bruteTimer = math.max(.9, 2.2 - level * .4)
-    local count = 5 + level * 3
-    local dmg = 2 + level
+    self.bruteTimer = math.max(.9, 2.2 - power * .4)
+    local count = 5 + self:powerCount("brute_force") * 3
+    local dmg = 2 + power
     local speed = 340
     for _ = 1, count do
         local a = love.math.random() * math.pi * 2
@@ -2038,6 +2073,7 @@ function ClearcutMode:updateDdosAttack(dt, game)
     if self.job ~= "miner" then return end
     local level = self:levelOf("ddos_attack")
     if level <= 0 then return end
+    local power = self:power("ddos_attack")
     self.ddosBurst = self.ddosBurst or 0
     self.ddosShotTimer = (self.ddosShotTimer or 0) - dt
     if self.ddosBurst > 0 and self.ddosShotTimer <= 0 then
@@ -2046,12 +2082,12 @@ function ClearcutMode:updateDdosAttack(dt, game)
         local dx, dy = self.ddosTargetX - game.player.x, self.ddosTargetY - game.player.y
         local d = math.sqrt(dx*dx + dy*dy)
         if d > 0 then
-            self.packets[#self.packets+1] = {x=game.player.x, y=game.player.y, vx=dx/d*620, vy=dy/d*620, life=1, dmg=2+level}
+            self.packets[#self.packets+1] = {x=game.player.x, y=game.player.y, vx=dx/d*620, vy=dy/d*620, life=1, dmg=2+power}
         end
     end
     self.ddosTimer = (self.ddosTimer or 0) - dt
     if self.ddosTimer > 0 then return end
-    self.ddosTimer = math.max(1.6, 3.4 - level * .5)
+    self.ddosTimer = math.max(1.6, 3.4 - power * .5)
     local best, bestD2 = nil, 620 * 620
     for _, node in ipairs(game.world.nodes) do
         if node.rushTree and node.active then
@@ -2067,7 +2103,7 @@ function ClearcutMode:updateDdosAttack(dt, game)
     end
     if not best then return end
     self.ddosTargetX, self.ddosTargetY = best.x, best.y
-    self.ddosBurst = 5 + level * 2
+    self.ddosBurst = 5 + self:powerCount("ddos_attack") * 2
     game:setNotice("DDoS 공격 — 트래픽 폭주!", "food")
 end
 
@@ -2110,9 +2146,10 @@ function ClearcutMode:updateRansomware(dt, game)
     if self.job ~= "miner" then return end
     local level = self:levelOf("ransomware")
     if level <= 0 then return end
+    local power = self:power("ransomware")
     self.ransomwareTimer = (self.ransomwareTimer or 0) - dt
     if self.ransomwareTimer > 0 then return end
-    self.ransomwareTimer = math.max(2.5, 5 - level)
+    self.ransomwareTimer = math.max(2.5, 5 - power)
     local range = 460
     local target, bestD2 = nil, range * range
     for _, node in ipairs(game.world.nodes) do
@@ -2124,7 +2161,7 @@ function ClearcutMode:updateRansomware(dt, game)
     end
     if not target then return end
     target.ransomwareMarked = true
-    self.infections[#self.infections+1] = {node=target, dmg=1.5 + level * 1.2, tickTimer=0}
+    self.infections[#self.infections+1] = {node=target, dmg=1.5 + power * 1.2, tickTimer=0}
 end
 
 function ClearcutMode:updateZeroDay(dt, game)
@@ -2137,9 +2174,10 @@ function ClearcutMode:updateZeroDay(dt, game)
     if self.job ~= "miner" then return end
     local level = self:levelOf("zeroday_exploit")
     if level <= 0 then return end
+    local power = self:power("zeroday_exploit")
     self.zerodayTimer = (self.zerodayTimer or 0) - dt
     if self.zerodayTimer > 0 then return end
-    self.zerodayTimer = math.max(6, 13 - level * 2.5)
+    self.zerodayTimer = math.max(6, 13 - power * 2.5)
     local range = 700
     local candidates = {}
     for _, node in ipairs(game.world.nodes) do
@@ -2154,7 +2192,7 @@ function ClearcutMode:updateZeroDay(dt, game)
     end
     if #candidates == 0 then return end
     local target = candidates[love.math.random(#candidates)]
-    local dmg = 40 + level * 30
+    local dmg = 40 + power * 30
     if target.rushTree then
         target.rushHp = (target.rushHp or target.rushMaxHp) - dmg
         game.world:impactNode(target, game, true)
@@ -2179,11 +2217,12 @@ function ClearcutMode:updatePortScan(dt, game)
     if self.job ~= "miner" then return end
     local level = self:levelOf("port_scan")
     if level <= 0 then return end
+    local power = self:power("port_scan")
     self.portScanTimer = (self.portScanTimer or 0) - dt
     if self.portScanTimer > 0 then return end
-    self.portScanTimer = math.max(1.8, 3.6 - level * .6)
+    self.portScanTimer = math.max(1.8, 3.6 - power * .6)
     local range = 500
-    local threshold = .18 + level * .07
+    local threshold = .18 + power * .07
     for _, node in ipairs(game.world.nodes) do
         if node.rushTree and node.active then
             local dx, dy = node.x - game.player.x, node.y - game.player.y
@@ -2213,7 +2252,7 @@ end
 function ClearcutMode:updatePhilosopherAttack(dt, game, heldOverride)
     local held = heldOverride
     if held == nil then held = love.mouse.isDown(1) end
-    local maxRange = 200 + self:levelOf("monologue") * 30 + self:levelOf("loud_voice") * 30 + self.permanentTraits.range
+    local maxRange = 200 + self:power("monologue") * 30 + self:power("loud_voice") * 30 + self.permanentTraits.range
     local tx, ty = self:aimPoint(game, maxRange)
     game.player.facing = tx < game.player.x and -1 or 1
     if held then
@@ -2223,7 +2262,7 @@ function ClearcutMode:updatePhilosopherAttack(dt, game, heldOverride)
     end
     local verbosity = math.min(1, (self.rantTimer or 0) / 3)
     self.aimX, self.aimY = tx, ty
-    self.aimRadius = (55 + self:levelOf("monologue") * 10 + self:levelOf("loud_voice") * 20) * (1 + verbosity * .55) + self.permanentTraits.area
+    self.aimRadius = (55 + self:power("monologue") * 10 + self:power("loud_voice") * 20) * (1 + verbosity * .55) + self.permanentTraits.area
     if game.player.setClearcutAction then game.player:setClearcutAction(.5 + verbosity * .3) end
     local wasHeld = self.rantHeldLast
     self.rantHeldLast = held
@@ -2236,7 +2275,7 @@ function ClearcutMode:updatePhilosopherAttack(dt, game, heldOverride)
     end
     self.spitTimer = (self.spitTimer or 0) - dt
     if self.spitTimer > 0 then return false end
-    local rate = math.max(.14, (.5 - self:levelOf("footnote") * .1 - verbosity * .2) / self.permanentTraits.attackSpeed)
+    local rate = math.max(.14, (.5 - self:power("footnote") * .1 - verbosity * .2) / self.permanentTraits.attackSpeed)
     self.spitTimer = rate
     self:applySpit(tx, ty, verbosity, game)
     return true
@@ -2244,7 +2283,7 @@ end
 
 function ClearcutMode:applySpit(tx, ty, verbosity, game, isBonus, isExtra)
     local radius = (self.aimRadius or 60) * (isBonus and 1.8 or 1)
-    local dmg = 2 + self:levelOf("monologue") + verbosity * 2 + self.permanentTraits.biteDamage
+    local dmg = 2 + self:power("monologue") + verbosity * 2 + self.permanentTraits.biteDamage
     local salivaLevel = self:levelOf("saliva_gland")
     local plagueTimer = (isBonus and 7 or 4) + self.permanentTraits.plagueDuration
     for _, node in ipairs(game.world.nodes) do
@@ -2301,11 +2340,11 @@ function ClearcutMode:updateDeveloperAttack(dt, game, heldOverride)
 end
 
 function ClearcutMode:developerDashDistance()
-    return 200 + self:levelOf("pile_driving") * 70 + self.permanentTraits.range
+    return 200 + self:power("pile_driving") * 70 + self.permanentTraits.range
 end
 
 function ClearcutMode:developerDashWidth()
-    return 55 + self:levelOf("heavy_machinery") * 20 + self.permanentTraits.area
+    return 55 + self:power("heavy_machinery") * 20 + self.permanentTraits.area
 end
 
 function ClearcutMode:startDash(tx, ty, game)
@@ -2314,7 +2353,7 @@ function ClearcutMode:startDash(tx, ty, game)
     if dist < 1 then return end
     local heavyLevel = self:levelOf("heavy_machinery")
     local width = self:developerDashWidth()
-    local megaProject = heavyLevel >= 3 and love.math.random() < .2
+    local megaProject = heavyLevel >= 6 and love.math.random() < .2
     if megaProject then width = width * 2.2 end
     self.dashing = {
         dx = dx / dist, dy = dy / dist,
@@ -2352,7 +2391,7 @@ function ClearcutMode:updateDash(dt, game)
                 game.world:impactNode(node, game, true)
                 if self:fellTree(node, game) then
                     local siteLevel = self:levelOf("site_clearance")
-                    if siteLevel >= 3 or (siteLevel > 0 and love.math.random() < siteLevel * .3) then node.sterile = true end
+                    if siteLevel >= 6 or (siteLevel > 0 and love.math.random() < self:power("site_clearance") * .3) then node.sterile = true end
                 end
             end
         end
@@ -2374,8 +2413,8 @@ function ClearcutMode:updateDash(dt, game)
             self.traitFx:emit("construction_blast",game.player.x,game.player.y,{radius=radius,particles=42,power=1.45})
         end
         local pileLevel = self:levelOf("pile_driving")
-        self.attackCooldown = math.max(1, (3.2 - pileLevel * .7) / self.permanentTraits.attackSpeed)
-        if (pileLevel >= 3 and love.math.random() < .25) or love.math.random() < self.permanentTraits.cooldownRefund then
+        self.attackCooldown = math.max(1, (3.2 - self:power("pile_driving") * .7) / self.permanentTraits.attackSpeed)
+        if (pileLevel >= 6 and love.math.random() < .25) or love.math.random() < self.permanentTraits.cooldownRefund then
             self.attackCooldown = 0
             game:setNotice("기초 공사 완료 — 말뚝 박기 만렙 특수효과!", "food")
         end
@@ -2402,7 +2441,7 @@ end
 
 function ClearcutMode:demolitionBlast(x, y, game)
     local demoLevel = self:levelOf("demolition")
-    local radius = 90 + demoLevel * 30
+    local radius = 90 + self:power("demolition") * 30
     self.traitFx:emit("construction_blast",x,y,{radius=radius,particles=36,power=1.35})
     if game.camera then game.camera.trauma = math.min(1, game.camera.trauma + .35) end
     self:damageEnemiesInRadius(x, y, radius, 22, game)
@@ -2417,7 +2456,7 @@ function ClearcutMode:demolitionBlast(x, y, game)
             end
         end
     end
-    if demoLevel >= 3 and #felled > 0 then
+    if demoLevel >= 6 and #felled > 0 then
         local second = felled[love.math.random(#felled)]
         self:demolitionEcho(second.x, second.y, game)
     end
@@ -2455,7 +2494,7 @@ function ClearcutMode:onWood(amount, game)
     amount = amount * (self.woodGainMul or 1)
     self.totalWood = self.totalWood + amount
     game.wood = self.totalWood
-    local xpMult = 1 + self:levelOf("forced_growth") * .4
+    local xpMult = 1 + self:power("forced_growth") * .4
     self.xp = self.xp + amount * xpMult
     while self.xp >= self.xpNext do
         self.xp = self.xp - self.xpNext
@@ -2660,7 +2699,7 @@ function ClearcutMode:fellTree(node, game)
     self.treesFelled = self.treesFelled + 1
     self.remainingTrees = math.max(0, self.remainingTrees - 1)
     local herbLevel = self:levelOf("herbicide")
-    if self.evolutions.deadGround or (herbLevel > 0 and love.math.random() < herbLevel * .22)
+    if self.evolutions.deadGround or (herbLevel > 0 and love.math.random() < self:power("herbicide") * .22)
         or love.math.random() < (self.permanentTraits.sterileChance or 0) then
         node.sterile = true
     end
@@ -2715,10 +2754,11 @@ function ClearcutMode:hitTree(primary, game)
     self.streak = self.streak + 1
     self.lastHitAt = self.elapsed
     local wideLevel = self:levelOf("wide_blade")
-    local radius = 75 + wideLevel * 45 + self.permanentTraits.area
-    local targetCount = 1 + wideLevel * 2 + math.floor(self.permanentTraits.extraTargets)
-    self:damageEnemiesInRadius(primary.x, primary.y, radius, 9 + self:levelOf("berserker") * 2, game)
-    if wideLevel >= 3 and love.math.random() < .15 then self:megaCleave(primary, game) end
+    local widePower = self:power("wide_blade")
+    local radius = 75 + widePower * 45 + self.permanentTraits.area
+    local targetCount = 1 + self:powerCount("wide_blade") * 2 + math.floor(self.permanentTraits.extraTargets)
+    self:damageEnemiesInRadius(primary.x, primary.y, radius, 9 + self:power("berserker") * 2, game)
+    if wideLevel >= 6 and love.math.random() < .15 then self:megaCleave(primary, game) end
     local candidates={}
     for _,node in ipairs(game.world.nodes) do
         if node.rushTree and node.active then
@@ -2744,7 +2784,8 @@ function ClearcutMode:hitTree(primary, game)
     if frenzyActive then self:frenzyShockwave(primary.x,primary.y,game) end
     local shockLevel = self:levelOf("shockwave")
     if shockLevel > 0 and #felled > 0 then
-        local shockRadius = 70 + shockLevel * 25
+        local shockPower = self:power("shockwave")
+        local shockRadius = 70 + shockPower * 25
         local hitSet, chainCount, shockFelled = {}, 0, {}
         for _, source in ipairs(felled) do
             for _, node in ipairs(game.world.nodes) do
@@ -2752,14 +2793,14 @@ function ClearcutMode:hitTree(primary, game)
                     local dx, dy = node.x - source.x, node.y - source.y
                     if dx*dx + dy*dy <= shockRadius * shockRadius then
                         hitSet[node] = true
-                        node.rushHp = (node.rushHp or node.rushMaxHp) - shockLevel
+                        node.rushHp = (node.rushHp or node.rushMaxHp) - shockPower
                         game.world:impactNode(node, game, true)
                         if node.rushHp <= 0 and self:fellTree(node, game) then chainCount = chainCount + 1; shockFelled[#shockFelled+1] = node end
                     end
                 end
             end
         end
-        if shockLevel >= 3 and #shockFelled > 0 then
+        if shockLevel >= 6 and #shockFelled > 0 then
             local r2 = shockRadius * .7
             for _, source in ipairs(shockFelled) do
                 for _, node in ipairs(game.world.nodes) do
@@ -3655,7 +3696,7 @@ function ClearcutMode:drawDeveloperMachinery(game, t)
     local d, image = self.dashing, game.clearcutMachineryImage
     if not d or not image then return false end
     local imageW, imageH = image:getDimensions()
-    local targetWidth = 174 + self:levelOf("heavy_machinery") * 9
+    local targetWidth = 174 + self:power("heavy_machinery") * 9
     local scale = targetWidth / imageW
     local bounce = math.floor(math.sin((t or 0) * 28) * 1.4)
     love.graphics.push()

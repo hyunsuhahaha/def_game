@@ -160,7 +160,7 @@ local hp,enemyHp,fx=frenzy(9,true);assert(hp==7 and enemyHp==88 and fx==1,"frenz
 local a,b,c=tree(0),tree(50,1,false),tree(500)
 local toxic,tg=setup("toxic",{a,b,c});tg.player.x=0
 toxic.levels.toxic_rain=3;toxic.evolutions.necrosis=true;toxic.aimRadius=100
-toxic:updateToxicRain(3,tg)
+toxic.toxicTimer=999;toxic:updateToxicRain(0,tg)
 assert(a.sterile and b.sterile and not c.sterile,"passive necrosis misses live/stump targets")
 a.sterile=nil;b.sterile=nil;toxic:applyVeganBite(0,0,tg)
 assert(a.sterile and b.sterile,"manual necrosis missing")
