@@ -1782,19 +1782,38 @@ local function drawShadedRivet(cx, cy, color)
     love.graphics.setColor(1, 1, 1, .55); love.graphics.circle("fill", cx - .7, cy - .7, 1.1)
 end
 
--- job별 배경 이펙트: 흡연자=불씨, 비건=나뭇잎, 나무꾼=톱밥, 개발업자=먼지+청사진 격자, 공용=은은한 회색 먼지
+local pixelFlameRowsA = {
+    "...O...",
+    "..OYO..",
+    "..OEO..",
+    ".OEHEO.",
+    ".OEHEO.",
+    "OEEHEEO",
+    "OEEHEEO",
+    ".OEHEEO",
+    "..OOO..",
+}
+local pixelFlameRowsB = {}
+for i, row in ipairs(pixelFlameRowsA) do pixelFlameRowsB[i] = row:reverse() end
+local pixelFlamePalette = {O = {.22, .05, .02, 1}, Y = {1, .95, .55, 1}, E = {1, .4, .1, 1}, H = {1, .82, .3, 1}}
+local function alphaScaledPalette(base, mul)
+    local out = {}
+    for k, c in pairs(base) do out[k] = {c[1], c[2], c[3], c[4] * mul} end
+    return out
+end
+
+-- job별 배경 이펙트: 흡연자=픽셀 불꽃, 비건=나뭇잎, 나무꾼=톱밥, 개발업자=먼지+청사진 격자, 공용=은은한 회색 먼지
 local function drawJobFlavorBg(x, y, w, h, job, t)
     if job == "fire" then
-        for i = 1, 5 do
+        for i = 1, 4 do
             local seed = i * 3.7
-            local life = (t * .6 + i * .37) % 1
-            local px = x + w * (.14 + (i - 1) * .18) + math.sin(t * 1.3 + seed) * 6
-            local py = y + h - 12 - life * (h * .58)
-            local size = (1 - life) * 9 + 3
-            love.graphics.setColor(1, .45, .12, (1 - life) * .5)
-            love.graphics.circle("fill", px, py, size)
-            love.graphics.setColor(1, .82, .32, (1 - life) * .35)
-            love.graphics.circle("fill", px, py, size * .5)
+            local life = (t * .55 + i * .43) % 1
+            local px = x + w * (.16 + (i - 1) * .24) + math.sin(t * 1.6 + seed) * 4
+            local py = y + h - 14 - life * (h * .5)
+            local flicker = math.floor(t * 9 + seed) % 2 == 0
+            local rows = flicker and pixelFlameRowsA or pixelFlameRowsB
+            local scale = (2.6 + math.sin(t * 8 + seed) * .5) * (1 - life * .35)
+            drawPixelGrid(rows, alphaScaledPalette(pixelFlamePalette, (1 - life) * .85), px, py, scale)
         end
     elseif job == "toxic" then
         for i = 1, 5 do
