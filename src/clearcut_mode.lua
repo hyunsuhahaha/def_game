@@ -10,7 +10,7 @@ local Fusions = require("src.clearcut_fusions")
 local ClearcutMode = {}
 ClearcutMode.__index = ClearcutMode
 
-local trackLabels = {destroy = "파괴력", spread = "확산력", suppress = "억제력", develop = "개발력", dig = "굴착력", venom = "독설력"}
+local trackLabels = {destroy = "파괴력", spread = "확산력", suppress = "억제력", develop = "개발력", dig = "굴착력", venom = "독설력", supplement = "보조력"}
 
 -- 시그니처 업그레이드를 처음 고르면 1차 전직이 확정되고 기본 공격 자체가 바뀐다.
 local jobFor = {berserker = "physical", molotov = "fire", toxic_rain = "toxic", heavy_machinery = "developer", detector = "miner", monologue = "philosopher"}
@@ -56,6 +56,10 @@ local definitions = {
     {id="footnote", track="venom", name="각주 남발", desc="말하는 속도가 빨라져 침이 더 자주 튑니다.", max=3, color={.85,.9,.4}, job="philosopher"},
     {id="loud_voice", track="venom", name="목청 키우기", desc="침이 닿는 범위가 넓어집니다.", max=3, color={.65,.8,.3}, job="philosopher"},
     {id="saliva_gland", track="venom", name="침샘 발달", desc="침에 맞은 대상은 서서히 중독되어 지속 피해를 입습니다.", max=3, color={.55,.72,.25}, job="philosopher"},
+    -- 보조력 (supplement) — 기본 공격과 무관하게 알아서 나가는 공용 패시브 [전 직업 공용]
+    {id="bat_swarm", track="supplement", name="박쥐 떼", desc="박쥐가 주위를 맴돌며 닿는 나무와 적에게 지속적으로 피해를 줍니다.", max=3, color={.55,.42,.72}},
+    {id="thorn_aura", track="supplement", name="가시 오라", desc="몸 주위에 가시덩굴이 돋아나 주기적으로 주변 나무와 적에게 피해를 줍니다.", max=3, color={.42,.68,.32}},
+    {id="crow_strike", track="supplement", name="까마귀 습격", desc="주기적으로 까마귀가 급강하해 사거리 내 가장 먼 나무나 적을 공격합니다.", max=3, color={.3,.28,.36}},
 }
 
 local upgradeById = {}
@@ -224,6 +228,7 @@ function ClearcutMode:generateForest(game, target)
     self.initialTrees, self.remainingTrees = #game.world.nodes, #game.world.nodes
     ForestScenery.generate(game.world,self.stage)
     Maps.filterScenery(game.world)
+    require("src.biome_life").generate(game.world,self.stage)
 end
 
 -- 스테이지 클리어: 세계수를 쓰러뜨리면 런을 끝내는 대신 더 큰 숲과 더 강한 저주로 다음 스테이지를 연다
@@ -254,8 +259,10 @@ end
 
 function ClearcutMode:update(dt, game)
     if self.dead then return end
+    require("src.biome_life").update(game.world,dt)
     self.elapsed = self.elapsed + dt
     self:updateHeldAxe(dt, game)
+    self:updateSupplementSkills(dt, game)
     self:updateRegrowth(dt, game)
     self:updateRootHazards(dt, game)
     self:updateBees(dt, game)
@@ -1547,6 +1554,111 @@ function ClearcutMode:updateMining(dt, game)
     end
 end
 
+-- 보조력: 기본 공격/직업과 무관하게 항상 돌아가는 공용 패시브 3종.
+function ClearcutMode:updateSupplementSkills(dt, game)
+    self:updateBatSwarm(dt, game)
+    self:updateThornAura(dt, game)
+    self:updateCrowStrike(dt, game)
+    if self.auraPulse then self.auraPulse = math.max(0, self.auraPulse - dt * 2.2) end
+end
+
+function ClearcutMode:updateBatSwarm(dt, game)
+    local level = self:levelOf("bat_swarm")
+    if level <= 0 then self.bats = nil; return end
+    local count = level + 1
+    self.bats = self.bats or {}
+    for i = 1, count do
+        self.bats[i] = self.bats[i] or {angle = (i / count) * math.pi * 2, hitTimer = 0}
+    end
+    for i = #self.bats, count + 1, -1 do self.bats[i] = nil end
+    local radius = 78 + level * 8
+    local dmg = 1 + level * .6
+    for _, bat in ipairs(self.bats) do
+        bat.angle = bat.angle + dt * 2.6
+        bat.hitTimer = math.max(0, bat.hitTimer - dt)
+        local bx, by = game.player.x + math.cos(bat.angle) * radius, game.player.y + math.sin(bat.angle) * radius * .6 - 14
+        bat.x, bat.y = bx, by
+        if bat.hitTimer <= 0 then
+            bat.hitTimer = .45
+            for _, node in ipairs(game.world.nodes) do
+                if node.rushTree and node.active then
+                    local dx, dy = node.x - bx, node.y - by
+                    if dx*dx + dy*dy <= 24*24 then
+                        node.rushHp = (node.rushHp or node.rushMaxHp) - dmg
+                        game.world:impactNode(node, game, false)
+                        if node.rushHp <= 0 then self:fellTree(node, game) end
+                    end
+                end
+            end
+            self:damageEnemiesInRadius(bx, by, 24, dmg, game)
+        end
+    end
+end
+
+function ClearcutMode:updateThornAura(dt, game)
+    local level = self:levelOf("thorn_aura")
+    if level <= 0 then return end
+    self.auraTimer = (self.auraTimer or 0) - dt
+    if self.auraTimer > 0 then return end
+    self.auraTimer = math.max(.5, 1.1 - level * .15)
+    local radius = 60 + level * 25
+    local dmg = 1 + level
+    for _, node in ipairs(game.world.nodes) do
+        if node.rushTree and node.active then
+            local dx, dy = node.x - game.player.x, node.y - game.player.y
+            if dx*dx + dy*dy <= radius*radius then
+                node.rushHp = (node.rushHp or node.rushMaxHp) - dmg
+                game.world:impactNode(node, game, false)
+                if node.rushHp <= 0 then self:fellTree(node, game) end
+            end
+        end
+    end
+    self:damageEnemiesInRadius(game.player.x, game.player.y, radius, dmg, game)
+    self.auraRadius, self.auraPulse = radius, 1
+end
+
+function ClearcutMode:updateCrowStrike(dt, game)
+    local level = self:levelOf("crow_strike")
+    self.crowFx = self.crowFx or {}
+    for i = #self.crowFx, 1, -1 do
+        local fx = self.crowFx[i]
+        fx.life = fx.life - dt
+        if fx.life <= 0 then table.remove(self.crowFx, i) end
+    end
+    if level <= 0 then return end
+    self.crowTimer = (self.crowTimer or 0) - dt
+    if self.crowTimer > 0 then return end
+    self.crowTimer = math.max(1.4, 3.6 - level * .8)
+    local range = 620
+    local best, bestD2 = nil, -1
+    for _, node in ipairs(game.world.nodes) do
+        if node.rushTree and node.active then
+            local dx, dy = node.x - game.player.x, node.y - game.player.y
+            local d2 = dx*dx + dy*dy
+            if d2 <= range*range and d2 > bestD2 then best, bestD2 = node, d2 end
+        end
+    end
+    for _, e in ipairs(self.enemies) do
+        local dx, dy = e.x - game.player.x, e.y - game.player.y
+        local d2 = dx*dx + dy*dy
+        if d2 <= range*range and d2 > bestD2 then best, bestD2 = e, d2 end
+    end
+    if not best then return end
+    local dmg = 6 + level * 5
+    local radius = 55 + level * 10
+    if best.rushTree then
+        best.rushHp = (best.rushHp or best.rushMaxHp) - dmg
+        game.world:impactNode(best, game, true)
+        if best.rushHp <= 0 then self:fellTree(best, game) end
+    else
+        best.hp = best.hp - dmg
+        best.visualHit = .14
+    end
+    self:damageEnemiesInRadius(best.x, best.y, radius, dmg * .5, game)
+    self.crowFx[#self.crowFx+1] = {x=best.x, y=best.y, life=.32, maxLife=.32}
+    if game.camera then game.camera.trauma = math.min(1, game.camera.trauma + .12) end
+end
+
 function ClearcutMode:updatePhilosopherAttack(dt, game, heldOverride)
     local held = heldOverride
     if held == nil then held = love.mouse.isDown(1) end
@@ -2661,6 +2773,41 @@ local speechIconRows = {
 }
 local speechIconPalette = {O={.16,.2,.06,1}, W={.92,.97,.82,1}, S={.6,.78,.28,1}}
 
+local batIconRows = {
+    "O.....O",
+    "OO...OO",
+    "OOOOOOO",
+    ".OOOOO.",
+    "..OWO..",
+    "..O.O..",
+    ".O...O.",
+}
+local batIconPalette = {O={.16,.12,.2,1}, W={.9,.8,.3,1}}
+
+local thornIconRows = {
+    "....O....",
+    "...OVO...",
+    "..OVOVO..",
+    ".OVOOOVO.",
+    "OVOOOOOVO",
+    ".OVOOOVO.",
+    "..OVOVO..",
+    "...OVO...",
+    "....O....",
+}
+local thornIconPalette = {O={.1,.22,.06,1}, V={.42,.7,.3,1}}
+
+local crowIconRows = {
+    "O......O",
+    "OO....OO",
+    "OOO..OOO",
+    ".OOOOOO.",
+    "..OWOWO.",
+    "...OOO..",
+    "....O...",
+}
+local crowIconPalette = {O={.08,.07,.1,1}, W={.85,.3,.2,1}}
+
 -- 업그레이드 카드용 아이콘: 원형/다이아몬드/사각/막대 4가지 실루엣 틀을 색상·세부만 바꿔 재사용한다.
 local diamondRows = {
     "....O....",
@@ -2817,6 +2964,9 @@ ClearcutMode.icons = {
     footnote = {rows = stickRows, palette = footnotePalette},
     loud_voice = {rows = diamondRows, palette = loudVoicePalette},
     saliva_gland = {rows = blobRows, palette = salivaGlandPalette},
+    bat_swarm = {rows = batIconRows, palette = batIconPalette},
+    thorn_aura = {rows = thornIconRows, palette = thornIconPalette},
+    crow_strike = {rows = crowIconRows, palette = crowIconPalette},
 }
 ClearcutMode.drawPixelGrid = drawPixelGrid
 
@@ -2909,6 +3059,39 @@ function ClearcutMode:drawDeveloperMachinery(game, t)
     return true
 end
 
+function ClearcutMode:drawSupplementSkills(game, t)
+    if self.auraPulse and self.auraPulse > 0 and self.auraRadius then
+        love.graphics.setColor(.42, .7, .3, self.auraPulse * .28)
+        love.graphics.circle("fill", game.player.x, game.player.y, self.auraRadius)
+        love.graphics.setLineWidth(2)
+        love.graphics.setColor(.6, .9, .42, self.auraPulse * .8)
+        love.graphics.circle("line", game.player.x, game.player.y, self.auraRadius * (1 + (1 - self.auraPulse) * .3))
+        love.graphics.setLineWidth(1)
+    end
+    if self.bats then
+        for _, bat in ipairs(self.bats) do
+            if bat.x then
+                local flap = 1 + math.sin(t * 14 + bat.angle * 3) * .22
+                love.graphics.push()
+                love.graphics.translate(bat.x, bat.y)
+                love.graphics.scale(1, flap)
+                drawPixelGrid(batIconRows, batIconPalette, 0, 0, 2)
+                love.graphics.pop()
+            end
+        end
+    end
+    if self.crowFx then
+        for _, fx in ipairs(self.crowFx) do
+            local p = 1 - fx.life / fx.maxLife
+            love.graphics.setLineWidth(2)
+            love.graphics.setColor(.85, .3, .2, (1 - p) * .85)
+            love.graphics.circle("line", fx.x, fx.y, 10 + p * 34)
+            love.graphics.setLineWidth(1)
+            drawPixelGrid(crowIconRows, crowIconPalette, fx.x, fx.y - (1 - p) * 46, 2.4)
+        end
+    end
+end
+
 function ClearcutMode:drawWorldOverlay(game)
     love.graphics.setLineStyle("rough")
     local t = love.timer.getTime()
@@ -2998,6 +3181,7 @@ function ClearcutMode:drawWorldOverlay(game)
         end
     end
     if self.job=="developer" then self:drawDeveloperMachinery(game,t) end
+    self:drawSupplementSkills(game, t)
     self.traitFx:draw()
     for _, node in ipairs(game.world.nodes) do
         if node.rushTree and node.active and node.beehive then
