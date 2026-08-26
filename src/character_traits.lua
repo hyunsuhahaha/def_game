@@ -77,6 +77,44 @@ local jobs = {
             {id="developer_presale", name="사전분양 완판", short="모형도 매진", desc="런 종료 성과 포인트 +10%", max=3, costs={38,58,84}, effect="reward", value=.10, requires={{"developer_rezone",1},{"developer_subcontract",1}}, x=.78,y=.50, icon="tower", color={.47,.65,.82}},
             {id="developer_expropriate", name="공익사업 강제수용", short="최종 고시", desc="돌진 폭 +32", max=1, costs={110}, effect="area", value=32, requires={{"developer_presale",3}}, x=.94,y=.50, icon="capstone", color={.20,.63,.92}, capstone=true}
         }
+    },
+    miner = {
+        currencyName="성과 포인트",
+        tagline="그 삽질이 언젠가는 하드월렛을 찾아줄 것이다.",
+        doctrine="탐지와 발굴을 번갈아 밀어붙여 넓은 구역을 통째로 파헤친다.",
+        palette={.85,.68,.22},
+        nodes={
+            {id="miner_signal", name="탐지 신호음", short="삐빅", desc="삽질 속도 +7%", max=3, costs={18,32,50}, effect="attackSpeed", value=.07, x=.10,y=.50, icon="clock", color={.85,.68,.22}},
+            {id="miner_coil", name="코일 감도 조정", short="더 멀리 삐빅", desc="탐지 사거리 +14", max=3, costs={22,38,58}, effect="range", value=14, requires={{"miner_signal",1}}, x=.32,y=.28, icon="ruler", color={.80,.72,.40}},
+            {id="miner_knee", name="무릎 보호대", short="장시간 굴착", desc="최대 체력 +10", max=3, costs={22,38,58}, effect="maxHp", value=10, requires={{"miner_signal",1}}, x=.32,y=.72, icon="helmet", color={.60,.50,.35}},
+            {id="miner_headphone", name="고급 헤드폰", short="잡음 제거", desc="굴착 범위 +8", max=3, costs={28,46,68}, effect="area", value=8, requires={{"miner_coil",1}}, x=.56,y=.20, icon="stamp", color={.90,.78,.35}},
+            {id="miner_overnight", name="야간 무허가 발굴", short="달빛 삽질", desc="삽질 속도 +5%", max=3, costs={28,46,68}, effect="attackSpeed", value=.05, requires={{"miner_knee",1}}, x=.56,y=.80, icon="moon", color={.55,.58,.70}},
+            {id="miner_dualdetector", name="듀얼 탐지기", short="양손 탐지", desc="동시 굴착 지점 +1", max=2, costs={42,72}, effect="extraTargets", value=1, requires={{"miner_headphone",2}}, x=.68,y=.08, icon="split", color={.78,.60,.28}},
+            {id="miner_titanium", name="티타늄 삽날", short="더 깊이", desc="굴착 피해 +1", max=3, costs={34,54,78}, effect="treeDamage", value=1, requires={{"miner_headphone",1}}, x=.70,y=.30, icon="fist", color={.72,.66,.60}},
+            {id="miner_thermos", name="식은 보온병 커피", short="한 모금", desc="굴착 시 체력 +1", max=3, costs={34,54,78}, effect="healOnFell", value=1, requires={{"miner_overnight",1}}, x=.70,y=.70, icon="lunch", color={.62,.50,.30}},
+            {id="miner_permit", name="발굴허가 없음", short="일단 판다", desc="'발견' 판정 확률 +4%", max=3, costs={42,66,92}, effect="executeChance", value=.04, requires={{"miner_overnight",2}}, x=.68,y=.92, icon="warning", color={.85,.45,.20}},
+            {id="miner_gpscoord", name="그때 그 GPS 좌표", short="기억 재구성", desc="런 종료 성과 포인트 +10%", max=3, costs={38,58,84}, effect="reward", value=.10, requires={{"miner_headphone",1},{"miner_overnight",1}}, x=.78,y=.50, icon="map", color={.92,.70,.25}},
+            {id="miner_landrights", name="산 전체 매입 시도", short="최종 발굴", desc="굴착 범위 +36", max=1, costs={110}, effect="area", value=36, requires={{"miner_gpscoord",3}}, x=.94,y=.50, icon="capstone", color={1,.80,.20}, capstone=true}
+        }
+    },
+    philosopher = {
+        currencyName="성과 포인트",
+        tagline="태어난 것 자체가 형벌이다. 나는 그저 해방시켜줄 뿐이다.",
+        doctrine="그칠 줄 모르는 일장연설과 침으로 넓은 숲을 계속 '해방'시킨다.",
+        palette={.75,.90,.35},
+        nodes={
+            {id="philosopher_soliloquy", name="독백 연습", short="아무도 안 듣는데", desc="장광설 속도 +7%", max=3, costs={18,32,50}, effect="attackSpeed", value=.07, x=.10,y=.50, icon="question", color={.75,.85,.30}},
+            {id="philosopher_lungs", name="폐활량 단련", short="숨 안 쉬고 말하기", desc="침 사거리 +14", max=3, costs={22,38,58}, effect="range", value=14, requires={{"philosopher_soliloquy",1}}, x=.32,y=.28, icon="wind", color={.70,.82,.35}},
+            {id="philosopher_thickskin", name="비난에 대한 초연함", short="욕먹어도 상관없다", desc="최대 체력 +10", max=3, costs={22,38,58}, effect="maxHp", value=10, requires={{"philosopher_soliloquy",1}}, x=.32,y=.72, icon="helmet", color={.55,.65,.40}},
+            {id="philosopher_footnotes", name="각주와 방점", short="말이 곁가지를 침", desc="침 범위 +8", max=3, costs={28,46,68}, effect="area", value=8, requires={{"philosopher_lungs",1}}, x=.56,y=.20, icon="document", color={.80,.88,.40}},
+            {id="philosopher_allnighter", name="밤샘 토론회", short="새벽까지 붙잡기", desc="장광설 속도 +5%", max=3, costs={28,46,68}, effect="attackSpeed", value=.05, requires={{"philosopher_thickskin",1}}, x=.56,y=.80, icon="moon", color={.50,.55,.60}},
+            {id="philosopher_crowd", name="지나가는 행인 붙잡기", short="양손으로 붙듦", desc="동시에 붙잡는 대상 +1", max=2, costs={42,72}, effect="extraTargets", value=1, requires={{"philosopher_footnotes",2}}, x=.68,y=.08, icon="split", color={.68,.78,.32}},
+            {id="philosopher_venomtongue", name="독설 훈련", short="말이 더 따갑다", desc="침 피해 +1", max=3, costs={34,54,78}, effect="biteDamage", value=1, requires={{"philosopher_footnotes",1}}, x=.70,y=.30, icon="tooth", color={.62,.75,.28}},
+            {id="philosopher_martyrdom", name="순교자 코스프레", short="말할수록 강해짐", desc="설파 성공 시 체력 +1", max=3, costs={34,54,78}, effect="healOnFell", value=1, requires={{"philosopher_allnighter",1}}, x=.70,y=.70, icon="heartleaf", color={.50,.70,.40}},
+            {id="philosopher_manifesto_base", name="자비출판 선언문", short="800쪽짜리", desc="중독 지속시간 +0.8초", max=3, costs={42,66,92}, effect="plagueDuration", value=.8, requires={{"philosopher_allnighter",2}}, x=.68,y=.92, icon="policy", color={.58,.68,.30}},
+            {id="philosopher_cultfollow", name="추종자 세 명 확보", short="믿음의 증거", desc="런 종료 성과 포인트 +10%", max=3, costs={38,58,84}, effect="reward", value=.10, requires={{"philosopher_footnotes",1},{"philosopher_allnighter",1}}, x=.78,y=.50, icon="donation", color={.85,.75,.30}},
+            {id="philosopher_finalsermon", name="최후의 설파", short="최종 해방", desc="침 범위 +34", max=1, costs={110}, effect="area", value=34, requires={{"philosopher_cultfollow",3}}, x=.94,y=.50, icon="capstone", color={.70,1,.25}, capstone=true}
+        }
     }
 }
 
@@ -188,6 +226,50 @@ expand("developer",{
     {id="developer_finance",name="프로젝트 파이낸싱 연장",short="자금 재투입",desc="쿨다운 초기화 확률 +8%",effect="cooldownRefund",value=.08,requires={{"developer_doublelane",2}},icon="coins",color={.82,.64,.22}},
     {id="developer_megacity",name="메가시티 특별법",short="도시 지정",desc="돌진 거리 +55",effect="range",value=55,requires={{"developer_detonator",2},{"developer_finance",2}},icon="tower",color={.30,.64,.86},max=1,capstone=true},
     {id="developer_noforest",name="숲은 계획도에 없었다",short="최종 개발",desc="돌진 폭 +48",effect="area",value=48,requires={{"developer_megacity",1}},icon="capstone",color={.12,.58,.94},max=1,capstone=true,costs={190}}
+})
+
+expand("miner",{
+    {id="miner_groundradar",name="지표투과레이더 대여",short="렌탈 장비",desc="탐지 사거리 +16",effect="range",value=16,requires={{"miner_coil",2}},icon="machine",color={.70,.75,.80}},
+    {id="miner_remotecontrol",name="블루투스 삽 리모컨",short="원격 삽질",desc="삽질 속도 +5%",effect="attackSpeed",value=.05,requires={{"miner_groundradar",1}},icon="stamp",color={.85,.70,.30}},
+    {id="miner_magnetometer",name="자력계 병행 사용",short="이중 확인",desc="'발견' 판정 확률 +3%",effect="executeChance",value=.03,requires={{"miner_groundradar",1}},icon="warning",color={.88,.50,.22}},
+    {id="miner_batterypack",name="예비 배터리 두 개",short="꺼지지 않는다",desc="삽질 속도 +6%",effect="attackSpeed",value=.06,requires={{"miner_remotecontrol",2}},icon="coins",color={.90,.75,.30},max=2},
+    {id="miner_triplecheck",name="삼중 확인 탐지",short="확신 상승",desc="'발견' 판정 확률 +4%",effect="executeChance",value=.04,requires={{"miner_magnetometer",2}},icon="certificate",color={.80,.55,.25}},
+    {id="miner_thisisit",name="이 밑이 확실하다",short="상단 전문화",desc="굴착 범위 +26",effect="area",value=26,requires={{"miner_batterypack",2},{"miner_triplecheck",2}},icon="capstone",color={1,.75,.20},max=1,capstone=true},
+    {id="miner_backbelt2",name="허리 보호대 겸용",short="이중 보호",desc="최대 체력 +8",effect="maxHp",value=8,requires={{"miner_knee",2}},icon="helmet",color={.55,.48,.36}},
+    {id="miner_gloves",name="장갑 두 겹",short="물집 방지",desc="굴착 피해 +1",effect="treeDamage",value=1,requires={{"miner_backbelt2",1}},icon="fist",color={.68,.60,.50}},
+    {id="miner_kneepad2",name="무릎 패드 업그레이드",short="이중 쿠션",desc="최대 체력 +9",effect="maxHp",value=9,requires={{"miner_backbelt2",1}},icon="helmet",color={.60,.52,.38}},
+    {id="miner_reforge",name="삽날 재련",short="대장간 방문",desc="굴착 피해 +1",effect="treeDamage",value=1,requires={{"miner_gloves",2}},icon="sharpen",color={.75,.70,.65},max=2},
+    {id="miner_discignore",name="허리 디스크 무시",short="병원은 나중에",desc="삽질 속도 +5%",effect="attackSpeed",value=.05,requires={{"miner_kneepad2",2}},icon="clock",color={.70,.40,.30}},
+    {id="miner_bodybreaks",name="몸이 부서져도 판다",short="하단 전문화",desc="굴착 피해 +2",effect="treeDamage",value=2,requires={{"miner_reforge",2},{"miner_discignore",2}},icon="capstone",color={.90,.50,.20},max=1,capstone=true},
+    {id="miner_memoryreconstruct",name="그날의 기억 재구성",short="기억 되짚기",desc="런 종료 성과 포인트 +6%",effect="reward",value=.06,requires={{"miner_gpscoord",2}},icon="document",color={.85,.72,.30}},
+    {id="miner_hikingclub",name="등산 동호회 탐문",short="목격자 수소문",desc="탐지 사거리 +16",effect="range",value=16,requires={{"miner_memoryreconstruct",1}},icon="map",color={.65,.75,.50}},
+    {id="miner_usedmarket",name="중고 거래 게시글 추적",short="혹시 그 USB?",desc="런 종료 성과 포인트 +6%",effect="reward",value=.06,requires={{"miner_memoryreconstruct",1}},icon="coins",color={.88,.68,.25}},
+    {id="miner_cctv",name="산장 CCTV 확보",short="화질 깨짐",desc="탐지 사거리 +18",effect="range",value=18,requires={{"miner_hikingclub",2}},icon="machine",color={.60,.70,.78}},
+    {id="miner_diary",name="그 해 일기장 발견",short="단서 확보",desc="런 종료 성과 포인트 +9%",effect="reward",value=.09,requires={{"miner_usedmarket",2}},icon="report",color={.82,.62,.28}},
+    {id="miner_certainty",name="확신의 좌표",short="하단2 전문화",desc="런 종료 성과 포인트 +14%",effect="reward",value=.14,requires={{"miner_cctv",2},{"miner_diary",2}},icon="capstone",color={1,.70,.15},max=1,capstone=true},
+    {id="miner_definitelyhere",name="여기 어딘가에 반드시 있다",short="최종 발굴",desc="굴착 범위 +48",effect="area",value=48,requires={{"miner_certainty",1}},icon="capstone",color={1,.85,.10},max=1,capstone=true,costs={190}}
+})
+
+expand("philosopher",{
+    {id="philosopher_megaphone",name="휴대용 확성기",short="더 크게",desc="침 사거리 +16",effect="range",value=16,requires={{"philosopher_lungs",2}},icon="wind",color={.72,.85,.32}},
+    {id="philosopher_runonsentence",name="끝나지 않는 문장",short="접속사 남발",desc="장광설 속도 +5%",effect="attackSpeed",value=.05,requires={{"philosopher_megaphone",1}},icon="clock",color={.80,.88,.35}},
+    {id="philosopher_strawman",name="허수아비 논증",short="반박 무시",desc="침 피해 +1",effect="biteDamage",value=1,requires={{"philosopher_megaphone",1}},icon="tooth",color={.65,.78,.30}},
+    {id="philosopher_podcast",name="주간 팟캐스트 개설",short="구독자 3명",desc="장광설 속도 +6%",effect="attackSpeed",value=.06,requires={{"philosopher_runonsentence",2}},icon="wind",color={.75,.85,.38},max=2},
+    {id="philosopher_gaslighting",name="논점 흐리기 숙련",short="화제 전환",desc="침 피해 +1",effect="biteDamage",value=1,requires={{"philosopher_strawman",2}},icon="question",color={.60,.72,.32}},
+    {id="philosopher_neverwrong",name="한 번도 틀린 적 없다",short="상단 전문화",desc="침 범위 +26",effect="area",value=26,requires={{"philosopher_podcast",2},{"philosopher_gaslighting",2}},icon="capstone",color={.85,.95,.30},max=1,capstone=true},
+    {id="philosopher_earplugsforthem",name="상대방 귀마개 뺏기",short="도망 못 감",desc="최대 체력 +8",effect="maxHp",value=8,requires={{"philosopher_thickskin",2}},icon="helmet",color={.52,.60,.42}},
+    {id="philosopher_coldbrew",name="식은 아메리카노 다섯 잔",short="카페인 중독",desc="장광설 속도 +4%",effect="attackSpeed",value=.04,requires={{"philosopher_earplugsforthem",1}},icon="lunch",color={.48,.55,.40}},
+    {id="philosopher_thickerskin",name="더 두꺼운 낯짝",short="수치심 상실",desc="최대 체력 +9",effect="maxHp",value=9,requires={{"philosopher_earplugsforthem",1}},icon="helmet",color={.50,.62,.44}},
+    {id="philosopher_debateclub",name="동네 토론 동아리 장악",short="회장 취임",desc="침 피해 +1",effect="biteDamage",value=1,requires={{"philosopher_coldbrew",2}},icon="tooth",color={.62,.72,.35},max=2},
+    {id="philosopher_sleepdeprivation",name="수면 부족 3일째",short="눈이 풀림",desc="중독 지속시간 +0.7초",effect="plagueDuration",value=.7,requires={{"philosopher_thickerskin",2}},icon="ash",color={.55,.58,.45}},
+    {id="philosopher_untouchable",name="비판이 닿지 않는다",short="하단 전문화",desc="중독 지속시간 +1.2초",effect="plagueDuration",value=1.2,requires={{"philosopher_debateclub",2},{"philosopher_sleepdeprivation",2}},icon="capstone",color={.78,.90,.32},max=1,capstone=true},
+    {id="philosopher_donationbox2",name="후원 계좌 개설",short="첫 입금 확인",desc="런 종료 성과 포인트 +6%",effect="reward",value=.06,requires={{"philosopher_cultfollow",2}},icon="donation",color={.82,.72,.30}},
+    {id="philosopher_livestream",name="실시간 스트리밍 설파",short="시청자 2명",desc="침 사거리 +16",effect="range",value=16,requires={{"philosopher_donationbox2",1}},icon="wind",color={.70,.82,.36}},
+    {id="philosopher_bookdeal",name="출판사 세 곳 거절",short="자비출판 확정",desc="런 종료 성과 포인트 +6%",effect="reward",value=.06,requires={{"philosopher_donationbox2",1}},icon="report",color={.86,.70,.28}},
+    {id="philosopher_viral",name="한 번 화제가 됨",short="캡처돼서 퍼짐",desc="침 사거리 +18",effect="range",value=18,requires={{"philosopher_livestream",2}},icon="wind",color={.68,.80,.34}},
+    {id="philosopher_disciple",name="진짜 제자가 생김",short="한 명이지만",desc="런 종료 성과 포인트 +9%",effect="reward",value=.09,requires={{"philosopher_bookdeal",2}},icon="certificate",color={.80,.68,.30}},
+    {id="philosopher_movement",name="'해방' 운동 본격화",short="하단2 전문화",desc="런 종료 성과 포인트 +14%",effect="reward",value=.14,requires={{"philosopher_viral",2},{"philosopher_disciple",2}},icon="capstone",color={.90,1,.28},max=1,capstone=true},
+    {id="philosopher_liberation",name="모든 것을 해방시킨다",short="최종 해방",desc="침 범위 +42",effect="area",value=42,requires={{"philosopher_movement",1}},icon="capstone",color={.65,1,.15},max=1,capstone=true,costs={190}}
 })
 
 local byId = {}

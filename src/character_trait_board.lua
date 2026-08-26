@@ -3,8 +3,9 @@ local UI = require("src.ui")
 local CharacterTraitBoard = {}
 CharacterTraitBoard.__index = CharacterTraitBoard
 
-local jobOrder = {"physical", "fire", "toxic", "developer"}
-local jobNames = {physical="생계형 나무꾼", fire="흡연자", toxic="비건 단체 회장", developer="부동산 개발업자"}
+local jobOrder = {"physical", "fire", "toxic", "developer", "miner", "philosopher"}
+local jobNames = {physical="생계형 나무꾼", fire="흡연자", toxic="비건 단체 회장", developer="부동산 개발업자", miner="코인 채굴꾼", philosopher="차라투스트라는 이렇게 말했다"}
+local jobTabNames = {philosopher="차라투스트라"}
 
 local function inside(box, x, y)
     return box and x >= box.x and x <= box.x + box.w and y >= box.y and y <= box.y + box.h
@@ -276,7 +277,7 @@ function CharacterTraitBoard:drawCharacterDossier(x,y,w,h,job,focusNode)
     love.graphics.printf(group.tagline,x+20,y+46,w-40,"left")
     love.graphics.setFont(fonts.small); love.graphics.setColor(.65,.72,.64)
     love.graphics.printf(group.doctrine,x+20,y+76,w-40,"left")
-    local sprite=self.sprites[job]
+    local sprite=self.sprites[job] or self.sprites.physical
     if sprite then
         local fw,fh=sprite.image:getWidth()/6,sprite.image:getHeight()/2
         local frame=math.floor(self.time*4)%6
@@ -338,8 +339,9 @@ function CharacterTraitBoard:draw()
     love.graphics.setFont(fonts.heading); love.graphics.setColor(1,.84,.38); love.graphics.print(tostring(self.store.data.currency).." P",w-207,42)
 
     local tabY,tabGap=86,8
-    local tabW=math.min(232,(w-52-tabGap*3)/4)
-    local startX=(w-(tabW*4+tabGap*3))/2
+    local tabCount=#jobOrder
+    local tabW=math.min(232,(w-52-tabGap*(tabCount-1))/tabCount)
+    local startX=(w-(tabW*tabCount+tabGap*(tabCount-1)))/2
     self.tabBoxes={}
     for i,job in ipairs(jobOrder) do
         local box={x=startX+(i-1)*(tabW+tabGap),y=tabY,w=tabW,h=44}
@@ -351,7 +353,7 @@ function CharacterTraitBoard:draw()
         love.graphics.rectangle("fill",box.x,box.y,selected and 4 or 2,box.h,2,2)
         if selected then love.graphics.rectangle("fill",box.x+10,box.y+box.h-2,box.w-20,2) end
         love.graphics.setFont(fonts.body); love.graphics.setColor(selected and {1,.96,.84,1} or {.63,.69,.61,1})
-        love.graphics.printf(i.."  "..jobNames[job],box.x,box.y+12,box.w,"center")
+        love.graphics.printf(i.."  "..(jobTabNames[job] or jobNames[job]),box.x,box.y+12,box.w,"center")
     end
 
     local dossier={x=30,y=150,w=math.min(300,w*.235),h=h-176}
