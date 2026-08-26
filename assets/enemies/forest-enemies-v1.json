@@ -1,0 +1,16 @@
+{
+  "source": "assets/enemies/concepts/forest-enemies-indie-concept-v2.png",
+  "columns": 6,
+  "rows": 2,
+  "entries": [
+    {"id":"squirrel","name":"화난 다람쥐","crop":[7,10,390,386],"cell":256,"height":54,"rig":0,"materials":["b94c1d","e5d4a7","723522","352c32","dc902b","687446","ab7452","dba875"]},
+    {"id":"boar","name":"가시 멧돼지","crop":[452,42,380,356],"cell":256,"height":66,"rig":1,"materials":["976330","c59a50","61443e","37323e","e1d5b5","b75e5c","d48d36","757953"]},
+    {"id":"turret","name":"버섯 포탑","crop":[865,35,374,362],"cell":256,"height":76,"rig":2,"materials":["b45125","e0be76","ddd5b7","776448","6a713a","423a36","bc8445","d59836"]},
+    {"id":"vineSprout","name":"식충 덩굴괴수","crop":[12,399,407,402],"cell":256,"height":86,"rig":3,"materials":["b9532b","74803b","b2a14d","d3c6a1","4e532e","713a2e","30342e","c29445"]},
+    {"id":"reaper","name":"숲의 사신","crop":[437,400,389,399],"cell":320,"height":120,"rig":4,"materials":["555e62","313641","9b773f","c3b99e","696c46","4d3931","d99339","898777"]},
+    {"id":"ent","name":"엘더 트렌트","crop":[848,399,397,410],"cell":384,"height":195,"rig":5,"materials":["85603c","b09055","5d493c","637540","9c9d42","3b3b31","c49842","bca875"]},
+    {"id":"worldtree","name":"세계수","crop":[5,777,435,470],"cell":512,"height":300,"rig":6,"materials":["866039","bd8f46","6a7440","a7a54b","d8b755","463c32","bd682a","d4bf86"]},
+    {"id":"squirrel_elite","name":"가시관 다람쥐","crop":[432,801,371,440],"cell":256,"height":64,"rig":0,"materials":["a84c29","ded1ad","663432","382c35","bd9138","697740","a9764a","bcbc85"]},
+    {"id":"boar_elite","name":"수피갑옷 멧돼지","crop":[819,809,428,427],"cell":320,"height":80,"rig":1,"materials":["846139","bd985e","5c4841","37343a","e1d3ae","b4644d","74803f","dc9a39"]}
+  ]
+}

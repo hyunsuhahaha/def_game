@@ -2,11 +2,14 @@
 *.log
 capture.png
 *-capture.png
+capture-*.png
 korean-lobby.png
 farming-system.png
 mining-system.png
 wall-*.png
 wall-system*.png
+docs/previews/
+__pycache__/
 
 # Unused generation drafts kept only on the original workstation
 assets/worker.png

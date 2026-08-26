@@ -1,0 +1,5 @@
+{
+  "target": "angryLemur-v1.png",
+  "prompt": "EDIT TARGET: the attached angry ring-tailed lemur sprite. Preserve exactly this animal, pose, pixel art, colors, angry face and black-white tail. Remove the entire baked white/light gray checkerboard background, including spaces inside tail and between legs. Output actual transparent RGBA alpha background, not a drawn checkerboard, no white matte, no shadow. Only isolated unchanged lemur on genuine transparent pixels. This is a production game cutout.",
+  "output": "angryLemur-v2.png"
+}

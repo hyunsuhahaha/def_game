@@ -1,4 +1,5 @@
 local World = {}
+local ForestScenery = require("src.forest_scenery")
 World.__index = World
 
 local buildingDefs = require("src.buildings")
@@ -1105,7 +1106,33 @@ local function treeRenderSpec(world, node)
     return world.images.treeVariants[index], world.treeVisual.variantScale[index] or 1, world.treeVisual.variantShadow[index] or 1
 end
 
+function World:useArcadeForest()
+    if not self.arcadeForest then
+        self.arcadeForest = true
+        self.images.treeVariants = {}
+        for _, name in ipairs({"broadleaf", "pine", "birch", "maple"}) do
+            local sprite = love.graphics.newImage("assets/trees/" .. name .. "-tree-cartoon-v3.png")
+            sprite:setFilter("nearest", "nearest")
+            self.images.treeVariants[#self.images.treeVariants+1] = sprite
+        end
+    end
+    self.treeVisual.frontBias = 0 -- authored roots are at the .91-height anchor
+    self.treeVisual.shadowX, self.treeVisual.shadowY = 0, 0
+    self.treeVisual.shadowRx, self.treeVisual.shadowRy = 36, 6
+end
+
 function World:drawForestGround()
+    if self.arcadeForest then
+        if require("src.clearcut_maps").drawGround(self) then
+            ForestScenery.drawGround(self)
+            return
+        end
+        love.graphics.setColor(.29,.35,.14,1)
+        love.graphics.rectangle("fill",0,0,self.width,self.height)
+        drawMirroredTiled(self.images.forestGround,0,0,self.width,self.height,768,.14)
+        ForestScenery.drawGround(self)
+        return
+    end
     love.graphics.setColor(.36, .53, .13, 1)
     love.graphics.rectangle("fill", 0, 0, self.width, self.height)
     drawMirroredTiled(self.images.forestGround, 0, 0, self.width, self.height, 768, .3)
@@ -1273,7 +1300,7 @@ function World:drawMiningDrill(building)
     love.graphics.setColor(.25,.82,1,.38+burst*.35); love.graphics.ellipse("line",x,y+42,12+burst*10,4+burst*3)
 end
 
-function World:draw(player)
+function World:draw(player, actorSource)
     love.graphics.setLineStyle("rough")
     if self.theme == "forest" then
         self:drawForestGround()
@@ -1285,6 +1312,8 @@ function World:draw(player)
         love.graphics.setColor(.06, .075, .085, 1); love.graphics.rectangle("fill", 0, 0, self.width, 55); love.graphics.rectangle("fill", 0, self.height - 55, self.width, 55); love.graphics.rectangle("fill", 0, 0, 55, self.height); love.graphics.rectangle("fill", self.width - 55, 0, 55, self.height)
     end
     local queue = {}
+    if self.arcadeForest and self.theme=="forest" then ForestScenery.queue(self,queue,player) end
+    if self.arcadeForest and self.theme=="forest" then require("src.biome_life").queue(self,queue,player) end
     if not self.hideBase then
         for i = 1, self.turretSlotLimit do
             local slot = self.turretSlots[i]
@@ -1408,21 +1437,25 @@ function World:draw(player)
                     end
                     groundedRotated(treeImage, node.x + ox, node.y + oy, visual.scale * variantScale * bump, node.swayAngle or 0)
                     if node.burning then
-                        local ft = love.timer.getTime()
-                        local flicker = .7 + math.sin(ft * 20 + node.x) * .3
-                        love.graphics.setColor(1, .5, .15, .32 * flicker); love.graphics.circle("fill", node.x, node.y - 24, 50)
-                        for i = 1, 3 do
-                            local fx = node.x + math.sin(ft * 9 + node.x + i * 2.1) * 16
-                            local fy = node.y - 20 - i * 20 + math.sin(ft * 7 + i) * 4
-                            local size = (26 - i * 6) * flicker
-                            love.graphics.setColor(1, .32 + i * .06, .04, .88)
-                            love.graphics.polygon("fill", fx, fy - size, fx - size * .55, fy + size * .55, fx + size * .55, fy + size * .55)
-                            love.graphics.setColor(.55, .12, .02, .8); love.graphics.setLineWidth(1.4)
-                            love.graphics.polygon("line", fx, fy - size, fx - size * .55, fy + size * .55, fx + size * .55, fy + size * .55)
-                            love.graphics.setColor(1, .8, .3, .75)
-                            love.graphics.polygon("fill", fx, fy - size * .5, fx - size * .25, fy + size * .3, fx + size * .25, fy + size * .3)
+                        if actorSource and actorSource.drawCigaretteTreeFire then
+                            actorSource:drawCigaretteTreeFire(node)
+                        else
+                            local ft = love.timer.getTime()
+                            local flicker = .7 + math.sin(ft * 20 + node.x) * .3
+                            love.graphics.setColor(1, .5, .15, .32 * flicker); love.graphics.circle("fill", node.x, node.y - 24, 50)
+                            for i = 1, 3 do
+                                local fx = node.x + math.sin(ft * 9 + node.x + i * 2.1) * 16
+                                local fy = node.y - 20 - i * 20 + math.sin(ft * 7 + i) * 4
+                                local size = (26 - i * 6) * flicker
+                                love.graphics.setColor(1, .32 + i * .06, .04, .88)
+                                love.graphics.polygon("fill", fx, fy - size, fx - size * .55, fy + size * .55, fx + size * .55, fy + size * .55)
+                                love.graphics.setColor(.55, .12, .02, .8); love.graphics.setLineWidth(1.4)
+                                love.graphics.polygon("line", fx, fy - size, fx - size * .55, fy + size * .55, fx + size * .55, fy + size * .55)
+                                love.graphics.setColor(1, .8, .3, .75)
+                                love.graphics.polygon("fill", fx, fy - size * .5, fx - size * .25, fy + size * .3, fx + size * .25, fy + size * .3)
+                            end
+                            love.graphics.setColor(1, 1, .8, .9 * flicker); love.graphics.circle("fill", node.x, node.y - 52, 6)
                         end
-                        love.graphics.setColor(1, 1, .8, .9 * flicker); love.graphics.circle("fill", node.x, node.y - 52, 6)
                     end
                 elseif node.kind == "quarry" then
                     local visual = self.quarryVisual
@@ -1459,6 +1492,7 @@ function World:draw(player)
         love.graphics.draw(img, drop.x, drop.y - drop.height, 0, scale, scale, img:getWidth() / 2, img:getHeight() * .91)
     end} end
     for _, e in ipairs(self.enemies) do local enemy = e; queue[#queue + 1] = {y = enemy.y, draw = function() shadow(enemy.x, enemy.y, 20, 9, .5); love.graphics.setColor(.65, .12, .15); love.graphics.circle("fill", enemy.x, enemy.y - 22, 24); love.graphics.setColor(1, .35, .25); love.graphics.circle("line", enemy.x, enemy.y - 22, 24) end} end
+    if actorSource then actorSource:queueWorldActors(queue, love.timer.getTime()) end
     queue[#queue + 1] = {y = player.y, draw = function() player:draw() end}
     table.sort(queue, function(a, b) return a.y < b.y end); for _, item in ipairs(queue) do item.draw() end
     love.graphics.setBlendMode("alpha")

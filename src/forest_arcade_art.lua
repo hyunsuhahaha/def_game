@@ -1,0 +1,87 @@
+-- Approved small arcade silhouettes. Art transforms never change combat state.
+local catalog = require("src.forest_arcade_catalog")
+for kind,spec in pairs(require("src.biome_enemy_catalog")) do catalog[kind]=spec end
+local Art = {}
+local assets, material
+
+local function load()
+    if assets then return end
+    assets = {}
+    material = love.graphics.newShader("assets/shaders/forest-arcade-light.glsl")
+    for kind, spec in pairs(catalog) do
+        local image = love.graphics.newImage(spec.file)
+        image:setFilter("nearest", "nearest")
+        local frames = {}
+        for i = 0, 11 do
+            frames[i+1] = love.graphics.newQuad((i%6)*spec.cell, math.floor(i/6)*spec.cell,
+                spec.cell, spec.cell, image:getDimensions())
+        end
+        assets[kind] = {image=image,frames=frames}
+    end
+end
+
+function Art.footY(e) return e.y + e.def.radius * .65 end
+
+function Art.pose(e, t)
+    local spec = assert(catalog[e.kind], "unknown forest art: " .. tostring(e.kind))
+    local clock = e.visualTime or t or 0
+    local moving = e.moving and e.def.speed > 0
+    local cycle = clock * (moving and 11 or 4) + (e.seed or 0)
+    local frame = moving and (math.floor(cycle)%6+1) or (spec.motion==2 and math.floor(cycle*.65)%6+1 or 1)
+    local recoil = math.min(1, (e.visualAttack or 0)/.24)
+    if recoil > 0 then frame = 10 + math.min(2, math.floor((1-recoil)*3)) end
+    if e.biomeState=="warn" then
+        frame=7+math.min(2,math.floor((1-math.max(0,e.biomeTimer)/(e.warnDuration or .65))*3))
+    elseif e.biomeState=="lunge" then
+        frame=10+math.min(2,math.floor((1-math.max(0,e.biomeTimer)/e.lungeDuration)*3))
+    end
+    if e.reaperState == "charging" then frame=8 end
+    local facing = e.facing or spec.facing
+    local flip = (e.kind == "squirrel" or spec.biome) and facing/spec.facing or 1
+    local scale = spec.width/spec.bodyWidth
+    local bob = moving and math.abs(math.sin(cycle*math.pi/3))*1.3 or 0
+    local lean = moving and math.sin(cycle*math.pi/3)*.025 or 0
+    if e.reaperState == "dashing" then lean=-facing*.13 end
+    local squash = recoil*.045
+    return {spec=spec,frame=frame,flip=flip,scale=scale,
+        x=e.x,y=Art.footY(e)-bob-(e.hopHeight or 0),footY=Art.footY(e),angle=lean,
+        sx=scale*flip*(1+squash),sy=scale*(1-squash),height=spec.height*scale}
+end
+
+function Art.drawBody(e, t)
+    load()
+    local pose=Art.pose(e,t)
+    local asset=assets[e.kind]
+    love.graphics.setColor(.08,.07,.035,.28)
+    love.graphics.ellipse("fill",e.x,pose.footY,pose.spec.width*.40,math.max(3,pose.spec.width*.105))
+    local previous=love.graphics.getShader()
+    love.graphics.setShader(material)
+    material:send("hurt",math.min(1,(e.visualHit or 0)/.14))
+    material:send("elite",e.elite and 1 or 0)
+    material:send("plague",e.plagueMarked and 1 or 0)
+    love.graphics.setColor(1,1,1,1)
+    love.graphics.draw(asset.image,asset.frames[pose.frame],pose.x,pose.y,pose.angle,
+        pose.sx,pose.sy,pose.spec.cell/2,pose.spec.foot)
+    love.graphics.setShader(previous)
+end
+
+function Art.drawSprout(x,y,grow,t)
+    load()
+    local spec=catalog.vineSprout
+    local scale=spec.width/spec.bodyWidth*(.2+grow*.55)
+    love.graphics.setColor(1,1,1,1)
+    love.graphics.draw(assets.vineSprout.image,assets.vineSprout.frames[1],x,y,
+        math.sin(t*8)*.03*(1-grow),scale,scale,spec.cell/2,spec.foot)
+end
+
+function Art.drawHealth(e,t)
+    local pose=Art.pose(e,t)
+    local w=math.max(e.def.radius*2.2,pose.spec.width*.85)
+    local x,y=math.floor(e.x-w/2),math.floor(pose.footY-pose.height-9)
+    local pct=math.max(0,math.min(1,e.hp/e.maxHp))
+    love.graphics.setColor(.14,.10,.07,.95); love.graphics.rectangle("fill",x-1,y-1,w+2,6)
+    love.graphics.setColor(.9,.3,.19,1); love.graphics.rectangle("fill",x,y,math.floor(w*pct),4)
+    love.graphics.setColor(1,.71,.45,.8); love.graphics.rectangle("fill",x,y,math.floor(w*pct),1)
+end
+
+return Art

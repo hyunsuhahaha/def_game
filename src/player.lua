@@ -76,6 +76,19 @@ function Player:clearClearcutAction()
     self.clearcutActionProgress = nil
 end
 
+-- Shared by the body renderer and attachments so frame, flip and bob agree.
+function Player:clearcutPose()
+    local action = self.clearcutActionProgress ~= nil
+    local row = action and "action" or "walk"
+    local frame = action and (math.floor(self.clearcutActionProgress * 6) + 1)
+        or (self.isMoving and (math.floor(self.walkClock) % 6 + 1) or 1)
+    local sprite = self.clearcutSprite
+    local directions = sprite[row .. "Facing"]
+    local flip = (self.facing or 1) * (directions and directions[frame] or 1)
+    local bob = not action and self.isMoving and math.abs(math.sin(self.walkClock * math.pi)) or 0
+    return row, frame, flip, sprite[row .. "Feet"][frame], bob
+end
+
 function Player:update(dt, world, game)
     if self.autoAxeClock then
         self.autoAxeClock = self.autoAxeClock + dt
@@ -93,6 +106,7 @@ function Player:update(dt, world, game)
         if dx ~= 0 then self.facing = dx < 0 and -1 or 1 end
         self.x = math.max(75, math.min(world.width - 75, self.x + dx * self.speed * dt))
         self.y = math.max(75, math.min(world.height - 75, self.y + dy * self.speed * dt))
+        self.x,self.y=require("src.clearcut_maps").constrain(world,self.x,self.y,18)
         self.walkClock = self.walkClock + dt * 9
     end
     if self.repairingWall then
@@ -142,14 +156,10 @@ function Player:draw()
     love.graphics.setColor(0, 0, 0, .42); love.graphics.ellipse("fill", self.x + 3, self.y + 3, 22 - math.abs(pulse) * 2, 7)
     love.graphics.setColor(1, 1, 1)
     if self.clearcutSprite then
-        local action = self.clearcutActionProgress ~= nil
-        local frame = action and (math.floor(self.clearcutActionProgress * 6) + 1)
-            or (self.isMoving and (math.floor(self.walkClock) % 6 + 1) or 1)
-        local anchors = action and self.clearcutSprite.actionFeet or self.clearcutSprite.walkFeet
-        local foot = anchors[frame]
+        local row, frame, flip, foot, bob = self:clearcutPose()
         local scale = self.clearcutSprite.scale or .23
-        love.graphics.draw(self.clearcutSprite.image, action and self.clearcutFrames.action[frame] or self.clearcutFrames.walk[frame],
-            self.x, self.y - (action and 0 or math.abs(pulse)), 0, scale * self.facing, scale,
+        love.graphics.draw(self.clearcutSprite.image, self.clearcutFrames[row][frame],
+            self.x, self.y - bob, 0, scale * flip, scale,
             self.clearcutFrameWidth / 2, foot)
         return
     end

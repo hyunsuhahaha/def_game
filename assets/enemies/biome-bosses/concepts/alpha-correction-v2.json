@@ -1,0 +1,7 @@
+{
+  "target": "mangrove-v1.png",
+  "prompt": "Edit this exact mangrove crocodile boss. Keep the same crocodile, pose, root ribs, tiny leaf clusters, colors and pixel design unchanged. REMOVE the entire blurred green/black cloudy background and halo including all spaces between its legs, tail, back root arches and mouth. This must be an isolated production sprite on actual transparent RGBA alpha, with opaque body and fully transparent empty pixels; no drawn checkerboard, no replacement backdrop, no glow, no cast shadow. Keep complete silhouette with margins.",
+  "output": "mangrove-v2.png",
+  "accepted": false,
+  "reason": "Output contains an opaque drawn checkerboard. Retained as a rejected source; the selected v1 has real alpha and its low-alpha halo is discarded by the shared native-pixel bake shader."
+}

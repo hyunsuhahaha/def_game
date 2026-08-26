@@ -7,6 +7,12 @@ end
 
 function Camera:update(dt, target, world)
     local w, h = love.graphics.getDimensions()
+    if world.overviewBounds then
+        local b=world.overviewBounds
+        self.x,self.y,self.zoom=b.x,b.y,math.min(w/b.w,h/b.h)
+        self.trauma=math.max(0,self.trauma-dt*1.8)
+        return
+    end
     local halfW, halfH = w / (2 * self.zoom), h / (2 * self.zoom)
     local tx = math.max(halfW, math.min(world.width - halfW, target.x))
     local ty = math.max(halfH, math.min(world.height - halfH, target.y))
@@ -29,7 +35,7 @@ function Camera:detach() love.graphics.pop() end
 
 function Camera:visibleBounds()
     local w, h = love.graphics.getDimensions()
-    return self.x - w / 2, self.y - h / 2, self.x + w / 2, self.y + h / 2
+    return self.x - w / (2*self.zoom), self.y - h / (2*self.zoom), self.x + w / (2*self.zoom), self.y + h / (2*self.zoom)
 end
 
 function Camera:screenToWorld(screenX, screenY)

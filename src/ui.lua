@@ -33,8 +33,9 @@ function UI.verticalGradient(x, y, w, h, r, topColor, bottomColor, bands)
     love.graphics.setStencilTest()
 end
 
-function UI.button(x, y, w, h, label, active, font)
+function UI.button(x, y, w, h, label, active, font, pointerX, pointerY)
     local mx, my = love.mouse.getPosition()
+    mx, my = pointerX or mx, pointerY or my
     local hovered = mx >= x and mx <= x + w and my >= y and my <= y + h
     love.graphics.setColor(active and (hovered and {.98, .7, .2, 1} or {.88, .54, .12, 1}) or {.18, .21, .23, 1})
     love.graphics.rectangle("fill", x, y, w, h, 7, 7)
