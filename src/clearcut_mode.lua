@@ -512,7 +512,9 @@ function ClearcutMode:updateVinePlants(dt, game)
         if v.timer <= 0 then
             table.remove(self.vineSpawns, i)
             self:spawnEnemy("vineSprout", v.x, v.y, {hpMul = 1 + (self:curseLevel() - 1) * .3})
-            game.world:addParticle(v.x, v.y - 10, {.35, .65, .25}, true, false)
+            for _ = 1, 6 do game.world:addParticle(v.x + love.math.random(-10,10), v.y - love.math.random(0,16), {.38, .26, .14}, true, false) end
+            for _ = 1, 5 do game.world:addParticle(v.x + love.math.random(-14,14), v.y - 6 - love.math.random(0,14), {.35, .65, .25}, true, false) end
+            if game.camera then game.camera.trauma = math.min(1, game.camera.trauma + .15) end
         end
     end
     self.vinePlantTimer = self.vinePlantTimer - dt
@@ -542,7 +544,13 @@ function ClearcutMode:updateDisasters(dt, game)
             self.disasterState, self.disasterTimer = "active", self.disasterType == "rain" and 16 or 13
             if self.disasterType == "rain" then
                 self.rainSuppressFire = true
-                for _, node in ipairs(game.world.nodes) do if node.burning then node.burning, node.burnTimer = false, nil end end
+                self.lightningTimer = 2.5
+                for _, node in ipairs(game.world.nodes) do
+                    if node.burning then
+                        node.burning, node.burnTimer = false, nil
+                        for _ = 1, 5 do game.world:addParticle(node.x + love.math.random(-14,14), node.y - 20 - love.math.random(0,18), {.8, .82, .84}, true, false) end
+                    end
+                end
                 game:setNotice("소나기 — 타오르던 불이 전부 꺼진다!", "food")
             else
                 self.quakeTickTimer = 0
@@ -550,6 +558,15 @@ function ClearcutMode:updateDisasters(dt, game)
             end
         end
     elseif self.disasterState == "active" then
+        if self.disasterType == "rain" then
+            self.lightningTimer = (self.lightningTimer or 4) - dt
+            if self.lightningTimer <= 0 then
+                self.lightningTimer = 3.5 + love.math.random() * 3.5
+                self.lightningFlashAt = love.timer.getTime()
+                self.lightningBoltSeed = love.math.random() * 1000
+                if game.camera then game.camera.trauma = math.min(1, game.camera.trauma + .12) end
+            end
+        end
         if self.disasterType == "quake" then
             self.quakeTickTimer = (self.quakeTickTimer or 0) - dt
             if game.camera then game.camera.trauma = math.min(1, game.camera.trauma + dt * .3) end
@@ -744,6 +761,13 @@ function ClearcutMode:updateBossTelegraphs(dt, game)
             end
             if hit then self:damagePlayer(t.damage, game) end
             if game.camera then game.camera.trauma = math.min(1, game.camera.trauma + .4) end
+            if t.quake then
+                for i = 1, 10 do
+                    local a = love.math.random() * math.pi * 2
+                    local r = love.math.random() * (t.radius or 60) * .6
+                    game.world:addParticle(t.x + math.cos(a) * r, t.y + math.sin(a) * r * .5, {.42, .32, .16}, true, false)
+                end
+            end
         elseif t.phase == "active" and t.timer <= 0 then
             table.remove(self.bossTelegraphs, i)
         end
@@ -1847,6 +1871,19 @@ local vineSproutPalette = {
     K={.1,.22,.08,1}, B={.2,.42,.14,1}, L={.34,.6,.22,1},
 }
 
+-- 덩굴괴수 소환 텔레그래프 전용 새싹 스프라이트: 다 자라기 전 미리보기로, 자라날수록 스케일이 커진다
+local vineSproutTipRows = {
+    "...G...",
+    "..GLG..",
+    ".GLLLG.",
+    "..BLB..",
+    "..BLB..",
+    "..KBK..",
+    "..KBK..",
+    ".KKBKK.",
+}
+local vineSproutTipPalette = {G={.46,.8,.32,1}, L={.34,.6,.22,1}, B={.2,.42,.14,1}, K={.1,.22,.08,1}}
+
 local enemySprites = {
     squirrel = {rows = squirrelRows, palette = squirrelPalette},
     boar = {rows = boarRows, palette = boarPalette},
@@ -2419,17 +2456,41 @@ function ClearcutMode:drawWorldOverlay(game)
     end
     for _, v in ipairs(self.vineSpawns) do
         local grow = 1 - math.max(0, v.timer) / 1.15
-        love.graphics.setColor(.2, .5, .16, .25 + grow * .2)
-        love.graphics.ellipse("fill", v.x, v.y + 4, 26 * grow, 10 * grow)
-        for i = 1, 6 do
-            local ang = i / 6 * math.pi * 2 + t * .8
-            local len = (10 + grow * 22) * (.6 + .4 * math.sin(t * 6 + i))
-            love.graphics.setLineWidth(2 + grow * 2); love.graphics.setColor(.28, .58, .2, .5 + grow * .35)
-            love.graphics.line(v.x, v.y, v.x + math.cos(ang) * len, v.y + math.sin(ang) * len * .5)
+        -- 1단계: 땅이 갈라진다 — 각지고 들쭉날쭉한 균열이 중심에서 뻗어나가며 점점 벌어진다
+        local crackSeed = v.seed or (v.x * .13 + v.y * .07)
+        v.seed = crackSeed
+        love.graphics.setColor(0, 0, 0, .3 + grow * .2)
+        love.graphics.ellipse("fill", v.x, v.y + 4, 22 + grow * 12, 8 + grow * 5)
+        for i = 1, 7 do
+            local baseAng = i / 7 * math.pi * 2 + crackSeed
+            local segs = 3
+            local px0, py0 = v.x, v.y
+            for s = 1, segs do
+                local sr = (6 + grow * 30) * (s / segs)
+                local jag = math.sin(crackSeed * 3 + i * 2.7 + s * 5.1) * (3 + grow * 4)
+                local nx = v.x + math.cos(baseAng) * sr + math.cos(baseAng + math.pi / 2) * jag
+                local ny = v.y + math.sin(baseAng) * sr * .55 + math.sin(baseAng + math.pi / 2) * jag * .5
+                love.graphics.setLineWidth(3.2 - s * .6); love.graphics.setColor(.06, .05, .03, .8 * (.4 + grow * .6))
+                love.graphics.line(px0, py0, nx, ny)
+                love.graphics.setLineWidth(1.6 - s * .3); love.graphics.setColor(.42, .68, .3, .5 * grow)
+                love.graphics.line(px0, py0, nx, ny)
+                px0, py0 = nx, ny
+            end
         end
-        if grow > .4 then
-            love.graphics.setColor(.35, .68, .26, math.min(1, (grow - .4) / .6))
-            love.graphics.circle("fill", v.x, v.y - grow * 16, 5 + grow * 5)
+        -- 2단계: 갈라진 틈 사이로 빛이 새어나오며 새싹이 실루엣을 드러낸다
+        if grow > .12 then
+            local glowT = math.min(1, (grow - .12) / .5)
+            love.graphics.setColor(.5, .9, .4, glowT * (.35 + math.sin(t * 10) * .12))
+            love.graphics.ellipse("fill", v.x, v.y, 14 * glowT, 6 * glowT)
+        end
+        if grow > .3 then
+            local tipT = math.min(1, (grow - .3) / .7)
+            local wobble = math.sin(t * 9 + crackSeed) * (1 - tipT) * 4
+            local px = (5 + tipT * 4.2)
+            local cx, cy = v.x + wobble, v.y - tipT * 15
+            local outline = darkenPalette(vineSproutTipPalette, .1, 1)
+            drawPixelGrid(vineSproutTipRows, outline, cx, cy, px * 1.16)
+            drawPixelGrid(vineSproutTipRows, vineSproutTipPalette, cx, cy, px)
         end
     end
     for _, e in ipairs(self.enemies) do drawEnemy(e, t) end
@@ -2484,35 +2545,120 @@ local function drawBerserkOverlay(state, w, h, t)
 end
 
 -- 자연재해 화면 연출: 비는 대각선 빗줄기 + 어두운 청회색 톤, 지진은 흙먼지 파티클 + 갈색 톤
-local function drawDisasterOverlay(kind, state, w, h, t)
+local function drawDisasterOverlay(self, w, h, t)
+    local kind, state = self.disasterType, self.disasterState
     if not kind or (state ~= "warn" and state ~= "active") then return end
     local active = state == "active"
     if kind == "rain" then
+        -- 하늘에서 짙은 먹구름이 위쪽부터 깔리며 내려온다
+        local cloudDepth = active and h * .34 or h * .16
+        local steps = 14
+        for i = 0, steps do
+            local p = i / steps
+            local a = (active and .5 or .22) * (1 - p) ^ 1.4
+            love.graphics.setColor(.04, .06, .09, a)
+            love.graphics.rectangle("fill", 0, p * cloudDepth, w, cloudDepth / steps + 1)
+        end
         local pulse = .5 + math.sin(t * 2) * .5
-        love.graphics.setColor(.05, .08, .12, active and (.3 + pulse * .06) or (.12 + pulse * .05))
+        love.graphics.setColor(.04, .06, .09, active and (.22 + pulse * .05) or (.1 + pulse * .04))
         love.graphics.rectangle("fill", 0, 0, w, h)
         if active then
-            love.graphics.setLineWidth(1.4)
-            for i = 1, 70 do
+            -- 빗줄기: 굵기/밝기로 원근감을 준다 (가까운 줄기=굵고 밝음, 먼 줄기=가늘고 흐림)
+            for i = 1, 90 do
                 local seed = i * 5.7
-                local speed = 900 + (i % 7) * 120
-                local x = (t * speed * .35 + seed * 37) % (w + 200) - 100
-                local y = (t * speed + seed * 91) % (h + 120) - 60
-                love.graphics.setColor(.7, .8, .92, .28 + (i % 4) * .06)
-                love.graphics.line(x, y, x - 14, y + 34)
+                local depth = .4 + (i % 5) * .15
+                local speed = 760 * depth + (i % 7) * 60
+                local x = (t * speed * .32 + seed * 37) % (w + 220) - 110
+                local y = (t * speed + seed * 91) % (h + 140) - 70
+                love.graphics.setLineWidth(1 + depth * 1.6)
+                love.graphics.setColor(.72, .82, .94, (.16 + depth * .22))
+                love.graphics.line(x, y, x - 10 * depth, y + 30 * depth)
+            end
+            -- 빗방울이 땅에 튀는 잔물결
+            for i = 1, 16 do
+                local seed = i * 11.3
+                local cycle = (t * .8 + seed) % 1
+                if cycle < .4 then
+                    local sx, sy = (seed * 197) % w, (seed * 331) % h
+                    local ring = cycle / .4
+                    love.graphics.setLineWidth(1.4); love.graphics.setColor(.75, .85, .95, (1 - ring) * .35)
+                    love.graphics.ellipse("line", sx, sy, 3 + ring * 9, 1.4 + ring * 3.2)
+                end
+            end
+            -- 번개: 하늘에서 들쭉날쭉한 번개가 내리치고, 화면 전체가 순간적으로 하얗게 번쩍인다
+            local flashElapsed = t - (self.lightningFlashAt or -10)
+            if flashElapsed >= 0 and flashElapsed < .5 then
+                local seed = self.lightningBoltSeed or 0
+                local boltA = math.max(0, 1 - flashElapsed / .5)
+                if flashElapsed < .12 then
+                    love.graphics.setColor(1, 1, 1, (1 - flashElapsed / .12) * .5)
+                    love.graphics.rectangle("fill", 0, 0, w, h)
+                end
+                local bx = w * (.2 + (seed % 100) / 100 * .6)
+                local px0, py0 = bx, 0
+                love.graphics.setLineWidth(3)
+                for s = 1, 7 do
+                    local nx = bx + math.sin(seed + s * 2.3) * 50 * (s / 7)
+                    local ny = h * .55 * (s / 7)
+                    love.graphics.setColor(.85, .9, 1, boltA * .9)
+                    love.graphics.line(px0, py0, nx, ny)
+                    if s == 4 then
+                        local bx2, by2 = nx, ny
+                        for s2 = 1, 3 do
+                            local nx2 = bx2 + math.sin(seed * 1.7 + s2 * 3.1) * 40
+                            local ny2 = by2 + s2 * 22
+                            love.graphics.setColor(.85, .9, 1, boltA * .6)
+                            love.graphics.line(bx2, by2, nx2, ny2)
+                            bx2, by2 = nx2, ny2
+                        end
+                    end
+                    px0, py0 = nx, ny
+                end
             end
         end
     elseif kind == "quake" then
-        local shake = active and (math.sin(t * 47) * 2 + math.sin(t * 71) * 1.5) or 0
-        love.graphics.setColor(.18, .12, .05, active and .1 or .06)
+        local shakeAmt = active and 1 or .35
+        local shake = math.sin(t * 47) * 2 * shakeAmt + math.sin(t * 71) * 1.5 * shakeAmt
+        love.graphics.setColor(.16, .11, .05, active and .13 or .06)
         love.graphics.rectangle("fill", shake, shake * .6, w, h)
+        -- 화면 가장자리 흙먼지 얼룩(비네트)
+        local steps = 10
+        for i = 0, steps do
+            local p = i / steps
+            local a = (active and .32 or .12) * (1 - p) ^ 1.6
+            love.graphics.setColor(.32, .24, .12, a)
+            love.graphics.rectangle("fill", 0, h - (i + 1) * (60 / steps), w, 60 / steps + 1)
+        end
         if active then
-            for i = 1, 10 do
+            -- 회전하며 떨어지는 돌 파편: 낙하 궤적에 잔상을 남기고, 밝은 테두리로 어두운 숲 배경에서도 확실히 도드라진다
+            for i = 1, 16 do
                 local seed = i * 4.1
-                local x = (seed * 173) % w
-                local y = (t * 30 + seed * 210) % h
-                love.graphics.setColor(.4, .3, .16, .4)
-                love.graphics.circle("fill", x, y, 1.6 + (i % 3))
+                local fallSpeed = 130 + (i % 5) * 30
+                local x = (seed * 173 + math.sin(t * 3 + seed) * 10) % w
+                local y = (t * fallSpeed + seed * 210) % (h + 80) - 40
+                local size = 5 + (i % 4) * 2.2
+                local rot = t * (2 + (i % 3)) + seed
+                love.graphics.setLineWidth(size * .7); love.graphics.setColor(.85, .74, .5, .35)
+                love.graphics.line(x, y - fallSpeed * .16, x, y - fallSpeed * .3)
+                love.graphics.push(); love.graphics.translate(x, y); love.graphics.rotate(rot)
+                love.graphics.setColor(0, 0, 0, .45)
+                love.graphics.polygon("fill", -size, size * .8, size * .9, size, size * .7, -size * .9)
+                love.graphics.polygon("fill", -size * 1.15, size * .95, size * 1.05, size * 1.15, size * .85, -size * 1.05)
+                love.graphics.setColor(.44, .33, .17, 1)
+                love.graphics.polygon("fill", -size, size * .3, size * .3, -size, size * .9, size * .4, 0, size)
+                love.graphics.setColor(.86, .76, .52, .95)
+                love.graphics.polygon("line", -size, size * .3, size * .3, -size, size * .9, size * .4, 0, size)
+                love.graphics.setColor(1, .95, .8, .55)
+                love.graphics.polygon("fill", -size * .5, -size * .1, size * .1, -size * .5, size * .3, -size * .1)
+                love.graphics.pop()
+            end
+            -- 낮게 깔린 흙먼지 안개가 천천히 흐른다
+            for i = 1, 6 do
+                local seed = i * 7.3
+                local x = ((t * 24 + seed * 130) % (w + 300)) - 150
+                local y = h - 40 - (i % 3) * 26
+                love.graphics.setColor(.4, .32, .18, .1)
+                love.graphics.ellipse("fill", x, y, 160, 34)
             end
         end
     end
@@ -2560,7 +2706,7 @@ function ClearcutMode:drawHUD(game,fonts)
     local w,h=love.graphics.getDimensions()
     local t = love.timer.getTime()
     drawBerserkOverlay(self.berserkState, w, h, t)
-    drawDisasterOverlay(self.disasterType, self.disasterState, w, h, t)
+    drawDisasterOverlay(self, w, h, t)
     drawOffscreenIndicators(self, game, fonts, w, h, t)
     UI.panel(16,16,360,168,{.35,1,.52,1},.94)
     love.graphics.setFont(fonts.big); love.graphics.setColor(1,1,1); love.graphics.print(formatTime(self.elapsed),32,27)
