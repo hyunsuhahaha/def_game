@@ -71,7 +71,7 @@ function ClearcutMode.new()
         rootHazards={}, rootedTimer=0, rootedCount=0,
         bees={}, beeSlow=false, beeSwarmsTriggered=0, beehiveTotal=0,
         streak=0, lastHitAt=-10, molotovTimer=0, wildfireTimer=0, toxicTimer=0, evolutions={}, molotovs={},
-        job=nil, attackCooldown=0, dashing=nil, dashTrail={},
+        job=nil, attackCooldown=0, dashing=nil, dashTrail={}, smoking=nil,
         hp=100, maxHp=100, invulnTimer=0, dead=false,
         enemies={}, projectiles={}, bossTelegraphs={}, waveFired={}, worldTreeSpawned=false, readyToFinish=false, activeBoss=nil, kills=0,
         chests={}, chestPending=false, molotovShots=0, wildburstTimer=10, plagued={}, dodges=0
@@ -731,6 +731,10 @@ function ClearcutMode:aimPoint(game, maxRange)
 end
 
 function ClearcutMode:updateFireAttack(dt, game, heldOverride)
+    if self.smoking then
+        self:updateSmoking(dt, game)
+        return true
+    end
     local held = heldOverride
     if held == nil then held = love.mouse.isDown(1) end
     self.attackCooldown = math.max(0, self.attackCooldown - dt)
@@ -738,10 +742,24 @@ function ClearcutMode:updateFireAttack(dt, game, heldOverride)
     local tx, ty = self:aimPoint(game, maxRange)
     self.aimX, self.aimY, self.aimRadius = tx, ty, 90 + self:levelOf("molotov") * 20
     if not held or self.attackCooldown > 0 then return false end
-    self:hurlMolotovAt(tx, ty, game)
-    local speed = (game.tools.axe.speed or 1) * game.player.gather
-    self.attackCooldown = 1.05 / speed
+    self:startSmoking(tx, ty, game)
     return true
+end
+
+function ClearcutMode:startSmoking(tx, ty, game)
+    local speed = (game.tools.axe.speed or 1) * game.player.gather
+    self.smoking = {tx = tx, ty = ty, t = 0, dur = math.max(.3, .58 / speed)}
+end
+
+function ClearcutMode:updateSmoking(dt, game)
+    local s = self.smoking
+    s.t = s.t + dt
+    self.aimX, self.aimY = s.tx, s.ty
+    if s.t < s.dur then return end
+    self:hurlMolotovAt(s.tx, s.ty, game)
+    local speed = (game.tools.axe.speed or 1) * game.player.gather
+    self.attackCooldown = .45 / speed
+    self.smoking = nil
 end
 
 function ClearcutMode:updateToxicAttack(dt, game, heldOverride)
@@ -1280,6 +1298,37 @@ local cigaretteIconRows = {
 }
 local cigaretteIconPalette = {q={.75,.75,.78,.55}, W={.92,.9,.82,1}, F={1,.55,.15,1}, O={.35,.22,.13,1}}
 
+local cigaretteButtRows = {
+    "....AA....",
+    "...AHA....",
+    "..EHHHE...",
+    "..EHHHE...",
+    ".EEHHHEE..",
+    ".EEEEEEE..",
+    "BBBBBBBBB.",
+    "BBBBBBBBB.",
+    "OBBBBBBBO.",
+    "OWWWWWWWO.",
+    "OWWWWWWWO.",
+    "OWWWWWWWO.",
+    "OWWWWWWWO.",
+    "OWWWWWWWO.",
+    "OWWWWWWWO.",
+    "OWWWWWWWO.",
+    "OYYYYYYYO.",
+    "OYYYYYYYO.",
+    "OFFFFFFFO.",
+    "OFfFFfFFO.",
+    "OFFfFFfFO.",
+    "OFfFFFfFO.",
+    "OFFFFFFFO.",
+    ".OOOOOOO..",
+}
+local cigaretteButtPalette = {
+    A={.68,.66,.62,.85}, H={1,.92,.55,1}, E={1,.42,.12,1}, B={.12,.09,.08,1},
+    O={.16,.11,.08,1}, W={.93,.91,.85,1}, Y={.82,.68,.32,1}, F={.78,.55,.28,1}, f={.55,.36,.18,1}
+}
+
 local leafIconRows = {
     "...OO...",
     "..OGGO..",
@@ -1342,11 +1391,22 @@ function ClearcutMode:drawWorldOverlay(game)
     local t = love.timer.getTime()
     local px, py = game.player.x + 14, game.player.y - 34
     if self.job == "fire" then
+        local smoking = self.smoking
+        local drag = smoking and math.min(1, smoking.t / smoking.dur) or 0
         drawPixelGrid(cigaretteIconRows, cigaretteIconPalette, px, py, 2.4)
-        for i = 1, 2 do
-            local phase = (t * .6 + i * .5) % 1
-            love.graphics.setColor(.8, .8, .82, (1 - phase) * .4)
-            love.graphics.circle("fill", px - 9 + math.sin(t * 2 + i) * 3, py - 4 - phase * 22, 2 + phase * 3)
+        local emberGlow = smoking and (.55 + math.sin(t * 18) * .35) or (.25 + math.sin(t * 3) * .15)
+        love.graphics.setColor(1, .55, .15, emberGlow); love.graphics.circle("fill", px + 15, py + 2, smoking and (3.5 + drag * 2.5) or 2)
+        local puffCount = smoking and 6 or 2
+        for i = 1, puffCount do
+            local phase = smoking and ((drag * 1.4 + i / puffCount) % 1) or ((t * .6 + i * .5) % 1)
+            local rise = phase * (smoking and 34 or 22)
+            local widen = 1 + phase * (smoking and 2.6 or .6)
+            local driftX = math.sin(t * 1.6 + i * 1.7) * (smoking and (4 + phase * 10) or 3)
+            local alpha = (1 - phase) * (smoking and .55 or .4)
+            love.graphics.setColor(.85, .85, .88, alpha * .5)
+            love.graphics.circle("fill", px - 9 + driftX, py - 4 - rise, (3 + phase * 5) * widen)
+            love.graphics.setColor(.92, .92, .94, alpha)
+            love.graphics.circle("fill", px - 9 + driftX, py - 4 - rise, (1.6 + phase * 2.6) * widen)
         end
     elseif self.job == "toxic" then
         local bob = math.sin(t * 2.4) * 2
@@ -1468,18 +1528,16 @@ function ClearcutMode:drawWorldOverlay(game)
         local p = m.t / m.dur
         local x = m.x0 + (m.x1 - m.x0) * p
         local y = m.y0 + (m.y1 - m.y0) * p - math.sin(p * math.pi) * 120
-        love.graphics.setColor(.3, .3, .3, .25)
-        for i = 1, 3 do love.graphics.circle("fill", x - (m.x1 - m.x0) * .015 * i, y - (m.y1 - m.y0) * .015 * i + i * 2.5, 2 + i * .8) end
+        love.graphics.setColor(.78, .78, .8, .2)
+        for i = 1, 3 do love.graphics.circle("fill", x - (m.x1 - m.x0) * .015 * i, y - (m.y1 - m.y0) * .015 * i + i * 2.5, 2.5 + i * 1.1) end
         love.graphics.push(); love.graphics.translate(x, y); love.graphics.rotate(p * 20)
-        love.graphics.setColor(0, 0, 0, .3); love.graphics.ellipse("fill", 1, 8, 4.5, 2)
-        love.graphics.setColor(.14, .4, .2, .96); love.graphics.rectangle("fill", -3.4, -5, 6.8, 11, 2.4, 2.4)
-        love.graphics.setColor(.35, .7, .4, .5); love.graphics.rectangle("fill", -2.6, -4, 2, 9, 1.5, 1.5)
-        love.graphics.setColor(.08, .26, .12, 1); love.graphics.setLineWidth(1); love.graphics.rectangle("line", -3.4, -5, 6.8, 11, 2.4, 2.4)
-        love.graphics.setColor(.14, .4, .2, .96); love.graphics.rectangle("fill", -1.6, -8.5, 3.2, 4.2)
-        love.graphics.setColor(.85, .78, .58, 1); love.graphics.rectangle("fill", -1, -12, 2, 4.5)
+        love.graphics.setColor(0, 0, 0, .3); love.graphics.ellipse("fill", 1, 34, 7, 3)
+        local buttPx = 3.2
+        local emberLocalY = -(#cigaretteButtRows * buttPx / 2) + 4 * buttPx
         local fl = .7 + math.sin(t * 30) * .3
-        love.graphics.setColor(1, .55, .15, .9 * fl); love.graphics.circle("fill", 0, -13, 2.8 * fl)
-        love.graphics.setColor(1, .85, .35, .85 * fl); love.graphics.circle("fill", 0, -13.6, 1.4 * fl)
+        love.graphics.setColor(1, .5, .12, .5 * fl); love.graphics.circle("fill", 0, emberLocalY, 11 * fl)
+        love.graphics.setColor(1, .78, .3, .35 * fl); love.graphics.circle("fill", 0, emberLocalY, 6 * fl)
+        drawPixelGrid(cigaretteButtRows, cigaretteButtPalette, 0, 0, buttPx)
         love.graphics.pop()
     end
     for _, tel in ipairs(self.bossTelegraphs) do
