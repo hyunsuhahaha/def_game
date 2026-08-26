@@ -1773,34 +1773,59 @@ local function octagonPoints(cx, cy, r, rot)
     return pts
 end
 
+local function drawShadedRivet(cx, cy, color)
+    love.graphics.setColor(.05, .04, .03, 1); love.graphics.circle("fill", cx, cy, 3.2)
+    love.graphics.setColor(color[1] * .6, color[2] * .6, color[3] * .6, 1); love.graphics.circle("fill", cx, cy, 2.6)
+    love.graphics.setColor(1, 1, 1, .55); love.graphics.circle("fill", cx - .7, cy - .7, 1.1)
+end
+
 local function drawUpgradeCardFrame(x, y, w, h, color, hovered)
-    UI.verticalGradient(x, y, w, h, 12, {.05, .045, .04, .98}, {.1, .07, .045, .98}, 22)
-    love.graphics.setLineWidth(1); love.graphics.setColor(1, 1, 1, .07)
+    for i = 3, 1, -1 do
+        love.graphics.setColor(color[1], color[2], color[3], .05 * i)
+        love.graphics.rectangle("fill", x - i * 4, y - i * 4, w + i * 8, h + i * 8, 14 + i * 3, 14 + i * 3)
+    end
+    UI.verticalGradient(x, y, w, h, 12, {.045, .04, .038, .99}, {.1, .075, .05, .99}, 64)
+    love.graphics.stencil(function() love.graphics.rectangle("fill", x, y, w, h, 12, 12) end, "replace", 1)
+    love.graphics.setStencilTest("greater", 0)
+    love.graphics.setColor(1, 1, 1, .05)
+    love.graphics.polygon("fill", x - 20, y, x + w * .38, y, x + w * .1, y + h, x - 60, y + h)
+    love.graphics.setStencilTest()
+    love.graphics.setLineWidth(1); love.graphics.setColor(1, 1, 1, .09)
     love.graphics.rectangle("line", x, y, w, h, 12, 12)
     love.graphics.setLineWidth(hovered and 3 or 2)
-    love.graphics.setColor(color[1], color[2], color[3], hovered and 1 or .65)
+    love.graphics.setColor(color[1], color[2], color[3], hovered and 1 or .68)
     love.graphics.rectangle("line", x + 4, y + 4, w - 8, h - 8, 9, 9)
-    love.graphics.setColor(color[1], color[2], color[3], .8)
+    love.graphics.setLineWidth(1); love.graphics.setColor(1, 1, 1, .35)
+    love.graphics.line(x + 10, y + 4.5, x + w - 10, y + 4.5)
+    love.graphics.setColor(0, 0, 0, .35)
+    love.graphics.line(x + 10, y + h - 4.5, x + w - 10, y + h - 4.5)
     local corners = {{x + 10, y + 10}, {x + w - 10, y + 10}, {x + 10, y + h - 10}, {x + w - 10, y + h - 10}}
-    for _, c in ipairs(corners) do love.graphics.circle("fill", c[1], c[2], 2.6) end
+    for _, c in ipairs(corners) do drawShadedRivet(c[1], c[2], color) end
 end
 
 local function drawIconSocket(cx, cy, color, iconDef, t)
     local r = 58
     local pulse = .5 + math.sin(t * 2.4) * .5
-    love.graphics.setColor(color[1], color[2], color[3], .3 + pulse * .12)
-    love.graphics.circle("fill", cx, cy, r + 14)
+    for i = 3, 1, -1 do
+        love.graphics.setColor(color[1], color[2], color[3], (.14 + pulse * .05) / i)
+        love.graphics.circle("fill", cx, cy, r + i * 9)
+    end
+    love.graphics.setColor(0, 0, 0, .5); love.graphics.circle("fill", cx + 2, cy + 2, r + 2)
     love.graphics.setColor(.035, .04, .05, 1)
     love.graphics.polygon("fill", octagonPoints(cx, cy, r))
-    love.graphics.setLineWidth(3); love.graphics.setColor(color[1], color[2], color[3], .85 + pulse * .15)
+    love.graphics.setLineWidth(3); love.graphics.setColor(color[1] * .5, color[2] * .5, color[3] * .5, .9)
+    love.graphics.polygon("line", octagonPoints(cx, cy, r + 1))
+    love.graphics.setLineWidth(2.4); love.graphics.setColor(color[1], color[2], color[3], .9 + pulse * .1)
     love.graphics.polygon("line", octagonPoints(cx, cy, r))
-    love.graphics.setLineWidth(1); love.graphics.setColor(1, 1, 1, .45)
+    love.graphics.setLineWidth(1); love.graphics.setColor(1, 1, 1, .5)
     love.graphics.polygon("line", octagonPoints(cx, cy, r - 4))
-    love.graphics.setColor(color[1], color[2], color[3], .9)
-    love.graphics.polygon("fill", cx - 7, cy - r - 3, cx + 7, cy - r - 3, cx, cy - r - 13)
-    love.graphics.polygon("fill", cx - 7, cy + r + 3, cx + 7, cy + r + 3, cx, cy + r + 13)
+    love.graphics.setColor(color[1], color[2], color[3], .95)
+    love.graphics.polygon("fill", cx - 7, cy - r - 3, cx + 7, cy - r - 3, cx, cy - r - 14)
+    love.graphics.polygon("fill", cx - 7, cy + r + 3, cx + 7, cy + r + 3, cx, cy + r + 14)
+    love.graphics.setColor(1, 1, 1, .4)
+    love.graphics.polygon("fill", cx - 4, cy - r - 5, cx + 4, cy - r - 5, cx, cy - r - 11)
     if iconDef then
-        love.graphics.setColor(0, 0, 0, .3); love.graphics.ellipse("fill", cx + 2, cy + r * .58, 34, 9)
+        love.graphics.setColor(0, 0, 0, .32); love.graphics.ellipse("fill", cx + 2, cy + r * .58, 34, 9)
         drawPixelGrid(iconDef.rows, iconDef.palette, cx, cy, 96 / #iconDef.rows)
     end
 end
