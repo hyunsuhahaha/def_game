@@ -1290,16 +1290,16 @@ local axeIconRows = {
 local axeIconPalette = {O={.14,.09,.05,1}, M={.82,.85,.88,1}, H={.5,.32,.16,1}}
 
 local cigaretteIconRows = {
-    "..q.....",
-    ".q......",
-    "q.......",
+    "........",
+    "........",
+    "........",
     "........",
     "........",
     "WWWWWWFO",
     "........",
     "........",
 }
-local cigaretteIconPalette = {q={.75,.75,.78,.55}, W={.92,.9,.82,1}, F={1,.55,.15,1}, O={.35,.22,.13,1}}
+local cigaretteIconPalette = {W={.92,.9,.82,1}, F={1,.55,.15,1}, O={.35,.22,.13,1}}
 
 local cigaretteButtRows = {
     "....AA....",
