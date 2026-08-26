@@ -4,20 +4,22 @@ local Cigarette = require("src.cigarette_sprite")
 local CigaretteButts = require("src.cigarette_butts")
 local CigaretteButtArt = require("src.cigarette_butt_art")
 local ForestArt = require("src.forest_arcade_art")
+local Fusions = require("src.clearcut_fusions")
 
 local ClearcutMode = {}
 ClearcutMode.__index = ClearcutMode
 
-local trackLabels = {destroy = "파괴력", spread = "확산력", suppress = "억제력", develop = "개발력"}
+local trackLabels = {destroy = "파괴력", spread = "확산력", suppress = "억제력", develop = "개발력", dig = "굴착력"}
 
 -- 시그니처 업그레이드를 처음 고르면 1차 전직이 확정되고 기본 공격 자체가 바뀐다.
-local jobFor = {berserker = "physical", molotov = "fire", toxic_rain = "toxic", heavy_machinery = "developer"}
-local jobNames = {physical = "생계형 나무꾼", fire = "흡연자", toxic = "비건 단체 회장", developer = "부동산 개발업자"}
+local jobFor = {berserker = "physical", molotov = "fire", toxic_rain = "toxic", heavy_machinery = "developer", detector = "miner"}
+local jobNames = {physical = "생계형 나무꾼", fire = "흡연자", toxic = "비건 단체 회장", developer = "부동산 개발업자", miner = "코인 채굴꾼"}
 local jobDesc = {
     physical = "그냥 오늘 할당량을 채우러 왔을 뿐이다. 대출은 갚아야 하니까.",
     fire = "마우스 위치에 꽁초를 튕깁니다. 꽁초는 바닥에 남아 타들어가며 주변 나무로 불씨를 확률적으로 옮깁니다. 착지 즉시 불붙지는 않습니다.",
     toxic = "기본 공격이 도끼질 대신 마우스 위치에 '친환경' 제초제를 살포하는 것으로 바뀝니다. 숲을 지키기 위해 숲을 없앤다.",
-    developer = "기본 공격이 도끼질 대신 마우스 방향으로 중장비 돌진하는 것으로 바뀝니다. 여기에 아파트 지으면 됨."
+    developer = "기본 공격이 도끼질 대신 마우스 방향으로 중장비 돌진하는 것으로 바뀝니다. 여기에 아파트 지으면 됨.",
+    miner = "기본 공격이 도끼질 대신 마우스 위치를 곡괭이로 파헤치는 것으로 바뀝니다. 그 시절 그 USB는 대체 어디 묻힌 걸까."
 }
 
 -- job이 있는 카드는 해당 전직에서만 뜨는 전직 전용 카드다. job이 없으면 모든 전직에 공용으로 뜬다.
@@ -41,8 +43,18 @@ local definitions = {
     {id="pile_driving", track="develop", name="말뚝 박기", desc="돌진 사거리가 늘어나고 재사용 대기시간이 줄어듭니다.", max=3, color={.7,.62,.4}, job="developer"},
     {id="heavy_machinery", track="develop", name="중장비 투입", desc="돌진 경로의 폭이 넓어져 더 많은 나무를 밀어버립니다.", max=3, color={1,.72,.15}, job="developer"},
     {id="demolition", track="develop", name="철거 폭파", desc="돌진이 끝나는 지점에서 폭발이 일어나 주변 나무에도 피해를 줍니다.", max=3, color={1,.45,.15}, job="developer"},
-    {id="site_clearance", track="develop", name="부지 정지 작업", desc="돌진이 지나간 자리는 다시는 나무가 자라지 않는 부지가 됩니다.", max=3, color={.55,.5,.55}, job="developer"}
+    {id="site_clearance", track="develop", name="부지 정지 작업", desc="돌진이 지나간 자리는 다시는 나무가 자라지 않는 부지가 됩니다.", max=3, color={.55,.5,.55}, job="developer"},
+    -- 굴착력 (dig) — 한 번 내려찍을 때 얼마나 넓고 확실하게 파헤치느냐 [코인 채굴꾼 전용]
+    {id="detector", track="dig", name="금속탐지기", desc="기본 공격이 곡괭이로 바뀝니다. 마우스 위치를 파헤쳐 반경 안의 나무를 뿌리째 뽑습니다. 가끔 삑— 소리와 함께 대박이 터집니다.", max=3, color={.85,.68,.22}, job="miner"},
+    {id="deep_scan", track="dig", name="정밀 탐사", desc="탐지 반경이 넓어지고 판정 속도가 빨라집니다.", max=3, color={.95,.82,.35}, job="miner"},
+    {id="backhoe", track="dig", name="굴착기 대여", desc="굴착 한 방의 범위와 위력이 커집니다. 렌탈비는... 나중에 생각하자.", max=3, color={.75,.55,.2}, job="miner"},
+    {id="jackpot", track="dig", name="이번엔 진짜 있을 것 같다", desc="가끔 '발견!' 판정이 터져 훨씬 넓은 범위가 한 번에 무너지고 목재를 왕창 얻습니다.", max=3, color={1,.84,.3}, job="miner"},
 }
+
+local upgradeById = {}
+for _, def in ipairs(definitions) do upgradeById[def.id] = def end
+local recoveryChoice = {id="field_rest",name="현장 휴식",track="suppress",color={.4,.9,.6},
+    desc="모든 남은 스킬을 마스터했습니다. 체력을 20 회복하고 계속합니다.",recovery=true}
 
 -- 아르카나: 인크리멘탈 업그레이드와 별개로 스테이지를 깰 때마다 딱 1번 고르는 영구 룰 변경 카드.
 -- 레벨이 없고 되돌릴 수 없는 트레이드오프 — 한 번 고르면 그 판 내내 유지된다.
@@ -120,6 +132,7 @@ function ClearcutMode.new()
 end
 
 function ClearcutMode:levelOf(id) return self.levels[id] or 0 end
+function ClearcutMode:getUpgradeDefinition(id) return upgradeById[id] end
 function ClearcutMode:pickupRadius() return 165 + self:levelOf("magnet") * 95 end
 function ClearcutMode:pickupSpeed() return 15 + self:levelOf("magnet") * 4 end
 function ClearcutMode:destructionPct() return self.initialTrees > 0 and math.min(100, (1 - self.remainingTrees / self.initialTrees) * 100) or 0 end
@@ -217,6 +230,7 @@ function ClearcutMode:update(dt, game)
     self:updateBees(dt, game)
     self:updateFire(dt, game)
     self:updateMolotovs(dt, game)
+    self:updateMining(dt, game)
     self:updateToxicRain(dt, game)
     self:updateTimeSpawner(dt, game)
     self:updateEliteTimer(dt, game)
@@ -824,21 +838,27 @@ function ClearcutMode:onEnemyDefeated(e, game)
 end
 
 function ClearcutMode:updateChests(dt, game)
+    if game.mode~="playing" then return end
     for _, c in ipairs(self.chests) do
         if not c.collected then
             local dx, dy = game.player.x - c.x, game.player.y - c.y
             if dx*dx + dy*dy <= 46*46 then
                 c.collected = true
                 self:openChest(game)
+                if game.mode~="playing" then return end
             end
         end
     end
 end
 
 function ClearcutMode:openChest(game)
+    if self:checkEvolutions(game) then
+        self.fusionChestRewards=(self.fusionChestRewards or 0)+1
+        return
+    end
     local pool = {}
-    for _, def in ipairs(definitions) do
-        if def.job == self.job and self:levelOf(def.id) < def.max then pool[#pool + 1] = def end
+    for _, def in ipairs(self:upgradePool()) do
+        if def.job == self.job then pool[#pool + 1] = def end
     end
     if #pool == 0 then
         self:onWood(40, game)
@@ -849,6 +869,7 @@ function ClearcutMode:openChest(game)
     self.choices = {}
     for i = 1, math.min(3, #pool) do self.choices[i] = pool[i] end
     self.chestPending = true
+    self.selectionKind, self.banishArmed = "upgrade", false
     self.specialCard = nil
     game.mode = "clearcut_upgrade"
     game:setNotice("보물상자 — 전직 전용 스킬을 하나 고르세요!", "food")
@@ -1036,6 +1057,10 @@ function ClearcutMode:updateFire(dt, game)
     local dryLevel = self:levelOf("dry_forest")
     local spreadChancePerSec = .12 + dryLevel * .14
     local spreadRadius = 130 + dryLevel * 45
+    if self.evolutions.wildfire then
+        spreadRadius=spreadRadius*1.35
+        spreadChancePerSec=spreadChancePerSec*1.5
+    end
     local burnDuration = math.max(2.2, 3.6 - dryLevel * .35)
     if dryLevel >= 3 then
         self.wildburstTimer = self.wildburstTimer - dt
@@ -1100,12 +1125,15 @@ function ClearcutMode:updateToxicRain(dt, game)
     self.toxicTimer = 0
     local radius = 120 + lvl * 20
     for _, node in ipairs(game.world.nodes) do
-        if node.rushTree and node.active then
+        if node.rushTree and (node.active or self.evolutions.necrosis) then
             local dx, dy = node.x - game.player.x, node.y - game.player.y
             if dx*dx + dy*dy <= radius*radius then
-                node.rushHp = (node.rushHp or node.rushMaxHp) - lvl
-                game.world:impactNode(node, game, false)
-                if node.rushHp <= 0 then self:fellTree(node, game) end
+                if self.evolutions.necrosis then node.sterile=true end
+                if node.active then
+                    node.rushHp = (node.rushHp or node.rushMaxHp) - lvl
+                    game.world:impactNode(node, game, false)
+                    if node.rushHp <= 0 then self:fellTree(node, game) end
+                end
             end
         end
     end
@@ -1162,6 +1190,8 @@ function ClearcutMode:onTreeFallen(node, game)
         best.rushHp = 0
         game.world:impactNode(best, game, true)
         self:fellTree(best, game)
+        -- harvestBurst sets a new random fallDir; preserve the chain AFTER it.
+        if self.evolutions.collapse then best.fallDir=dirX end
     end
 end
 
@@ -1190,6 +1220,7 @@ function ClearcutMode:updateHeldAxe(dt, game, heldOverride)
     if self.job == "fire" then return self:updateFireAttack(dt, game, heldOverride) end
     if self.job == "toxic" then return self:updateToxicAttack(dt, game, heldOverride) end
     if self.job == "developer" then return self:updateDeveloperAttack(dt, game, heldOverride) end
+    if self.job == "miner" then return self:updateMinerAttack(dt, game, heldOverride) end
     return self:updatePhysicalAttack(dt, game, heldOverride)
 end
 
@@ -1386,6 +1417,77 @@ function ClearcutMode:applyVeganBite(tx, ty, game)
     return true
 end
 
+function ClearcutMode:updateMinerAttack(dt, game, heldOverride)
+    local held = heldOverride
+    if held == nil then held = love.mouse.isDown(1) end
+    local maxRange = 220 + self:levelOf("detector") * 30
+    local tx, ty = self:aimPoint(game, maxRange)
+    self.aimX, self.aimY, self.aimRadius = tx, ty, 70 + self:levelOf("detector") * 12 + self:levelOf("deep_scan") * 22
+    if self.digAction then
+        local action = self.digAction
+        action.t = math.min(action.dur, action.t + dt)
+        local progress = action.t / action.dur
+        if game.player.setClearcutAction then game.player:setClearcutAction(progress) end
+        local dug = false
+        if not action.dug and progress >= .55 then
+            action.dug = true
+            self:applyDig(action.tx, action.ty, game)
+            dug = true
+        end
+        if action.t >= action.dur then
+            self.digAction = nil
+            self.attackCooldown = .1
+            if game.player.clearClearcutAction then game.player:clearClearcutAction() end
+        end
+        return dug
+    end
+    self.attackCooldown = math.max(0, self.attackCooldown - dt)
+    if not held or self.attackCooldown > 0 then return false end
+    local speed = (game.tools.axe.speed or 1) * game.player.gather * (1 + self:levelOf("deep_scan") * .12)
+    self.digAction = {t=0, dur=math.max(.42, .78/speed), tx=tx, ty=ty, dug=false}
+    game.player.facing = tx < game.player.x and -1 or 1
+    if game.player.setClearcutAction then game.player:setClearcutAction(0) end
+    return false
+end
+
+function ClearcutMode:applyDig(tx, ty, game, isBonus)
+    local backhoeLevel = self:levelOf("backhoe")
+    local radius = (self.aimRadius or 70) * (isBonus and 2.2 or 1) + backhoeLevel * 14
+    local dmg = 4 + self:levelOf("detector") * 2 + backhoeLevel * 2.5
+    for _, node in ipairs(game.world.nodes) do
+        if node.rushTree and node.active then
+            local dx, dy = node.x - tx, node.y - ty
+            if dx*dx + dy*dy <= radius*radius then
+                node.rushHp = 0
+                game.world:impactNode(node, game, true)
+                self:fellTree(node, game)
+            end
+        end
+    end
+    self:damageEnemiesInRadius(tx, ty, radius, dmg, game)
+    self.traitFx:emit("construction_blast", tx, ty, {radius=radius, particles=isBonus and 40 or 20, power=isBonus and 1.4 or .95})
+    if game.camera then game.camera.trauma = math.min(1, game.camera.trauma + (isBonus and .38 or .16)) end
+    local jackpotLevel = self:levelOf("jackpot")
+    local jackpotChance = jackpotLevel > 0 and (.06 + jackpotLevel * .07 + (self.evolutions.goldrush and .1 or 0)) or 0
+    if not isBonus and jackpotChance > 0 and love.math.random() < jackpotChance then
+        game:setNotice("발견?! — 대박 굴착 발생!", "food")
+        self:applyDig(tx, ty, game, true)
+        self:onWood(30 + jackpotLevel * 20, game)
+    end
+end
+
+function ClearcutMode:updateMining(dt, game)
+    if not self.evolutions.goldrush then return end
+    self.goldrushTimer = (self.goldrushTimer or 4) - dt
+    if self.goldrushTimer <= 0 then
+        self.goldrushTimer = 4
+        local a = love.math.random() * math.pi * 2
+        local r = 80 + love.math.random() * 220
+        game:setNotice("골드러시 — 자동 굴착 발생!", "food")
+        self:applyDig(game.player.x + math.cos(a) * r, game.player.y + math.sin(a) * r, game)
+    end
+end
+
 function ClearcutMode:updateDeveloperAttack(dt, game, heldOverride)
     if self.dashing then
         if game.player.setClearcutAction then game.player:setClearcutAction(.62) end
@@ -1563,6 +1665,7 @@ function ClearcutMode:rollChoices()
     for i=#pool,2,-1 do local j=love.math.random(i); pool[i],pool[j]=pool[j],pool[i] end
     self.choices={}
     for i=1,math.min(3,#pool) do self.choices[i]=pool[i] end
+    if #self.choices==0 then self.choices[1]=recoveryChoice end
 end
 
 -- 아직 안 고른 아르카나만 모아 셔플한다. 스테이지 클리어 강제 선택과, 일반 카드 화면의
@@ -1586,6 +1689,7 @@ function ClearcutMode:banishCost() return 45 end
 -- 새 업그레이드 3택 화면을 여는 공용 진입점. 리롤 횟수/배니시 무장 상태를 초기화하고,
 -- 아주 낮은 확률로 뒷면에서 앞면으로 뒤집히며 등장하는 4번째 스페셜(아르카나) 카드를 끼워 넣는다.
 function ClearcutMode:openUpgradeChoices(game)
+    if self:checkEvolutions(game) then return end
     self.rerollCount, self.banishArmed, self.selectionKind = 0, false, "upgrade"
     self:rollChoices()
     self.specialCard = nil
@@ -1624,7 +1728,9 @@ function ClearcutMode:refillChoice(index)
     for i, def in ipairs(self.choices) do if i ~= index and def then used[def.id] = true end end
     local pool = {}
     for _, def in ipairs(self:upgradePool()) do if not used[def.id] then pool[#pool+1] = def end end
-    self.choices[index] = #pool > 0 and pool[love.math.random(#pool)] or nil
+    if #pool > 0 then self.choices[index] = pool[love.math.random(#pool)]
+    else table.remove(self.choices,index) end
+    if #self.choices==0 then self.choices[1]=recoveryChoice end
 end
 
 function ClearcutMode:chooseArcana(index, game)
@@ -1638,34 +1744,42 @@ function ClearcutMode:chooseArcana(index, game)
     return true
 end
 
+-- Guaranteed acquisition screen; never mixed into a random upgrade pool.
 function ClearcutMode:checkEvolutions(game)
-    if not self.evolutions.wildfire and self:levelOf("molotov") >= 3 and self:levelOf("oil_drum") >= 3 then
-        self.evolutions.wildfire = true
-        game:setNotice("융합 스킬 — 산불! 습관성 흡연이 결국 걷잡을 수 없이 번진다.", "ore")
+    local def=Fusions.nextReady(self)
+    if not def then return false end
+    self.fusionChoice=def
+    self.selectionKind="fusion"
+    self.specialCard=nil
+    self.banishArmed=false
+    self.choiceBoxes={}
+    game.mode="clearcut_upgrade"
+    return true
+end
+
+function ClearcutMode:chooseFusion(index,game)
+    local def=self.fusionChoice
+    if index~=1 or not def or not Fusions.ready(self,def) then return false end
+    self.evolutions[def.id]=true
+    self.fusionChoice=nil
+    self.selectionKind="upgrade"
+    self.choices={}
+    self.choiceBoxes={}
+    self.chestPending=false
+    game:setNotice("융합 획득 — "..def.name.."! "..def.desc,"ore")
+    if self:checkEvolutions(game) then return true end
+    if (self.fusionChestRewards or 0)>0 then
+        self.fusionChestRewards=self.fusionChestRewards-1
+        game.mode="playing"
+        self:openChest(game)
+        return true
     end
-    if not self.evolutions.collapse and self:levelOf("shockwave") >= 3 and self:levelOf("domino") >= 3 then
-        self.evolutions.collapse = true
-        game:setNotice("융합 스킬 — 벌목 붕괴! 초과근무가 부른 대참사 — 쓰러진 나무가 또 다른 붕괴를 부른다.", "ore")
-    end
-    if not self.evolutions.deadGround and self:levelOf("herbicide") >= 3 and self:levelOf("root_cutting") >= 3 then
-        self.evolutions.deadGround = true
-        game:setNotice("융합 스킬 — 죽은 땅! '친환경' 관리의 최종 결과 — 한 번 벤 땅은 다시는 자라지 않는다.", "ore")
-    end
-    if not self.evolutions.frenzy and self:levelOf("berserker") >= 3 and self:levelOf("shockwave") >= 3 then
-        self.evolutions.frenzy = true
-        game:setNotice("융합 스킬 — 무한 야근! 콤보가 절정에 달하면 모든 타격이 충격파를 뿜는다.", "ore")
-    end
-    if not self.evolutions.necrosis and self:levelOf("toxic_rain") >= 3 and self:levelOf("root_cutting") >= 3 then
-        self.evolutions.necrosis = true
-        game:setNotice("융합 스킬 — 생태계 다이어트! 맹독이 닿은 땅은 그 자리에서 불모지가 된다.", "ore")
-    end
-    if not self.evolutions.newtown and self:levelOf("heavy_machinery") >= 3 and self:levelOf("site_clearance") >= 3 then
-        self.evolutions.newtown = true
-        game:setNotice("융합 스킬 — 뉴타운 계획! 돌진이 끝난 자리 주변까지 통째로 불모지가 된다.", "ore")
-    end
+    if self.pending>0 then self:openUpgradeChoices(game) else game.mode="playing" end
+    return true
 end
 
 function ClearcutMode:choose(index, game)
+    if self.selectionKind == "fusion" then return self:chooseFusion(index,game) end
     if index == "reroll" then return self:rerollChoice(game) end
     if index == "banish" then return self:toggleBanishArm(game) end
     if index == "special" then
@@ -1680,9 +1794,11 @@ function ClearcutMode:choose(index, game)
     if self.selectionKind == "arcana" then return self:chooseArcana(index, game) end
     local def=self.choices[index]
     if not def then return false end
-    self.chestPending = false
+    if not def.recovery and (not upgradeById[def.id] or self:levelOf(def.id)>=def.max
+        or (def.job and self.job and def.job~=self.job)) then return false end
     if self.banishArmed then
-        if jobFor[def.id] then game:setNotice("전직 카드는 제외할 수 없습니다", "ore"); return false end
+        if jobFor[def.id] or def.recovery then game:setNotice("이 카드는 제외할 수 없습니다", "ore"); return false end
+        if self.totalWood<self:banishCost() then return false end
         self.totalWood = self.totalWood - self:banishCost()
         self.banished[def.id] = true
         self.banishArmed = false
@@ -1690,16 +1806,23 @@ function ClearcutMode:choose(index, game)
         game:setNotice(def.name .. " — 영구 제외", "ore")
         return true
     end
-    self.levels[def.id]=self:levelOf(def.id)+1
-    self.pending=math.max(0,self.pending-1)
-    if not self.job and jobFor[def.id] and self.levels[def.id]==1 then
+    local wasChest=self.chestPending
+    self.chestPending=false
+    if def.recovery then self.hp=math.min(self.maxHp,self.hp+20)
+    else self.levels[def.id]=self:levelOf(def.id)+1 end
+    if not wasChest then self.pending=math.max(0,self.pending-1) end
+    if def.recovery then
+        game:setNotice("현장 휴식 — 체력 +20","food")
+    elseif not self.job and jobFor[def.id] and self.levels[def.id]==1 then
         self.job = jobFor[def.id]
         self.attackCooldown = 0
         game:setNotice("1차 전직 — " .. jobNames[self.job] .. "! " .. jobDesc[self.job], "ore")
     else
         game:setNotice(def.name.." Lv."..self:levelOf(def.id),"food")
     end
-    self:checkEvolutions(game)
+    self.choices={}
+    self.choiceBoxes={}
+    if self:checkEvolutions(game) then return true end
     self.specialCard = nil
     if self.pending>0 then self:openUpgradeChoices(game) else game.mode="playing" end
     return true
@@ -1746,6 +1869,21 @@ function ClearcutMode:megaCleave(primary, game)
     end
 end
 
+function ClearcutMode:frenzyShockwave(x,y,game)
+    local radius=145
+    self:damageEnemiesInRadius(x,y,radius,12,game)
+    self.traitFx:emit("construction_blast",x,y,{radius=radius,particles=18,power=.8,color={1,.78,.3}})
+    local felled=0
+    for _,node in ipairs(game.world.nodes) do
+        if node.rushTree and node.active and (node.x-x)^2+(node.y-y)^2<=radius^2 then
+            node.rushHp=(node.rushHp or node.rushMaxHp)-3
+            game.world:impactNode(node,game,true)
+            if node.rushHp<=0 and self:fellTree(node,game) then felled=felled+1 end
+        end
+    end
+    self.maxChain=math.max(self.maxChain,felled)
+end
+
 function ClearcutMode:hitTree(primary, game)
     if not primary.active then return end
     self.streak = self.streak + 1
@@ -1773,11 +1911,9 @@ function ClearcutMode:hitTree(primary, game)
         node.rushHp=(node.rushHp or node.rushMaxHp)-1
         game.world:impactNode(node,game,false)
         if node.rushHp<=0 and self:fellTree(node,game) then felled[#felled+1]=node end
-        if frenzyActive then
-            self:damageEnemiesInRadius(node.x, node.y, 65, 4, game)
-            game.world:addParticle(node.x, node.y - 40, {1, .82, .25}, false, false)
-        end
     end
+    -- One wave per axe contact, not per multi-hit target. No recursive shock loops.
+    if frenzyActive then self:frenzyShockwave(primary.x,primary.y,game) end
     local shockLevel = self:levelOf("shockwave")
     if shockLevel > 0 and #felled > 0 then
         local shockRadius = 70 + shockLevel * 25
@@ -2344,6 +2480,18 @@ local hardhatIconRows = {
 }
 local hardhatIconPalette = {O={.25,.17,.02,1}, Y={1,.78,.12,1}, W={1,.96,.72,1}}
 
+local pickaxeIconRows = {
+    "OO......",
+    ".OMO....",
+    "..OMO...",
+    "...OMMO.",
+    "..OHMO..",
+    "..OHO...",
+    "..OHO...",
+    "..OO....",
+}
+local pickaxeIconPalette = {O={.12,.1,.08,1}, M={.75,.77,.8,1}, H={.45,.3,.15,1}}
+
 -- 업그레이드 카드용 아이콘: 원형/다이아몬드/사각/막대 4가지 실루엣 틀을 색상·세부만 바꿔 재사용한다.
 local diamondRows = {
     "....O....",
@@ -2411,6 +2559,9 @@ local herbicidePalette = {O={.2,.1,.28,1}, H={.9,.8,1,1}, T={.6,.4,.85,1}}
 local forcedGrowthPalette = {O={.16,.22,.05,1}, H={.85,.95,.6,1}, T={.4,.72,.22,1}}
 local pileDrivingPalette = {O={.2,.14,.06,1}, H={.92,.85,.7,1}, T={.55,.4,.2,1}}
 local toxicRainPalette = {O={.14,.24,.1,1}, H={.9,.98,.85,1}, W={.6,.85,.5,1}}
+local deepScanPalette = {O={.25,.2,.05,1}, H={.98,.9,.55,1}, W={.95,.82,.35,1}}
+local backhoePalette = {O={.2,.14,.05,1}, H={.9,.72,.35,1}, W={.75,.55,.2,1}, D={.45,.32,.1,1}}
+local jackpotPalette = {O={.3,.22,.02,1}, H={1,.95,.7,1}, W={1,.84,.3,1}}
 
 local dominoRows = {
     ".OOOOOOO.",
@@ -2484,6 +2635,11 @@ ClearcutMode.icons = {
     heavy_machinery = {rows = heavyMachineryRows, palette = heavyMachineryPalette},
     demolition = {rows = diamondRows, palette = demolitionPalette},
     site_clearance = {rows = boxRows, palette = siteClearancePalette},
+    pickaxe = {rows = pickaxeIconRows, palette = pickaxeIconPalette},
+    detector = {rows = pickaxeIconRows, palette = pickaxeIconPalette},
+    deep_scan = {rows = diamondRows, palette = deepScanPalette},
+    backhoe = {rows = boxRows, palette = backhoePalette},
+    jackpot = {rows = blobRows, palette = jackpotPalette},
 }
 ClearcutMode.drawPixelGrid = drawPixelGrid
 
@@ -2610,9 +2766,12 @@ function ClearcutMode:drawWorldOverlay(game)
         drawPixelGrid(axeIconRows, axeIconPalette, px, py, 2.2)
     elseif self.job == "developer" then
         drawPixelGrid(hardhatIconRows, hardhatIconPalette, px, py, 2.4)
+    elseif self.job == "miner" then
+        local bob = math.sin(t * 2.6) * 2
+        drawPixelGrid(pickaxeIconRows, pickaxeIconPalette, px, py + bob, 2.2)
     end
-    if (self.job == "fire" or self.job == "toxic") and self.aimX then
-        local ringColor = self.job == "fire" and {1, .5, .15} or {.55, .85, .45}
+    if (self.job == "fire" or self.job == "toxic" or self.job == "miner") and self.aimX then
+        local ringColor = self.job == "fire" and {1, .5, .15} or self.job == "toxic" and {.55, .85, .45} or {.85, .68, .22}
         love.graphics.setColor(ringColor[1], ringColor[2], ringColor[3], .16); love.graphics.circle("fill", self.aimX, self.aimY, self.aimRadius)
         love.graphics.setLineWidth(2); love.graphics.setColor(ringColor[1], ringColor[2], ringColor[3], .85)
         love.graphics.circle("line", self.aimX, self.aimY, self.aimRadius)
@@ -3073,15 +3232,10 @@ function ClearcutMode:drawHUD(game,fonts)
     love.graphics.setColor(statusColor)
     local status = self.rootedTimer > 0 and "발이 묶임!" or self.beeSlow and "벌떼에 쫓기는 중" or ("숲 재생 " .. self.regrowPulses .. "회 · 되살아난 나무 " .. self.treesRevived)
     love.graphics.print(status, 32, 124)
-    local evoNames = {}
-    if self.evolutions.wildfire then evoNames[#evoNames+1] = "산불" end
-    if self.evolutions.collapse then evoNames[#evoNames+1] = "벌목 붕괴" end
-    if self.evolutions.deadGround then evoNames[#evoNames+1] = "죽은 땅" end
-    if self.evolutions.frenzy then evoNames[#evoNames+1] = "무한 야근" end
-    if self.evolutions.necrosis then evoNames[#evoNames+1] = "생태계 다이어트" end
-    if self.evolutions.newtown then evoNames[#evoNames+1] = "뉴타운 계획" end
-    if #evoNames > 0 then
-        love.graphics.setColor(1, .82, .3); love.graphics.print("진화: " .. table.concat(evoNames, " · "), 32, 146)
+    local evoNames=Fusions.activeNames(self)
+    if #evoNames>0 then
+        love.graphics.setColor(1,.82,.3)
+        love.graphics.printf("융합: "..table.concat(evoNames," · "),32,146,328,"left")
     end
 
     love.graphics.setColor(.04,.07,.055,.9); love.graphics.rectangle("fill",16,192,360,34,8,8)
@@ -3159,7 +3313,7 @@ local function octagonPoints(cx, cy, r, rot)
     return pts
 end
 
-local jobFlavorColors = {physical = {.68, .5, .3, 1}, fire = {1, .42, .14, 1}, toxic = {.45, .82, .35, 1}, developer = {1, .72, .15, 1}}
+local jobFlavorColors = {physical = {.68, .5, .3, 1}, fire = {1, .42, .14, 1}, toxic = {.45, .82, .35, 1}, developer = {1, .72, .15, 1}, miner = {.85, .68, .22, 1}}
 local universalColor = {.56, .57, .6, 1}
 
 local function drawShadedRivet(cx, cy, color)
@@ -3234,6 +3388,22 @@ local function drawJobFlavorBg(x, y, w, h, job, t)
             local py = y + h - life * h * .55
             love.graphics.setColor(.62, .57, .5, (1 - life) * .3)
             love.graphics.circle("fill", px, py, 4 + life * 6)
+        end
+    elseif job == "miner" then
+        for i = 1, 5 do
+            local seed = i * 3.3
+            local life = (t * .5 + i * .37) % 1
+            local px = x + w * (.14 + (i - 1) * .2) + math.sin(t * 1.3 + seed) * 5
+            local py = y + h * .1 + life * h * .82
+            love.graphics.push(); love.graphics.translate(px, py); love.graphics.rotate(t * 2 + seed)
+            love.graphics.setColor(.42, .3, .16, (1 - life) * .4)
+            love.graphics.rectangle("fill", -3, -3, 6, 6)
+            love.graphics.pop()
+            if i % 2 == 0 then
+                local sparkle = .5 + math.sin(t * 6 + seed) * .5
+                love.graphics.setColor(1, .84, .3, sparkle * (1 - life) * .5)
+                love.graphics.circle("fill", px + 4, py - 4, 1.4)
+            end
         end
     else
         for i = 1, 4 do
@@ -3381,17 +3551,41 @@ local function drawCardBack(x,y,w,h,t)
     love.graphics.printf("?",x,y+h/2-30,w,"center")
 end
 
+function ClearcutMode:selectionMousePosition()
+    local x,y=love.mouse.getPosition()
+    local v=self.selectionView
+    if v then return (x-v.x)/v.scale,(y-v.y)/v.scale end
+    return x,y
+end
+
 function ClearcutMode:drawSelection(game,fonts)
     local w,h=love.graphics.getDimensions()
+    local vw,vh=math.max(1280,w),math.max(720,h)
+    local scale=math.min(w/vw,h/vh)
+    local ox,oy=(w-vw*scale)/2,(h-vh*scale)/2
+    self.selectionView={x=ox,y=oy,scale=scale}
+    self.rerollBox,self.banishBox=nil,nil
+    love.graphics.push();love.graphics.translate(ox,oy);love.graphics.scale(scale,scale)
+    self:drawSelectionContent(game,fonts,vw,vh)
+    love.graphics.pop()
+    local function screenBox(box)
+        if box then box.x=ox+box.x*scale;box.y=oy+box.y*scale;box.w=box.w*scale;box.h=box.h*scale end
+    end
+    for _,box in pairs(self.choiceBoxes or {}) do screenBox(box) end
+    screenBox(self.rerollBox);screenBox(self.banishBox)
+end
+
+function ClearcutMode:drawSelectionContent(game,fonts,w,h)
     local t = love.timer.getTime()
     love.graphics.setColor(.015,.035,.025,.84); love.graphics.rectangle("fill",0,0,w,h)
     self.choiceBoxes={}
+    if self.selectionKind == "fusion" then Fusions.drawAcquisition(self,fonts,w,h); return end
     if self.selectionKind == "arcana" then
         love.graphics.setFont(fonts.title); love.graphics.setColor(arcanaColor); love.graphics.printf("아르카나 — 룰을 바꾸는 선택",0,66,w,"center")
         love.graphics.setFont(fonts.small); love.graphics.setColor(.85,.78,.95); love.graphics.printf("되돌릴 수 없습니다. 한 번 고르면 이번 판 내내 유지됩니다",0,112,w,"center")
         local gap,cardW,cardH=24,math.min(320,(w-96)/3),360
         local startX=w/2-(cardW*3+gap*2)/2
-        local mx,my=love.mouse.getPosition()
+        local mx,my=self:selectionMousePosition()
         for i,def in ipairs(self.arcanaChoices) do
             local x,y=startX+(i-1)*(cardW+gap),165
             self.choiceBoxes[i]={x=x,y=y,w=cardW,h=cardH}
@@ -3416,7 +3610,7 @@ function ClearcutMode:drawSelection(game,fonts)
     local cardW = math.min(300, (w-96-gap*(numCards-1))/numCards)
     local cardH = 360
     local startX = w/2-(cardW*numCards+gap*(numCards-1))/2
-    local mx,my=love.mouse.getPosition()
+    local mx,my=self:selectionMousePosition()
     for i,def in ipairs(self.choices) do
         local x,y=startX+(i-1)*(cardW+gap),165
         self.choiceBoxes[i]={x=x,y=y,w=cardW,h=cardH}
@@ -3434,7 +3628,9 @@ function ClearcutMode:drawSelection(game,fonts)
         end
         love.graphics.setFont(fonts.heading); love.graphics.setColor(1,1,1); love.graphics.printf(def.name,x+16,y+195,cardW-32,"center")
         love.graphics.setFont(fonts.body); love.graphics.setColor(.72,.82,.77); love.graphics.printf(def.desc,x+28,y+245,cardW-56,"center")
-        love.graphics.setColor(1,.75,.25); love.graphics.printf("Lv."..self:levelOf(def.id).." → Lv."..(self:levelOf(def.id)+1),x+20,y+320,cardW-40,"center")
+        love.graphics.setColor(1,.75,.25)
+        local label=def.recovery and "체력 +20" or ("Lv."..self:levelOf(def.id).." → Lv."..(self:levelOf(def.id)+1))
+        love.graphics.printf(label,x+20,y+320,cardW-40,"center")
     end
 
     if self.specialCard then
@@ -3490,10 +3686,11 @@ function ClearcutMode:drawSelection(game,fonts)
         self.rerollBox={x=bx,y=by,w=btnW,h=btnH}
         self.banishBox={x=bx+btnW+btnGap,y=by,w=btnW,h=btnH}
         local canReroll = self.totalWood >= self:rerollCost()
-        UI.button(bx,by,btnW,btnH,string.format("리롤 (목재 %d)",self:rerollCost()),canReroll,fonts.small)
+        UI.button(bx,by,btnW,btnH,string.format("리롤 (목재 %d)",self:rerollCost()),canReroll,fonts.small,mx,my)
         local canBanish = self.banishArmed or self.totalWood >= self:banishCost()
-        UI.button(bx+btnW+btnGap,by,btnW,btnH,self.banishArmed and "배니시할 카드 선택" or string.format("배니시 (목재 %d)",self:banishCost()),canBanish,fonts.small)
+        UI.button(bx+btnW+btnGap,by,btnW,btnH,self.banishArmed and "배니시할 카드 선택" or string.format("배니시 (목재 %d)",self:banishCost()),canBanish,fonts.small,mx,my)
     end
+    Fusions.drawProgress(self,fonts,w)
 end
 
 function ClearcutMode:choiceAt(x,y)
@@ -3538,7 +3735,10 @@ ClearcutMode.characters = {
         detail="마우스 위치에 '친환경' 제초제를 살포합니다. 숲을 지키기 위해 숲을 없앱니다. 화력은 약하지만 재생력 자체를 짓누릅니다."},
     {id="developer", name="부동산 개발업자", icon="hardhat", color={1,.74,.1},
         tagline="여기에 아파트 지으면 됨.",
-        detail="조준 방향으로 직접 돌진하며 경로상의 모든 것을 밀어버립니다. 넓은 범위를 순식간에 밀어내지만 재사용까지 잠깐 숨을 고릅니다."}
+        detail="조준 방향으로 직접 돌진하며 경로상의 모든 것을 밀어버립니다. 넓은 범위를 순식간에 밀어내지만 재사용까지 잠깐 숨을 고릅니다."},
+    {id="miner", name="코인 채굴꾼", icon="pickaxe", color={.85,.68,.22},
+        tagline="어릴 적 등산 갔다가 잃어버린 그 USB, 지금 시세로 수백억이다.",
+        detail="마우스 위치를 곡괭이로 내려찍어 반경 안의 나무를 뿌리째 파헤칩니다. 사거리는 짧지만 가끔 '발견!' 판정이 터져 훨씬 넓은 범위가 한 번에 무너집니다."}
 }
 
 return ClearcutMode

@@ -12,6 +12,7 @@ local ClearcutMode = require("src.clearcut_mode")
 local CharacterTraits = require("src.character_traits")
 local CharacterTraitBoard = require("src.character_trait_board")
 local Buildings = require("src.buildings")
+local Cigarette = require("src.cigarette_sprite")
 local resourceLabels = {wood = "목재", stone = "돌", ore = "광석", food = "식량"}
 
 local Game = {}
@@ -35,10 +36,16 @@ local function loadClearcutSprites()
         toxic = {file="vegan-atlas-pixel-v2.png", walkFeet={190,190,190,190,190,190}, actionFeet={190,190,190,190,190,190}, scale=.61},
         developer = {file="developer-atlas-pixel-v2.png", walkFeet={190,190,190,190,190,190}, actionFeet={190,190,190,190,190,190}, scale=.61}
     }
+    -- The source smoker sheet turns left during the first four action poses.
+    -- Normalize those cells at draw time; keep the original atlas untouched.
+    specs.fire.actionFacing = {-1, -1, -1, -1, 1, 1}
+    specs.fire.walkMouth = {{68,29},{73,29},{68,42},{74,29},{75,36},{73,29}}
+    specs.fire.actionMouth = {{34,30},{34,30},{31,29},{35,32},{65,32},{66,31}}
     for _, spec in pairs(specs) do
         spec.image = love.graphics.newImage("assets/characters/ingame/" .. spec.file)
         spec.image:setFilter("nearest", "nearest")
     end
+    specs.fire.cigarette = Cigarette.load()
     return specs
 end
 
@@ -48,11 +55,6 @@ function Game.new()
     self.clearcutSprites = loadClearcutSprites()
     self.clearcutMachineryImage = love.graphics.newImage("assets/characters/ingame/developer-bulldozer-pixel-v2.png")
     self.clearcutMachineryImage:setFilter("nearest", "nearest")
-    self.clearcutBossImages = {
-        ent = love.graphics.newImage("assets/characters/ingame/elder-treant-boss-v1.png"),
-        worldtree = love.graphics.newImage("assets/characters/ingame/world-tree-boss-v1.png")
-    }
-    for _, image in pairs(self.clearcutBossImages) do image:setFilter("nearest", "nearest") end
     self.settings = {fullscreen = love.window.getFullscreen(), screenShake = true}
     self.tools = {
         axe = {name = "나무 도끼", speed = .8, type = "벌목"},
@@ -272,7 +274,7 @@ function Game:keypressed(key)
     end
     if self.mode == "clearcut_select" then
         if key=="t" then self.characterTraitReturnMode="clearcut_select"; self.mode="character_traits"
-        elseif key=="1" or key=="2" or key=="3" or key=="4" then self:chooseClearcutCharacter(tonumber(key))
+        elseif key=="1" or key=="2" or key=="3" or key=="4" or key=="5" then self:chooseClearcutCharacter(tonumber(key))
         elseif key=="escape" then self.mode="lobby" end
         return
     end
@@ -284,7 +286,12 @@ function Game:keypressed(key)
     if self.mode == "meta" then if self.traitTree:keypressed(key) == "back" then self.mode = "lobby" end; return end
     if self.mode == "upgrade" then if key == "1" or key == "2" or key == "3" then self:selectRunUpgrade(tonumber(key)) end; return end
     if self.mode == "rush_upgrade" then if key=="1" or key=="2" or key=="3" then self.rush:choose(tonumber(key),self) end; return end
-    if self.mode == "clearcut_upgrade" then if key=="1" or key=="2" or key=="3" then self.clearcut:choose(tonumber(key),self) end; return end
+    if self.mode == "clearcut_upgrade" then
+        if self.clearcut.selectionKind=="fusion" and (key=="return" or key=="kpenter" or key=="space") then
+            self.clearcut:choose(1,self)
+        elseif key=="1" or key=="2" or key=="3" then self.clearcut:choose(tonumber(key),self) end
+        return
+    end
     if self.mode == "build_select" then if key == "escape" then self.mode = "playing" end; return end
     if self.mode == "turret_upgrade" then
         if key == "escape" then self:cancelTurretUpgrade()
@@ -735,7 +742,7 @@ function Game:drawClearcutSelect()
         local hovered = self:clearcutCharAt(love.mouse.getPosition()) == i
         love.graphics.setLineStyle("rough")
         UI.panel(x, y, cardW, cardH, {c.color[1], c.color[2], c.color[3], 1}, hovered and .99 or .94)
-        local sprite = self.clearcutSprites[c.id]
+        local sprite = self.clearcutSprites[c.id] or self.clearcutSprites.physical
         if sprite then
             local fw, fh = sprite.image:getWidth() / 6, sprite.image:getHeight() / 2
             local quad = love.graphics.newQuad(0, 0, fw, fh, sprite.image:getDimensions())
@@ -774,9 +781,9 @@ function Game:draw()
     if self.mode == "settings" then self:drawSettings(); return end
     if self.mode == "meta" then self.traitTree:draw(); return end
     if self.mode == "build_select" then self:drawBuildSelect(); return end
-    love.graphics.clear(.08, .11, .12); self.camera:attach(); self.world:draw(self.player)
+    love.graphics.clear(.08, .11, .12); self.camera:attach(); self.world:draw(self.player, self.clearcut)
     local left, top, right, bottom = self.camera:visibleBounds()
-    if self.runType ~= "rush" then
+    if self.runType ~= "rush" and not self.clearcut then
         love.graphics.setBlendMode("screen", "alphamultiply"); love.graphics.setColor(.25, .34, .22, .13); love.graphics.rectangle("fill", left, top, right - left, bottom - top)
         local coreDx,coreDy=self.player.x-self.world.core.x,self.player.y-self.world.core.y
         local playerLight=coreDx*coreDx+coreDy*coreDy<400*400 and 1.45 or 2.2
