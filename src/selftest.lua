@@ -503,7 +503,64 @@ function SelfTest.run(game)
     assert(game.clearcut.arcanaPicked[specialId] == true, "스페셜 카드 선택 기록 실패")
     assert(game.clearcut.specialCard == nil, "스페셜 카드 선택 후 정리 실패")
 
-    print("SELF_TEST_OK: LOBBY_DUAL_MODE RUSH_3MIN RUSH_FOREST RUSH_HOLD_TO_CHOP RUSH_MULTI_HIT RUSH_CHAIN_FELL RUSH_AUTO_PICKUP RUSH_THREE_CHOICES RUSH_AUTO_FRONT RUSH_RESULTS LOBBY_AUX_NAV SETTINGS BIG_TREE_SINGLE TREE_PER_HIT_DROP TREE_PROXIMITY_PICKUP QUARRY_GROUNDED QUARRY_PER_HIT_DROP QUARRY_ORE_RATIO QUARRY_PROXIMITY_PICKUP FARM TREE QUARRY_INFINITE TOOL_SPEED IMPACT_SYNC HARVEST_FEEDBACK VISIBLE_TURRET VISIBLE_DRONE VISIBLE_REPAIR_STATION MINING_DRILL_VFX RUN_LEVELUP THREE_CHOICES AUTOMATION EVOLUTION WALL_UPGRADE WALL_BLOCK HAMMER_REPAIR CRIT_CHANCE PRESTIGE_RUN MOVE_WHILE_FARM TURRET_SLOT_BASE TURRET_SLOT_TRAIT TURRET_SLOT_OCCUPIED TURRET_NEARBY TURRET_F_INTERACT TURRET_UPGRADE TURRET_AIM VISIBLE_BULLET MUZZLE_FLASH CHAIN_COIL_VFX EXPLOSIVE_SHELL_VFX META_SAVE TRAIT_TREE TRAIT_APPLY RUN_REWARD TEST_CURRENCY TEST_RESOURCES TEST_LEVELS TEST_RESET CIGARETTE_SMOKE_WINDUP CLEARCUT_CARD_FRAME CURSE_SCALING SWARM_SCALING TIME_SPAWNER ELITE_SPAWN REAPER_SPAWN REAPER_DASH_AI ELITE_THORN_FIRE STAGE_PROGRESSION WORLDTREE_ATTACKS WORLDTREE_ENRAGE SHADED_SPRITES BERSERK_ROUND BERSERK_TREE_FX CARD_REROLL CARD_BANISH ARCANA_STAGE SPECIAL_CARD")
+    -- 자이라식 소환 식물: 텔레그래프로 자란 뒤 진짜 몹으로 스폰된다
+    game.clearcut.vineSpawns, game.clearcut.enemies = {}, {}
+    game.clearcut.vinePlantTimer = 0
+    game.clearcut:updateVinePlants(.01, game)
+    assert(#game.clearcut.vineSpawns > 0, "덩굴괴수 소환 텔레그래프 생성 실패")
+    local vineSpawn = game.clearcut.vineSpawns[1]
+    vineSpawn.timer = 0
+    game.clearcut:updateVinePlants(.01, game)
+    local vineFound = false
+    for _, e in ipairs(game.clearcut.enemies) do if e.kind == "vineSprout" then vineFound = true end end
+    assert(vineFound, "덩굴괴수 실제 스폰 실패")
+    local vinePlant
+    for _, e in ipairs(game.clearcut.enemies) do if e.kind == "vineSprout" then vinePlant = e end end
+    vinePlant.x, vinePlant.y = game.player.x + 50, game.player.y
+    vinePlant.fireTimer = 0
+    game.clearcut.projectiles = {}
+    game.clearcut:updateEnemies(.01, game)
+    local thornFromVine = false
+    for _, p in ipairs(game.clearcut.projectiles) do if p.kind == "thorn" then thornFromVine = true end end
+    assert(thornFromVine, "덩굴괴수 가시 공격 실패")
+    game.clearcut.enemies, game.clearcut.projectiles = {}, {}
+
+    -- 자연재해: 비는 방화를 완전히 봉쇄하고, 지진은 회피형 광역 텔레그래프를 뿌린다
+    game.clearcut.disasterState, game.clearcut.disasterTimer, game.clearcut.disasterType = "idle", 0, nil
+    game.clearcut:updateDisasters(.01, game)
+    assert(game.clearcut.disasterState == "warn" and game.clearcut.disasterType, "자연재해 경고 단계 진입 실패")
+    game.clearcut.disasterType = "rain"
+    game.clearcut.disasterTimer = 0
+    game.clearcut:updateDisasters(.01, game)
+    assert(game.clearcut.disasterState == "active" and game.clearcut.rainSuppressFire == true, "비 활성화 실패")
+    local rainNode = {kind="tree", x=game.player.x, y=game.player.y, active=true, rushTree=true, rushHp=3, rushMaxHp=3, burning=false}
+    game.world.nodes[#game.world.nodes+1] = rainNode
+    game.clearcut:igniteNear(rainNode, game, 999, 5)
+    assert(rainNode.burning ~= true, "비가 오는데도 발화됨 - 방화 봉쇄 실패")
+    game.clearcut.disasterTimer = 0
+    game.clearcut:updateDisasters(.01, game)
+    assert(game.clearcut.disasterState == "cooldown" and game.clearcut.rainSuppressFire == false, "비 종료 처리 실패")
+
+    game.clearcut.disasterState, game.clearcut.disasterTimer, game.clearcut.disasterType = "warn", 0, "quake"
+    game.clearcut.bossTelegraphs = {}
+    game.clearcut:updateDisasters(.01, game)
+    assert(game.clearcut.disasterState == "active", "지진 활성화 실패")
+    game.clearcut.quakeTickTimer = 0
+    game.clearcut:updateDisasters(.01, game)
+    local quakeTelFound = false
+    for _, tel in ipairs(game.clearcut.bossTelegraphs) do if tel.quake then quakeTelFound = true end end
+    assert(quakeTelFound, "지진 낙석 텔레그래프 생성 실패")
+    game.clearcut.disasterState, game.clearcut.disasterTimer, game.clearcut.disasterType = "idle", 999, nil
+    game.clearcut.bossTelegraphs = {}
+
+    -- 오프스크린 인디케이터 + 새 카드 이펙트가 실제 렌더 경로에서 에러 없이 그려지는지 확인
+    game.clearcut:spawnEnemy("reaper", game.camera.x + 4000, game.camera.y + 4000)
+    game.mode = "playing"
+    local drawOk, drawErr = pcall(game.draw, game)
+    assert(drawOk, "오프스크린 인디케이터/신규 이펙트 렌더 실패: " .. tostring(drawErr))
+    game.clearcut.enemies = {}
+
+    print("SELF_TEST_OK: LOBBY_DUAL_MODE RUSH_3MIN RUSH_FOREST RUSH_HOLD_TO_CHOP RUSH_MULTI_HIT RUSH_CHAIN_FELL RUSH_AUTO_PICKUP RUSH_THREE_CHOICES RUSH_AUTO_FRONT RUSH_RESULTS LOBBY_AUX_NAV SETTINGS BIG_TREE_SINGLE TREE_PER_HIT_DROP TREE_PROXIMITY_PICKUP QUARRY_GROUNDED QUARRY_PER_HIT_DROP QUARRY_ORE_RATIO QUARRY_PROXIMITY_PICKUP FARM TREE QUARRY_INFINITE TOOL_SPEED IMPACT_SYNC HARVEST_FEEDBACK VISIBLE_TURRET VISIBLE_DRONE VISIBLE_REPAIR_STATION MINING_DRILL_VFX RUN_LEVELUP THREE_CHOICES AUTOMATION EVOLUTION WALL_UPGRADE WALL_BLOCK HAMMER_REPAIR CRIT_CHANCE PRESTIGE_RUN MOVE_WHILE_FARM TURRET_SLOT_BASE TURRET_SLOT_TRAIT TURRET_SLOT_OCCUPIED TURRET_NEARBY TURRET_F_INTERACT TURRET_UPGRADE TURRET_AIM VISIBLE_BULLET MUZZLE_FLASH CHAIN_COIL_VFX EXPLOSIVE_SHELL_VFX META_SAVE TRAIT_TREE TRAIT_APPLY RUN_REWARD TEST_CURRENCY TEST_RESOURCES TEST_LEVELS TEST_RESET CIGARETTE_SMOKE_WINDUP CLEARCUT_CARD_FRAME CURSE_SCALING SWARM_SCALING TIME_SPAWNER ELITE_SPAWN REAPER_SPAWN REAPER_DASH_AI ELITE_THORN_FIRE STAGE_PROGRESSION WORLDTREE_ATTACKS WORLDTREE_ENRAGE SHADED_SPRITES BERSERK_ROUND BERSERK_TREE_FX CARD_REROLL CARD_BANISH ARCANA_STAGE SPECIAL_CARD VINE_PLANT NATURAL_DISASTER OFFSCREEN_INDICATOR")
 end
 
 return SelfTest

@@ -75,7 +75,8 @@ local enemyDefs = {
         slamInterval=3.2, slamRadius=110, slamDamage=20, reward=40},
     worldtree = {name="세계수", hp=950, speed=0, damage=0, radius=92, color={.26,.5,.22}, boss=true, finalBoss=true,
         slamInterval=4, slamRadius=150, slamDamage=18, summonInterval=7, reward=0},
-    reaper = {name="숲의 사신", hp=550, speed=118, damage=14, radius=24, color={.1,.03,.05}, hitCooldown=.65, reward=60}
+    reaper = {name="숲의 사신", hp=550, speed=118, damage=14, radius=24, color={.1,.03,.05}, hitCooldown=.65, reward=60},
+    vineSprout = {name="식충 덩굴괴수", hp=42, speed=0, damage=6, radius=27, color={.35,.65,.25}, ranged=true, thornAttack=true, range=360, fireInterval=1.55, reward=7, hitCooldown=1}
 }
 
 local function formatTime(value)
@@ -102,7 +103,10 @@ function ClearcutMode.new()
         banished={}, rerollCount=0, banishArmed=false, selectionKind="upgrade", arcanaChoices={}, arcanaPicked={},
         dmgTakenMul=1, woodGainMul=1, curseBoostMul=1, eliteIntervalMul=1, reaperDelayMul=1, regrowSuppressed=false,
         berserkCooldownMul=1, berserkBonusMul=1,
-        permanentTraits={}
+        permanentTraits={},
+        vinePlantTimer=24, vineSpawns={},
+        disasterState="idle", disasterTimer=75, disasterType=nil, rainSuppressFire=false, quakeShakes={},
+        offscreenPulse=0
     }, ClearcutMode)
 end
 
@@ -204,6 +208,8 @@ function ClearcutMode:update(dt, game)
     self:updateReaper(dt, game)
     self:updateBerserk(dt, game)
     self:updateBerserkFlashNodes(dt)
+    self:updateVinePlants(dt, game)
+    self:updateDisasters(dt, game)
     self:updateEnemies(dt, game)
     self:updateProjectiles(dt, game)
     self:updateBossTelegraphs(dt, game)
@@ -497,6 +503,82 @@ function ClearcutMode:updateBerserkFlashNodes(dt)
     end
 end
 
+-- 자이라식 소환 식물: 주기적으로 플레이어 주변 땅이 갈라지며 이빨 달린 덩굴괴수가 솟아나 가시를 쏜다.
+-- 저주 레벨이 오를수록 더 자주, 더 많이 솟아난다. 진짜 몹으로 스폰되므로 처치하면 보상도 준다.
+function ClearcutMode:updateVinePlants(dt, game)
+    for i = #self.vineSpawns, 1, -1 do
+        local v = self.vineSpawns[i]
+        v.timer = v.timer - dt
+        if v.timer <= 0 then
+            table.remove(self.vineSpawns, i)
+            self:spawnEnemy("vineSprout", v.x, v.y, {hpMul = 1 + (self:curseLevel() - 1) * .3})
+            game.world:addParticle(v.x, v.y - 10, {.35, .65, .25}, true, false)
+        end
+    end
+    self.vinePlantTimer = self.vinePlantTimer - dt
+    if self.vinePlantTimer > 0 then return end
+    local curse = self:curseLevel()
+    self.vinePlantTimer = math.max(15, 32 - curse * 2.4)
+    local spawnCount = curse > 2.4 and 2 or 1
+    for _ = 1, spawnCount do
+        local a = love.math.random() * math.pi * 2
+        local r = 260 + love.math.random() * 220
+        self.vineSpawns[#self.vineSpawns + 1] = {x = game.player.x + math.cos(a) * r, y = game.player.y + math.sin(a) * r, timer = 1.15}
+    end
+    game:setNotice("땅속에서 무언가 꿈틀거린다...", "ore")
+end
+
+-- 자연재해: 화난 자연이 숲 그 자체를 무기로 쓴다. 비(방화 완전 봉쇄)와 지진(회피형 광역 낙석)을 순환시킨다.
+function ClearcutMode:updateDisasters(dt, game)
+    self.disasterTimer = self.disasterTimer - dt
+    if self.disasterState == "idle" then
+        if self.disasterTimer <= 0 then
+            self.disasterState, self.disasterTimer = "warn", 3.4
+            self.disasterType = love.math.random() < .5 and "rain" or "quake"
+            game:setNotice(self.disasterType == "rain" and "먹구름이 몰려온다..." or "땅이 울렁이기 시작한다...", "ore")
+        end
+    elseif self.disasterState == "warn" then
+        if self.disasterTimer <= 0 then
+            self.disasterState, self.disasterTimer = "active", self.disasterType == "rain" and 16 or 13
+            if self.disasterType == "rain" then
+                self.rainSuppressFire = true
+                for _, node in ipairs(game.world.nodes) do if node.burning then node.burning, node.burnTimer = false, nil end end
+                game:setNotice("소나기 — 타오르던 불이 전부 꺼진다!", "food")
+            else
+                self.quakeTickTimer = 0
+                game:setNotice("지진 발생 — 흔들리는 땅을 피해라!", "ore")
+            end
+        end
+    elseif self.disasterState == "active" then
+        if self.disasterType == "quake" then
+            self.quakeTickTimer = (self.quakeTickTimer or 0) - dt
+            if game.camera then game.camera.trauma = math.min(1, game.camera.trauma + dt * .3) end
+            if self.quakeTickTimer <= 0 then
+                self.quakeTickTimer = .8
+                local a = love.math.random() * math.pi * 2
+                local r = 60 + love.math.random() * 260
+                self.bossTelegraphs[#self.bossTelegraphs + 1] = {
+                    x = game.player.x + math.cos(a) * r, y = game.player.y + math.sin(a) * r,
+                    radius = 72, phase = "warn", timer = .75, damage = 13, quake = true,
+                }
+            end
+        end
+        if self.disasterTimer <= 0 then
+            self.disasterState, self.disasterTimer = "cooldown", 2
+            if self.disasterType == "rain" then
+                self.rainSuppressFire = false
+                game:setNotice("비가 그쳤다", "food")
+            else
+                game:setNotice("땅이 다시 잠잠해졌다", "food")
+            end
+        end
+    else
+        if self.disasterTimer <= 0 then
+            self.disasterState, self.disasterTimer, self.disasterType = "idle", math.max(55, 92 - self:curseLevel() * 3), nil
+        end
+    end
+end
+
 function ClearcutMode:spawnBoss(kind, game)
     local a = love.math.random() * math.pi * 2
     local e = self:spawnEnemy(kind, game.player.x + math.cos(a) * 420, game.player.y + math.sin(a) * 420)
@@ -726,7 +808,7 @@ function ClearcutMode:updateEnemies(dt, game)
             e.fireTimer = e.fireTimer - dt
             if dist <= def.range and e.fireTimer <= 0 then
                 e.fireTimer = def.fireInterval
-                self:spawnEnemyProjectile(e, game)
+                if def.thornAttack then self:spawnThornProjectile(e, game) else self:spawnEnemyProjectile(e, game) end
             end
         elseif def.speed > 0 or not def.boss then
             local dx, dy = game.player.x - e.x, game.player.y - e.y
@@ -774,6 +856,7 @@ function ClearcutMode:updateEnemies(dt, game)
 end
 
 function ClearcutMode:igniteNear(source, game, radius, count, depth)
+    if self.rainSuppressFire then return end
     local candidates = {}
     for _, node in ipairs(game.world.nodes) do
         if node.rushTree and node.active and not node.burning and node ~= source then
@@ -839,7 +922,7 @@ function ClearcutMode:updateMolotovs(dt, game)
                 self:igniteNear({x=m.x1, y=m.y1}, game, m.radius, 99, 0)
                 self:damageEnemiesInRadius(m.x1, m.y1, m.radius, 9, game)
                 game.world:igniteFx(m.x1, m.y1, true)
-            elseif m.target.active and not m.target.burning then
+            elseif m.target.active and not m.target.burning and not self.rainSuppressFire then
                 m.target.burning, m.target.burnTimer, m.target.igniting, m.target.spreadDepth, m.target.fireTickTimer = true, 0, nil, 0, 0
                 game.world:igniteFx(m.target.x, m.target.y, true)
             elseif m.target then
@@ -858,7 +941,7 @@ function ClearcutMode:onTreeBurnedDown(node, game)
         game.world:igniteFx(node.x, node.y, true)
     end
     local emberLevel = self:levelOf("embers")
-    if emberLevel > 0 and not node.emberChained then
+    if emberLevel > 0 and not node.emberChained and not self.rainSuppressFire then
         local far = {}
         for _, other in ipairs(game.world.nodes) do
             if other.rushTree and other.active and not other.burning then
@@ -1738,6 +1821,32 @@ local reaperRows = {
 }
 local reaperPalette = {O={.03,.02,.02,1}, G={.12,.14,.1,1}, R={1,.15,.1,1}, B={.1,.06,.12,1}}
 
+-- 식충 덩굴괴수: 자이라식 소환 식물 — 이빨 달린 붉은 아가리 봉오리(발광 코어 포함) + 가시 돋친 덩굴 줄기/뿌리
+local vineSproutRows = {
+    ".......DGRGD.......",
+    ".....DGRRRRRGD.....",
+    "...DGRRRRRRRRRGD...",
+    "SDGRRRRRRRRRRRRRGDS",
+    "DGRRRRRRWWWRRRRRRGD",
+    "DGRRRRRRRRRRRRRRRGD",
+    ".DGRRRRRRRRRRRRRGD.",
+    "...DGRRRRRRRRRGD...",
+    ".....DGRRRRRGD.....",
+    "........KBK........",
+    "........KBK........",
+    ".......KKBKK.......",
+    ".......KKBKK.......",
+    "......KKBLBKK......",
+    "......KKBLBKK......",
+    ".....KKKBLBKKK.....",
+    "....KKKBBLBBKKK....",
+    "...KKKKBBLBBKKKK...",
+}
+local vineSproutPalette = {
+    D={.08,.22,.06,1}, G={.16,.4,.13,1}, R={.72,.14,.22,1}, W={1,.55,.42,1}, S={.05,.14,.04,1},
+    K={.1,.22,.08,1}, B={.2,.42,.14,1}, L={.34,.6,.22,1},
+}
+
 local enemySprites = {
     squirrel = {rows = squirrelRows, palette = squirrelPalette},
     boar = {rows = boarRows, palette = boarPalette},
@@ -1745,6 +1854,7 @@ local enemySprites = {
     ent = {rows = entRows, palette = entPalette},
     worldtree = {rows = worldTreeRows, palette = worldTreePalette},
     reaper = {rows = reaperRows, palette = reaperPalette},
+    vineSprout = {rows = vineSproutRows, palette = vineSproutPalette},
 }
 
 local thornRows = {"..O..", ".OYO.", "OYHYO", ".OYO.", "..O.."}
@@ -2274,6 +2384,28 @@ function ClearcutMode:drawWorldOverlay(game)
                 love.graphics.setLineWidth(8); love.graphics.setColor(1, .85, .35, fade)
                 love.graphics.line(tel.x1, tel.y1, tel.x2, tel.y2)
             end
+        elseif tel.quake then
+            if tel.phase == "warn" then
+                local pulse = 1 - math.max(0, tel.timer) / .75
+                love.graphics.setLineWidth(4); love.graphics.setColor(.6, .42, .18, .85 - pulse * .3)
+                love.graphics.circle("line", tel.x, tel.y, tel.radius * pulse)
+                for i = 1, 6 do
+                    local ang = i / 6 * math.pi * 2
+                    love.graphics.setLineWidth(2); love.graphics.setColor(.55, .38, .15, .6)
+                    love.graphics.line(tel.x, tel.y, tel.x + math.cos(ang) * tel.radius * pulse, tel.y + math.sin(ang) * tel.radius * pulse * .5)
+                end
+                love.graphics.setColor(.5, .34, .14, .12); love.graphics.circle("fill", tel.x, tel.y, tel.radius * pulse)
+            else
+                local fade = math.max(0, tel.timer) / .25
+                love.graphics.setColor(.42, .3, .12, fade * .55); love.graphics.circle("fill", tel.x, tel.y, tel.radius)
+                love.graphics.setLineWidth(6); love.graphics.setColor(.75, .55, .2, fade); love.graphics.circle("line", tel.x, tel.y, tel.radius)
+                for i = 1, 8 do
+                    local ang = i / 8 * math.pi * 2 + i
+                    local dist = tel.radius * (.5 + (i % 3) * .2)
+                    love.graphics.setColor(.3, .22, .1, fade * .8)
+                    love.graphics.circle("fill", tel.x + math.cos(ang) * dist, tel.y + math.sin(ang) * dist * .5, 3 + (i % 3))
+                end
+            end
         elseif tel.phase == "warn" then
             local pulse = 1 - math.max(0, tel.timer) / .75
             love.graphics.setLineWidth(4); love.graphics.setColor(1, .3, .15, .85 - pulse * .3)
@@ -2283,6 +2415,21 @@ function ClearcutMode:drawWorldOverlay(game)
             local fade = math.max(0, tel.timer) / .25
             love.graphics.setColor(1, .45, .2, fade * .5); love.graphics.circle("fill", tel.x, tel.y, tel.radius)
             love.graphics.setLineWidth(6); love.graphics.setColor(1, .8, .3, fade); love.graphics.circle("line", tel.x, tel.y, tel.radius)
+        end
+    end
+    for _, v in ipairs(self.vineSpawns) do
+        local grow = 1 - math.max(0, v.timer) / 1.15
+        love.graphics.setColor(.2, .5, .16, .25 + grow * .2)
+        love.graphics.ellipse("fill", v.x, v.y + 4, 26 * grow, 10 * grow)
+        for i = 1, 6 do
+            local ang = i / 6 * math.pi * 2 + t * .8
+            local len = (10 + grow * 22) * (.6 + .4 * math.sin(t * 6 + i))
+            love.graphics.setLineWidth(2 + grow * 2); love.graphics.setColor(.28, .58, .2, .5 + grow * .35)
+            love.graphics.line(v.x, v.y, v.x + math.cos(ang) * len, v.y + math.sin(ang) * len * .5)
+        end
+        if grow > .4 then
+            love.graphics.setColor(.35, .68, .26, math.min(1, (grow - .4) / .6))
+            love.graphics.circle("fill", v.x, v.y - grow * 16, 5 + grow * 5)
         end
     end
     for _, e in ipairs(self.enemies) do drawEnemy(e, t) end
@@ -2336,10 +2483,85 @@ local function drawBerserkOverlay(state, w, h, t)
     end
 end
 
+-- 자연재해 화면 연출: 비는 대각선 빗줄기 + 어두운 청회색 톤, 지진은 흙먼지 파티클 + 갈색 톤
+local function drawDisasterOverlay(kind, state, w, h, t)
+    if not kind or (state ~= "warn" and state ~= "active") then return end
+    local active = state == "active"
+    if kind == "rain" then
+        local pulse = .5 + math.sin(t * 2) * .5
+        love.graphics.setColor(.05, .08, .12, active and (.3 + pulse * .06) or (.12 + pulse * .05))
+        love.graphics.rectangle("fill", 0, 0, w, h)
+        if active then
+            love.graphics.setLineWidth(1.4)
+            for i = 1, 70 do
+                local seed = i * 5.7
+                local speed = 900 + (i % 7) * 120
+                local x = (t * speed * .35 + seed * 37) % (w + 200) - 100
+                local y = (t * speed + seed * 91) % (h + 120) - 60
+                love.graphics.setColor(.7, .8, .92, .28 + (i % 4) * .06)
+                love.graphics.line(x, y, x - 14, y + 34)
+            end
+        end
+    elseif kind == "quake" then
+        local shake = active and (math.sin(t * 47) * 2 + math.sin(t * 71) * 1.5) or 0
+        love.graphics.setColor(.18, .12, .05, active and .1 or .06)
+        love.graphics.rectangle("fill", shake, shake * .6, w, h)
+        if active then
+            for i = 1, 10 do
+                local seed = i * 4.1
+                local x = (seed * 173) % w
+                local y = (t * 30 + seed * 210) % h
+                love.graphics.setColor(.4, .3, .16, .4)
+                love.graphics.circle("fill", x, y, 1.6 + (i % 3))
+            end
+        end
+    end
+end
+
+-- 화면 밖 위협 인디케이터: 사신/정예/격노한 세계수처럼 반응이 늦으면 위험한 대상이 화면 밖에 있으면
+-- 화면 가장자리에 화살표 + 거리로 방향을 알려준다. 갑자기 튀어나와서 맞기 전에 미리 대비하라는 취지.
+local function drawOffscreenIndicators(self, game, fonts, w, h, t)
+    local camera = game.camera
+    if not camera then return end
+    local margin, cx, cy = 44, w / 2, h / 2
+    for _, e in ipairs(self.enemies) do
+        if e.kind == "reaper" or e.elite or (e.kind == "worldtree" and e.enraged) then
+            local sx, sy = cx + (e.x - camera.x) * camera.zoom, cy + (e.y - camera.y) * camera.zoom
+            if sx < 0 or sx > w or sy < 0 or sy > h then
+                local dx, dy = e.x - camera.x, e.y - camera.y
+                local dist = math.sqrt(dx * dx + dy * dy)
+                if dist <= 0 then dist = 1 end
+                local nx, ny = dx / dist, dy / dist
+                local scaleX = nx ~= 0 and (cx - margin) / math.abs(nx) or math.huge
+                local scaleY = ny ~= 0 and (cy - margin) / math.abs(ny) or math.huge
+                local scale = math.min(scaleX, scaleY)
+                local ix, iy = cx + nx * scale, cy + ny * scale
+                local ang = math.atan2 and math.atan2(ny, nx) or math.atan(ny / nx)
+                local color = e.kind == "reaper" and {1, .15, .1} or (e.kind == "worldtree" and {1, .35, .1} or {1, .8, .2})
+                local pulse = .55 + math.sin(t * 7) * .45
+                love.graphics.push(); love.graphics.translate(ix, iy); love.graphics.rotate(ang)
+                love.graphics.setColor(color[1], color[2], color[3], .22 + pulse * .16)
+                love.graphics.circle("fill", 0, 0, 24)
+                love.graphics.setColor(0, 0, 0, .65)
+                love.graphics.polygon("fill", 15, 0, -8, -10, -8, 10)
+                love.graphics.setColor(color[1], color[2], color[3], .85 + pulse * .15)
+                love.graphics.polygon("fill", 13, 0, -6, -8, -6, 8)
+                love.graphics.setLineWidth(1); love.graphics.setColor(1, 1, 1, .5)
+                love.graphics.polygon("line", 13, 0, -6, -8, -6, 8)
+                love.graphics.pop()
+                love.graphics.setFont(fonts.small); love.graphics.setColor(1, 1, 1, .9)
+                love.graphics.printf(string.format("%d", dist / 10), ix - 24, iy + 18, 48, "center")
+            end
+        end
+    end
+end
+
 function ClearcutMode:drawHUD(game,fonts)
     local w,h=love.graphics.getDimensions()
     local t = love.timer.getTime()
     drawBerserkOverlay(self.berserkState, w, h, t)
+    drawDisasterOverlay(self.disasterType, self.disasterState, w, h, t)
+    drawOffscreenIndicators(self, game, fonts, w, h, t)
     UI.panel(16,16,360,168,{.35,1,.52,1},.94)
     love.graphics.setFont(fonts.big); love.graphics.setColor(1,1,1); love.graphics.print(formatTime(self.elapsed),32,27)
     love.graphics.setFont(fonts.body); love.graphics.setColor(.95,.7,.25); love.graphics.print("STAGE " .. self.stage .. "  ·  " .. (jobNames[self.job] or "벌목꾼"),155,35)
@@ -2394,6 +2616,26 @@ function ClearcutMode:drawHUD(game,fonts)
         love.graphics.printf(active and "광폭화 진행 중" or "광폭화 임박", bbx, 23, bbw, "center")
         love.graphics.setFont(fonts.small); love.graphics.setColor(1, .78, .68, .92)
         love.graphics.printf(active and string.format("%.0f초만 버텨라", math.max(0,self.berserkTimer)) or "숲이 곧 폭주한다...", bbx, 47, bbw, "center")
+    end
+
+    if self.disasterState == "warn" or self.disasterState == "active" then
+        local active = self.disasterState == "active"
+        local isRain = self.disasterType == "rain"
+        local pulse = .5 + math.sin(t * (active and 5 or 2.2)) * .5
+        local dbw = 300
+        local dbx = w - 16 - dbw
+        local dby = (self.berserkState == "warn" or self.berserkState == "active") and 78 or 16
+        local baseColor = isRain and {.08, .14, .22} or {.16, .11, .04}
+        local accentColor = isRain and {.55, .75, 1} or {.75, .55, .22}
+        love.graphics.setColor(baseColor[1] + pulse*.03, baseColor[2] + pulse*.03, baseColor[3] + pulse*.03, .92)
+        love.graphics.rectangle("fill", dbx, dby, dbw, 54, 8, 8)
+        love.graphics.setColor(accentColor[1], accentColor[2], accentColor[3], .95)
+        love.graphics.rectangle("line", dbx + .5, dby + .5, dbw - 1, 53, 8, 8)
+        love.graphics.setFont(fonts.body); love.graphics.setColor(1, .95, .9, 1)
+        love.graphics.printf(isRain and (active and "소나기 — 방화 봉쇄" or "먹구름 접근") or (active and "지진 발생 중" or "지진 임박"), dbx, dby + 7, dbw, "center")
+        love.graphics.setFont(fonts.small); love.graphics.setColor(accentColor[1], accentColor[2], accentColor[3], .95)
+        local sub = isRain and (active and "불이 붙지 않는다" or "곧 비가 쏟아진다...") or (active and "낙석을 피해 움직여라" or "곧 땅이 흔들린다...")
+        love.graphics.printf(sub, dbx, dby + 31, dbw, "center")
     end
 
     local xpBarW = math.min(520, w*.42)
@@ -2531,9 +2773,26 @@ local function drawUpgradeCardFrame(x, y, w, h, color, hovered, job, t)
     for _, c in ipairs(corners) do drawShadedRivet(c[1], c[2], color) end
 end
 
-local function drawIconSocket(cx, cy, color, iconDef, t)
+local function drawIconSocket(cx, cy, color, iconDef, t, special)
     local r = 58
     local pulse = .5 + math.sin(t * 2.4) * .5
+    if special then
+        -- 스페셜 카드 전용: 소켓 뒤에서 회전하는 빛줄기 + 궤도를 도는 반짝임으로 확실히 차별화한다
+        for i = 1, 8 do
+            local ang = i / 8 * math.pi * 2 + t * .7
+            local len = r + 26 + math.sin(t * 3 + i) * 6
+            love.graphics.setLineWidth(3); love.graphics.setColor(1, .9, .5, .22 + pulse * .12)
+            love.graphics.line(cx + math.cos(ang) * r * .5, cy + math.sin(ang) * r * .5, cx + math.cos(ang) * len, cy + math.sin(ang) * len)
+        end
+        for i = 1, 5 do
+            local ang = t * 1.4 + i * (math.pi * 2 / 5)
+            local orbit = r + 20
+            local sx, sy = cx + math.cos(ang) * orbit, cy + math.sin(ang) * orbit
+            local tw = .5 + math.sin(t * 5 + i * 2) * .5
+            love.graphics.setColor(1, .95, .7, .5 + tw * .5)
+            love.graphics.circle("fill", sx, sy, 1.6 + tw * 1.8)
+        end
+    end
     for i = 3, 1, -1 do
         love.graphics.setColor(color[1], color[2], color[3], (.14 + pulse * .05) / i)
         love.graphics.circle("fill", cx, cy, r + i * 9)
@@ -2554,7 +2813,18 @@ local function drawIconSocket(cx, cy, color, iconDef, t)
     love.graphics.polygon("fill", cx - 4, cy - r - 5, cx + 4, cy - r - 5, cx, cy - r - 11)
     if iconDef then
         love.graphics.setColor(0, 0, 0, .32); love.graphics.ellipse("fill", cx + 2, cy + r * .58, 34, 9)
-        drawPixelGrid(iconDef.rows, iconDef.palette, cx, cy, 96 / #iconDef.rows)
+        local px = 96 / #iconDef.rows
+        local iw, ih = #iconDef.rows[1] * px, #iconDef.rows * px
+        local outline = iconDef.outline or darkenPalette(iconDef.palette, .14, 1)
+        drawPixelGrid(iconDef.rows, outline, cx, cy, px * 1.15)
+        drawPixelGrid(iconDef.rows, iconDef.palette, cx, cy, px)
+        love.graphics.stencil(function() drawPixelGrid(iconDef.rows, iconDef.palette, cx, cy, px) end, "replace", 1)
+        love.graphics.setStencilTest("greater", 0)
+        love.graphics.setColor(1, 1, 1, .28)
+        love.graphics.ellipse("fill", cx - iw * .16, cy - ih * .26, iw * .34, ih * .28)
+        love.graphics.setColor(0, 0, 0, .22)
+        love.graphics.ellipse("fill", cx + iw * .15, cy + ih * .22, iw * .3, ih * .26)
+        love.graphics.setStencilTest()
     end
 end
 
@@ -2577,14 +2847,38 @@ local function specialCardFlip(elapsed)
     return scaleX, p
 end
 
+local specialBackFont = nil
 local function drawCardBack(x,y,w,h,t)
-    local cx = x + w/2
-    love.graphics.setColor(.08,.06,.14,.97); love.graphics.rectangle("fill",x,y,w,h,14,14)
+    local cx, cy = x + w/2, y + h/2
+    love.graphics.stencil(function() love.graphics.rectangle("fill",x,y,w,h,14,14) end, "replace", 1)
+    love.graphics.setStencilTest("greater", 0)
+    love.graphics.setColor(.1,.07,.17,1); love.graphics.rectangle("fill",x,y,w,h)
+    for i = 0, 10 do
+        local p = i / 10
+        love.graphics.setColor(specialColor[1]*.4, specialColor[2]*.3, specialColor[3]*.5, .1*(1-p))
+        love.graphics.circle("fill", cx, cy, (w*.75)*(1-p))
+    end
+    love.graphics.setStencilTest()
     love.graphics.setColor(specialColor[1],specialColor[2],specialColor[3],.85); love.graphics.setLineWidth(3)
     love.graphics.rectangle("line",x+6,y+6,w-12,h-12,10,10)
+    love.graphics.setLineWidth(1); love.graphics.setColor(specialColor[1],specialColor[2],specialColor[3],.5)
+    love.graphics.rectangle("line",x+12,y+12,w-24,h-24,6,6)
+    for _, corner in ipairs({{x+16,y+16,1,1},{x+w-16,y+16,-1,1},{x+16,y+h-16,1,-1},{x+w-16,y+h-16,-1,-1}}) do
+        love.graphics.setColor(specialColor[1],specialColor[2],specialColor[3],.7)
+        love.graphics.line(corner[1], corner[2], corner[1]+10*corner[3], corner[2])
+        love.graphics.line(corner[1], corner[2], corner[1], corner[2]+10*corner[4])
+    end
     local pulse = .5+math.sin(t*6)*.5
-    love.graphics.setColor(specialColor[1],specialColor[2],specialColor[3],.5+pulse*.3)
-    love.graphics.setFont(love.graphics.newFont(46))
+    for i = 1, 8 do
+        local ang = i/8*math.pi*2 + t*.6
+        love.graphics.setColor(specialColor[1],specialColor[2],specialColor[3],.25+pulse*.15)
+        love.graphics.line(cx,cy, cx+math.cos(ang)*(30+pulse*6), cy+math.sin(ang)*(30+pulse*6))
+    end
+    love.graphics.setColor(specialColor[1],specialColor[2],specialColor[3],.6+pulse*.3)
+    love.graphics.circle("line", cx, cy, 26)
+    specialBackFont = specialBackFont or love.graphics.newFont(46)
+    love.graphics.setFont(specialBackFont)
+    love.graphics.setColor(specialColor[1],specialColor[2],specialColor[3],.55+pulse*.35)
     love.graphics.printf("?",x,y+h/2-30,w,"center")
 end
 
@@ -2659,7 +2953,7 @@ function ClearcutMode:drawSelection(game,fonts)
         else
             drawUpgradeCardFrame(x,y,cardW,cardH,specialColor,hovered,nil,t)
             local iconDef = {rows=arcanaShapeRows[def.icon], palette=arcanaIconPalette(def.color)}
-            drawIconSocket(x+cardW/2,y+108,specialColor,iconDef,t)
+            drawIconSocket(x+cardW/2,y+108,specialColor,iconDef,t,true)
             love.graphics.setColor(.06,.09,.08,.92); love.graphics.rectangle("fill",x+16,y+16,34,30,7,7)
             love.graphics.setFont(fonts.heading); love.graphics.setColor(1,1,1); love.graphics.printf("4",x+16,y+21,34,"center")
             love.graphics.setFont(fonts.small); love.graphics.setColor(specialColor[1],specialColor[2],specialColor[3],.95); love.graphics.printf("★ 스페셜 카드", x, y+18, cardW, "center")
@@ -2672,6 +2966,21 @@ function ClearcutMode:drawSelection(game,fonts)
             local glow = .3+math.sin(t*3)*.15
             love.graphics.setColor(specialColor[1],specialColor[2],specialColor[3],glow)
             love.graphics.setLineWidth(2); love.graphics.rectangle("line",x-4,y-4,cardW+8,cardH+8,16,16)
+            -- 홀로그램 사선 광택이 카드 위를 주기적으로 훑고 지나간다 (포일 카드 느낌)
+            love.graphics.stencil(function() love.graphics.rectangle("fill",x,y,cardW,cardH,14,14) end, "replace", 1)
+            love.graphics.setStencilTest("greater", 0)
+            local sweep = ((t * .5) % 1.6) - .3
+            love.graphics.setColor(1, .97, .85, .16)
+            love.graphics.polygon("fill", x+cardW*sweep-40,y-10, x+cardW*sweep+10,y-10, x+cardW*sweep-60,y+cardH+10, x+cardW*sweep-110,y+cardH+10)
+            love.graphics.setStencilTest()
+            for i = 1, 6 do
+                local seed = i * 2.7
+                local sx = x + (math.sin(t * .9 + seed) * .5 + .5) * cardW
+                local sy = y + ((t * .3 + seed * .3) % 1) * cardH
+                local tw = .5 + math.sin(t * 6 + seed * 3) * .5
+                love.graphics.setColor(1, .95, .7, tw * .8)
+                love.graphics.circle("fill", sx, sy, .8 + tw * 1.6)
+            end
         end
     end
 
