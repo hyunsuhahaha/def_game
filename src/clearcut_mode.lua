@@ -232,13 +232,13 @@ function ClearcutMode:generateForest(game, target)
     local Maps=require("src.clearcut_maps")
     local w, h = game.world.width, game.world.height
     local spawnX, spawnY = w / 2, h / 2
-    local minSepBase = game.world.clearcutMap=="island" and 70 or (game.world.clearcutMap=="beginner" and 130 or 108)
-    local minSepFloor = game.world.clearcutMap=="island" and 42 or (game.world.clearcutMap=="beginner" and 64 or 60)
+    local minSepBase = game.world.clearcutMap=="island" and 70 or (game.world.clearcutMap=="beginner" and 165 or 108)
+    local minSepFloor = game.world.clearcutMap=="island" and 42 or (game.world.clearcutMap=="beginner" and 90 or 60)
     local attempts, minSep = 0, minSepBase
     -- Large islands (and the beginner map's tighter world, which needs many relax cycles
     -- to walk minSep down from its sparse starting value) need more land samples in later stages.
     local attemptLimit=game.world.clearcutMap=="island" and math.max(12000,target*70)
-        or game.world.clearcutMap=="beginner" and math.max(30000,target*150)
+        or game.world.clearcutMap=="beginner" and math.max(60000,target*350)
         or 12000
     while #game.world.nodes < target and attempts < attemptLimit do
         attempts = attempts + 1

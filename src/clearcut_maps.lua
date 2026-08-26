@@ -7,7 +7,7 @@ Maps.catalog={
     {id="mangrove",name="맹그로브 숲",subtitle="청록 물길 · 뿌리 · 물가의 게",desc="얕은 물길과 드러난 지주뿌리. 커다란 집게를 든 게가 진흙 물가를 걷는 습지.",short="얕은 물길을 건너는 뿌리 숲.",trees=230,tree="mangrove",color={.26,.72,.65}},
     {id="madagascar",name="마다가스카르 숲",subtitle="붉은 흙 · 바오밥 · 여우원숭이",desc="통 모양 바오밥과 부채잎 식물, 줄무늬 꼬리의 여우원숭이가 어울리는 붉은 땅.",short="붉은 땅 위의 바오밥 군락.",trees=220,tree="baobab",color={.85,.48,.28}},
     {id="island",name="무인도 전소",subtitle="넓은 섬 · 혼합 야자림 · 앵무새",desc="넓어진 해안과 혼합 야자림 280그루. 섬 전역을 돌아다니며 태우는 전장으로, 사방의 바다도 보입니다.",short="사방이 바다인 섬 전체를 전소.",trees=280,tree="palm",color={.30,.70,.88}},
-    {id="beginner",name="초심자의 숲",subtitle="좁은 개활지 · 듬성듬성한 나무",desc="처음 시작하기 좋은 좁고 여유로운 숲. 온대 숲과 같은 나무들이지만 훨씬 듬성듬성 나 있습니다.",short="좁고 나무가 듬성듬성한 초심자 숲.",trees=70,preview="forest",color={.62,.78,.42}},
+    {id="beginner",name="초심자의 숲",subtitle="좁은 개활지 · 듬성듬성한 나무",desc="처음 시작하기 좋은 좁고 여유로운 숲. 온대 숲과 같은 나무들이지만 훨씬 듬성듬성 나 있습니다.",short="좁고 나무가 듬성듬성한 초심자 숲.",trees=45,preview="forest",color={.62,.78,.42}},
 }
 local byId,images={},{}
 Maps.species={
@@ -20,7 +20,7 @@ function Maps.get(id) return byId[id] or Maps.catalog[1] end
 function Maps.treeTarget(id,stage)
     local def=Maps.get(id)
     if def.id=="island" then return math.min(520,def.trees+((stage or 1)-1)*60) end
-    if def.id=="beginner" then return def.trees+((stage or 1)-1)*25 end
+    if def.id=="beginner" then return def.trees+((stage or 1)-1)*16 end
     return def.trees+((stage or 1)-1)*45
 end
 function Maps.islandDistance(x,y,w,h)
