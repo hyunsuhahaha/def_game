@@ -1731,23 +1731,67 @@ local function darkenPalette(base, mul, alphaMul)
     return out
 end
 
--- 모든 몹 스프라이트 공용 고품질 렌더: 굵은 외곽선 + 실루엣에 클립된 좌상단 하이라이트/우하단 그림자 워시로
--- 픽셀아트 자체를 새로 안 그려도 확실한 음영 그라데이션이 생기게 한다
--- 배경이 부드러운 채색 일러스트라서, 외곽선을 순검정 대신 톤을 살짝 남긴 색으로 얇게 두르고
--- 하이라이트/그림자 워시도 옅게 눌러서 스티커처럼 튀지 않고 배경 위에 자연스럽게 앉도록 한다
-local function drawShadedSprite(sprite, cx, cy, px)
-    local gw, gh = #sprite.rows[1], #sprite.rows
-    local w, h = gw * px, gh * px
-    if not sprite.outline then sprite.outline = darkenPalette(sprite.palette, .22, .88) end
-    drawPixelGrid(sprite.rows, sprite.outline, cx, cy, px * 1.08)
-    drawPixelGrid(sprite.rows, sprite.palette, cx, cy, px)
-    love.graphics.stencil(function() drawPixelGrid(sprite.rows, sprite.palette, cx, cy, px) end, "replace", 1)
+-- 나무는 고해상도로 미리 그려둔 채색 이미지를 축소해서 쓰기 때문에 매끈한데, 몹은 셀 10~20개짜리
+-- 픽셀 그리드를 그대로 확대해서 각진 사각형이 그대로 드러났다. 그래서 몹도 한 번만 캔버스에 구워두고
+-- (linear 필터로) 그 캔버스를 늘려서 그린다 — 셀 경계가 매끄럽게 보간되어 "칠해진 그림"에 가까워진다.
+local spriteCanvasCache = setmetatable({}, {__mode = "k"})
+local eliteSpriteCache = setmetatable({}, {__mode = "k"})
+local SPRITE_BAKE_PX = 14
+
+local function bakeSpriteCanvas(rows, palette, outline)
+    local gw, gh = #rows[1], #rows
+    local w, h = gw * SPRITE_BAKE_PX, gh * SPRITE_BAKE_PX
+    local canvasW, canvasH = math.ceil(w * 1.3), math.ceil(h * 1.3)
+    local canvas = love.graphics.newCanvas(canvasW, canvasH)
+    canvas:setFilter("linear", "linear")
+    local prevCanvas = love.graphics.getCanvas()
+    love.graphics.setCanvas({canvas, stencil = true})
+    love.graphics.clear(0, 0, 0, 0)
+    love.graphics.push()
+    love.graphics.origin()
+    local cx, cy = canvasW / 2, canvasH / 2
+    drawPixelGrid(rows, outline or darkenPalette(palette, .22, .88), cx, cy, SPRITE_BAKE_PX * 1.08)
+    drawPixelGrid(rows, palette, cx, cy, SPRITE_BAKE_PX)
+    love.graphics.stencil(function() drawPixelGrid(rows, palette, cx, cy, SPRITE_BAKE_PX) end, "replace", 1)
     love.graphics.setStencilTest("greater", 0)
     love.graphics.setColor(1, 1, 1, .11)
     love.graphics.ellipse("fill", cx - w * .18, cy - h * .28, w * .38, h * .32)
     love.graphics.setColor(0, 0, 0, .13)
     love.graphics.ellipse("fill", cx + w * .16, cy + h * .22, w * .34, h * .3)
     love.graphics.setStencilTest()
+    love.graphics.pop()
+    love.graphics.setCanvas(prevCanvas)
+    return canvas
+end
+
+local function eliteTintPalette(base)
+    local out = {}
+    for k, c in pairs(base) do
+        local lum = (c[1] + c[2] + c[3]) / 3
+        out[k] = {math.min(1, lum * .3 + .55), math.min(1, lum * .12 + .05), math.min(1, lum * .55 + .2), c[4]}
+    end
+    return out
+end
+
+-- 정예 틴트는 매 프레임 새 테이블을 만들지 않도록 원본 스프라이트 기준으로 한 번만 계산해 캐싱한다
+local function getEliteSprite(sprite)
+    local cached = eliteSpriteCache[sprite]
+    if cached then return cached end
+    local tinted = eliteTintPalette(sprite.palette)
+    cached = {rows = sprite.rows, palette = tinted, outline = darkenPalette(tinted, .08)}
+    eliteSpriteCache[sprite] = cached
+    return cached
+end
+
+local function drawShadedSprite(sprite, cx, cy, px)
+    local canvas = spriteCanvasCache[sprite]
+    if not canvas then
+        canvas = bakeSpriteCanvas(sprite.rows, sprite.palette, sprite.outline)
+        spriteCanvasCache[sprite] = canvas
+    end
+    local scale = px / SPRITE_BAKE_PX
+    love.graphics.setColor(1, 1, 1, 1)
+    love.graphics.draw(canvas, cx, cy, 0, scale, scale, canvas:getWidth() / 2, canvas:getHeight() / 2)
 end
 
 local squirrelRows = {
@@ -1847,26 +1891,44 @@ local reaperRows = {
 }
 local reaperPalette = {O={.03,.02,.02,1}, G={.12,.14,.1,1}, R={1,.15,.1,1}, B={.1,.06,.12,1}}
 
--- 식충 덩굴괴수: 자이라식 소환 식물 — 이빨 달린 붉은 아가리 봉오리(발광 코어 포함) + 가시 돋친 덩굴 줄기/뿌리
+-- 식충 덩굴괴수: 자이라식 소환 식물 — 이빨 달린 붉은 아가리 봉오리(발광 코어 포함) + 가시 돋친 덩굴 줄기/뿌리.
+-- 나무 이미지와의 해상도 격차(캐릭터가 20x18칸짜리 픽셀 격자를 그대로 확대해 각져 보이던 문제)를 줄이려고
+-- 31x34칸으로 다시 그렸다 — 캔버스 굽기+linear 필터링과 합쳐지면 매끄러운 그라데이션으로 보인다.
 local vineSproutRows = {
-    ".......DGRGD.......",
-    ".....DGRRRRRGD.....",
-    "...DGRRRRRRRRRGD...",
-    "SDGRRRRRRRRRRRRRGDS",
-    "DGRRRRRRWWWRRRRRRGD",
-    "DGRRRRRRRRRRRRRRRGD",
-    ".DGRRRRRRRRRRRRRGD.",
-    "...DGRRRRRRRRRGD...",
-    ".....DGRRRRRGD.....",
-    "........KBK........",
-    "........KBK........",
-    ".......KKBKK.......",
-    ".......KKBKK.......",
-    "......KKBLBKK......",
-    "......KKBLBKK......",
-    ".....KKKBLBKKK.....",
-    "....KKKBBLBBKKK....",
-    "...KKKKBBLBBKKKK...",
+    ".............DDGDD.............",
+    "...........DDGGRGGDD...........",
+    ".........DDGGRRRRRGGDD.........",
+    ".......DDGGRRRRRRRRRGGDD.......",
+    ".....DDGGRRRRRRRRRRRRRGGDD.....",
+    "....DDGGRRRRRRRRRRRRRRRGGDD....",
+    "...DDGGRRRRRRRRRRRRRRRRRGGDD...",
+    "..DDGGRRRRRRRRRRRRRRRRRRRGGDD..",
+    ".DDGGRRRRRRRRRRRRRRRRRRRRRGGDD.",
+    "DDGGRRRRRRRWWWWWWWWWRRRRRRRGGDD",
+    "DDGGRRRRRRRWWWWWWWWWRRRRRRRGGDD",
+    "DDGGRRRRRRRWWWWWWWWWRRRRRRRGGDD",
+    ".DDGGRRRRRRRRRRRRRRRRRRRRRGGDD.",
+    "..DDGGRRRRRRRRRRRRRRRRRRRGGDD..",
+    "...DDGGRRRRRRRRRRRRRRRRRGGDD...",
+    ".....DDGGRRRRRRRRRRRRRGGDD.....",
+    ".......DDGGRRRRRRRRRGGDD.......",
+    ".........DDGGRRRRRGGDD.........",
+    "...........DDGGRGGDD...........",
+    ".............KBLBK.............",
+    ".............KBLBK.............",
+    ".............KBLBK.............",
+    "............KKBLBKK............",
+    "............KKBLBKK............",
+    "............KKBLBKK............",
+    "...........KKBBLBBKK...........",
+    "...........KKBBLBBKK...........",
+    "...........KKBBLBBKK...........",
+    "..........KKKBBLBBKKK..........",
+    "..........KKKBBLBBKKK..........",
+    ".........KKKBBBLBBBKKK.........",
+    "........KKKKBBBLBBBKKKK........",
+    ".......KKKKBBBBLBBBBKKKK.......",
+    "......KKKKKBBBBLBBBBKKKKK......",
 }
 -- 배경의 가을숲 채색과 어울리도록 네온 핑크 대신 흙빛이 도는 브릭레드/올리브 톤으로 눌렀다
 local vineSproutPalette = {
@@ -1901,15 +1963,6 @@ local thornRows = {"..O..", ".OYO.", "OYHYO", ".OYO.", "..O.."}
 local thornPalette = {O={.15,.08,.04,1}, Y={.62,.42,.15,1}, H={.92,.78,.35,1}}
 
 -- 정예(elite) 개체는 별도 스프라이트를 새로 그리는 대신, 기존 실루엣을 어둡고 채도 높은 "타락" 톤으로 재염색해서 확실히 다르게 보이게 한다
-local function eliteTintPalette(base)
-    local out = {}
-    for k, c in pairs(base) do
-        local lum = (c[1] + c[2] + c[3]) / 3
-        out[k] = {math.min(1, lum * .3 + .55), math.min(1, lum * .12 + .05), math.min(1, lum * .55 + .2), c[4]}
-    end
-    return out
-end
-
 local chestRows = {
     "..OOOOOO..",
     ".OGGGGGGO.",
@@ -2181,11 +2234,7 @@ local function drawEnemy(e, t)
     end
     if sprite then
         local px = (def.radius * 2.1) / #sprite.rows[1]
-        local drawSprite = sprite
-        if e.elite then
-            local tinted = eliteTintPalette(sprite.palette)
-            drawSprite = {rows = sprite.rows, palette = tinted, outline = darkenPalette(tinted, .08)}
-        end
+        local drawSprite = e.elite and getEliteSprite(sprite) or sprite
         drawShadedSprite(drawSprite, e.x, e.y - bob, px)
     end
     if e.plagueMarked then
