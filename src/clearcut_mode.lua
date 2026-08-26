@@ -92,7 +92,7 @@ function ClearcutMode.new()
         rootHazards={}, rootedTimer=0, rootedCount=0,
         bees={}, beeSlow=false, beeSwarmsTriggered=0, beehiveTotal=0,
         streak=0, lastHitAt=-10, molotovTimer=0, wildfireTimer=0, toxicTimer=0, evolutions={}, molotovs={},
-        job=nil, attackCooldown=0, dashing=nil, dashTrail={}, smoking=nil, fireTriggerHeld=false,
+        job=nil, attackCooldown=0, dashing=nil, dashTrail={}, smoking=nil,
         hp=100, maxHp=100, invulnTimer=0, dead=false,
         enemies={}, projectiles={}, bossTelegraphs={}, waveFired={}, worldTreeSpawned=false, readyToFinish=false, activeBoss=nil, kills=0,
         chests={}, chestPending=false, molotovShots=0, wildburstTimer=10, plagued={}, dodges=0,
@@ -1068,31 +1068,21 @@ function ClearcutMode:updateFireAttack(dt, game, heldOverride)
     local maxRange = 320 + self:levelOf("molotov") * 40
     local tx, ty = self:aimPoint(game, maxRange)
     self.aimX, self.aimY, self.aimRadius = tx, ty, 90 + self:levelOf("molotov") * 20
-    if math.abs(tx - game.player.x) > 1 then
-        game.player.facing = tx < game.player.x and -1 or 1
-    end
     if not self.smoking then self:startSmoking(game) end
-    self.smoking.t = math.min(self.smoking.dur, self.smoking.t + dt)
-    self.smoking.ready = self.smoking.t >= self.smoking.dur
-    local pressed = held and not self.fireTriggerHeld
-    self.fireTriggerHeld = held
-    if pressed and self.smoking.ready then
+    self.smoking.t = self.smoking.t + dt
+    if self.smoking.t < self.smoking.dur then return false end
+    local fired = false
+    if held then
         self:hurlMolotovAt(tx, ty, game)
-        self:startSmoking(game)
-        return true
+        fired = true
     end
-    return false
+    self:startSmoking(game)
+    return fired
 end
 
 function ClearcutMode:startSmoking(game)
     local speed = (game.tools.axe.speed or 1) * game.player.gather
-    self.smoking = {t = 0, dur = math.max(.75, 1.25 / speed), ready = false}
-end
-
-function ClearcutMode:smokerMouthPose(game)
-    local facing = game.player.facing or 1
-    local mouthX, mouthY = game.player.x + 3 * facing, game.player.y - 61
-    return mouthX, mouthY, facing, mouthX + 9 * facing
+    self.smoking = {t = 0, dur = math.max(.75, 1.25 / speed)}
 end
 
 function ClearcutMode:updateToxicAttack(dt, game, heldOverride)
@@ -1628,22 +1618,6 @@ local function drawPixelGrid(rows, palette, cx, cy, px)
     end
 end
 
-local function drawPixelGridFacing(rows, palette, cx, cy, px, facing)
-    local gh, gw = #rows, #rows[1]
-    local ox, oy = gw * px / 2, gh * px / 2
-    for ry = 1, gh do
-        local row = rows[ry]
-        for rx = 1, gw do
-            local col = palette[row:sub(rx, rx)]
-            if col then
-                local visualX = facing < 0 and (gw - rx) or (rx - 1)
-                love.graphics.setColor(col)
-                love.graphics.rectangle("fill", math.floor(cx - ox + visualX * px), math.floor(cy - oy + (ry - 1) * px), px + 1, px + 1)
-            end
-        end
-    end
-end
-
 local function darkenPalette(base, mul, alphaMul)
     local out = {}
     for k, c in pairs(base) do out[k] = {c[1] * mul, c[2] * mul, c[3] * mul, c[4] * (alphaMul or 1)} end
@@ -2084,13 +2058,12 @@ function ClearcutMode:drawWorldOverlay(game)
     if self.job == "fire" then
         local smoking = self.smoking
         local drag = smoking and math.min(1, smoking.t / smoking.dur) or 0
-        local mx, my, facing, emberX = self:smokerMouthPose(game)
-        love.graphics.setColor(.92, .9, .82, 1)
-        love.graphics.rectangle("fill", mx - 9.6, my - 1.6, 19.2, 3.2)
-        drawPixelGridFacing(cigaretteIconRows, cigaretteIconPalette, mx, my, 3.2, facing)
+        local facing = game.player.facing or 1
+        local mx, my = game.player.x + 3 * facing, game.player.y - 61
+        drawPixelGrid(cigaretteIconRows, cigaretteIconPalette, mx, my, 2.4)
         local emberGlow = (.42 + math.sin(t * (6 + drag * 12)) * .28) * (.7 + drag * .3)
-        love.graphics.setColor(1, .55, .15, emberGlow); love.graphics.circle("fill", emberX, my + 2, 2.2 + drag * 2.8)
-        local sx, sy = emberX, my + 1
+        love.graphics.setColor(1, .55, .15, emberGlow); love.graphics.circle("fill", mx + 9 * facing, my + 2, 2.2 + drag * 2.8)
+        local sx, sy = mx + 9 * facing, my + 1
         local strandCount = 2 + (drag > .1 and 1 or 0)
         local height = 50 + drag * 34
         local segments = 16
@@ -2113,12 +2086,6 @@ function ClearcutMode:drawWorldOverlay(game)
                 end
                 px0, py0 = x1, y1
             end
-        end
-        for puff = 1, 4 do
-            local rise = puff / 4
-            local drift = math.sin(t * 1.7 + puff * 1.9) * (5 + rise * 9)
-            love.graphics.setColor(.92, .93, .95, (.22 + drag * .18) * (1 - rise * .55))
-            love.graphics.circle("fill", sx + drift, sy - 12 - rise * (28 + drag * 18), 2.2 + rise * 3.2)
         end
         love.graphics.setLineStyle("rough")
     elseif self.job == "toxic" then
