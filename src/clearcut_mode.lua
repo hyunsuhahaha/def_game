@@ -4838,9 +4838,9 @@ local function drawOffscreenIndicators(self, game, fonts, w, h, t)
     end
 end
 
--- TFT류 시너지 트래커: 지금까지 찍은 스킬을 작은 픽셀 아이콘 + 레벨 배지로
--- 한눈에 보여준다. 트랙(파괴력/확산력/...)별로 묶고, 그 안에서는 레벨 높은
--- 순으로 정렬해 어떤 방향으로 빌드가 쏠려 있는지 바로 읽히게 한다.
+-- TFT 시너지 패널처럼 세로로 한 줄씩 쌓는다: 왼쪽 아이콘, 이름, 오른쪽에 레벨.
+-- 트랙(파괴력/확산력/...)별로 묶고, 그 안에서는 레벨 높은 순으로 정렬해
+-- 어떤 방향으로 빌드가 쏠려 있는지 바로 읽히게 한다.
 function ClearcutMode:drawSkillTracker(fonts)
     local picks={}
     for id,level in pairs(self.levels) do
@@ -4856,33 +4856,28 @@ function ClearcutMode:drawSkillTracker(fonts)
         return a.id<b.id
     end)
     local x0,y0,w=16,254,360
-    local chip,gap=52,6
-    local cols=math.max(1,math.floor((w+gap)/(chip+gap)))
-    local rows=math.ceil(#picks/cols)
-    love.graphics.setColor(.035,.05,.06,.9)
-    love.graphics.rectangle("fill",x0,y0,w,rows*(chip+gap)+gap+18,8,8)
+    local headerH,rowH=22,26
+    local panelH=headerH+#picks*rowH+6
+    love.graphics.setColor(.035,.05,.06,.94)
+    love.graphics.rectangle("fill",x0,y0,w,panelH,8,8)
     love.graphics.setFont(fonts.small); love.graphics.setColor(.75,.85,.8)
-    love.graphics.print("보유 스킬",x0+10,y0+6)
-    local top=y0+22
+    love.graphics.print("보유 스킬",x0+10,y0+5)
     for i,pick in ipairs(picks) do
-        local col=(i-1)%cols
-        local row=math.floor((i-1)/cols)
-        local cx=x0+gap+col*(chip+gap)
-        local cy=top+row*(chip+gap)
+        local ry=y0+headerH+(i-1)*rowH
         local color=pick.def.color or {.7,.7,.7,1}
-        love.graphics.setColor(color[1]*.28,color[2]*.28,color[3]*.28,.95)
-        love.graphics.rectangle("fill",cx,cy,chip,chip,6,6)
-        love.graphics.setLineWidth(1.5); love.graphics.setColor(color[1],color[2],color[3],.9)
-        love.graphics.rectangle("line",cx+.5,cy+.5,chip-1,chip-1,6,6)
-        local iconDef=ClearcutMode.icons[pick.id]
+        love.graphics.setColor(color[1],color[2],color[3],.16)
+        love.graphics.rectangle("fill",x0+4,ry+1,w-8,rowH-3,4,4)
+        love.graphics.setColor(color[1],color[2],color[3],.9)
+        love.graphics.rectangle("fill",x0+4,ry+1,4,rowH-3,2,2)
+        local iconDef=ClearcutMode.icons[pick.id=="molotov" and "cigarette" or pick.id]
         if iconDef then
-            local px=26/#iconDef.rows[1]
-            drawPixelGrid(iconDef.rows,iconDef.palette,cx+chip/2,cy+chip/2-4,px)
+            local px=18/#iconDef.rows[1]
+            drawPixelGrid(iconDef.rows,iconDef.palette,x0+24,ry+rowH/2-1,px)
         end
-        love.graphics.setColor(.04,.05,.05,.92)
-        love.graphics.rectangle("fill",cx+chip-19,cy+chip-16,19,16,4,0)
-        love.graphics.setFont(fonts.small); love.graphics.setColor(1,.88,.45,1)
-        love.graphics.printf(tostring(pick.level),cx+chip-19,cy+chip-15,19,"center")
+        love.graphics.setFont(fonts.small); love.graphics.setColor(1,.95,.87,1)
+        love.graphics.print(pick.def.name,x0+40,ry+6)
+        love.graphics.setColor(1,.88,.45,1)
+        love.graphics.printf("Lv."..pick.level,x0,ry+6,w-14,"right")
     end
 end
 
