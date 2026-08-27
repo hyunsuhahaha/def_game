@@ -136,6 +136,7 @@ function ClearcutMode.new()
         oilTrail={}, oilTrailTimer=0, oilTrailLastX=nil, oilTrailLastY=nil, oilTrailSequence=0,
         job=nil, attackCooldown=0, dashing=nil, dashTrail={}, smoking=nil,
         minerClawAction=nil, minerClawFx={}, minerClawMarks={}, minerBurrow=nil, minerBurrowCooldown=0, thrownTrees={}, burrowTracks={}, burrowTrackSequence=0,
+        smokeRing=nil, smokeRingCooldown=0,
         smokerHeldLast=false, physicalAction=nil, veganAction=nil, developerAction=nil,
         actionAudit={physicalImpact=0,cigaretteFlick=0,veganBite=0,developerRemote=0},
         hp=100, maxHp=100, invulnTimer=0, dead=false,
@@ -359,6 +360,7 @@ function ClearcutMode:update(dt, game)
     self:updateRegrowth(dt, game)
     self:updateFire(dt, game)
     self:updateMolotovs(dt, game)
+    self:updateSmokeRing(dt, game)
     self:updateToxicRain(dt, game)
     -- 연습장(sandbox)에서는 이 함수들이 자기 안에서 바로 return 하므로(각 함수 상단의
     -- sandbox 가드 참고) 자동 위협/스폰이 전부 꺼지고 "몹 소환" 버튼으로만 적이 생긴다.
@@ -1040,7 +1042,12 @@ function ClearcutMode:updateEnemies(dt, game)
         e.visualHit = math.max(0, (e.visualHit or 0) - dt)
         e.visualAttack = math.max(0, (e.visualAttack or 0) - dt)
         e.hitTimer = math.max(0, e.hitTimer - dt)
-        if BiomeEnemies.update(e,dt,self,game) then
+        if (e.knockTimer or 0) > 0 then
+            e.knockTimer = e.knockTimer - dt
+            e.x, e.y = e.x + e.knockVX * dt, e.y + e.knockVY * dt
+            e.knockVX, e.knockVY = e.knockVX * .86, e.knockVY * .86
+            e.moving = true
+        elseif BiomeEnemies.update(e,dt,self,game) then
             -- Regional attacks own their windup, swept hit and recovery phases.
         elseif e.kind == "reaper" then
             self:updateReaperAI(e, dt, game)
@@ -1411,6 +1418,51 @@ function ClearcutMode:updateFire(dt, game)
             if e.burnTimer >= burnDuration then e.burning = false end
         end
     end
+end
+
+-- 흡연자 전용 SPACE 액션: 담배 연기를 도넛 모양으로 크게 내뿜는다. 화염/착화가 아니라
+-- 순수 연기 — 링이 팽창하며 닿는 적에게 피해와 넉백을 준다. 자기 자신은 링 안쪽(구멍)에
+-- 남아 있어 결과적으로 주변을 밀어내는 자기방어 겸 공격기다.
+function ClearcutMode:activateSmokeRing(game)
+    if self.job ~= "fire" or self.dead or self.smokeRing then return false end
+    if self.smokeRingCooldown > 0 then
+        game:setNotice(string.format("도넛 연기 재사용 %.1f초", self.smokeRingCooldown), "food")
+        return false
+    end
+    self.smokeRingCooldown = 8
+    self.smokeRing = {x=game.player.x, y=game.player.y, t=0, dur=.5, maxRadius=300, puffTimer=0, hit={}}
+    game:setNotice("도넛 연기 — 후우...", "food")
+    return true
+end
+
+function ClearcutMode:updateSmokeRing(dt, game)
+    self.smokeRingCooldown = math.max(0, self.smokeRingCooldown - dt)
+    local ring = self.smokeRing
+    if not ring then return end
+    ring.t = ring.t + dt
+    local progress = math.min(1, ring.t / ring.dur)
+    ring.radius = ring.maxRadius * progress
+    ring.puffTimer = ring.puffTimer - dt
+    if ring.puffTimer <= 0 then
+        ring.puffTimer = .06
+        game.world.particles[#game.world.particles+1] = {
+            x=ring.x, y=ring.y, life=.3, maxLife=.3, size=ring.radius, color={.72,.7,.66}, ring=true
+        }
+    end
+    for _, e in ipairs(self.enemies) do
+        if not ring.hit[e] then
+            local dx, dy = e.x - ring.x, e.y - ring.y
+            local dist = math.sqrt(dx*dx + dy*dy)
+            if dist <= ring.radius then
+                ring.hit[e] = true
+                local nx, ny = dist > .01 and dx / dist or 1, dist > .01 and dy / dist or 0
+                e.hp = e.hp - 10
+                e.visualHit = .14
+                e.knockVX, e.knockVY, e.knockTimer = nx * 420, ny * 420, .32
+            end
+        end
+    end
+    if progress >= 1 then self.smokeRing = nil end
 end
 
 function ClearcutMode:updateToxicRain(dt, game)
@@ -4664,6 +4716,14 @@ function ClearcutMode:drawHUD(game,fonts)
     if self.job=="miner" then
         local ready=(self.minerBurrowCooldown or 0)<=0 and not self.minerBurrow
         local text=self.minerBurrow and "잠복 중 — 나무 밑으로 이동" or ready and "SPACE / 우클릭  잠복 준비" or string.format("잠복 재사용 %.1f초",self.minerBurrowCooldown)
+        love.graphics.setFont(fonts.small)
+        love.graphics.setColor(.035,.045,.035,.9); love.graphics.rectangle("fill",w/2-150,h-52,300,30,7,7)
+        love.graphics.setColor(ready and {.94,.76,.28,1} or {.72,.65,.52,1})
+        love.graphics.printf(text,w/2-146,h-45,292,"center")
+    end
+    if self.job=="fire" then
+        local ready=(self.smokeRingCooldown or 0)<=0 and not self.smokeRing
+        local text=self.smokeRing and "도넛 연기 — 후우..." or ready and "SPACE  도넛 연기 준비" or string.format("도넛 연기 재사용 %.1f초",self.smokeRingCooldown)
         love.graphics.setFont(fonts.small)
         love.graphics.setColor(.035,.045,.035,.9); love.graphics.rectangle("fill",w/2-150,h-52,300,30,7,7)
         love.graphics.setColor(ready and {.94,.76,.28,1} or {.72,.65,.52,1})

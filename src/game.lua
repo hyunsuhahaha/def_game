@@ -349,7 +349,10 @@ function Game:keypressed(key)
     if self.ended and (key == "r" or key == "return") then self:startRun(); return end
     if key == "p" and self.runType~="rush" and self.runType~="clearcut" then self:prestigeRun(); return end
     if self.runType=="clearcut" then
-        if key=="space" and self.clearcut then self.clearcut:activateMinerBurrow(self) end
+        if key=="space" and self.clearcut then
+            self.clearcut:activateMinerBurrow(self)
+            self.clearcut:activateSmokeRing(self)
+        end
         return
     end
     if self.runType=="rush" then return end
