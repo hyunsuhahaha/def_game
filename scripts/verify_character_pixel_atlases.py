@@ -19,7 +19,8 @@ def frame_box(column: int, row: int) -> tuple[int, int, int, int]:
 
 
 for role in ROLES:
-    path = ASSETS / f"{role}-atlas-pixel-v2.png"
+    version = "v3" if role == "vegan" else "v2"
+    path = ASSETS / f"{role}-atlas-pixel-{version}.png"
     image = Image.open(path).convert("RGBA")
     assert image.size == ATLAS_SIZE, (role, image.size)
     assert image.getpixel((0, 0))[3] == 0, f"{role}: background must be transparent"
@@ -41,7 +42,8 @@ for role in ROLES:
 
 game_source = (ROOT / "src" / "game.lua").read_text(encoding="utf-8")
 for role in ROLES:
-    assert f'{role}-atlas-pixel-v2.png' in game_source, f"{role}: runtime still uses an old atlas"
+    version = "v3" if role == "vegan" else "v2"
+    assert f'{role}-atlas-pixel-{version}.png' in game_source, f"{role}: runtime still uses an old atlas"
 assert game_source.count("walkFeet={190,190,190,190,190,190}") >= 4
 assert game_source.count("actionFeet={190,190,190,190,190,190}") >= 4
 print("CHARACTER_PIXEL_ATLASES_OK roles=4 frames=48 cell=96x192 footline=190")

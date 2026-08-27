@@ -15,6 +15,7 @@ local CharacterTraitBoard = require("src.character_trait_board")
 local CharacterStory = require("src.character_story")
 local Buildings = require("src.buildings")
 local Cigarette = require("src.cigarette_sprite")
+local VeganForkArt = require("src.vegan_fork_art")
 local resourceLabels = {wood = "목재", stone = "돌", ore = "광석", food = "식량"}
 
 local Game = {}
@@ -35,7 +36,7 @@ local function loadClearcutSprites()
     local specs = {
         physical = {file="logger-atlas-pixel-v2.png", walkFeet={190,190,190,190,190,190}, actionFeet={190,190,190,190,190,190}, scale=.61},
         fire = {file="smoker-atlas-pixel-v2.png", walkFeet={190,190,190,190,190,190}, actionFeet={190,190,190,190,190,190}, scale=.61},
-        toxic = {file="vegan-atlas-pixel-v2.png", walkFeet={190,190,190,190,190,190}, actionFeet={190,190,190,190,190,190}, scale=.61},
+        toxic = {file="vegan-atlas-pixel-v3.png", walkFeet={190,190,190,190,190,190}, actionFeet={190,190,190,190,190,190}, scale=.75,nativeFacing=1},
         developer = {file="developer-atlas-pixel-v2.png", walkFeet={190,190,190,190,190,190}, actionFeet={190,190,190,190,190,190}, scale=.61},
         -- The authored philosopher source faces right.
         philosopher = {file="philosopher-atlas-pixel-v2.png", walkFeet={190,190,190,190,190,190}, actionFeet={190,190,190,190,190,190}, scale=.61, nativeFacing=1},
@@ -55,6 +56,7 @@ local function loadClearcutSprites()
         spec.image:setFilter("nearest", "nearest")
     end
     specs.fire.cigarette = Cigarette.load()
+    specs.toxic.veganArt = VeganForkArt.load()
     return specs
 end
 

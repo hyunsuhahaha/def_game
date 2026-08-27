@@ -49,13 +49,13 @@ assert(flicks == 1 and smoker.actionAudit.cigaretteFlick == 1, "cigarette did no
 
 local vegan, veganGame = ClearcutMode.new(), gameWithTree()
 vegan.job = "toxic"
-local bites = 0
-vegan.applyVeganBite = function() bites = bites + 1 end
+local forkHits = 0
+vegan.applyVeganFork = function() forkHits = forkHits + 1 end
 vegan:updateToxicAttack(0, veganGame, true)
-vegan:updateToxicAttack(vegan.veganAction.dur * .54, veganGame, true)
-assert(bites == 0, "vegan damage fired before bite frame")
+vegan:updateToxicAttack(vegan.veganAction.dur * .52, veganGame, true)
+assert(forkHits == 0, "vegan fork damage fired before contact frame")
 vegan:updateToxicAttack(vegan.veganAction.dur * .02, veganGame, true)
-assert(bites == 1 and vegan.actionAudit.veganBite == 1, "vegan bite did not fire exactly once")
+assert(forkHits == 1 and vegan.actionAudit.veganFork == 1, "vegan fork did not fire exactly once")
 
 local developer, developerGame = ClearcutMode.new(), gameWithTree()
 developer.job = "developer"

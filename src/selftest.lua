@@ -608,7 +608,7 @@ function SelfTest.run(game)
 
     local banishTarget, banishIdx
     for i, def in ipairs(game.clearcut.choices) do
-        if def.id ~= "berserker" and def.id ~= "molotov" and def.id ~= "toxic_rain" and def.id ~= "heavy_machinery" then
+        if def.id ~= "berserker" and def.id ~= "molotov" and def.id ~= "fork_feast" and def.id ~= "heavy_machinery" then
             banishTarget, banishIdx = def, i
             break
         end

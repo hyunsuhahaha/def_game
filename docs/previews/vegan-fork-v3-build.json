@@ -1,0 +1,19 @@
+{
+  "atlas": "assets\\characters\\ingame\\vegan-atlas-pixel-v3.png",
+  "atlasSize": [
+    576,
+    384
+  ],
+  "cell": [
+    96,
+    192
+  ],
+  "frames": 12,
+  "fork": "assets\\characters\\ingame\\vegan-fork-pixel-v1.png",
+  "forkSize": [
+    256,
+    96
+  ],
+  "impactFrames": 6,
+  "chompFrames": 8
+}

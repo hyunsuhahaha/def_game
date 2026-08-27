@@ -45,17 +45,17 @@ fire:hurlMolotovAt(120,40,game,false)
 assert(#fire.molotovs==3 and fire.molotovs[1].radius>=105,"smoker extra ember/area traits are not live")
 
 local vegan=ClearcutMode.new()
-vegan.job="toxic"; vegan.aimRadius=80; vegan.permanentTraits.extraTargets=2; vegan.permanentTraits.biteDamage=2
+vegan.job="toxic"; vegan.aimRadius=80; vegan.permanentTraits.extraTargets=2; vegan.permanentTraits.biteDamage=2; vegan.permanentTraits.range=30
 vegan.damageEnemiesInRadius=function() end; vegan.checkMilestones=function() end
 game.world=world({
     {rushTree=true,active=true,x=20,y=0,rushHp=8,rushMaxHp=8},
     {rushTree=true,active=true,x=100,y=0,rushHp=8,rushMaxHp=8},
     {rushTree=true,active=true,x=130,y=0,rushHp=8,rushMaxHp=8}
 })
-game.world.toxicPulseFx=function() end
+game.camera.screenToWorld=function() return 140,0 end
 vegan:updateToxicAttack(0,game,true)
 vegan:updateToxicAttack(vegan.veganAction.dur*.56,game,true)
-for _,node in ipairs(game.world.nodes) do assert(node.rushHp==4,"vegan extra bite/damage traits are not live") end
+for _,node in ipairs(game.world.nodes) do assert(node.rushHp==4,"vegan extra fork/damage traits are not live") end
 
 local developer=ClearcutMode.new()
 developer.job="developer"; developer.permanentTraits.aftershockRadius=30

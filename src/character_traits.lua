@@ -42,21 +42,21 @@ local jobs = {
     },
     toxic = {
         currencyName="성과 포인트",
-        tagline="숲을 먹어 치우는 것도 엄연한 채식이다.",
-        doctrine="산지 직송을 명분으로 가지를 뜯고 넓은 구역을 한입에 비운다.",
+        tagline="남기면 음식물 쓰레기다. 나무도 예외는 아니다.",
+        doctrine="대왕 포크로 밑동을 찍고 마지막 타격에 나무를 통째로 비운다.",
         palette={.38,.68,.27},
         nodes={
-            {id="toxic_raw", name="생식주의", short="세척 생략", desc="가지 섭취 속도 +7%", max=3, costs={18,32,50}, effect="attackSpeed", value=.07, x=.10,y=.50, icon="leaf", color={.45,.76,.28}},
-            {id="toxic_tongs", name="산지 직송 집게", short="원산지 현장", desc="집게 사거리 +20", max=3, costs={22,38,58}, effect="range", value=20, requires={{"toxic_raw",1}}, x=.32,y=.28, icon="tongs", color={.68,.72,.55}},
-            {id="toxic_cert", name="탄소중립 인증", short="스티커 부착", desc="한입 피해 범위 +12", max=3, costs={22,38,58}, effect="area", value=12, requires={{"toxic_raw",1}}, x=.32,y=.72, icon="certificate", color={.34,.67,.62}},
-            {id="toxic_molar", name="친환경 어금니", short="씹어서 해결", desc="한입 피해 범위 +8", max=3, costs={28,46,68}, effect="area", value=8, requires={{"toxic_tongs",1}}, x=.56,y=.20, icon="tooth", color={.86,.83,.66}},
-            {id="toxic_delivery", name="제로마일 식탁", short="걸어서 산지로", desc="집게 사거리 +16", max=3, costs={28,46,68}, effect="range", value=16, requires={{"toxic_cert",1}}, x=.56,y=.80, icon="basket", color={.72,.48,.25}},
-            {id="toxic_protein", name="식물성 단백질 과다", short="강한 턱", desc="한입 피해 +1", max=3, costs={34,54,78}, effect="biteDamage", value=1, requires={{"toxic_molar",1}}, x=.70,y=.30, icon="tooth", color={.87,.72,.45}},
-            {id="toxic_buffet_coupon", name="무제한 리필 쿠폰", short="한입 더", desc="한 번에 물어뜯는 나무 +1", max=2, costs={48,82}, effect="extraTargets", value=1, requires={{"toxic_molar",2}}, x=.68,y=.08, icon="coupon", color={.72,.38,.62}},
-            {id="toxic_compost", name="자가 퇴비화", short="먹고 회복", desc="나무를 먹을 때 체력 +1", max=3, costs={34,54,78}, effect="healOnFell", value=1, requires={{"toxic_delivery",1}}, x=.70,y=.70, icon="heartleaf", color={.38,.78,.46}},
-            {id="toxic_manifesto", name="48쪽짜리 성명문", short="효과 지속", desc="감염 지속시간 +0.8초", max=3, costs={42,66,92}, effect="plagueDuration", value=.8, requires={{"toxic_delivery",2}}, x=.68,y=.92, icon="document", color={.55,.64,.75}},
+            {id="toxic_raw", name="빈속 출근", short="첫 접시", desc="포크질 속도 +7%", max=3, costs={18,32,50}, effect="attackSpeed", value=.07, x=.10,y=.50, icon="fork", color={.55,.86,.30}},
+            {id="toxic_tongs", name="긴 포크 손잡이", short="멀리 찍기", desc="포크 사거리 +20", max=3, costs={22,38,58}, effect="range", value=20, requires={{"toxic_raw",1}}, x=.32,y=.28, icon="tongs", color={.68,.78,.72}},
+            {id="toxic_cert", name="넓은 네 갈래", short="옆 접시까지", desc="포크 타격 폭 +12", max=3, costs={22,38,58}, effect="area", value=12, requires={{"toxic_raw",1}}, x=.32,y=.72, icon="split", color={.34,.76,.62}},
+            {id="toxic_molar", name="손목 스냅", short="깊게 찍기", desc="포크 타격 폭 +8", max=3, costs={28,46,68}, effect="area", value=8, requires={{"toxic_tongs",1}}, x=.56,y=.20, icon="fist", color={.86,.78,.46}},
+            {id="toxic_delivery", name="접시 앞으로 당기기", short="내 자리로", desc="포크 사거리 +16", max=3, costs={28,46,68}, effect="range", value=16, requires={{"toxic_cert",1}}, x=.56,y=.80, icon="basket", color={.72,.48,.25}},
+            {id="toxic_protein", name="스테인리스 강화", short="단단한 포크", desc="포크 피해 +1", max=3, costs={34,54,78}, effect="biteDamage", value=1, requires={{"toxic_molar",1}}, x=.70,y=.30, icon="sharpen", color={.87,.82,.70}},
+            {id="toxic_buffet_coupon", name="포크 두 개 들기", short="양손 식사", desc="동시 타격 나무 +1", max=2, costs={48,82}, effect="extraTargets", value=1, requires={{"toxic_molar",2}}, x=.68,y=.08, icon="split", color={.72,.38,.62}},
+            {id="toxic_compost", name="깨끗한 접시", short="남김 없음", desc="나무를 먹을 때 체력 +1", max=3, costs={34,54,78}, effect="healOnFell", value=1, requires={{"toxic_delivery",1}}, x=.70,y=.70, icon="heartleaf", color={.38,.78,.46}},
+            {id="toxic_manifesto", name="씹는 시간 단축", short="바로 삼키기", desc="포크질 속도 +8%", max=3, costs={42,66,92}, effect="attackSpeed", value=.08, requires={{"toxic_delivery",2}}, x=.68,y=.92, icon="clock", color={.68,.72,.84}},
             {id="toxic_sponsor", name="후원금 사용 내역 비공개", short="영수증 없음", desc="런 종료 성과 포인트 +10%", max=3, costs={38,58,84}, effect="reward", value=.10, requires={{"toxic_molar",1},{"toxic_delivery",1}}, x=.78,y=.50, icon="donation", color={.86,.62,.27}},
-            {id="toxic_buffet", name="숲 전체 샐러드바", short="최종 식사", desc="한입 피해 범위 +34", max=1, costs={110}, effect="area", value=34, requires={{"toxic_sponsor",3}}, x=.94,y=.50, icon="capstone", color={.25,.82,.28}, capstone=true}
+            {id="toxic_buffet", name="숲 전체 뷔페", short="최종 접시", desc="포크 타격 폭 +34", max=1, costs={110}, effect="area", value=34, requires={{"toxic_sponsor",3}}, x=.94,y=.50, icon="capstone", color={.25,.82,.28}, capstone=true}
         }
     },
     developer = {
@@ -185,25 +185,25 @@ expand("fire",{
 })
 
 expand("toxic",{
-    {id="toxic_bamboo",name="대나무 집게",short="긴 집게",desc="포식 사거리 +14",effect="range",value=14,requires={{"toxic_tongs",2}},icon="tongs",color={.55,.67,.38}},
-    {id="toxic_organic",name="유기농 소금",short="간 맞추기",desc="한입 피해 +1",effect="biteDamage",value=1,requires={{"toxic_bamboo",1}},icon="basket",color={.78,.72,.48}},
-    {id="toxic_jaw",name="저작근 단련",short="강한 턱",desc="한입 피해 +1",effect="biteDamage",value=1,requires={{"toxic_bamboo",1}},icon="tooth",color={.84,.76,.58}},
-    {id="toxic_family",name="가족 단위 시식회",short="동시 시식",desc="추가 포식 대상 +1",effect="extraTargets",value=1,requires={{"toxic_organic",2}},icon="coupon",color={.70,.40,.58},max=2},
-    {id="toxic_fork",name="다회용 포크 12개",short="범위 식사",desc="포식 범위 +10",effect="area",value=10,requires={{"toxic_jaw",2}},icon="tongs",color={.48,.72,.64}},
-    {id="toxic_rawbar",name="숲속 생식 뷔페",short="상단 전문화",desc="추가 포식 대상 +2",effect="extraTargets",value=2,requires={{"toxic_family",2},{"toxic_fork",2}},icon="capstone",color={.35,.86,.28},max=1,capstone=true},
+    {id="toxic_bamboo",name="손잡이 두 칸 연장",short="긴 포크",desc="포크 사거리 +14",effect="range",value=14,requires={{"toxic_tongs",2}},icon="tongs",color={.55,.67,.38}},
+    {id="toxic_organic",name="포크 끝 재연마",short="뾰족하게",desc="포크 피해 +1",effect="biteDamage",value=1,requires={{"toxic_bamboo",1}},icon="sharpen",color={.78,.72,.48}},
+    {id="toxic_jaw",name="양팔로 내려찍기",short="체중 싣기",desc="포크 피해 +1",effect="biteDamage",value=1,requires={{"toxic_bamboo",1}},icon="fist",color={.84,.76,.58}},
+    {id="toxic_family",name="옆자리 포크 빌리기",short="포크 추가",desc="동시 타격 나무 +1",effect="extraTargets",value=1,requires={{"toxic_organic",2}},icon="coupon",color={.70,.40,.58},max=2},
+    {id="toxic_fork",name="뷔페 포크 12개",short="넓은 식사",desc="포크 타격 폭 +10",effect="area",value=10,requires={{"toxic_jaw",2}},icon="tongs",color={.48,.72,.64}},
+    {id="toxic_rawbar",name="단체 테이블 점령",short="상단 전문화",desc="동시 타격 나무 +2",effect="extraTargets",value=2,requires={{"toxic_family",2},{"toxic_fork",2}},icon="capstone",color={.35,.86,.28},max=1,capstone=true},
     {id="toxic_badge",name="비건 인증 배지 8개",short="인증 중첩",desc="성과 포인트 +5%",effect="reward",value=.05,requires={{"toxic_cert",2}},icon="certificate",color={.34,.66,.62}},
-    {id="toxic_digest",name="초고속 소화",short="바로 다음 입",desc="포식 속도 +5%",effect="attackSpeed",value=.05,requires={{"toxic_badge",1}},icon="leaf",color={.46,.74,.28}},
-    {id="toxic_gut",name="장내 미생물 회의",short="공생 주장",desc="감염 지속 +0.7초",effect="plagueDuration",value=.7,requires={{"toxic_badge",1}},icon="smoke",color={.50,.62,.38}},
+    {id="toxic_digest",name="초고속 소화",short="바로 다음 접시",desc="포크질 속도 +5%",effect="attackSpeed",value=.05,requires={{"toxic_badge",1}},icon="clock",color={.46,.74,.28}},
+    {id="toxic_gut",name="튼튼한 위장",short="한 그루 더",desc="최대 체력 +7",effect="maxHp",value=7,requires={{"toxic_badge",1}},icon="heartleaf",color={.50,.62,.38}},
     {id="toxic_donationbox",name="투명하지 않은 모금함",short="현금 후원",desc="성과 포인트 +7%",effect="reward",value=.07,requires={{"toxic_digest",2}},icon="donation",color={.80,.58,.24}},
-    {id="toxic_reusable",name="다회용 위장",short="섭취 회복",desc="벌목 시 체력 +2",effect="healOnFell",value=2,requires={{"toxic_gut",2}},icon="heartleaf",color={.34,.78,.42}},
-    {id="toxic_manifest",name="먹어서 지키는 선언",short="하단 전문화",desc="포식 속도 +14%",effect="attackSpeed",value=.14,requires={{"toxic_donationbox",2},{"toxic_reusable",2}},icon="capstone",color={.42,.82,.24},max=1,capstone=true},
-    {id="toxic_board",name="이사회 전원 공복",short="단체 공복",desc="포식 범위 +9",effect="area",value=9,requires={{"toxic_sponsor",2}},icon="document",color={.55,.62,.48}},
+    {id="toxic_reusable",name="다회용 위장",short="먹고 회복",desc="나무를 먹을 때 체력 +2",effect="healOnFell",value=2,requires={{"toxic_gut",2}},icon="heartleaf",color={.34,.78,.42}},
+    {id="toxic_manifest",name="한 접시 30초",short="하단 전문화",desc="포크질 속도 +14%",effect="attackSpeed",value=.14,requires={{"toxic_donationbox",2},{"toxic_reusable",2}},icon="capstone",color={.42,.82,.24},max=1,capstone=true},
+    {id="toxic_board",name="이사회 전원 공복",short="단체 공복",desc="포크 타격 폭 +9",effect="area",value=9,requires={{"toxic_sponsor",2}},icon="document",color={.55,.62,.48}},
     {id="toxic_influencer",name="먹방 인플루언서 영입",short="먹방 확장",desc="추가 포식 대상 +1",effect="extraTargets",value=1,requires={{"toxic_board",1}},icon="coupon",color={.72,.44,.60},max=2},
-    {id="toxic_superfood",name="세계수 슈퍼푸드 지정",short="고영양 목재",desc="한입 피해 +2",effect="biteDamage",value=2,requires={{"toxic_board",1}},icon="leaf",color={.38,.76,.30}},
-    {id="toxic_retreat",name="원시림 디톡스 수련회",short="장기 감염",desc="감염 지속 +1초",effect="plagueDuration",value=1,requires={{"toxic_influencer",2}},icon="smoke",color={.48,.66,.42}},
+    {id="toxic_superfood",name="세계수 메인 요리 지정",short="단단한 식재료",desc="포크 피해 +2",effect="biteDamage",value=2,requires={{"toxic_board",1}},icon="fork",color={.38,.76,.30}},
+    {id="toxic_retreat",name="원시림 푸드파이터 합숙",short="위장 단련",desc="최대 체력 +10",effect="maxHp",value=10,requires={{"toxic_influencer",2}},icon="heartleaf",color={.48,.66,.42}},
     {id="toxic_receipt",name="후원 영수증 선택 발급",short="후원 정산",desc="성과 포인트 +9%",effect="reward",value=.09,requires={{"toxic_superfood",2}},icon="report",color={.84,.62,.30}},
-    {id="toxic_congress",name="국제 채식 총회 유치",short="숲 전체 식탁",desc="포식 범위 +30",effect="area",value=30,requires={{"toxic_retreat",2},{"toxic_receipt",2}},icon="certificate",color={.30,.72,.52},max=1,capstone=true},
-    {id="toxic_eatforest",name="숲을 먹어 숲을 구한다",short="최종 포식",desc="한입 피해 +5",effect="biteDamage",value=5,requires={{"toxic_congress",1}},icon="capstone",color={.22,.90,.24},max=1,capstone=true,costs={190}}
+    {id="toxic_congress",name="국제 뷔페 총회 유치",short="숲 전체 식탁",desc="포크 타격 폭 +30",effect="area",value=30,requires={{"toxic_retreat",2},{"toxic_receipt",2}},icon="certificate",color={.30,.72,.52},max=1,capstone=true},
+    {id="toxic_eatforest",name="숲 한 접시 완식",short="최종 포크",desc="포크 피해 +5",effect="biteDamage",value=5,requires={{"toxic_congress",1}},icon="capstone",color={.22,.90,.24},max=1,capstone=true,costs={190}}
 })
 
 expand("developer",{

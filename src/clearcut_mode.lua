@@ -18,19 +18,20 @@ local PhilosopherArt = require("src.philosopher_art")
 local RevivalCrowdArt = require("src.revival_crowd_art")
 local SmokeRingArt = require("src.smoke_ring_art")
 local BeeArt = require("src.bee_art")
+local VeganForkArt = require("src.vegan_fork_art")
 
 local ClearcutMode = {}
 ClearcutMode.__index = ClearcutMode
 
-local trackLabels = {destroy = "파괴력", spread = "확산력", suppress = "억제력", develop = "개발력", dig = "굴착력", venom = "독설력", supplement = "보조력"}
+local trackLabels = {destroy = "파괴력", spread = "확산력", suppress = "식탐력", develop = "개발력", dig = "굴착력", venom = "독설력", supplement = "보조력"}
 
 -- 시그니처 업그레이드를 처음 고르면 1차 전직이 확정되고 기본 공격 자체가 바뀐다.
-local jobFor = {berserker = "physical", molotov = "fire", toxic_rain = "toxic", heavy_machinery = "developer", detector = "miner", monologue = "philosopher"}
+local jobFor = {berserker = "physical", molotov = "fire", fork_feast = "toxic", heavy_machinery = "developer", detector = "miner", monologue = "philosopher"}
 local jobNames = {physical = "생계형 나무꾼", fire = "흡연자", toxic = "비건 단체 회장", developer = "부동산 개발업자", miner = "코인 채굴꾼", philosopher = "차라투스트라는 이렇게 말했다"}
 local jobDesc = {
     physical = "그냥 오늘 할당량을 채우러 왔을 뿐이다. 대출은 갚아야 하니까.",
     fire = "마우스 위치에 꽁초를 튕깁니다. 날아가는 도중 스치는 적에게는 그 자리에서 피해를 줍니다. 꽁초는 바닥에 남아 타들어가며 주변 나무로 기본 42%(최대 75%) 확률로 불씨를 옮깁니다. 착지 즉시 불붙지는 않습니다.",
-    toxic = "기본 공격이 도끼질 대신 마우스 위치에 '친환경' 제초제를 살포하는 것으로 바뀝니다. 숲을 지키기 위해 숲을 없앤다.",
+    toxic = "커다란 포크로 전방의 나무를 찍습니다. 이 타격으로 HP가 0이 된 나무는 그대로 끌어당겨 먹어 치웁니다.",
     developer = "기본 공격이 도끼질 대신 마우스 방향으로 중장비 돌진하는 것으로 바뀝니다. 여기에 아파트 지으면 됨.",
     miner = "거대한 발톱으로 전방을 할퀴고, 땅속에 잠복해 지나치는 나무를 뿌리째 뽑아 던집니다.",
     philosopher = "기본 공격이 도끼질 대신 마우스 방향으로 끝없는 일장연설이 됩니다. 침이 사방으로 튀고, 말이 길어질수록 사거리와 독성이 강해집니다."
@@ -48,8 +49,11 @@ local definitions = {
     {id="oil_drum", track="spread", name="라이터 기름 유출", desc="나무가 다 타버리면 레벨당 폭발 확률이 크게 올라(1렙 7.5%→5렙 63%), 6렙에서는 100% 확정 발동합니다.", max=6, color={1,.62,.1}, job="fire"},
     {id="straw_bale", track="spread", name="마른 건초더미 생성", desc="주기적으로 큰 건초더미를 둡니다. 꽁초가 닿으면 0.5초 뒤 불이 붙고, 레벨에 따라 넓어지는 화염 지대가 주변 나무와 적에게 지속 피해를 줍니다. 불이 옮겨붙어 다른 대상을 점화시키지는 않습니다.", max=6, color={.85,.72,.25}, job="fire"},
     {id="smoke_ring", track="spread", name="도넛 강화 — 니코틴 농축", desc="SPACE로 쏘는 도넛 연기의 재사용 대기시간이 줄고, 피해·넉백·크기가 늘어납니다. 6레벨에는 SPACE를 끝까지 충전하면 초농축 도넛이 발사됩니다. 중간에 놓으면 일반 도넛과 같습니다.", max=6, color={1,.68,.2}, job="fire"},
-    -- 억제력 (suppress) — 자연이 얼마나 다시 못 자라게 하느냐 [비건 단체 회장 전용 + 공용]
-    {id="toxic_rain", track="suppress", name="친환경 제초 캠페인", desc="맹독 공격의 범위와 피해가 늘어나고, 평소에도 주변에 약하게 지속 피해를 줍니다.", max=6, color={.55,.85,.45}, job="toxic"},
+    -- 식탐력 (suppress) — 큰 포크로 찍고 마지막 한입까지 비운다 [비건 단체 회장 전용 + 공용]
+    {id="fork_feast", track="suppress", name="대왕 포크", desc="기본 공격이 전방 포크 찍기로 바뀝니다. 레벨마다 포크 피해와 사거리가 늘고, 이 타격으로 HP가 0이 된 나무는 먹어 치웁니다.", max=6, color={.62,.92,.32}, job="toxic"},
+    {id="buffet_fork", track="suppress", name="뷔페용 포크", desc="포크의 좌우 피격 폭과 동시에 찍는 대상 수가 늘어납니다. 6레벨에는 타격 순간 커다란 포크 잔상이 한 번 더 찍힙니다.", max=6, color={.48,.82,.66}, job="toxic"},
+    {id="clean_plate", track="suppress", name="접시 비우기", desc="나무를 먹어 치울 때 체력을 회복하고 추가 목재를 얻습니다. 6레벨에는 사방으로 튄 부스러기가 주변 적에게 피해를 줍니다.", max=6, color={1,.76,.28}, job="toxic"},
+    {id="seconds_please", track="suppress", name="한 그릇 더", desc="나무를 먹은 뒤 잠시 포크질 속도가 빨라집니다. 연속으로 먹을수록 식사 템포를 유지하기 쉬워집니다.", max=6, color={.92,.48,.68}, job="toxic"},
     {id="forced_growth", track="suppress", name="강제 성장", desc="숲의 재생 속도가 크게 빨라지지만, 목재 경험치 획득량도 크게 늘어납니다.", max=6, color={.85,.7,.25}},
     -- 개발력 (develop) — 말뚝 → 중장비 → 폭파 [부동산 개발업자 전용]
     {id="pile_driving", track="develop", name="말뚝 박기", desc="돌진 사거리가 늘어나고 재사용 대기시간이 줄어듭니다.", max=6, color={.7,.62,.4}, job="developer"},
@@ -140,7 +144,7 @@ function ClearcutMode.new()
         regrowTimer=0, regrowGrace=90, regrowInterval=12, regrowPulses=0, treesRevived=0, regrowFlash=0,
         rootHazards={}, rootedTimer=0, rootedCount=0,
         bees={}, beeSlow=false, beeSwarmsTriggered=0, beehiveTotal=0,
-        streak=0, lastHitAt=-10, molotovTimer=0, wildfireTimer=0, toxicTimer=0, evolutions={}, molotovs={},
+        streak=0, lastHitAt=-10, molotovTimer=0, wildfireTimer=0, evolutions={}, molotovs={},
         cigaretteButts={}, emberTransfers={}, emberArrivals={}, smokerGroundTime=0,
         treeSparks={}, treeSparkArrivals={}, strawTimer=0, strawBales={}, strawBaleSequence=0,
         oilTrail={}, oilTrailTimer=0, oilTrailLastX=nil, oilTrailLastY=nil, oilTrailSequence=0,
@@ -149,8 +153,8 @@ function ClearcutMode.new()
         smokeRing=nil, smokeRingCooldown=0, smokeRingCharge=nil, smokeRingChargeDuration=1.5,
         salivaGauge=100, salivaGaugeMax=100, salivaDrainRate=30, salivaRegenRate=25, salivaExhausted=false,
         revivalTimer=0, revivalCooldown=0,
-        smokerHeldLast=false, physicalAction=nil, veganAction=nil, developerAction=nil,
-        actionAudit={physicalImpact=0,cigaretteFlick=0,veganBite=0,developerRemote=0},
+        smokerHeldLast=false, physicalAction=nil, veganAction=nil, veganForkImpacts={}, veganConsumeFx={}, veganHaste=0, developerAction=nil,
+        actionAudit={physicalImpact=0,cigaretteFlick=0,veganFork=0,veganConsume=0,developerRemote=0},
         hp=100, maxHp=100, invulnTimer=0, dead=false,
         enemies={}, projectiles={}, bossTelegraphs={}, waveFired={}, worldTreeSpawned=false, readyToFinish=false, activeBoss=nil, kills=0,
         chests={}, chestPending=false, molotovShots=0, wildburstTimer=10, plagued={}, dodges=0,
@@ -366,6 +370,7 @@ function ClearcutMode:advanceStage(game)
     game.world.nodes, game.world.drops = {}, {}
     self.enemies, self.projectiles, self.bossTelegraphs = {}, {}, {}
     self.rootHazards, self.bees, self.molotovs, self.chests, self.plagued = {}, {}, {}, {}, {}
+    self.veganForkImpacts,self.veganConsumeFx,self.veganHaste={},{},0
     self.milestoneFired, self.worldTreeSpawned, self.worldTree, self.activeBoss = {}, false, nil, nil
     self.regrowTimer = 0
     local w, h = game.world.width, game.world.height
@@ -398,7 +403,7 @@ function ClearcutMode:update(dt, game)
     self:updateMolotovs(dt, game)
     self:updateSmokeRing(dt, game)
     self:updateRevival(dt, game)
-    self:updateToxicRain(dt, game)
+    VeganForkArt.update(self,dt)
     -- 연습장(sandbox)에서는 이 함수들이 자기 안에서 바로 return 하므로(각 함수 상단의
     -- sandbox 가드 참고) 자동 위협/스폰이 전부 꺼지고 "몹 소환" 버튼으로만 적이 생긴다.
     self:updateRootHazards(dt, game)
@@ -1661,28 +1666,6 @@ function ClearcutMode:drawSmokeRing(t)
     love.graphics.circle("line", ring.x, ring.y, ring.radius)
 end
 
-function ClearcutMode:updateToxicRain(dt, game)
-    local lvl = self:levelOf("toxic_rain")
-    if lvl == 0 then return end
-    local power = self:power("toxic_rain")
-    self.toxicTimer = self.toxicTimer + dt
-    local interval = math.max(2, 6 - power * 1.2)
-    if self.toxicTimer < interval then return end
-    self.toxicTimer = 0
-    local radius = 120 + power * 20
-    for _, node in ipairs(game.world.nodes) do
-        if node.rushTree and node.active then
-            local dx, dy = node.x - game.player.x, node.y - game.player.y
-            if dx*dx + dy*dy <= radius*radius then
-                node.rushHp = (node.rushHp or node.rushMaxHp) - power
-                game.world:impactNode(node, game, false)
-                if node.rushHp <= 0 then self:fellTree(node, game) end
-            end
-        end
-    end
-    game.world:toxicPulseFx(game.player.x, game.player.y, radius)
-end
-
 function ClearcutMode:updatePlague(dt, game)
     for i = #self.plagued, 1, -1 do
         local p = self.plagued[i]
@@ -1867,79 +1850,101 @@ end
 function ClearcutMode:updateToxicAttack(dt, game, heldOverride)
     local held = heldOverride
     if held == nil then held = love.mouse.isDown(1) end
-    local maxRange = 260 + self:power("toxic_rain") * 40 + self.permanentTraits.range
+    local forkPower=self:power("fork_feast")
+    local maxRange = 108 + forkPower * 12 + self:power("buffet_fork")*5 + self.permanentTraits.range
     local tx, ty = self:aimPoint(game, maxRange)
-    self.aimX, self.aimY, self.aimRadius = tx, ty, 90 + self:power("toxic_rain") * 25 + self.permanentTraits.area
+    self.aimX, self.aimY = tx, ty
+    self.aimRadius = 28 + self:power("buffet_fork")*7 + self.permanentTraits.area*.35
     if self.veganAction then
         local action = self.veganAction
         action.t = math.min(action.dur, action.t + dt)
         local progress = action.t / action.dur
         if game.player.setClearcutAction then game.player:setClearcutAction(progress) end
-        local bit = false
-        if not action.bit and progress >= .55 then
-            action.bit = true
-            self:applyVeganBite(action.tx, action.ty, game)
-            self.actionAudit.veganBite = self.actionAudit.veganBite + 1
+        local struck = false
+        if not action.struck and progress >= .53 then
+            action.struck = true
+            self:applyVeganFork(action, game)
+            self.actionAudit.veganFork = self.actionAudit.veganFork + 1
             self.streak, self.lastHitAt = self.streak + 1, self.elapsed
-            bit = true
+            struck = true
         end
         if action.t >= action.dur then
             self.veganAction = nil
-            self.attackCooldown = .1
+            self.attackCooldown = .08
             if game.player.clearClearcutAction then game.player:clearClearcutAction() end
         end
-        return bit
+        return struck
     end
     self.attackCooldown = math.max(0, self.attackCooldown - dt)
     if not held or self.attackCooldown > 0 then return false end
-    local speed = (game.tools.axe.speed or 1) * game.player.gather * self.permanentTraits.attackSpeed
-    self.veganAction = {t=0,dur=math.max(.48,.72/speed),tx=tx,ty=ty,bit=false}
+    local haste=(self.veganHaste or 0)>0 and (1+self:power("seconds_please")*.08) or 1
+    local speed = (game.tools.axe.speed or 1) * game.player.gather * self.permanentTraits.attackSpeed * haste
+    self.veganAction = {t=0,dur=math.max(.50,.78/speed),tx=tx,ty=ty,struck=false,facing=tx<game.player.x and -1 or 1}
     game.player.facing = tx < game.player.x and -1 or 1
     if game.player.setClearcutAction then game.player:setClearcutAction(0) end
     return false
 end
 
-function ClearcutMode:applyVeganBite(tx, ty, game)
-    local dmg = 2 + self:power("toxic_rain") + self.permanentTraits.biteDamage
-    local plagueLv3 = self:levelOf("toxic_rain") >= 6
-    local plagueTimer = 4 + self.permanentTraits.plagueDuration
-    -- Reach = however many trees fall inside the bite radius, plus a few more of the
-    -- next-closest trees when extraTargets lets the bite snipe past its usual edge.
-    local candidates, radiusCount = {}, 0
+function ClearcutMode:applyVeganFork(action, game)
+    local px,py=game.player.x,game.player.y-10
+    local dx,dy=action.tx-px,action.ty-py
+    local length=math.sqrt(dx*dx+dy*dy)
+    if length<1 then dx,dy,length=game.player.facing or 1,0,1 end
+    local nx,ny=dx/length,dy/length
+    local range=108+self:power("fork_feast")*12+self:power("buffet_fork")*5+self.permanentTraits.range
+    local halfWidth=28+self:power("buffet_fork")*7+self.permanentTraits.area*.35
+    local dmg=2+self:power("fork_feast")+self.permanentTraits.biteDamage
+    local candidates={}
     for _, node in ipairs(game.world.nodes) do
-        if node.rushTree then
-            local dx, dy = node.x - tx, node.y - ty
-            local d2 = dx*dx + dy*dy
-            candidates[#candidates+1] = {node=node, d2=d2}
-            if d2 <= self.aimRadius * self.aimRadius then radiusCount = radiusCount + 1 end
+        if node.rushTree and node.active then
+            local ox,oy=node.x-px,node.y-py
+            local along=ox*nx+oy*ny
+            local lateral=math.abs(ox*ny-oy*nx)
+            if along>=-8 and along<=range and lateral<=halfWidth*(.72+along/range*.28) then
+                candidates[#candidates+1]={node=node,along=along,lateral=lateral}
+            end
         end
     end
-    table.sort(candidates, function(a,b) return a.d2 < b.d2 end)
-    local reach = math.min(#candidates, radiusCount + math.floor(self.permanentTraits.extraTargets))
+    table.sort(candidates,function(a,b) return a.lateral+a.along*.05<b.lateral+b.along*.05 end)
+    local reach=1+math.floor(self:power("buffet_fork")/2)+math.floor(self.permanentTraits.extraTargets)
+    if self.evolutions.allYouCanEat then reach=reach+2; dmg=dmg+3 end
+    local echo=self:levelOf("buffet_fork")>=6
+    reach=math.min(#candidates,reach)
+    local consumed=0
     for i = 1, reach do
         local node = candidates[i].node
-        if node.active then
-            node.rushHp = (node.rushHp or node.rushMaxHp) - dmg
-            game.world:impactNode(node, game, true)
-            if node.rushHp <= 0 then self:fellTree(node, game)
-            elseif plagueLv3 and not node.plagueMarked then
-                node.plagueMarked = true
-                self.plagued[#self.plagued+1] = {kind="tree", ref=node, timer=plagueTimer, tickTimer=0}
+        node.rushHp=(node.rushHp or node.rushMaxHp)-dmg-(echo and math.ceil(dmg*.5) or 0)
+        game.world:impactNode(node,game,true)
+        VeganForkArt.impact(self,node.x,node.y-38)
+        if echo then VeganForkArt.impact(self,node.x+nx*12,node.y-38+ny*12) end
+        if node.rushHp<=0 then
+            VeganForkArt.consume(self,node,game)
+            if self:fellTree(node,game) then
+                consumed=consumed+1
+                self.actionAudit.veganConsume=self.actionAudit.veganConsume+1
+                local plate=self:power("clean_plate")
+                if plate>0 then
+                    self.hp=math.min(self.maxHp,self.hp+1+math.floor(plate/2))
+                    self:onWood(math.max(1,math.floor(plate/2)),game)
+                    if self:levelOf("clean_plate")>=6 then self:damageEnemiesInRadius(node.x,node.y,120,10+plate*2,game) end
+                end
             end
         end
     end
-    if plagueLv3 then
-        for _, e in ipairs(self.enemies) do
-            local dx, dy = e.x - tx, e.y - ty
-            if dx*dx + dy*dy <= self.aimRadius * self.aimRadius and not e.plagueMarked then
-                e.plagueMarked = true
-                self.plagued[#self.plagued+1] = {kind="enemy", ref=e, timer=plagueTimer, tickTimer=0}
-            end
+    for _,e in ipairs(self.enemies) do
+        local ox,oy=e.x-px,e.y-py
+        local along=ox*nx+oy*ny
+        local lateral=math.abs(ox*ny-oy*nx)
+        if along>=0 and along<=range and lateral<=halfWidth+(e.def.radius or 0) then
+            e.hp=e.hp-dmg*(echo and 4.5 or 3); e.visualHit=.16
+            VeganForkArt.impact(self,e.x,e.y-12)
         end
     end
-    self:damageEnemiesInRadius(tx, ty, self.aimRadius, dmg * 3, game)
-    game.world:toxicPulseFx(tx, ty, self.aimRadius)
-    if game.camera then game.camera.trauma = math.min(1, game.camera.trauma + .18) end
+    if consumed>0 then
+        self.veganHaste=1.6+self:power("seconds_please")*.28
+        if self.evolutions.allYouCanEat then self.veganHaste=self.veganHaste+1.2 end
+    end
+    if game.camera then game.camera.trauma=math.min(1,game.camera.trauma+(consumed>0 and .24 or .12)) end
     return true
 end
 
@@ -4332,7 +4337,7 @@ local oilDrumPalette = {O={.18,.11,.02,1}, H={1,.82,.4,1}, W={.75,.5,.15,1}, D={
 local siteClearancePalette = {O={.15,.15,.16,1}, H={.85,.85,.85,1}, W={.55,.5,.5,1}, D={.35,.32,.32,1}}
 local forcedGrowthPalette = {O={.16,.22,.05,1}, H={.85,.95,.6,1}, T={.4,.72,.22,1}}
 local pileDrivingPalette = {O={.2,.14,.06,1}, H={.92,.85,.7,1}, T={.55,.4,.2,1}}
-local toxicRainPalette = {O={.14,.24,.1,1}, H={.9,.98,.85,1}, W={.6,.85,.5,1}}
+local forkPalette = {O={.08,.11,.12,1}, H={1,1,.86,1}, W={.72,.84,.86,1}, T={.52,.82,.24,1}, D={.34,.20,.42,1}}
 local footnotePalette = {O={.16,.22,.04,1}, H={.9,.98,.6,1}, W={.85,.9,.4,1}}
 local loudVoicePalette = {O={.1,.16,.04,1}, H={.82,.95,.5,1}, W={.65,.8,.3,1}}
 local salivaGlandPalette = {O={.1,.15,.03,1}, H={.78,.92,.42,1}, W={.55,.72,.25,1}}
@@ -4366,6 +4371,17 @@ local heavyMachineryRows = {
 local heavyMachineryPalette = {O={.22,.16,.02,1}, H={1,.9,.55,1}, W={.85,.62,.15,1}, T={.6,.42,.08,1}, D={.28,.19,.03,1}}
 local smokeRingPalette = {O={.22,.18,.05,1}, H={.95,.85,.6,1}, W={.85,.65,.25,1}}
 local revivalMeetingPalette = {O={.24,.2,.04,1}, H={1,.95,.65,1}, W={.9,.8,.3,1}, D={.55,.45,.1,1}}
+local forkRows = {
+    "..O.O.O.O",
+    "..W.W.W.W",
+    "..WHWHWHW",
+    "..OWWWWOO",
+    "....WW...",
+    "....WW...",
+    "...TWWT..",
+    "...TWWT..",
+    "...DOOD..",
+}
 
 ClearcutMode.icons = {
     axe = {rows = axeIconRows, palette = axeIconPalette},
@@ -4377,7 +4393,11 @@ ClearcutMode.icons = {
     shockwave = {rows = diamondRows, palette = shockwavePalette},
     dry_forest = {rows = diamondRows, palette = dryForestPalette},
     oil_drum = {rows = boxRows, palette = oilDrumPalette},
-    toxic_rain = {rows = blobRows, palette = toxicRainPalette},
+    fork = {rows = forkRows, palette = forkPalette},
+    fork_feast = {rows = forkRows, palette = forkPalette},
+    buffet_fork = {rows = forkRows, palette = forkPalette},
+    clean_plate = {rows = boxRows, palette = forcedGrowthPalette},
+    seconds_please = {rows = diamondRows, palette = forkPalette},
     forced_growth = {rows = stickRows, palette = forcedGrowthPalette},
     pile_driving = {rows = stickRows, palette = pileDrivingPalette},
     heavy_machinery = {rows = heavyMachineryRows, palette = heavyMachineryPalette},
@@ -4561,6 +4581,7 @@ function ClearcutMode:drawWorldOverlay(game)
     love.graphics.setLineStyle("rough")
     local t = love.timer.getTime()
     local px, py = game.player.x + 14, game.player.y - 34
+    if self.job=="toxic" then VeganForkArt.drawFx(self,game) end
     if self.job == "fire" then
         SmokeRingArt.drawCharge(self,game,t)
         local smoking = self.smoking
@@ -4588,8 +4609,7 @@ function ClearcutMode:drawWorldOverlay(game)
         end
         self:drawSmokeRing(t)
     elseif self.job == "toxic" then
-        local bob = math.sin(t * 2.4) * 2
-        drawPixelGrid(leafIconRows, leafIconPalette, px, py + bob, 2.4)
+        VeganForkArt.drawFork(self,game)
     elseif self.job == "physical" then
         drawPixelGrid(axeIconRows, axeIconPalette, px, py, 2.2)
     elseif self.job == "developer" then
@@ -4598,14 +4618,27 @@ function ClearcutMode:drawWorldOverlay(game)
         local jitter = math.sin(t * 9) * 1.5
         drawPixelGrid(speechIconRows, speechIconPalette, px + jitter, py, 2.2)
     end
-    if (self.job == "fire" or self.job == "toxic" or self.job == "philosopher") and self.aimX then
-        local ringColor = self.job == "fire" and {1, .5, .15} or self.job == "toxic" and {.55, .85, .45} or {.75, .9, .35}
+    if (self.job == "fire" or self.job == "philosopher") and self.aimX then
+        local ringColor = self.job == "fire" and {1, .5, .15} or {.75, .9, .35}
         love.graphics.setColor(ringColor[1], ringColor[2], ringColor[3], .16); love.graphics.circle("fill", self.aimX, self.aimY, self.aimRadius)
         love.graphics.setLineWidth(2); love.graphics.setColor(ringColor[1], ringColor[2], ringColor[3], .85)
         love.graphics.circle("line", self.aimX, self.aimY, self.aimRadius)
         love.graphics.setLineWidth(1.5)
         love.graphics.line(self.aimX - 10, self.aimY, self.aimX - 4, self.aimY); love.graphics.line(self.aimX + 4, self.aimY, self.aimX + 10, self.aimY)
         love.graphics.line(self.aimX, self.aimY - 10, self.aimX, self.aimY - 4); love.graphics.line(self.aimX, self.aimY + 4, self.aimX, self.aimY + 10)
+    elseif self.job=="toxic" and self.aimX then
+        local dx,dy=self.aimX-game.player.x,self.aimY-(game.player.y-10)
+        local dist=math.sqrt(dx*dx+dy*dy)
+        if dist>1 then
+            local nx,ny=dx/dist,dy/dist; local pxn,pyn=-ny,nx
+            local width=self.aimRadius or 32
+            love.graphics.setColor(.56,1,.36,.10)
+            love.graphics.polygon("fill",game.player.x,game.player.y-10,self.aimX+pxn*width,self.aimY+pyn*width,self.aimX-pxn*width,self.aimY-pyn*width)
+            love.graphics.setLineWidth(2); love.graphics.setColor(.72,1,.48,.72)
+            love.graphics.line(game.player.x,game.player.y-10,self.aimX+pxn*width,self.aimY+pyn*width)
+            love.graphics.line(game.player.x,game.player.y-10,self.aimX-pxn*width,self.aimY-pyn*width)
+            love.graphics.setColor(1,.83,.35,.9); love.graphics.line(self.aimX+pxn*width,self.aimY+pyn*width,self.aimX-pxn*width,self.aimY-pyn*width)
+        end
     elseif self.job == "developer" and self.aimX and not self.dashing then
         local dx, dy = self.aimX - game.player.x, self.aimY - game.player.y
         local dist = math.sqrt(dx*dx + dy*dy)
@@ -5737,9 +5770,9 @@ ClearcutMode.characters = {
     {id="fire", name="흡연자", icon="cigarette", color={1,.35,.12},
         tagline="담배꽁초 하나가 뭐 대수라고.",
         detail="마우스 위치에 꽁초를 튕깁니다. 날아가는 도중 스치는 적에게는 즉시 피해를 줍니다. 꽁초는 바닥에서 7초간 타들어가며 주변 나무에 기본 42%(최대 75%) 확률로 불씨를 옮깁니다. 날아간 불씨가 나무에 닿아야 불이 붙습니다."},
-    {id="toxic", name="비건 단체 회장", icon="leaf", color={.55,.85,.45},
-        tagline="나무도 생명이지만... 일단 먹어야 한다.",
-        detail="마우스 위치에 '친환경' 제초제를 살포합니다. 숲을 지키기 위해 숲을 없앱니다. 화력은 약하지만 재생력 자체를 짓누릅니다."},
+    {id="toxic", name="비건 단체 회장", icon="fork", color={.55,.85,.45},
+        tagline="남기면 음식물 쓰레기다. 나무도 예외는 아니다.",
+        detail="마우스 방향으로 커다란 포크를 찍습니다. 포크 타격으로 HP가 0이 된 나무는 캐릭터 쪽으로 끌려와 통째로 사라집니다. 포크 폭과 연속 식사 속도를 키우면 여러 그루를 빠르게 비울 수 있습니다."},
     {id="developer", name="부동산 개발업자", icon="hardhat", color={1,.74,.1},
         tagline="여기에 아파트 지으면 됨.",
         detail="조준 방향으로 직접 돌진하며 경로상의 모든 것을 밀어버립니다. 넓은 범위를 순식간에 밀어내지만 재사용까지 잠깐 숨을 고릅니다."},

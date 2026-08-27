@@ -31,13 +31,13 @@ assert(shots==1 and smoker.actionAudit.cigaretteFlick==1,"cigarette release fram
 
 local vegan,veganGame=ClearcutMode.new(),gameStub()
 vegan.job="toxic"
-local bites=0
-vegan.applyVeganBite=function() bites=bites+1 end
+local forkHits=0
+vegan.applyVeganFork=function() forkHits=forkHits+1 end
 vegan:updateToxicAttack(0,veganGame,true)
-assert(vegan.veganAction and veganGame.player.action==0,"vegan grab/eat animation did not start")
-vegan:updateToxicAttack(vegan.veganAction.dur*.54,veganGame,true)
-assert(bites==0 and veganGame.player.action>.5,"vegan dealt damage before the bite pose")
+assert(vegan.veganAction and veganGame.player.action==0,"vegan fork wind-up animation did not start")
+vegan:updateToxicAttack(vegan.veganAction.dur*.52,veganGame,true)
+assert(forkHits==0 and veganGame.player.action>.5,"vegan dealt damage before fork contact")
 vegan:updateToxicAttack(vegan.veganAction.dur*.02,veganGame,true)
-assert(bites==1 and vegan.actionAudit.veganBite==1,"vegan bite pose did not deal damage exactly once")
+assert(forkHits==1 and vegan.actionAudit.veganFork==1,"vegan fork contact did not deal damage exactly once")
 
-print("SMOKER_VEGAN_ACTIONS_OK")
+print("SMOKER_VEGAN_ACTIONS_OK fork=contact_frame")

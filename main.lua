@@ -1,7 +1,7 @@
 local Game
 local game
 local frontendCapture = os.getenv("LAST_HAUL_CAPTURE_SETTINGS") or os.getenv("LAST_HAUL_CAPTURE_CLEARCUT_MAP_SELECT") or os.getenv("LAST_HAUL_CAPTURE_CLEARCUT_BRIEFING") or os.getenv("LAST_HAUL_CAPTURE_CHARACTER_TRAITS")
-local captureFrames = frontendCapture and 8 or (os.getenv("LAST_HAUL_CAPTURE_TURRET_FIRE") and 3 or (os.getenv("LAST_HAUL_CAPTURE_DRILL") and 2 or ((os.getenv("LAST_HAUL_CAPTURE_RUSH") or os.getenv("LAST_HAUL_CAPTURE_LOBBY") or os.getenv("LAST_HAUL_CAPTURE_CLEARCUT") or os.getenv("LAST_HAUL_CAPTURE_CLEARCUT_UPGRADE") or os.getenv("LAST_HAUL_CAPTURE_CLEARCUT_RESULTS") or os.getenv("LAST_HAUL_CAPTURE_CLEARCUT_THREATS") or os.getenv("LAST_HAUL_CAPTURE_CLEARCUT_BUILDS") or os.getenv("LAST_HAUL_CAPTURE_CLEARCUT_CHAR_SELECT") or os.getenv("LAST_HAUL_CAPTURE_CLEARCUT_FIREJOB") or os.getenv("LAST_HAUL_CAPTURE_CLEARCUT_DEVJOB") or os.getenv("LAST_HAUL_CAPTURE_CLEARCUT_COMBAT") or os.getenv("LAST_HAUL_CAPTURE_CLEARCUT_DEFEAT") or os.getenv("LAST_HAUL_CAPTURE_CLEARCUT_MILESTONE")) and 6 or (os.getenv("LAST_HAUL_CAPTURE_HARVEST") and 10 or ((os.getenv("LAST_HAUL_CAPTURE") or os.getenv("LAST_HAUL_CAPTURE_GAME") or os.getenv("LAST_HAUL_CAPTURE_FARM") or os.getenv("LAST_HAUL_CAPTURE_MINE") or os.getenv("LAST_HAUL_CAPTURE_WALL") or os.getenv("LAST_HAUL_CAPTURE_REPAIR") or os.getenv("LAST_HAUL_CAPTURE_META") or os.getenv("LAST_HAUL_CAPTURE_RESULTS") or os.getenv("LAST_HAUL_CAPTURE_UPGRADE") or os.getenv("LAST_HAUL_CAPTURE_UNITS") or os.getenv("LAST_HAUL_CAPTURE_TEST_OPTIONS") or os.getenv("LAST_HAUL_CAPTURE_TURRET_PROMPT") or os.getenv("LAST_HAUL_CAPTURE_TURRET_PLACEMENT") or os.getenv("LAST_HAUL_CAPTURE_TURRET_UPGRADE")) and 30 or nil)))))
+local captureFrames = frontendCapture and 8 or (os.getenv("LAST_HAUL_CAPTURE_TURRET_FIRE") and 3 or (os.getenv("LAST_HAUL_CAPTURE_DRILL") and 2 or ((os.getenv("LAST_HAUL_CAPTURE_RUSH") or os.getenv("LAST_HAUL_CAPTURE_LOBBY") or os.getenv("LAST_HAUL_CAPTURE_CLEARCUT") or os.getenv("LAST_HAUL_CAPTURE_CLEARCUT_UPGRADE") or os.getenv("LAST_HAUL_CAPTURE_CLEARCUT_RESULTS") or os.getenv("LAST_HAUL_CAPTURE_CLEARCUT_THREATS") or os.getenv("LAST_HAUL_CAPTURE_CLEARCUT_BUILDS") or os.getenv("LAST_HAUL_CAPTURE_CLEARCUT_CHAR_SELECT") or os.getenv("LAST_HAUL_CAPTURE_CLEARCUT_FIREJOB") or os.getenv("LAST_HAUL_CAPTURE_CLEARCUT_DEVJOB") or os.getenv("LAST_HAUL_CAPTURE_CLEARCUT_COMBAT") or os.getenv("LAST_HAUL_CAPTURE_CLEARCUT_DEFEAT") or os.getenv("LAST_HAUL_CAPTURE_CLEARCUT_MILESTONE") or os.getenv("LAST_HAUL_CAPTURE_VEGAN_FORK")) and 6 or (os.getenv("LAST_HAUL_CAPTURE_HARVEST") and 10 or ((os.getenv("LAST_HAUL_CAPTURE") or os.getenv("LAST_HAUL_CAPTURE_GAME") or os.getenv("LAST_HAUL_CAPTURE_FARM") or os.getenv("LAST_HAUL_CAPTURE_MINE") or os.getenv("LAST_HAUL_CAPTURE_WALL") or os.getenv("LAST_HAUL_CAPTURE_REPAIR") or os.getenv("LAST_HAUL_CAPTURE_META") or os.getenv("LAST_HAUL_CAPTURE_RESULTS") or os.getenv("LAST_HAUL_CAPTURE_UPGRADE") or os.getenv("LAST_HAUL_CAPTURE_UNITS") or os.getenv("LAST_HAUL_CAPTURE_TEST_OPTIONS") or os.getenv("LAST_HAUL_CAPTURE_TURRET_PROMPT") or os.getenv("LAST_HAUL_CAPTURE_TURRET_PLACEMENT") or os.getenv("LAST_HAUL_CAPTURE_TURRET_UPGRADE")) and 30 or nil)))))
 if os.getenv("LAST_HAUL_UI_CAPTURE_MODE") then
     function love.errorhandler(message)
         io.stderr:write("UI_CAPTURE_ERROR: "..tostring(message).."\n")
@@ -250,7 +250,7 @@ function love.load()
     if os.getenv("LAST_HAUL_CAPTURE_CLEARCUT_BUILDS") then
         game:startClearcut()
         local c = game.clearcut
-        c.levels = {wide_blade=3, berserker=3, shockwave=3, domino=2, molotov=3, dry_forest=3, oil_drum=3, embers=3, herbicide=3, root_cutting=3, toxic_rain=3, forced_growth=1}
+        c.levels = {wide_blade=3, berserker=3, shockwave=3, domino=2, molotov=3, dry_forest=3, oil_drum=3, embers=3, herbicide=3, root_cutting=3, fork_feast=3, buffet_fork=2, clean_plate=2, forced_growth=1}
         c:checkEvolutions(game)
         c.elapsed = 46
         c.streak = 12
@@ -262,7 +262,6 @@ function love.load()
         b.burning, b.burnTimer = true, 5
         c:updateFire(0.02, game)        -- exercises oil_drum guaranteed burst, embers landing burst, dry_forest wildburst path
         c.wildburstTimer = 0; c:updateFire(0.02, game)
-        c:updateToxicRain(10, game)
         c:updatePlague(0.7, game)
         c:regrowPulse(game)
         c.job = "fire"; c:updateHeldAxe(0.02, game, true)
@@ -291,6 +290,24 @@ function love.load()
         local planter=game.clearcut:spawnEnemy("planter",game.player.x+155,game.player.y-95)
         if planter then planter.plantTimer=.7 end
         game.camera.x,game.camera.y = game.player.x,game.player.y
+    end
+    if os.getenv("LAST_HAUL_CAPTURE_VEGAN_FORK") then
+        game:startClearcut("toxic")
+        local c=game.clearcut
+        c.sandbox=true
+        c.levels={fork_feast=3,buffet_fork=6,clean_plate=4,seconds_please=3}
+        for _,node in ipairs(game.world.nodes) do node.active=false end
+        local eaten,target=game.world.nodes[1],game.world.nodes[2]
+        eaten.active,eaten.x,eaten.y,eaten.rushHp,eaten.rushMaxHp,eaten.treeVariant=true,game.player.x+92,game.player.y,1,8,2
+        target.active,target.x,target.y,target.rushHp,target.rushMaxHp,target.treeVariant=true,game.player.x+142,game.player.y+38,8,8,4
+        c.remainingTrees,c.initialTrees=2,2
+        c:applyVeganFork({tx=eaten.x,ty=eaten.y,facing=1},game)
+        if c.veganConsumeFx[1] then c.veganConsumeFx[1].t=.20 end
+        -- 캡처 준비까지만 샌드박스로 고정하고, 실제 화면에는 연습장 패널을 숨긴다.
+        c.sandbox=false
+        c.veganAction={t=.48,dur=.82,tx=target.x,ty=target.y,struck=true,facing=1}
+        game.player:setClearcutAction(c.veganAction.t/c.veganAction.dur)
+        game.camera.x,game.camera.y,game.camera.zoom=game.player.x+42,game.player.y-32,.88
     end
     if os.getenv("LAST_HAUL_CAPTURE_CLEARCUT_UPGRADE") then
         game:startClearcut(os.getenv("LAST_HAUL_CLEARCUT_JOB")); game.clearcut.level = 5

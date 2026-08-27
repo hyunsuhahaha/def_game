@@ -86,7 +86,7 @@ local function drawGlyph(icon, cx, cy, size)
     elseif icon=="leaf" or icon=="heartleaf" or icon=="basket" then
         love.graphics.polygon("line",cx-s*.44,cy+s*.14,cx-s*.10,cy-s*.45,cx+s*.45,cy-s*.26,cx+s*.28,cy+s*.34,cx-s*.18,cy+s*.46)
         love.graphics.line(cx-s*.30,cy+s*.34,cx+s*.27,cy-s*.24)
-    elseif icon=="tooth" or icon=="tongs" then
+    elseif icon=="tooth" or icon=="tongs" or icon=="fork" then
         love.graphics.line(cx-s*.34,cy-s*.42,cx-s*.14,cy+s*.38,cx,cy+s*.02,cx+s*.14,cy+s*.38,cx+s*.34,cy-s*.42)
     elseif icon=="stamp" or icon=="ruler" or icon=="machine" or icon=="map" or icon=="helmet" or icon=="tower" or icon=="road" then
         love.graphics.rectangle("line",cx-s*.40,cy-s*.28,s*.80,s*.60,2,2)
