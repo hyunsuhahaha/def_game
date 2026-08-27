@@ -81,6 +81,17 @@ vec4 effect(vec4 tint,Image tex,vec2 uv,vec2 screen){
     vec3 rgb=fireRamp(heat);
     float rim=smoothstep(.015,.10,field)*(1.0-smoothstep(.10,.23,field));
     rgb=mix(rgb,vec3(.30,.035,.012),rim*.72);
+    // Solid glowing coal bed spanning almost the full width at the very bottom.
+    // This is what fuses separate tongues into one continuous fire mass with a
+    // bright white-hot base, instead of each tongue reading as its own spike.
+    float baseSpan=smoothstep(.46,.20,abs(x));
+    float baseFade=1.0-smoothstep(0.0,.17,y);
+    float baseMask=baseSpan*baseFade;
+    if(baseMask>.002){
+        float baseHeat=clamp(.78+baseMask*.24+(detail-.5)*.08,0.0,1.0);
+        rgb=mix(rgb,fireRamp(baseHeat),baseMask);
+        flameAlpha=max(flameAlpha,baseMask*.94);
+    }
     float smokeFlow=fbm(vec2(x*5.2+sin(y*5.0+t)*.35+seed,y*4.7-t*.46));
     float smokeWidth=.07+y*.09;
     float smokeShape=1.0-abs(x-center*.7-.08*sin(t*.7+seed))/smokeWidth;
