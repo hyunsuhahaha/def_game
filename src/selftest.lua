@@ -394,12 +394,15 @@ function SelfTest.run(game)
     local smokeTarget = game.clearcut:spawnEnemy("squirrel", ring.x + 120, ring.y)
     smokeTarget.hp = 50
     local smokeXBefore = smokeTarget.x
+    local smokeTreeNode = {kind="tree", x=ring.x + 300, y=ring.y, active=true, rushTree=true, rushHp=999, rushMaxHp=999, work=0, workTime=1, respawn=0}
+    game.world.nodes[#game.world.nodes+1] = smokeTreeNode
     game.mode = "playing"
     local smokeDrawOk, smokeDrawErr = pcall(game.draw, game)
     assert(smokeDrawOk, "도넛 연기 비행 중 렌더 실패: " .. tostring(smokeDrawErr))
     for _ = 1, 60 do game.clearcut:updateSmokeRing(1 / 60, game) end
     assert(smokeTarget.hp < 50, "도넛 연기가 적에게 피해를 주지 않음")
     assert((smokeTarget.knockTimer or 0) > 0, "도넛 연기가 적을 넉백 상태로 만들지 않음")
+    assert(smokeTreeNode.rushHp < 999, "도넛 연기가 나무에게 피해를 주지 않음")
     game.clearcut:updateEnemies(.05, game)
     assert(smokeTarget.x ~= smokeXBefore, "도넛 연기 넉백이 실제로 이동에 반영되지 않음")
     assert(game.clearcut.smokeRing == nil, "도넛 연기가 최대 사거리 도달 후 소멸하지 않음")

@@ -1476,21 +1476,40 @@ function ClearcutMode:updateSmokeRing(dt, game)
             end
         end
     end
+    for _, node in ipairs(game.world.nodes) do
+        if node.rushTree and node.active and not ring.hit[node] then
+            local dx, dy = node.x - ring.x, node.y - ring.y
+            if dx * dx + dy * dy <= ring.radius * ring.radius then
+                ring.hit[node] = true
+                node.rushHp = (node.rushHp or node.rushMaxHp) - ring.dmg
+                game.world:impactNode(node, game, true)
+                if node.rushHp <= 0 then self:fellTree(node, game) end
+            end
+        end
+    end
     if ring.traveled >= ring.maxRange then self.smokeRing = nil end
 end
 
--- 단색 원 테두리 대신, 담배연기 셰이더 조각(질감 있는 뿌연 결)을 고리 둘레에 방사형으로
--- 배치해 실제 도넛 연기처럼 보이게 한다. 각 조각은 중심에서 바깥을 향해 뻗는다.
+-- 도넛 모양이 확실히 보이도록: 원 둘레를 촘촘한 부드러운 연기 뭉치들로 채워 하나의
+-- 고리 실루엣을 이루게 하고, 그 위에 살짝 밝은 테두리선을 더해 도넛 형태를 강조한다.
 function ClearcutMode:drawSmokeRing(t)
     local ring = self.smokeRing
     if not ring then return end
-    local wisps = 10
-    for i = 1, wisps do
-        local a = (i / wisps) * math.pi * 2
-        local wx, wy = ring.x + math.cos(a) * ring.radius, ring.y + math.sin(a) * ring.radius
-        local size = 18 + ring.radius * .38
-        CigaretteButtArt.drawSmokeWisp(wx, wy, a + math.pi / 2, size, size * 1.4, t + i * .3, .85)
+    local puffs = math.max(12, math.floor(ring.radius / 6))
+    local puffSize = 12 + ring.radius * .3
+    for i = 1, puffs do
+        local a = (i / puffs) * math.pi * 2 + t * .5
+        local jitter = math.sin(t * 3 + i * 2.1) * ring.radius * .05
+        local r = ring.radius + jitter
+        local px, py = ring.x + math.cos(a) * r, ring.y + math.sin(a) * r
+        for layer = 3, 1, -1 do
+            love.graphics.setColor(.74, .73, .68, .12 / layer)
+            love.graphics.circle("fill", px, py, puffSize * (layer / 3))
+        end
     end
+    love.graphics.setLineWidth(2)
+    love.graphics.setColor(.88, .87, .82, .3)
+    love.graphics.circle("line", ring.x, ring.y, ring.radius)
 end
 
 function ClearcutMode:updateToxicRain(dt, game)
