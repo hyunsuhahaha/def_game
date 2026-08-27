@@ -1,52 +1,46 @@
 local Maps=require("src.clearcut_maps")
-local UI=require("src.ui")
-local Select={}
-local previews={}
-function Select.boxes(w,h)
-    local gap,margin=18,math.max(24,w*.045)
-    local cw=(w-margin*2-gap)/2
-    local rows=math.ceil(#Maps.catalog/2)
-    local ch=math.min(260,(h-180-gap*(rows-1))/rows)
-    local boxes={}
-    for i=1,#Maps.catalog do boxes[i]={x=margin+((i-1)%2)*(cw+gap),y=116+math.floor((i-1)/2)*(ch+gap),w=cw,h=ch} end
-    return boxes
+local F=require("src.frontend_ui")
+local Select={}; local previews={}
+local function imageFor(def)
+ local id=def.preview or def.id
+ if not previews[id] then previews[id]=love.graphics.newImage("assets/maps/"..id.."-preview-v1.png"); previews[id]:setFilter("nearest","nearest") end
+ return previews[id]
 end
-function Select.at(x,y)
-    for i,b in ipairs(Select.boxes(love.graphics.getDimensions())) do
-        if x>=b.x and x<=b.x+b.w and y>=b.y and y<=b.y+b.h then return i end
-    end
+function Select.boxes(w,h)
+ local x,y,bw,bh=34,136,math.min(340,w*.29),math.max(64,math.min(82,(h-204-(#Maps.catalog-1)*10)/#Maps.catalog)); local boxes={}
+ for i=1,#Maps.catalog do boxes[i]={x=x,y=y+(i-1)*(bh+10),w=bw,h=bh} end
+ return boxes
+end
+function Select.at(x,y) for i,b in ipairs(Select.boxes(love.graphics.getDimensions())) do if F.inside(b,x,y) then return i end end end
+function Select.focus(game)
+ local hover=Select.at(love.mouse.getPosition()); if hover then game.clearcutMapFocus=hover end
+ game.clearcutMapFocus=math.max(1,math.min(#Maps.catalog,game.clearcutMapFocus or 1)); return game.clearcutMapFocus
 end
 function Select.draw(game)
-    local w,h=love.graphics.getDimensions();local f=game.fonts
-    love.graphics.setColor(.025,.045,.045,1);love.graphics.rectangle("fill",0,0,w,h)
-    love.graphics.setFont(f.title);love.graphics.setColor(1,.83,.43)
-    love.graphics.printf("이번엔 어디를 태울까?",0,27,w,"center")
-    love.graphics.setFont(f.small);love.graphics.setColor(.70,.80,.74)
-    love.graphics.printf("맵 선택  ·  캐릭터와 융합 스킬은 그대로, 다른 지형에서 시작합니다",0,78,w,"center")
-    local hovered=Select.at(love.mouse.getPosition())
-    for i,b in ipairs(Select.boxes(w,h)) do
-        local def=Maps.catalog[i]
-        UI.panel(b.x,b.y,b.w,b.h,{unpack(def.color)},hovered==i and 1 or .9)
-        local previewId=def.preview or def.id
-        if not previews[previewId] then
-            previews[previewId]=love.graphics.newImage("assets/maps/"..previewId.."-preview-v1.png")
-            previews[previewId]:setFilter("nearest","nearest")
-        end
-        local image=previews[previewId];local pw=b.w*.40
-        local scale=math.min((pw-24)/image:getWidth(),(b.h-30)/image:getHeight())
-        love.graphics.setColor(1,1,1,1)
-        love.graphics.draw(image,b.x+12+(pw-24)/2,b.y+b.h/2,0,scale,scale,image:getWidth()/2,image:getHeight()/2)
-        local tx,tw=b.x+pw,b.w-pw-18
-        love.graphics.setFont(f.heading);love.graphics.setColor(1,.91,.70)
-        love.graphics.printf(i.."  "..def.name,tx,b.y+17,tw,"left")
-        love.graphics.setFont(f.small);love.graphics.setColor(def.color)
-        love.graphics.printf(def.subtitle,tx,b.y+52,tw,"left")
-        love.graphics.setColor(.73,.80,.75)
-        love.graphics.printf(b.h<210 and (def.short or def.subtitle) or def.desc,tx,b.y+85,tw,"left")
-        love.graphics.setColor(.85,.81,.60)
-        love.graphics.printf("첫 숲 "..def.trees.."그루",tx,b.y+b.h-28,tw,"left")
-    end
-    love.graphics.setFont(f.small);love.graphics.setColor(.7,.78,.73)
-    love.graphics.printf("숫자 1–"..#Maps.catalog.." / 클릭으로 출발  ·  ESC 캐릭터 선택으로",0,h-36,w,"center")
+ local w,h=love.graphics.getDimensions(); local f=game.fonts; local focus=Select.focus(game); local def=Maps.catalog[focus]; local accent=def.color
+ F.backdrop(w,h,accent,1)
+ love.graphics.setFont(f.small); love.graphics.setColor(accent); love.graphics.print("작업 구역",34,24)
+ love.graphics.setFont(f.title); love.graphics.setColor(.97,.95,.85); love.graphics.print("작업 구역 선택",34,50)
+ love.graphics.setFont(f.small); love.graphics.setColor(.55,.64,.58); love.graphics.print("초기 수목 수와 지형을 확인합니다.",34,96)
+ local boxes=Select.boxes(w,h); local mx,my=love.mouse.getPosition()
+ for i,b in ipairs(boxes) do
+  local d=Maps.catalog[i]; local selected=i==focus; F.frame(b.x,b.y,b.w,b.h,d.color,{selected=selected,alpha=selected and .99 or .84,corner=false})
+  love.graphics.setFont(f.heading); love.graphics.setColor(selected and {.98,.95,.82,1} or {.62,.68,.62,1}); love.graphics.print(string.format("%02d",i),b.x+17,b.y+15); love.graphics.print(d.name,b.x+58,b.y+15)
+  love.graphics.setFont(f.small); love.graphics.setColor(selected and d.color or {.43,.50,.45,1}); love.graphics.print(d.short,b.x+58,b.y+43)
+ end
+ local rx=boxes[1].x+boxes[1].w+28; local rw=w-rx-34; local ry=136; local rh=h-204
+ F.frame(rx,ry,rw,rh,accent,{selected=true})
+ local compact=h<620; local img=imageFor(def); local imageH=math.min(rh*(compact and .48 or .56),330); local scale=math.max(rw/img:getWidth(),imageH/img:getHeight()); local iw,ih=img:getDimensions()
+ love.graphics.setScissor(rx+4,ry+4,rw-8,imageH); love.graphics.setColor(1,1,1,1); love.graphics.draw(img,rx+rw/2,ry+imageH/2,0,scale,scale,iw/2,ih/2)
+ for i=0,12 do local t=i/12; love.graphics.setColor(.012,.025,.021,t*.7); love.graphics.rectangle("fill",rx+4,ry+imageH-80+t*80,rw-8,80/12+1) end
+ love.graphics.setScissor(); F.badge("1 / 4단계",rx+20,ry+18,100,f.small,accent)
+ local ty=ry+imageH+18; F.label(def.subtitle,rx+22,ty,f.small,accent)
+ love.graphics.setFont(f.big); love.graphics.setColor(.98,.96,.86); love.graphics.print(def.name,rx+22,ty+27)
+ love.graphics.setFont(f.body); love.graphics.setColor(.68,.75,.69); love.graphics.printf(compact and def.short or def.desc,rx+22,ty+68,rw-44,"left")
+ local statY=ry+rh-(compact and 52 or 70); love.graphics.setColor(1,1,1,.08); love.graphics.line(rx+22,statY-14,rx+rw-22,statY-14)
+ local stats={{"초기 수목",def.trees.."그루"},{"확장 단계","4구역"},{"현장 상태","미개척"}}
+ for i,s in ipairs(stats) do local sx=rx+22+(i-1)*(rw-44)/3; love.graphics.setFont(f.small); love.graphics.setColor(.48,.57,.51); love.graphics.print(s[1],sx,statY); love.graphics.setFont(f.heading); love.graphics.setColor(i==1 and accent or F.colors.ivory); love.graphics.print(s[2],sx,statY+22) end
+ game.clearcutMapBackBox={x=34,y=h-52,w=136,h=36}; game.clearcutMapConfirmBox={x=w-330,y=h-62,w=296,h=46}
+ F.button(game.clearcutMapBackBox,"← 작업자",f.small,{accent=F.colors.teal}); F.button(game.clearcutMapConfirmBox,"이 구역 선택",f.body,{primary=true,key="ENT",align="left",accent=accent})
 end
 return Select

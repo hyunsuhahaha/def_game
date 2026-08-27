@@ -260,7 +260,7 @@ function RushMode:drawSelection(game,fonts)
     local w,h=love.graphics.getDimensions()
     love.graphics.setColor(.015,.035,.025,.84); love.graphics.rectangle("fill",0,0,w,h)
     love.graphics.setFont(fonts.title); love.graphics.setColor(1,.82,.3); love.graphics.printf("채집 방식 진화",0,66,w,"center")
-    love.graphics.setFont(fonts.small); love.graphics.setColor(.72,.88,.76); love.graphics.printf("계속 움직이고 더 많은 숲을 한 번에 쓸어버리세요",0,112,w,"center")
+    love.graphics.setFont(fonts.small); love.graphics.setColor(.72,.88,.76); love.graphics.printf("스킬 하나를 선택합니다.",0,112,w,"center")
     local gap,cardW,cardH=24,math.min(320,(w-96)/3),360
     local startX=w/2-(cardW*3+gap*2)/2
     self.choiceBoxes={}

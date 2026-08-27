@@ -263,7 +263,9 @@ for i,c in ipairs(Mode.characters) do
     local g=newGame();g:chooseClearcutCharacter(i)
     assert(g.mode=="clearcut_map_select" and g.pendingClearcutCharacter==c.id)
     Game.keypressed(g,"escape");assert(g.mode=="clearcut_select")
-    g:chooseClearcutCharacter(i);Game.keypressed(g,"4")
+    g:chooseClearcutCharacter(i);Game.keypressed(g,"4");Game.keypressed(g,"return")
+    assert(g.mode=="clearcut_briefing" and g.selectedClearcutMap=="island")
+    Game.keypressed(g,"return")
     assert(g.mode=="playing" and g.clearcut.job==c.id and g.clearcut.mapId=="island")
 end
 for _,size in ipairs({{960,540},{1280,720}}) do
@@ -275,7 +277,9 @@ for _,size in ipairs({{960,540},{1280,720}}) do
     end
     local b=Select.boxes(width,height)[2]
     Game.mousepressed(g,b.x+10,b.y+10,1)
-    assert(g.clearcut.mapId=="mangrove","click did not select biome")
+    assert(g.clearcutMapFocus==2 and g.mode=="clearcut_map_select","click did not focus biome")
+    g:chooseClearcutMap(g.clearcutMapFocus)
+    assert(g.mode=="clearcut_briefing" and g.selectedClearcutMap=="mangrove","biome briefing was skipped")
     if MAP_UI_CAPTURE then
         fixture.reset();Select.draw(g)
         fixture.save("docs/previews/map-select-"..width.."-draws.json")

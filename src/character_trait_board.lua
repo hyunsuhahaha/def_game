@@ -1,4 +1,5 @@
 local UI = require("src.ui")
+local Frontend = require("src.frontend_ui")
 
 local CharacterTraitBoard = {}
 CharacterTraitBoard.__index = CharacterTraitBoard
@@ -32,18 +33,20 @@ local function drawRing(cx, cy, radius, fromAngle, toAngle, segments)
     segments = segments or 28
     for i=0,segments do
         local angle = fromAngle + (toAngle-fromAngle) * i / segments
-        points[#points+1], points[#points+1] = cx+math.cos(angle)*radius, cy+math.sin(angle)*radius
+        points[#points+1] = cx+math.cos(angle)*radius
+        points[#points+1] = cy+math.sin(angle)*radius
     end
-    love.graphics.line(points)
+    love.graphics.line(unpack(points))
 end
 
 local function drawHex(cx, cy, radius, mode)
     local points = {}
     for i=0,5 do
         local angle = -math.pi/2 + i*math.pi/3
-        points[#points+1], points[#points+1] = cx+math.cos(angle)*radius, cy+math.sin(angle)*radius
+        points[#points+1] = cx+math.cos(angle)*radius
+        points[#points+1] = cy+math.sin(angle)*radius
     end
-    love.graphics.polygon(mode, points)
+    love.graphics.polygon(mode, unpack(points))
 end
 
 local function drawGlyph(icon, cx, cy, size)
@@ -327,16 +330,17 @@ function CharacterTraitBoard:draw()
     local fonts=self.fonts
     local group=self.store:getJobs()[self.selectedJob]
     local palette=group.palette
-    love.graphics.setColor(.008,.022,.015,.78); love.graphics.rectangle("fill",0,0,w,h)
+    Frontend.backdrop(w,h,palette,.76)
     for i=0,14 do
         love.graphics.setColor(palette[1],palette[2],palette[3],.018*(1-i/15))
         love.graphics.circle("fill",w*.68,h*.54,120+i*36)
     end
     self.backBox={x=26,y=22,w=132,h=40}
-    UI.button(self.backBox.x,self.backBox.y,self.backBox.w,self.backBox.h,"← 돌아가기",true,fonts.small)
-    love.graphics.setFont(fonts.title); love.graphics.setColor(.98,.96,.84); love.graphics.print("캐릭터 연구망",184,22)
-    love.graphics.setFont(fonts.small); love.graphics.setColor(.66,.73,.64); love.graphics.print("성과 포인트로 영구 노드를 활성화합니다",184,55)
-    UI.panel(w-226,18,196,52,{palette[1],palette[2],palette[3],1},.96)
+    Frontend.button(self.backBox,"← 돌아가기",fonts.small,{accent=palette})
+    love.graphics.setFont(fonts.micro or fonts.small); love.graphics.setColor(palette); love.graphics.print("영구 특성",184,16)
+    love.graphics.setFont(fonts.title); love.graphics.setColor(.98,.96,.84); love.graphics.print("캐릭터 연구망",184,32)
+    love.graphics.setFont(fonts.small); love.graphics.setColor(.66,.73,.64); love.graphics.print("성과 포인트로 영구 노드를 활성화합니다",184,68)
+    Frontend.frame(w-226,18,196,52,palette,{selected=true})
     love.graphics.setFont(fonts.small); love.graphics.setColor(.62,.68,.58); love.graphics.print("보유 성과 포인트",w-207,25)
     love.graphics.setFont(fonts.heading); love.graphics.setColor(1,.84,.38); love.graphics.print(tostring(self.store.data.currency).." P",w-207,42)
 

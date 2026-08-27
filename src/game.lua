@@ -3,6 +3,7 @@ local World = require("src.world")
 local Player = require("src.player")
 local Lobby = require("src.lobby")
 local UI = require("src.ui")
+local Frontend = require("src.frontend_ui")
 local Progression = require("src.progression")
 local TraitTree = require("src.trait_tree")
 local Feedback = require("src.feedback")
@@ -27,7 +28,7 @@ end
 
 local function makeFonts()
     local regular, bold = "assets/font-korean-regular.ttf", "assets/font-korean-bold.ttf"
-    return {small = love.graphics.newFont(regular, 14), body = love.graphics.newFont(regular, 17), heading = love.graphics.newFont(bold, 21), big = love.graphics.newFont(bold, 28), title = love.graphics.newFont(bold, 36)}
+    return {micro = love.graphics.newFont(bold, 12), small = love.graphics.newFont(regular, 14), body = love.graphics.newFont(regular, 17), heading = love.graphics.newFont(bold, 21), big = love.graphics.newFont(bold, 28), title = love.graphics.newFont(bold, 36), display = love.graphics.newFont(bold, 48)}
 end
 
 local function loadClearcutSprites()
@@ -242,7 +243,7 @@ function Game:update(dt)
     if self.paused then return end
     if self.mode == "lobby" then self.lobby:update(dt); return end
     if self.mode == "settings" then self.lobby:update(dt); return end
-    if self.mode == "clearcut_select" or self.mode == "clearcut_map_select" or self.mode == "character_story" or self.mode == "character_codex" then return end
+    if self.mode == "clearcut_select" or self.mode == "clearcut_map_select" or self.mode == "clearcut_briefing" or self.mode == "character_story" or self.mode == "character_codex" then return end
     if self.mode == "character_traits" then self.characterTraitBoard:update(dt); return end
     if self.mode == "test_options" then self.testResetTime=math.max(0,(self.testResetTime or 0)-dt); if self.testResetTime<=0 then self.testResetArmed=false end; return end
     if self.mode == "meta" then self.traitTree:update(dt); return end
@@ -300,7 +301,13 @@ function Game:keypressed(key)
     end
     if self.mode == "clearcut_map_select" then
         if key=="escape" then self.mode="clearcut_select"
-        elseif key=="1" or key=="2" or key=="3" or key=="4" or key=="5" then self:chooseClearcutMap(tonumber(key)) end
+        elseif key=="return" or key=="kpenter" or key=="space" then self:chooseClearcutMap(self.clearcutMapFocus or 1)
+        elseif key=="1" or key=="2" or key=="3" or key=="4" or key=="5" then self.clearcutMapFocus=tonumber(key) end
+        return
+    end
+    if self.mode == "clearcut_briefing" then
+        if key=="escape" then self.mode="clearcut_map_select"
+        elseif key=="return" or key=="kpenter" or key=="space" then self:startClearcut(self.pendingClearcutCharacter,self.selectedClearcutMap) end
         return
     end
     if self.mode == "clearcut_select" then
@@ -463,22 +470,32 @@ function Game:mousepressed(x, y, button)
         return
     end
     if self.mode=="clearcut_map_select" then
-        if button==1 then local i=require("src.clearcut_map_select").at(x,y);if i then self:chooseClearcutMap(i) end end
+        if button==1 then
+            local i=require("src.clearcut_map_select").at(x,y)
+            if i then self.clearcutMapFocus=i
+            elseif Frontend.inside(self.clearcutMapConfirmBox,x,y) then self:chooseClearcutMap(self.clearcutMapFocus or 1)
+            elseif Frontend.inside(self.clearcutMapBackBox,x,y) then self.mode="clearcut_select" end
+        end
+        return
+    end
+    if self.mode=="clearcut_briefing" then
+        if button==1 then
+            if Frontend.inside(self.clearcutBriefingStartBox,x,y) then self:startClearcut(self.pendingClearcutCharacter,self.selectedClearcutMap)
+            elseif Frontend.inside(self.clearcutBriefingBackBox,x,y) then self.mode="clearcut_map_select" end
+        end
         return
     end
     if self.mode == "settings" then
         if button == 1 then
-            local w = love.graphics.getWidth()
-            if x >= 28 and x <= 176 and y >= 25 and y <= 67 then self.mode = "lobby"
-            elseif x >= w / 2 - 220 and x <= w / 2 + 220 and y >= 260 and y <= 316 then
+            if Frontend.inside(self.settingsBackBox,x,y) then self.mode = "lobby"
+            elseif Frontend.inside(self.settingsShakeBox,x,y) then
                 self.settings.screenShake = not self.settings.screenShake
                 self.camera.shakeScale = self.settings.screenShake and 1 or 0
-            elseif x >= w / 2 - 220 and x <= w / 2 + 220 and y >= 334 and y <= 390 then
+            elseif Frontend.inside(self.settingsFullscreenBox,x,y) then
                 local nextValue = not self.settings.fullscreen
                 local ok = love.window.setFullscreen(nextValue, "desktop")
                 if ok ~= false then self.settings.fullscreen = nextValue end
-            elseif x >= w / 2 - 220 and x <= w / 2 + 220 and y >= 408 and y <= 464 then
-                self.progression:addCurrency(1000000)
+            elseif Frontend.inside(self.settingsTestBox,x,y) then self:openTestOptions("settings")
             end
         end
         return
@@ -821,47 +838,47 @@ function Game:drawBuildSelect()
 end
 
 function Game:drawClearcutSelect()
-    local w, h, f = love.graphics.getWidth(), love.graphics.getHeight(), self.fonts
-    love.graphics.setColor(.015, .035, .025, .92); love.graphics.rectangle("fill", 0, 0, w, h)
-    love.graphics.setFont(f.title); love.graphics.setColor(1, .82, .3); love.graphics.printf("캐릭터 선택 — 숲 전멸 실험실", 0, 66, w, "center")
-    love.graphics.setFont(f.small); love.graphics.setColor(.72, .88, .76); love.graphics.printf("선택한 캐릭터의 기본 공격 방식이 이번 런 내내 유지됩니다", 0, 112, w, "center")
-    self.clearcutTraitBox={x=w-226,y=28,w=190,h=44}
-    UI.button(self.clearcutTraitBox.x,self.clearcutTraitBox.y,self.clearcutTraitBox.w,self.clearcutTraitBox.h,"캐릭터 특성  [T]",true,f.small)
-    love.graphics.setColor(1,.78,.3); love.graphics.print("성과 포인트 "..self.characterTraits.data.currency,38,42)
-    local characters = ClearcutMode.characters
-    local count = #characters
-    local gap = 20
-    local cardW, cardH = math.min(320, (w - 64 - gap * (count - 1)) / count), 400
-    local startX, cardY = w / 2 - (cardW * count + gap * (count - 1)) / 2, 165
-    self.clearcutCharBoxes = {}
-    for i, c in ipairs(characters) do
-        local x, y = startX + (i - 1) * (cardW + gap), cardY
-        self.clearcutCharBoxes[i] = {x = x, y = y, w = cardW, h = cardH, jobId = c.id}
-        local hovered = self:clearcutCharAt(love.mouse.getPosition()) == i
-        love.graphics.setLineStyle("rough")
-        UI.panel(x, y, cardW, cardH, {c.color[1], c.color[2], c.color[3], 1}, hovered and .99 or .94)
-        local sprite = self.clearcutSprites[c.id] or self.clearcutSprites.physical
-        if sprite then
-            local fw, fh = sprite.image:getWidth() / 6, sprite.image:getHeight() / 2
-            local quad = love.graphics.newQuad(0, 0, fw, fh, sprite.image:getDimensions())
-            local previewScale = math.min(150 / fw, 165 / fh)
-            love.graphics.setColor(1, 1, 1, 1)
-            love.graphics.draw(sprite.image, quad, x + cardW / 2, y + 172, 0, previewScale, previewScale, fw / 2, sprite.walkFeet[1])
-        end
-        love.graphics.setLineStyle("smooth")
-        love.graphics.setFont(f.small); love.graphics.setColor(1, 1, 1, .85); love.graphics.printf(tostring(i), x + cardW - 40, y + 20, 24, "center")
-        love.graphics.setFont(f.heading); love.graphics.printf(c.name, x + 16, y + 190, cardW - 32, "center")
-        love.graphics.setFont(f.body); love.graphics.setColor(.72, .82, .77); love.graphics.printf(c.tagline, x + 24, y + 232, cardW - 48, "center")
-        love.graphics.setFont(f.small); love.graphics.setColor(.58, .68, .64); love.graphics.printf(c.detail, x + 24, y + 300, cardW - 48, "center")
-        if self.characterTraits:hasSeenStory(c.id) then
-            local rw = {x = x + 16, y = y + cardH - 34, w = cardW - 32, h = 26}
-            self.clearcutCharBoxes[i].rewatch = rw
-            UI.button(rw.x, rw.y, rw.w, rw.h, "스토리 다시보기", true, f.small)
-        end
+    local w,h,f=love.graphics.getWidth(),love.graphics.getHeight(),self.fonts
+    local characters=ClearcutMode.characters
+    local mx,my=love.mouse.getPosition()
+    local compact=h<620; local rosterW=math.min(440,w*.37); local rx=w-rosterW-34; local top=126
+    local availableRow=(h-194-10*(#characters-1))/#characters
+    local rowH=compact and math.max(48,availableRow) or math.max(68,math.min(84,availableRow))
+    local hovered=nil
+    for i=1,#characters do local y=top+(i-1)*(rowH+10); if mx>=rx and mx<=rx+rosterW and my>=y and my<=y+rowH then hovered=i end end
+    self.clearcutCharacterFocus=hovered or self.clearcutCharacterFocus or 1
+    local focus=characters[self.clearcutCharacterFocus]; local accent=focus.color
+    Frontend.backdrop(w,h,accent,1)
+    love.graphics.setFont(f.micro); love.graphics.setColor(accent); love.graphics.print("작업자 명부",34,24)
+    love.graphics.setFont(f.title); love.graphics.setColor(.97,.95,.85); love.graphics.print("작업자 편성",34,51)
+    love.graphics.setFont(f.small); love.graphics.setColor(.53,.62,.56); love.graphics.print("이번 작업에 사용할 캐릭터를 선택합니다.",34,96)
+    self.clearcutTraitBox={x=w-214,y=30,w=180,h=42}; Frontend.button(self.clearcutTraitBox,"특성 연구",f.small,{accent=Frontend.colors.teal,key="T"})
+
+    local dx,dy,dw,dh=34,126,rx-62,h-194
+    Frontend.frame(dx,dy,dw,dh,accent,{selected=true})
+    Frontend.label("인사 기록  /  "..string.format("%02d",self.clearcutCharacterFocus),dx+22,dy+18,f.micro,accent)
+    local sprite=self.clearcutSprites[focus.id] or self.clearcutSprites.physical
+    if sprite then
+        local fw,fh=sprite.image:getWidth()/6,sprite.image:getHeight()/2; local quad=love.graphics.newQuad(0,0,fw,fh,sprite.image:getDimensions())
+        local scale=math.min(dw*(compact and .34 or .42)/fw,dh*(compact and .48 or .52)/fh); love.graphics.setColor(1,1,1,1); love.graphics.draw(sprite.image,quad,dx+dw*(compact and .23 or .28),dy+dh*.57,0,scale,scale,fw/2,sprite.walkFeet[1])
     end
-    local numHint = {}
-    for i = 1, count do numHint[i] = tostring(i) end
-    love.graphics.setFont(f.small); love.graphics.setColor(.7, .78, .72); love.graphics.printf("숫자키 " .. table.concat(numHint, "/") .. " 또는 클릭으로 선택  ·  ESC로 취소", 0, cardY + cardH + 24, w, "center")
+    local tx=dx+dw*(compact and .46 or .50)
+    love.graphics.setFont(compact and f.big or f.display); love.graphics.setColor(.98,.96,.86); love.graphics.printf(focus.name,tx,dy+(compact and 66 or 82),dw-(tx-dx)-28,"left")
+    love.graphics.setFont(compact and f.body or f.heading); love.graphics.setColor(accent); love.graphics.printf(focus.tagline,tx,dy+(compact and 111 or 147),dw-(tx-dx)-28,"left")
+    love.graphics.setColor(1,1,1,.09); love.graphics.line(tx,dy+(compact and 158 or 205),dx+dw-26,dy+(compact and 158 or 205))
+    love.graphics.setFont(compact and f.small or f.body); love.graphics.setColor(.70,.77,.70); love.graphics.printf(focus.detail,tx,dy+(compact and 174 or 224),dw-(tx-dx)-30,"left")
+    if not compact then Frontend.badge("고유 작업 방식",tx,dy+dh-105,132,f.small,accent); love.graphics.setColor(.53,.61,.55); love.graphics.print("첫 선택 이후에도 특성 연구망에서 영구 강화 가능",tx,dy+dh-68) end
+    love.graphics.setFont(f.small); love.graphics.setColor(1,.78,.28); love.graphics.print("성과 포인트  "..self.characterTraits.data.currency.." P",tx,dy+dh-42)
+
+    self.clearcutCharBoxes={}
+    for i,c in ipairs(characters) do
+        local y=top+(i-1)*(rowH+10); local selected=i==self.clearcutCharacterFocus; local b={x=rx,y=y,w=rosterW,h=rowH,jobId=c.id}; self.clearcutCharBoxes[i]=b
+        Frontend.frame(b.x,b.y,b.w,b.h,c.color,{selected=selected,alpha=selected and .99 or .84,corner=false})
+        love.graphics.setFont(f.heading); love.graphics.setColor(selected and {.98,.96,.86,1} or {.60,.67,.61,1}); love.graphics.print(string.format("%02d",i),b.x+17,b.y+14); love.graphics.print(c.name,b.x+60,b.y+14)
+        if not compact then love.graphics.setFont(f.small); love.graphics.setColor(selected and c.color or {.42,.49,.44,1}); love.graphics.print(c.tagline,b.x+60,b.y+42) end
+        if not compact and self.characterTraits:hasSeenStory(c.id) then b.rewatch={x=b.x+b.w-96,y=b.y+b.h-29,w=80,h=21}; love.graphics.setColor(1,1,1,.38); love.graphics.printf("기록 열람",b.rewatch.x,b.rewatch.y+3,b.rewatch.w,"center") end
+    end
+    Frontend.footer(w,h,"1–6  작업자 바로 선택    ·    클릭  배정    ·    T  특성 연구    ·    ESC  지휘실",f.small)
 end
 
 function Game:clearcutCharAt(x, y)
@@ -1079,7 +1096,38 @@ end
 function Game:chooseClearcutMap(index)
     local def=require("src.clearcut_maps").catalog[index]
     if not def or not self.pendingClearcutCharacter then return end
-    self:startClearcut(self.pendingClearcutCharacter,def.id)
+    self.selectedClearcutMap=def.id
+    self.mode="clearcut_briefing"
+end
+
+function Game:drawClearcutBriefing()
+    local Maps=require("src.clearcut_maps"); local def=Maps.get(self.selectedClearcutMap)
+    local w,h=love.graphics.getDimensions(); local f=self.fonts; local accent=def.color; local compact=h<620
+    local character=ClearcutMode.characters[1]
+    for _,c in ipairs(ClearcutMode.characters) do if c.id==self.pendingClearcutCharacter then character=c; break end end
+    Frontend.backdrop(w,h,accent,1)
+    love.graphics.setFont(f.micro); love.graphics.setColor(accent); love.graphics.print("작업 확인",34,24)
+    love.graphics.setFont(f.title); love.graphics.setColor(.98,.96,.86); love.graphics.print("작업 내용 확인",34,51)
+    love.graphics.setFont(f.small); love.graphics.setColor(.53,.62,.56); love.graphics.print("작업자와 구역을 확인합니다.",34,96)
+    local x,y,pw,ph=34,132,w-68,h-210; Frontend.frame(x,y,pw,ph,accent,{selected=true})
+    local leftW=pw*.42
+    if not self.briefingPreview or self.briefingPreviewId~=(def.preview or def.id) then
+        self.briefingPreviewId=def.preview or def.id; self.briefingPreview=love.graphics.newImage("assets/maps/"..self.briefingPreviewId.."-preview-v1.png"); self.briefingPreview:setFilter("nearest","nearest")
+    end
+    local img=self.briefingPreview; local iw,ih=img:getDimensions(); local bx,by,bw,bh=x+18,y+18,leftW-28,ph-36; local sc=math.max(bw/iw,bh/ih)
+    love.graphics.setScissor(bx,by,bw,bh); love.graphics.setColor(1,1,1,1); love.graphics.draw(img,bx+bw/2,by+bh/2,0,sc,sc,iw/2,ih/2)
+    for i=0,15 do local t=i/15; love.graphics.setColor(.008,.02,.016,t*.78); love.graphics.rectangle("fill",bx+bw-150+t*150,by,150/15+1,bh) end
+    love.graphics.setScissor(); Frontend.badge("1구역",bx+16,by+16,86,f.small,accent)
+    local rx=x+leftW+18; Frontend.label("벌목 계약서  /  1단계",rx,y+24,f.micro,accent)
+    love.graphics.setFont(f.big); love.graphics.setColor(.98,.96,.86); love.graphics.print(def.name,rx,y+57)
+    love.graphics.setFont(f.body); love.graphics.setColor(.65,.73,.67); love.graphics.printf(def.subtitle.."\n"..def.desc,rx,y+98,pw-leftW-50,"left")
+    local dividerY=y+(compact and 150 or 176); love.graphics.setColor(1,1,1,.09); love.graphics.line(rx,dividerY,x+pw-24,dividerY)
+    love.graphics.setFont(f.small); love.graphics.setColor(.47,.56,.50); love.graphics.print("배정 작업자",rx,dividerY+22); love.graphics.setFont(f.heading); love.graphics.setColor(character.color); love.graphics.print(character.name,rx,dividerY+46)
+    love.graphics.setFont(f.small); love.graphics.setColor(.63,.70,.64); love.graphics.print(character.tagline,rx,dividerY+76)
+    local steps={{"01","작업자 확인"},{"02","구역 확인"},{"03","시작 준비"}}
+    local sy=y+ph-(compact and 62 or 112); for i,s in ipairs(steps) do local sx=rx+(i-1)*math.min(150,(pw-leftW-60)/3); love.graphics.setColor(accent[1],accent[2],accent[3],.18); love.graphics.circle("fill",sx+14,sy+14,14); love.graphics.setColor(accent); love.graphics.setFont(f.small); love.graphics.printf(s[1],sx,sy+7,28,"center"); love.graphics.setColor(.77,.79,.70); love.graphics.print(s[2],sx+36,sy+6) end
+    self.clearcutBriefingBackBox={x=34,y=h-60,w=150,h=42}; self.clearcutBriefingStartBox={x=w-354,y=h-70,w=320,h=52}
+    Frontend.button(self.clearcutBriefingBackBox,"← 구역 변경",f.small,{accent=Frontend.colors.teal}); Frontend.button(self.clearcutBriefingStartBox,"작업 시작",f.heading,{primary=true,key="ENT",align="left",accent=accent})
 end
 
 function Game:draw()
@@ -1089,6 +1137,7 @@ function Game:draw()
     if self.mode == "character_codex" then self:drawCharacterCodex(); return end
     if self.mode == "character_story" then self:drawCharacterStory(); return end
     if self.mode == "clearcut_map_select" then require("src.clearcut_map_select").draw(self); return end
+    if self.mode == "clearcut_briefing" then self:drawClearcutBriefing(); return end
     if self.mode == "character_traits" then
         local w,h=love.graphics.getDimensions(); self.lobby:drawBackground(w,h); self.characterTraitBoard:draw(); return
     end
@@ -1184,20 +1233,22 @@ function Game:drawPauseOverlay()
 end
 
 function Game:drawSettings()
-    local w, h, f = love.graphics.getWidth(), love.graphics.getHeight(), self.fonts
-    self.lobby:drawBackground(w, h)
-    love.graphics.setColor(.018, .042, .034, .84); love.graphics.rectangle("fill", 0, 0, w, h)
-    UI.button(28, 25, 148, 42, "← 로비", true, f.body)
-    love.graphics.setFont(f.title); love.graphics.setColor(.98, .98, .92); love.graphics.printf("설정", 0, 88, w, "center")
-    love.graphics.setFont(f.small); love.graphics.setColor(.75, .83, .75); love.graphics.printf("플레이 환경", 0, 137, w, "center")
-    local x, boxW = w / 2 - 220, 440
-    UI.button(x, 260, boxW, 56, "화면 흔들림  ·  " .. (self.settings.screenShake and "켜짐" or "꺼짐"), true, f.body)
-    UI.button(x, 334, boxW, 56, "화면 모드  ·  " .. (self.settings.fullscreen and "전체 화면" or "창 모드"), true, f.body)
-    UI.button(x, 408, boxW, 56, "테스트 — 유산 부품 +1,000,000", true, f.body)
-    love.graphics.setFont(f.small); love.graphics.setColor(.78, .84, .62)
-    love.graphics.printf("현재 보유 유산 부품: " .. self.progression.data.currency, 0, 470, w, "center")
-    love.graphics.setColor(.72, .8, .73)
-    love.graphics.printf("ESC로 로비로 돌아갑니다.", 0, math.min(h - 52, 498), w, "center")
+    local w,h,f=love.graphics.getWidth(),love.graphics.getHeight(),self.fonts
+    local compact=h<620
+    self.lobby:drawBackground(w,h); love.graphics.setColor(.006,.018,.014,.89); love.graphics.rectangle("fill",0,0,w,h)
+    love.graphics.setFont(f.micro); love.graphics.setColor(Frontend.colors.teal); love.graphics.print("설정",34,24)
+    love.graphics.setFont(f.title); love.graphics.setColor(.98,.96,.87); love.graphics.print("환경 설정",34,51)
+    love.graphics.setFont(f.small); love.graphics.setColor(.54,.62,.56); love.graphics.print("시각 피드백과 표시 환경을 현재 장비에 맞게 조정합니다",34,96)
+    self.settingsBackBox={x=w-174,y=28,w=140,h=42}; Frontend.button(self.settingsBackBox,"지휘실로",f.small,{accent=Frontend.colors.teal,key="ESC"})
+    local x,y,pw=math.max(34,w*.14),138,math.min(820,w*.72); local cx=x+(w-pw-2*x)/2
+    x=cx; Frontend.frame(x,y,pw,h-198,Frontend.colors.teal,{selected=true})
+    Frontend.label("화면",x+24,y+22,f.micro,Frontend.colors.teal)
+    self.settingsShakeBox={x=x+24,y=y+58,w=pw-48,h=76}; Frontend.toggle(self.settingsShakeBox,self.settings.screenShake,f.body,"화면 흔들림","타격·폭발·보스 등장 시 카메라 반동",Frontend.colors.amber)
+    self.settingsFullscreenBox={x=x+24,y=y+148,w=pw-48,h=76}; Frontend.toggle(self.settingsFullscreenBox,self.settings.fullscreen,f.body,"화면 모드",self.settings.fullscreen and "전체 화면으로 실행 중" or "창 모드로 실행 중",Frontend.colors.teal)
+    Frontend.label("개발 도구",x+24,y+258,f.micro,Frontend.colors.rust)
+    self.settingsTestBox={x=x+24,y=y+294,w=pw-48,h=66}; Frontend.button(self.settingsTestBox,"테스트 도구 열기  (F10)",f.body,{accent=Frontend.colors.rust,align="left"})
+    if not compact then love.graphics.setFont(f.small); love.graphics.setColor(.49,.57,.51); love.graphics.printf("테스트 기능은 별도 패널에서 관리됩니다. 실제 저장 데이터에 영향을 줄 수 있습니다.",x+24,y+374,pw-48,"left") end
+    Frontend.footer(w,h,"클릭  설정 변경    ·    F10  테스트 도구    ·    ESC  지휘실",f.small)
 end
 
 function Game:drawTestOptions()

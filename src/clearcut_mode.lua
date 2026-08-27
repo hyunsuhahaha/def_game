@@ -1,4 +1,5 @@
 local UI = require("src.ui")
+local Frontend = require("src.frontend_ui")
 local TraitFx = require("src.trait_fx")
 local Cigarette = require("src.cigarette_sprite")
 local CigaretteButts = require("src.cigarette_butts")
@@ -5492,12 +5493,14 @@ end
 
 function ClearcutMode:drawSelectionContent(game,fonts,w,h)
     local t = love.timer.getTime()
-    love.graphics.setColor(.015,.035,.025,.84); love.graphics.rectangle("fill",0,0,w,h)
+    Frontend.backdrop(w,h,Frontend.colors.amber,.94)
+    love.graphics.setFont(fonts.micro or fonts.small); love.graphics.setColor(Frontend.colors.amber)
+    love.graphics.print("레벨 업",34,24)
     self.choiceBoxes={}
     if self.selectionKind == "fusion" then Fusions.drawAcquisition(self,fonts,w,h); return end
     if self.selectionKind == "arcana" then
-        love.graphics.setFont(fonts.title); love.graphics.setColor(arcanaColor); love.graphics.printf("아르카나 — 룰을 바꾸는 선택",0,66,w,"center")
-        love.graphics.setFont(fonts.small); love.graphics.setColor(.85,.78,.95); love.graphics.printf("되돌릴 수 없습니다. 한 번 고르면 이번 판 내내 유지됩니다",0,112,w,"center")
+        love.graphics.setFont(fonts.title); love.graphics.setColor(arcanaColor); love.graphics.printf("아르카나 선택",0,66,w,"center")
+        love.graphics.setFont(fonts.small); love.graphics.setColor(.85,.78,.95); love.graphics.printf("선택한 효과는 이번 판 동안 유지됩니다.",0,112,w,"center")
         local gap,cardW,cardH=24,math.min(320,(w-96)/3),430
         local startX=w/2-(cardW*3+gap*2)/2
         local mx,my=self:selectionMousePosition()
@@ -5541,7 +5544,7 @@ function ClearcutMode:drawSelectionContent(game,fonts,w,h)
     end
 
     love.graphics.setFont(fonts.title); love.graphics.setColor(1,.82,.3); love.graphics.printf("벌목 방식 진화",0,66,w,"center")
-    love.graphics.setFont(fonts.small); love.graphics.setColor(.72,.88,.76); love.graphics.printf("계속 움직이고 더 많은 숲을 한 번에 쓸어버리세요",0,112,w,"center")
+    love.graphics.setFont(fonts.small); love.graphics.setColor(.72,.88,.76); love.graphics.printf("스킬 하나를 선택합니다.",0,112,w,"center")
     local numCards = self.specialCard and 4 or 3
     local gap = 22
     local cardW = math.min(300, (w-96-gap*(numCards-1))/numCards)
