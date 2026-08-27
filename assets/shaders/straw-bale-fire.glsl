@@ -17,6 +17,14 @@ float fbm(vec2 p){
     for(int i=0;i<4;i++){value+=noise(p)*amp;p=p*2.03+vec2(17.1,9.2);amp*=.5;}
     return value;
 }
+// Holds a random value for one beat then SNAPS to the next (no smooth sine drift),
+// so shape driven by this reads as a jittery lick, not a swaying tentacle.
+float flicker(vec2 seed2,float t,float rate){
+    float step1=floor(t*rate);
+    float a=hash(seed2+vec2(step1,0.0));
+    float b=hash(seed2+vec2(step1+1.0,0.0));
+    return mix(a,b,smoothstep(0.0,1.0,fract(t*rate)))-.5;
+}
 vec3 fireRamp(float heat){
     vec3 rim=vec3(.19,.025,.012),red=vec3(.64,.075,.018);
     vec3 copper=vec3(.94,.22,.025),amber=vec3(1.0,.51,.07);
@@ -33,35 +41,42 @@ vec4 effect(vec4 tint,Image tex,vec2 uv,vec2 screen){
     vec2 p=(cell+.5)/fireGrid;
     float x=p.x-.5,y=1.0-p.y,t=fireTime;
     float seed=variant*2.371+fireLayer*7.13;
-    // Fast per-cell crackle: holds a random jitter for a short beat, then snaps to
-    // a new one, so the tongues pop/flicker instead of gently swaying like a tentacle.
-    float crackleRate=13.0;
-    float crackleStep=floor(t*crackleRate);
-    float crackleA=hash(vec2(crackleStep+seed*7.0,cell.x*.41+cell.y*.23));
-    float crackleB=hash(vec2(crackleStep+1.0+seed*7.0,cell.x*.41+cell.y*.23));
-    float crackle=mix(crackleA,crackleB,smoothstep(0.0,1.0,fract(t*crackleRate)));
-    float pop=step(.88,crackleA);
-    float curl=fbm(vec2(x*3.4+seed,y*3.0-t*2.05));
-    float detail=fbm(vec2(x*8.1-seed,y*7.2-t*3.6));
-    float center=sin(y*5.4-t*4.6+seed)*(.018+y*.090)
-        +sin(y*12.7+t*2.7+seed*.7)*(.010+y*.030)
-        +(curl-.5)*(.055+y*.07)+(crackle-.5)*.05*(1.0+y*.6);
+    float curl=fbm(vec2(x*3.4+seed,y*3.0-t*1.6));
+    float detail=fbm(vec2(x*8.1-seed,y*7.2-t*2.6));
+    // Per-Y-band jitter snaps to a new offset a few times a second instead of one
+    // smooth sine threading base-to-tip - a continuous curve like that is exactly
+    // what reads as a waving tentacle, so height/width/position all jump instead.
+    float yBand=floor(y*7.0);
+    float bandMain=flicker(vec2(yBand*3.7+seed*11.0,1.0),t,9.0);
+    float bandL=flicker(vec2(yBand*3.7+seed*11.0,2.0),t,8.0);
+    float bandR=flicker(vec2(yBand*3.7+seed*11.0,3.0),t,8.5);
+    float tipDart=flicker(vec2(seed*13.0,4.0),t,6.0);
+    float center=(curl-.5)*(.03+y*.03)+bandMain*(.075+y*.10)+tipDart*.05*y;
     float width=(fireLayer<.5?.245:.205)*pow(max(0.0,1.0-y),.58)+.012;
-    float main=1.0-abs(x-center)/width-y*.12+(detail-.5)*.31+(crackle-.5)*.12;
-    float crown=.92+.055*sin(t*3.9+seed)+(curl-.5)*.17-pop*.05;
+    float main=1.0-abs(x-center)/width-y*.12+(detail-.5)*.34;
+    float crownJ=flicker(vec2(seed*17.0,5.0),t,7.0);
+    float crown=.76+(crownJ+.5)*.26+(curl-.5)*.10;
     main-=smoothstep(crown-.025,crown+.035,y)*1.8;
-    float sideL=1.0-abs(x+.255-sin(y*9.0-t*6.2+seed)*.035)/(.095*pow(max(.01,1.0-y/.68),.55)+.009);
-    sideL-=smoothstep(.53+.10*sin(t*5.3+seed),.60+.10*sin(t*5.3+seed),y)*1.7;
-    float sideR=1.0-abs(x-.255-sin(y*7.2-t*5.1+seed+2.0)*.042)/(.10*pow(max(.01,1.0-y/.76),.55)+.009);
-    sideR-=smoothstep(.62+.08*sin(t*4.4+seed+1.0),.70+.08*sin(t*4.4+seed+1.0),y)*1.7;
-    float splitA=1.0-abs(x+.075-sin(y*15.0-t*7.1+seed)*.027)/(.068*pow(max(.01,1.0-y/.82),.63)+.007);
-    splitA-=smoothstep(.70+.065*sin(t*6.0+seed),.77+.065*sin(t*6.0+seed),y)*1.8;
-    float splitB=1.0-abs(x-.105-sin(y*13.0-t*6.4+seed+3.0)*.030)/(.062*pow(max(.01,1.0-y/.64),.63)+.007);
-    splitB-=smoothstep(.52+.055*sin(t*4.9+seed),.60+.055*sin(t*4.9+seed),y)*1.8;
+    float sideL=1.0-abs(x+.255-bandL*.09)/(.095*pow(max(.01,1.0-y/.68),.55)+.009);
+    float lenL=.53+(flicker(vec2(seed*19.0,6.0),t,5.0)+.5)*.16;
+    sideL-=smoothstep(lenL,lenL+.07,y)*1.7;
+    float sideR=1.0-abs(x-.255-bandR*.10)/(.10*pow(max(.01,1.0-y/.76),.55)+.009);
+    float lenR=.60+(flicker(vec2(seed*23.0,7.0),t,5.5)+.5)*.16;
+    sideR-=smoothstep(lenR,lenR+.07,y)*1.7;
+    float bandA=flicker(vec2(yBand*4.3+seed*7.0,8.0),t,10.0);
+    float bandB=flicker(vec2(yBand*4.3+seed*7.0,9.0),t,9.5);
+    float splitA=1.0-abs(x+.075-bandA*.06)/(.068*pow(max(.01,1.0-y/.82),.63)+.007);
+    float lenA=.68+(flicker(vec2(seed*29.0,10.0),t,6.5)+.5)*.14;
+    splitA-=smoothstep(lenA,lenA+.07,y)*1.8;
+    float splitB=1.0-abs(x-.105-bandB*.065)/(.062*pow(max(.01,1.0-y/.64),.63)+.007);
+    float lenB=.50+(flicker(vec2(seed*31.0,11.0),t,7.0)+.5)*.14;
+    splitB-=smoothstep(lenB,lenB+.07,y)*1.8;
+    float crackle=flicker(vec2(cell.x*.41+cell.y*.23+seed*7.0,12.0),t,13.0)+.5;
+    float pop=step(.9,crackle);
     float field=max(max(main,sideL),max(sideR,max(splitA,splitB)))+(curl-.5)*.13+pop*.08;
     float flameAlpha=smoothstep(.015,.16,field)*smoothstep(-.01,.045,y);
     float inner=1.0-abs(x-center*.55)/(width*.58+.005)-y*.30+(detail-.5)*.20;
-    float heat=clamp(inner*.52+field*.28+(1.0-y)*.30+.07*sin(y*22.0-t*7.8+seed)+pop*.22,0.0,1.0);
+    float heat=clamp(inner*.52+field*.28+(1.0-y)*.30+(crackle-.5)*.14+pop*.22,0.0,1.0);
     heat=floor(heat*18.0+.5)/18.0;
     vec3 rgb=fireRamp(heat);
     float rim=smoothstep(.015,.10,field)*(1.0-smoothstep(.10,.23,field));
