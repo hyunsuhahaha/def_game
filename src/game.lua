@@ -36,6 +36,8 @@ local function loadClearcutSprites()
         fire = {file="smoker-atlas-pixel-v2.png", walkFeet={190,190,190,190,190,190}, actionFeet={190,190,190,190,190,190}, scale=.61},
         toxic = {file="vegan-atlas-pixel-v2.png", walkFeet={190,190,190,190,190,190}, actionFeet={190,190,190,190,190,190}, scale=.61},
         developer = {file="developer-atlas-pixel-v2.png", walkFeet={190,190,190,190,190,190}, actionFeet={190,190,190,190,190,190}, scale=.61},
+        -- The authored philosopher source faces right.
+        philosopher = {file="philosopher-atlas-pixel-v2.png", walkFeet={190,190,190,190,190,190}, actionFeet={190,190,190,190,190,190}, scale=.61, nativeFacing=1},
         -- The mole source faces left. Keep that authored orientation explicit so
         -- the shared renderer mirrors it toward movement/aim correctly.
         -- Its first claw poses crouch heavily; these factors keep body mass stable.
@@ -91,6 +93,7 @@ function Game:resetRun()
     self.camera.shakeScale = self.settings.screenShake and 1 or 0
     self.food, self.ore, self.wood, self.stone, self.seeds = 0, 0, 0, 0, 8
     self.time, self.ended, self.victory, self.hoverNode, self.hoverWall, self.hoverBuilding, self.nearTurret = 15 * 60, false, false, nil, false, nil, nil
+    self.paused = false
     self.runStats, self.result, self.prestiged = {harvested = 0}, nil, false
     self.upgrades, self.runLevel, self.runXP, self.runXPNext, self.pendingLevels = RunUpgrades.new(), 1, 0, 18, 0
     self.runXPVisual, self.runXPPulse, self.lastXPGain = 0, 0, 0
@@ -236,6 +239,7 @@ function Game:prestigeRun()
 end
 
 function Game:update(dt)
+    if self.paused then return end
     if self.mode == "lobby" then self.lobby:update(dt); return end
     if self.mode == "settings" then self.lobby:update(dt); return end
     if self.mode == "clearcut_select" or self.mode == "clearcut_map_select" or self.mode == "character_story" or self.mode == "character_codex" then return end
@@ -273,6 +277,7 @@ end
 function Game:keypressed(key)
     if self.mode=="test_options" then if key=="escape" or key=="f10" then self:closeTestOptions() end; return end
     if key=="f10" then self:openTestOptions(self.mode); return end
+    if self.paused then if key=="escape" then self.paused=false end; return end
     if self.mode == "lobby" then
         if key == "escape" then love.event.quit(); return end
         local action=self.lobby:keypressed(key)
@@ -345,6 +350,7 @@ function Game:keypressed(key)
         return
     end
     if key == "escape" and self.placingBuilding then self.placingBuilding = nil; self:setNotice("건설을 취소했습니다", "core"); return end
+    if key == "escape" and self.mode == "playing" then self.paused = true; return end
     if key == "escape" then self.mode = "lobby"; return end
     if self.ended and (key == "r" or key == "return") then self:startRun(); return end
     if key == "p" and self.runType~="rush" and self.runType~="clearcut" then self:prestigeRun(); return end
@@ -386,6 +392,14 @@ function Game:useAbility(index)
 end
 
 function Game:mousepressed(x, y, button)
+    if self.paused then
+        if button==1 then
+            local _, _, _, _, resumeBox, quitBox = self:pauseButtons()
+            if x>=resumeBox.x and x<=resumeBox.x+resumeBox.w and y>=resumeBox.y and y<=resumeBox.y+resumeBox.h then self.paused=false
+            elseif x>=quitBox.x and x<=quitBox.x+quitBox.w and y>=quitBox.y and y<=quitBox.y+quitBox.h then self.paused=false; self.mode="lobby" end
+        end
+        return
+    end
     if self.mode=="test_options" then
         if button==1 then
             local w=love.graphics.getWidth(); local bx=w/2-290
@@ -1138,6 +1152,29 @@ function Game:draw()
         love.graphics.setFont(f.small); love.graphics.setColor(1, 1, 1)
         love.graphics.printf(def.name .. " 배치 중 · 비용 " .. table.concat(parts, " · ") .. " · 클릭 배치 / 우클릭·ESC 취소", w / 2 - 220, 27, 440, "center")
     end
+    if self.paused then self:drawPauseOverlay() end
+end
+
+function Game:pauseButtons()
+    local w, h = love.graphics.getDimensions()
+    local pw, ph = 360, 220
+    local px, py = w / 2 - pw / 2, h / 2 - ph / 2
+    return px, py, pw, ph,
+        {x = px + 30, y = py + 96, w = pw - 60, h = 52},
+        {x = px + 30, y = py + 160, w = pw - 60, h = 52}
+end
+
+function Game:drawPauseOverlay()
+    local w, h, f = love.graphics.getWidth(), love.graphics.getHeight(), self.fonts
+    love.graphics.setColor(0, 0, 0, .6); love.graphics.rectangle("fill", 0, 0, w, h)
+    local px, py, pw, ph, resumeBox, quitBox = self:pauseButtons()
+    UI.panel(px, py, pw, ph, {1, .78, .25, 1}, .96)
+    love.graphics.setFont(f.heading); love.graphics.setColor(1, 1, 1)
+    love.graphics.printf("일시정지", px, py + 22, pw, "center")
+    love.graphics.setFont(f.small); love.graphics.setColor(.75, .83, .75)
+    love.graphics.printf("ESC로 계속하기", px, py + 60, pw, "center")
+    UI.button(resumeBox.x, resumeBox.y, resumeBox.w, resumeBox.h, "계속하기", true, f.body)
+    UI.button(quitBox.x, quitBox.y, quitBox.w, quitBox.h, "로비로 나가기", true, f.body)
 end
 
 function Game:drawSettings()

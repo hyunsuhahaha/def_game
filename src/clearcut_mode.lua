@@ -13,6 +13,7 @@ local ForestScenery = require("src.forest_scenery")
 local Fusions = require("src.clearcut_fusions")
 local BiomeEnemies = require("src.biome_enemies")
 local SupplementArt = require("src.supplement_art")
+local PhilosopherArt = require("src.philosopher_art")
 
 local ClearcutMode = {}
 ClearcutMode.__index = ClearcutMode
@@ -1427,7 +1428,8 @@ end
 
 -- 흡연자 전용 SPACE 액션: 담배 연기로 도넛(스모크 링)을 만들어 입에서 앞으로 쏜다.
 -- 화염/착화가 아니라 순수 연기 — 자기 자리에서 팽창하는 게 아니라, 실제 스모크링처럼
--- 고리 모양을 유지한 채 조준 방향으로 날아가며 닿는 적에게 피해와 넉백을 준다.
+-- 고리 모양을 유지한 채 캐릭터가 바라보는 방향(마우스 조준이 아님)으로 날아가며
+-- 닿는 적에게 피해와 넉백을 준다.
 function ClearcutMode:activateSmokeRing(game)
     if self.job ~= "fire" or self.dead or self.smokeRing then return false end
     if self.smokeRingCooldown > 0 then
@@ -1437,11 +1439,8 @@ function ClearcutMode:activateSmokeRing(game)
     local power = self:power("smoke_ring")
     self.smokeRingCooldown = math.max(4, 8 - power)
     local maxRange = 460
-    local tx, ty = self:aimPoint(game, maxRange)
     local _, mouthY, facing, tipX = self:smokerMouthPose(game)
-    local dx, dy = tx - tipX, ty - mouthY
-    local dist = math.sqrt(dx * dx + dy * dy)
-    local nx, ny = dist > .01 and dx / dist or facing, dist > .01 and dy / dist or 0
+    local nx, ny = facing, 0
     local speed = 480
     self.smokeRing = {
         x=tipX, y=mouthY, vx=nx * speed, vy=ny * speed,
@@ -2712,6 +2711,7 @@ end
 function ClearcutMode:updateRevival(dt, game)
     self.revivalCooldown = math.max(0, self.revivalCooldown - dt)
     self.revivalTimer = math.max(0, self.revivalTimer - dt)
+    PhilosopherArt.update(self,dt)
 end
 
 -- 기본공격 "끝없는 설교": 누르고 있는 동안 침을 계속 쏘지만, 침 게이지가 계속 줄어든다.
@@ -2735,7 +2735,8 @@ function ClearcutMode:updatePhilosopherAttack(dt, game, heldOverride)
     local verbosity = self.revivalTimer > 0 and 1 or math.min(1, (self.rantTimer or 0) / 3)
     self.aimX, self.aimY = tx, ty
     self.aimRadius = (55 + self:power("monologue") * 10 + self:power("loud_voice") * 20) * (1 + verbosity * .55) + self.permanentTraits.area
-    if game.player.setClearcutAction then game.player:setClearcutAction(.5 + verbosity * .3) end
+    PhilosopherArt.channel(self,game,firing,tx,ty,verbosity)
+    if game.player.setClearcutAction then game.player:setClearcutAction(.08 + ((self.rantTimer or 0) * 2.4 % 1) * .9) end
     local wasHeld = self.rantHeldLast
     self.rantHeldLast = firing
     if not firing then
@@ -4251,6 +4252,7 @@ function ClearcutMode:drawSupplementSkills(game, t)
     SupplementArt.draw(self,game,t)
     MoleClawArt.draw(self,game,t)
     BruteForceArt.draw(self,game,t)
+    PhilosopherArt.draw(self)
 end
 
 function ClearcutMode:drawThrownTrees(game)
