@@ -6,8 +6,6 @@ Fusions.definitions = {
         desc="3초마다 꽁초를 추가 투척합니다. 붙은 불의 확산 반경이 35%, 확산 확률이 50% 증가합니다. 꽁초의 잔류·불씨 전이 과정은 유지됩니다."},
     {id="oilRoad",job="fire",name="기름을 실수로 붓다",needs={"oil_drum","straw_bale"},color={1,.55,.15},
         desc="이동하는 동안 밟고 지나간 자리에 기름 자국이 남습니다. 그 위에 담배꽁초가 떨어지면 그대로 옮겨붙어, 이어진 기름 자국을 따라 벽처럼 길게 늘어선 화염대가 잠시 유지되며 닿는 적에게 지속 피해를 줍니다."},
-    {id="collapse",job="physical",name="벌목 붕괴",needs={"shockwave","domino"},color={1,.7,.25},
-        desc="도미노로 쓰러진 나무도 같은 방향으로 다음 나무를 쓰러뜨립니다. 살아 있는 나무가 이어지는 동안 연쇄 붕괴가 계속됩니다."},
     {id="frenzy",job="physical",name="무한 야근",needs={"berserker","shockwave"},color={1,.76,.3},
         desc="10콤보부터 도끼 타격마다 반경 145의 충격파가 발생합니다. 주변 나무에 3 피해, 적에게 12 피해를 줍니다. 콤보가 끊기면 해제됩니다."},
     {id="newtown",job="developer",name="뉴타운 계획",needs={"heavy_machinery","site_clearance"},color={1,.65,.25},

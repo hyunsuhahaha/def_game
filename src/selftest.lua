@@ -361,7 +361,7 @@ function SelfTest.run(game)
     local hasJobSkill, hasUniversalSkill, hasOtherJobSkill = false, false, false
     for _, def in ipairs(sandboxSkills) do
         if def.id == "molotov" then hasJobSkill = true end
-        if def.id == "domino" then hasUniversalSkill = true end
+        if def.id == "forced_growth" then hasUniversalSkill = true end
         if def.id == "berserker" then hasOtherJobSkill = true end
     end
     assert(hasJobSkill and hasUniversalSkill and not hasOtherJobSkill, "연습장 스킬 목록이 직업 전용+공용으로 한정되지 않음")

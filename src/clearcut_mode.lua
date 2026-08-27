@@ -37,7 +37,6 @@ local definitions = {
     {id="wide_blade", track="destroy", name="야근 수당", desc="범위와 한 번에 타격하는 나무 수가 늘어납니다. 잔업은 곧 돈이다.", max=6, color={1,.62,.18}, job="physical"},
     {id="berserker", track="destroy", name="이번 달 목표 초과", desc="쉬지 않고 벨수록 공격 속도가 빨라집니다 (멈추면 초기화).", max=6, color={1,.42,.22}, job="physical"},
     {id="shockwave", track="destroy", name="산재 위험수당", desc="나무를 쓰러뜨리면 주변 나무에도 충격파 피해를 줍니다.", max=6, color={1,.78,.2}, job="physical"},
-    {id="domino", track="destroy", name="도미노", desc="쓰러지는 나무가 진행 방향의 다른 나무를 함께 쓰러뜨립니다.", max=6, color={.95,.55,.3}},
     -- 확산력 (spread) — 한 번의 행동으로 얼마나 넓게 없애느냐 [흡연자 전용]
     {id="molotov", track="spread", name="꽁초 투척", desc="사거리와 꽁초의 불씨 전이 범위가 늘어나고, 주기적으로 하나 더 튕깁니다. 바닥의 꽁초는 7초간 남아 주변 나무에 기본 42%(최대 75%) 확률로 불을 옮깁니다.", max=6, color={1,.35,.12}, job="fire"},
     {id="dry_forest", track="spread", name="건조주의보 무시", desc="꽁초의 착화 확률이 레벨당 +6%p 높아지고(최대 75%), 붙은 불이 주변 나무로 더 빠르고 넓게 번집니다.", max=6, color={1,.5,.15}, job="fire"},
@@ -71,7 +70,6 @@ local definitions = {
     {id="boomerang_axe", track="supplement", name="부메랑 도끼", desc="주기적으로 도끼가 날아가 나무와 적을 가르고 손으로 돌아옵니다.", max=6, color={.6,.6,.65}},
     {id="seed_mine", track="supplement", name="씨앗 지뢰", desc="주기적으로 씨앗 지뢰를 심습니다. 잠시 후 터져 주변 나무와 적에게 피해를 줍니다.", max=6, color={.65,.45,.2}},
     {id="chain_lightning", track="supplement", name="번개 사슬", desc="주기적으로 번개가 근처 나무·적 사이를 연쇄로 튀며 피해를 줍니다.", max=6, color={.35,.75,.95}},
-    {id="spore_cloud", track="supplement", name="포자 구름", desc="포자 구름이 멀찍이 느리게 맴돌며 닿는 나무와 적을 서서히 중독시킵니다.", max=6, color={.55,.4,.65}},
 }
 
 local upgradeById = {}
@@ -435,7 +433,7 @@ function ClearcutMode:regrowPulse(game)
     for i = 1, count do
         local node = candidates[i]
         node.active, node.rushHp = true, node.rushMaxHp
-        node.dominoChild, node.burning, node.fallT, node.uprooted = nil, nil, nil, nil
+        node.burning, node.fallT, node.uprooted = nil, nil, nil
         self.remainingTrees = self.remainingTrees + 1
     end
     if count > 0 then
@@ -1471,31 +1469,6 @@ function ClearcutMode:updatePlague(dt, game)
     end
 end
 
-function ClearcutMode:onTreeFallen(node, game)
-    local dominoLevel = self:levelOf("domino")
-    if dominoLevel == 0 then return end
-    if node.dominoChild and not self.evolutions.collapse then return end
-    local reach = 90 + self:power("domino") * 40
-    local dirX = node.fallDir or 1
-    local tx, ty = node.x + dirX * reach, node.y
-    local best, bestD
-    for _, other in ipairs(game.world.nodes) do
-        if other.rushTree and other.active and other ~= node then
-            local dx, dy = other.x - tx, other.y - ty
-            local d2 = dx*dx + dy*dy
-            if d2 <= (reach * .65) ^ 2 and (not bestD or d2 < bestD) then best, bestD = other, d2 end
-        end
-    end
-    if best then
-        best.dominoChild = true
-        best.rushHp = 0
-        game.world:impactNode(best, game, true)
-        self:fellTree(best, game)
-        -- harvestBurst sets a new random fallDir; preserve the chain AFTER it.
-        if self.evolutions.collapse then best.fallDir=dirX end
-    end
-end
-
 function ClearcutMode:closestTreeInAxeRange(game)
     local bestNode, bestDistance
     local range2 = self.axeRange * self.axeRange
@@ -2043,7 +2016,6 @@ function ClearcutMode:updateSupplementSkills(dt, game)
     self:updateBoomerangAxe(dt, game)
     self:updateSeedMine(dt, game)
     self:updateChainLightning(dt, game)
-    self:updateSporeCloud(dt, game)
     self:updateBruteForce(dt, game)
     if self.auraPulse then self.auraPulse = math.max(0, self.auraPulse - dt * 2.2) end
 end
@@ -2363,44 +2335,6 @@ function ClearcutMode:updateChainLightning(dt, game)
     end
     if #points > 1 then
         self.lightningFx[#self.lightningFx+1] = {points=points, life=.25, maxLife=.25}
-    end
-end
-
-function ClearcutMode:updateSporeCloud(dt, game)
-    local level = self:levelOf("spore_cloud")
-    if level <= 0 then self.spore = nil; return end
-    self.spore = self.spore or {angle=0, hitTimer=0}
-    local power = self:power("spore_cloud")
-    local radius = 90 + power * 20
-    self.spore.angle = self.spore.angle + dt * 1.1
-    self.spore.hitTimer = math.max(0, self.spore.hitTimer - dt)
-    local sx = game.player.x + math.cos(self.spore.angle) * radius
-    local sy = game.player.y + math.sin(self.spore.angle) * radius * .6
-    self.spore.x, self.spore.y = sx, sy
-    local plagueDmg = 2 + power
-    if self.spore.hitTimer <= 0 then
-        self.spore.hitTimer = .4
-        local hitRadius = 42 + power * 8
-        for _, node in ipairs(game.world.nodes) do
-            if node.rushTree and node.active and not node.plagueMarked then
-                local dx, dy = node.x - sx, node.y - sy
-                if dx*dx + dy*dy <= hitRadius*hitRadius then
-                    node.plagueMarked = true
-                    self.plagued[#self.plagued+1] = {kind="tree", ref=node, timer=4 + power * 1.5, tickTimer=0, dmg=plagueDmg}
-                    SupplementArt.impact(self,"infection",node.x,node.y,24)
-                end
-            end
-        end
-        for _, e in ipairs(self.enemies) do
-            if not e.plagueMarked then
-                local dx, dy = e.x - sx, e.y - sy
-                if dx*dx + dy*dy <= hitRadius*hitRadius then
-                    e.plagueMarked = true
-                    self.plagued[#self.plagued+1] = {kind="enemy", ref=e, timer=4 + power * 1.5, tickTimer=0, dmg=plagueDmg}
-                    SupplementArt.impact(self,"infection",e.x,e.y,24)
-                end
-            end
-        end
     end
 end
 
@@ -4010,21 +3944,7 @@ local footnotePalette = {O={.16,.22,.04,1}, H={.9,.98,.6,1}, W={.85,.9,.4,1}}
 local loudVoicePalette = {O={.1,.16,.04,1}, H={.82,.95,.5,1}, W={.65,.8,.3,1}}
 local salivaGlandPalette = {O={.1,.15,.03,1}, H={.78,.92,.42,1}, W={.55,.72,.25,1}}
 local boomerangAxePalette = {O={.14,.09,.05,1}, M={.75,.77,.8,1}, H={.55,.55,.6,1}}
-local sporeCloudPalette = {O={.2,.14,.24,1}, H={.85,.72,.95,1}, W={.62,.45,.72,1}}
 local bruteForcePalette = {O={.05,.2,.08,1}, H={.55,1,.6,1}, W={.25,.85,.35,1}}
-
-local dominoRows = {
-    ".OOOOOOO.",
-    "OHHHHHHHO",
-    "OHWPWPWHO",
-    "OHWWWWWHO",
-    "OHWPWPWHO",
-    "OHWWWWWHO",
-    "OHWPWPWHO",
-    "OHHHHHHHO",
-    ".OOOOOOO.",
-}
-local dominoPalette = {O={.28,.16,.06,1}, H={.95,.88,.72,1}, W={.88,.78,.58,1}, P={.2,.14,.08,1}}
 
 local rootCuttingRows = {
     "....O....",
@@ -4060,7 +3980,6 @@ ClearcutMode.icons = {
     wide_blade = {rows = diamondRows, palette = wideBladePalette},
     berserker = {rows = boxRows, palette = berserkerPalette},
     shockwave = {rows = diamondRows, palette = shockwavePalette},
-    domino = {rows = dominoRows, palette = dominoPalette},
     dry_forest = {rows = diamondRows, palette = dryForestPalette},
     oil_drum = {rows = boxRows, palette = oilDrumPalette},
     toxic_rain = {rows = blobRows, palette = toxicRainPalette},
@@ -4087,7 +4006,6 @@ ClearcutMode.icons = {
     boomerang_axe = {rows = axeIconRows, palette = boomerangAxePalette},
     seed_mine = {rows = seedIconRows, palette = seedIconPalette},
     chain_lightning = {rows = lightningIconRows, palette = lightningIconPalette},
-    spore_cloud = {rows = blobRows, palette = sporeCloudPalette},
     brute_force = {rows = boxRows, palette = bruteForcePalette},
 }
 ClearcutMode.drawPixelGrid = drawPixelGrid

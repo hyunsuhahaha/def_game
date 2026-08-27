@@ -41,7 +41,7 @@ function Art.impact(mode,kind,x,y,radius)
     mode.supplementImpacts[#mode.supplementImpacts+1]={kind=kind,x=x,y=y,radius=radius,life=life,maxLife=life}
 end
 function Art.draw(mode,game,t)
-    local active=(mode.auraRadius and mode:levelOf("thorn_aura")>0) or (mode.spore and mode.spore.x)
+    local active=mode.auraRadius and mode:levelOf("thorn_aura")>0
     for _,key in ipairs({"bats","crowFx","whipFx","boomerangs","seeds","lightningFx","supplementImpacts"}) do
         if mode[key] and #mode[key]>0 then active=true;break end
     end
@@ -57,10 +57,6 @@ function Art.draw(mode,game,t)
         patch(7,s.x,s.y+5,72,46,p,t,0,1)
         sprite("seed",s.x,s.y-9,math.sin(t*(5+p*12))*.035,t,1,1+p*.13)
         if p>.70 then patch(6,s.x,s.y-12,35,35,1-(math.sin(t*24)+1)*.5,t,0,4) end
-    end
-    if mode.spore and mode.spore.x then
-        local s=mode.spore;local r=42+mode:levelOf("spore_cloud")*8
-        patch(5,s.x,s.y,r*2.1,r*2.1,0,t,0,2,1,1/1.05)
     end
     for _,fx in ipairs(mode.whipFx or {}) do
         patch(2,fx.x or px,fx.y or py,fx.range*2.1,fx.range*2.1,1-fx.life/fx.maxLife,t,fx.angle,0,1,1/1.05)

@@ -698,7 +698,6 @@ const SKILLS = {
     tagline: "직업이 뭐든, 몸에서 알아서 나가는 것들이 있다.",
     doctrine: "기본 공격과 무관하게 자동으로 발동하는 패시브 4종 + 전 직업에 열려 있는 파괴/억제 카드 4종.",
     nodes: [
-      {id:"domino",track:"destroy",name:"도미노",desc:"쓰러지는 나무가 진행 방향의 다른 나무를 함께 쓰러뜨립니다."},
       {id:"forced_growth",track:"suppress",name:"강제 성장",desc:"숲의 재생 속도가 크게 빨라지지만, 목재 경험치 획득량도 크게 늘어납니다."},
       {id:"bat_swarm",track:"supplement",name:"박쥐 떼",desc:"박쥐가 주위를 맴돌며 닿는 나무와 적에게 지속적으로 피해를 줍니다."},
       {id:"thorn_aura",track:"supplement",name:"가시 오라",desc:"몸 주위에 가시덩굴이 돋아나 주기적으로 주변 나무와 적에게 피해를 줍니다."},
@@ -707,7 +706,6 @@ const SKILLS = {
       {id:"boomerang_axe",track:"supplement",name:"부메랑 도끼",desc:"주기적으로 도끼가 날아가 나무와 적을 가르고 손으로 돌아옵니다."},
       {id:"seed_mine",track:"supplement",name:"씨앗 지뢰",desc:"주기적으로 씨앗 지뢰를 심습니다. 잠시 후 터져 주변 나무와 적에게 피해를 줍니다."},
       {id:"chain_lightning",track:"supplement",name:"번개 사슬",desc:"주기적으로 번개가 근처 나무·적 사이를 연쇄로 튀며 피해를 줍니다."},
-      {id:"spore_cloud",track:"supplement",name:"포자 구름",desc:"포자 구름이 멀찍이 느리게 맴돌며 닿는 나무와 적을 서서히 중독시킵니다."},
     ]
   }
 };
@@ -716,7 +714,6 @@ const SKILLS = {
    (src/clearcut_fusions.lua Fusions.definitions 기준). needs는 같은 job의 스킬 id를 가리킨다. */
 const FUSIONS = {
   physical: [
-    {name:"벌목 붕괴", needs:["shockwave","domino"], desc:"도미노로 쓰러진 나무도 같은 방향으로 다음 나무를 쓰러뜨립니다. 살아 있는 나무가 이어지는 동안 연쇄 붕괴가 계속됩니다."},
     {name:"무한 야근", needs:["berserker","shockwave"], desc:"10콤보부터 도끼 타격마다 반경 145의 충격파가 발생합니다. 주변 나무에 3 피해, 적에게 12 피해를 줍니다. 콤보가 끊기면 해제됩니다."},
   ],
   fire: [
