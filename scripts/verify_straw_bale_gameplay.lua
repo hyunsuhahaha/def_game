@@ -42,20 +42,21 @@ assert(spreadCalls==0 and igniteFxCalls==0,"straw bale used the ember-transfer p
 
 mode.cigaretteButts={}
 fixture.reset();local queue={};mode:queueWorldActors(queue,mode.smokerGroundTime)
-local found,bodyLarge,continuous=false,false,false
+local found,bodyLarge,animated,fireDraws=false,false,false,0
 for _,entry in ipairs(queue) do
     entry.draw()
 end
 for _,op in ipairs(fixture.commands) do
-    if op.file=="assets/fx/straw-bale/straw-bale-body-pixel-v4.png" then
+    if op.file=="assets/fx/straw-bale/straw-bale-body-pixel-v5.png" then
         found=true;bodyLarge=op.op=="draw" and op.filter=="nearest" and op.args[4]==.55
-    elseif op.file=="assets/fx/straw-bale/straw-bale-atlas-pixel-v3.png" and op.shader=="assets/shaders/straw-bale-fire.glsl" then
-        continuous=op.uniforms.fireTime and op.uniforms.fireGrid[1]>=34 and op.uniforms.fireLayer~=nil
+    elseif op.file=="assets/fx/straw-bale/straw-fire-a-atlas-pixel-v4.png" then
+        fireDraws=fireDraws+1
+        animated=op.op=="draw" and op.filter=="nearest" and op.quad and op.quad[3]==256 and op.quad[6]==112
     end
 end
 assert(found,"authored straw-bale atlas was not depth-queued")
 assert(bodyLarge,"straw-bale body was not enlarged")
-assert(continuous,"continuous-time flame shader was not depth-queued")
+assert(animated and fireDraws==2,"selected A fire loop was not depth-layered")
 if STRAW_CAPTURE then
     bale.x,bale.y=320,310
     local ground=love.graphics.newImage("assets/forest-ground-tile-v1.png")
@@ -68,4 +69,4 @@ if STRAW_CAPTURE then
         fixture.save("docs/previews/straw-bale-v4-"..frame.."-draws.json")
     end
 end
-print("STRAW_BALE_GAMEPLAY_OK cigarette_only delay=0.5 dot=150..220 damage=7..13 spread=none continuous_shader=v4")
+print("STRAW_BALE_GAMEPLAY_OK cigarette_only delay=0.5 dot=150..220 damage=7..13 spread=none fire=A/8frames detached=3")

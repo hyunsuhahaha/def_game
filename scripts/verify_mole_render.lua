@@ -32,8 +32,8 @@ assert(attackLeft.args[4]<0,"left-side claw frame is facing away from the attack
 
 local Art=require("src.mole_claw_art")
 local mode={
-    minerClawFx={{x=220,y=80,angle=0,level=5,curveFlip=-1,life=.18,maxLife=.22}},
-    minerClawMarks={{x=220,y=80,angle=0,level=5,curveFlip=-1,life=5,maxLife=6}}
+    minerClawFx={{x=220,y=80,angle=0,level=5,curveFlip=-1,halfWidth=52,life=.18,maxLife=.22}},
+    minerClawMarks={{x=220,y=80,angle=0,level=5,curveFlip=-1,halfWidth=52,life=5,maxLife=6}}
 }
 fixture.reset(); Art.draw(mode,{},0)
 local atlasDraws=0
@@ -42,6 +42,7 @@ for _,op in ipairs(fixture.commands) do
         atlasDraws=atlasDraws+1
         assert(op.quad[2]==256,"level-five claw did not use the strongest visual tier")
         assert(op.args[5]<0,"right-facing claw was not vertically mirrored")
+        assert(math.abs(math.abs(op.args[5])*39-52)<.001,"claw visual width does not match its gameplay half-width")
     end
 end
 assert(atlasDraws==2,"claw should draw one local contact and one persistent gouge, not a beam stack")
@@ -53,4 +54,4 @@ for _,op in ipairs(fixture.commands) do
         assert(op.args[5]>0,"accepted left-facing claw curve must remain unchanged")
     end
 end
-print("MOLE_RENDER_OK facing=movement attack_scale=stable claw_target=local mark=persistent tiers=3")
+print("MOLE_RENDER_OK facing=movement attack_scale=stable claw_target=local mark=persistent tiers=3 hitbox=matched level6=two_hands")

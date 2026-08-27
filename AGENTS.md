@@ -38,6 +38,6 @@
 
 ## 특성/스킬 문서화
 
-로비 특성(`src/character_traits.lua`), 인게임 스킬(`src/clearcut_mode.lua`의 `definitions`), 융합 스킬(`src/clearcut_fusions.lua`)을 추가·수정하면 반드시 **[`docs/character_dossier.html`](docs/character_dossier.html)의 데이터(`TRAITS`/`SKILLS`/`FUSIONS` 객체)를 같이 갱신**한다. 이 파일이 1차 소스다 — 저장소에 커밋되는 평범한 정적 HTML이라 Claude 로그인 없이 로컬에서 바로 열리고, Codex를 포함한 어떤 에이전트든 일반 텍스트 파일로 읽고 고칠 수 있다.
+로비 특성(`src/character_traits.lua`), 인게임 스킬(`src/clearcut_mode.lua`의 `definitions`), 융합 스킬(`src/clearcut_fusions.lua`)을 추가·수정하면 반드시 **같은 작업 안에서 [`docs/character_dossier.html`](docs/character_dossier.html)의 데이터(`TRAITS`/`SKILLS`/`FUSIONS` 객체)를 같이 갱신**한다. 이름·설명·레벨·조합 조건·효과 중 하나라도 바뀌면 대상이다. 이 동기화가 빠진 작업은 구현과 테스트가 끝났더라도 미완료로 취급한다. 이 파일이 1차 소스다 — 저장소에 커밋되는 평범한 정적 HTML이라 Claude 로그인 없이 로컬에서 바로 열리고, Codex를 포함한 어떤 에이전트든 일반 텍스트 파일로 읽고 고칠 수 있다.
 
 Claude Code 세션이라면, 이 파일을 고친 뒤 Claude Artifact "특성 인사기록부"(https://claude.ai/code/artifact/f441025a-1ef5-4b5f-8cda-13b3256f1083)도 같은 `url`로 재발행해서 사람이 보기 좋은 거울본을 최신 상태로 유지한다 — 단, 이 Artifact 갱신은 Claude 전용 도구가 필요해서 Codex 등 다른 에이전트는 스킵해도 된다(`docs/character_dossier.html`만 고치면 충분).

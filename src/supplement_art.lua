@@ -66,11 +66,12 @@ function Art.draw(mode,game,t)
             local q=b.trail[i];sprite("axe",q.x,q.y,q.angle,t,.10+(1-i/#b.trail)*.15)
         end
         sprite("axe",b.x,b.y,t*17,t)
-        patch(6,b.x,b.y,58,58,.45,t,t*17,b.phase=="back" and 4 or 0,1,.95,.65)
+        local hitRadius=b.radius or 64
+        patch(6,b.x,b.y,hitRadius*2.08,hitRadius*2.08,.45,t,t*17,b.phase=="back" and 4 or 0,1,.96,.65)
     end
     for _,bat in ipairs(mode.bats or {}) do
         if bat.x then
-            local direction=math.atan2(math.cos(bat.angle)*.6,-math.sin(bat.angle))
+            local direction=bat.flightAngle or math.atan2(math.cos(bat.angle)*.6,-math.sin(bat.angle))
             sprite("bat",bat.x,bat.y,direction+math.pi/2,t+bat.angle)
         end
     end
@@ -96,6 +97,7 @@ function Art.draw(mode,game,t)
     for _,fx in ipairs(mode.supplementImpacts or {}) do
         local p=1-fx.life/fx.maxLife
         if fx.kind=="seed" then patch(3,fx.x,fx.y,fx.radius*2.15,fx.radius*2.15,p,t,0,3)
+        elseif fx.kind=="bat" then patch(6,fx.x,fx.y,64,64,p,t,0,2,1,.92,1-p*.35)
         elseif fx.kind=="infection" then patch(5,fx.x,fx.y-12,45,50,p,t,0,3,1,.95,1-p)
         else patch(6,fx.x,fx.y,48,48,p,t,0,fx.kind=="axe" and 4 or 0) end
     end

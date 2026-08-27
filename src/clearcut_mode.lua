@@ -16,6 +16,7 @@ local SupplementArt = require("src.supplement_art")
 local PhilosopherArt = require("src.philosopher_art")
 local RevivalCrowdArt = require("src.revival_crowd_art")
 local SmokeRingArt = require("src.smoke_ring_art")
+local BeeArt = require("src.bee_art")
 
 local ClearcutMode = {}
 ClearcutMode.__index = ClearcutMode
@@ -55,7 +56,7 @@ local definitions = {
     {id="demolition", track="develop", name="철거 폭파", desc="돌진이 끝나는 지점에서 폭발이 일어나 주변 나무에도 피해를 줍니다.", max=6, color={1,.45,.15}, job="developer"},
     {id="site_clearance", track="develop", name="부지 정지 작업", desc="돌진이 지나간 자리는 다시는 나무가 자라지 않는 부지가 됩니다.", max=6, color={.55,.5,.55}, job="developer"},
     -- 굴착력 (dig) — 발톱 할퀴기와 지하 돌진으로 얼마나 거칠게 밀어내느냐 [코인 채굴꾼 전용]
-    {id="detector", track="dig", name="손톱 강화 — 복리 발톱", desc="기본 할퀴기의 범위와 피해가 늘어납니다. 강화할수록 손톱 궤적이 길고 굵어지며, 3단계와 5단계에서 카툰 픽셀 잔상도 강해집니다.", max=6, color={.85,.68,.22}, job="miner"},
+    {id="detector", track="dig", name="손톱 강화 — 복리 발톱", desc="기본 할퀴기의 범위와 피해가 늘어나고 보이는 발톱 궤적도 실제 판정 폭에 맞춰 커집니다. 6레벨에는 양손으로 동시에 할퀴지만 피해는 한 번만 적용됩니다.", max=6, color={.85,.68,.22}, job="miner"},
     {id="burrow_uproot", track="dig", name="지하 강제집행", desc="SPACE 또는 우클릭 잠복의 재사용 시간이 줄고, 이동 경로에서 자동으로 옆으로 튕겨 나가는 나무의 피해와 관통 횟수가 늘어납니다.", max=6, color={.58,.42,.24}, job="miner"},
     {id="brute_force", track="dig", name="브루트포스 어택", desc="지상에서 수많은 숫자 조합을 빠르게 생성한 뒤 사방으로 발사합니다. 날아간 숫자는 닿는 나무와 적에게 피해를 줍니다.", max=6, color={.3,.9,.4}, job="miner"},
     -- 독설력 (venom) — 말을 오래 붙잡을수록 사거리와 독성이 강해진다 [차라투스트라는 이렇게 말했다 전용]
@@ -65,12 +66,12 @@ local definitions = {
     {id="loud_voice", track="venom", name="목청 키우기", desc="침이 닿는 범위가 넓어집니다.", max=6, color={.65,.8,.3}, job="philosopher"},
     {id="saliva_gland", track="venom", name="침샘 발달", desc="침에 맞은 대상은 서서히 중독되어 지속 피해를 입습니다.", max=6, color={.55,.72,.25}, job="philosopher"},
     -- 보조력 (supplement) — 기본 공격과 무관하게 알아서 나가는 공용 패시브 [전 직업 공용]
-    {id="bat_swarm", track="supplement", name="박쥐 떼", desc="박쥐가 주위를 맴돌며 닿는 나무와 적에게 지속적으로 피해를 줍니다.", max=6, color={.55,.42,.72}},
-    {id="thorn_aura", track="supplement", name="가시 오라", desc="몸 주위에 가시덩굴이 돋아나 주기적으로 주변 나무와 적에게 피해를 줍니다.", max=6, color={.42,.68,.32}},
+    {id="bat_swarm", track="supplement", name="박쥐 떼", desc="주위를 맴도는 박쥐가 주기적으로 주변 대상 하나를 고른 뒤 급강하해 쪼아버립니다. 사거리 안에 몬스터가 있으면 나무보다 먼저 노립니다.", max=6, color={.55,.42,.72}},
+    {id="thorn_aura", track="supplement", name="가시 오라", desc="몸 주위의 넓은 가시덩굴 지대가 주기적으로 주변 나무와 적에게 피해를 줍니다.", max=6, color={.42,.68,.32}},
     {id="crow_strike", track="supplement", name="까마귀 습격", desc="주기적으로 까마귀가 급강하해 사거리 내 가장 먼 나무나 적을 공격합니다.", max=6, color={.3,.28,.36}},
-    {id="vine_whip", track="supplement", name="덩굴 채찍", desc="주기적으로 덩굴을 채찍처럼 휘둘러 가장 가까운 방향의 부채꼴 범위를 가격합니다.", max=6, color={.35,.55,.22}},
-    {id="boomerang_axe", track="supplement", name="부메랑 도끼", desc="주기적으로 도끼가 날아가 나무와 적을 가르고 손으로 돌아옵니다.", max=6, color={.6,.6,.65}},
-    {id="seed_mine", track="supplement", name="씨앗 지뢰", desc="주기적으로 씨앗 지뢰를 심습니다. 잠시 후 터져 주변 나무와 적에게 피해를 줍니다.", max=6, color={.65,.45,.2}},
+    {id="vine_whip", track="supplement", name="덩굴 채찍", desc="주기적으로 긴 덩굴을 채찍처럼 휘둘러 가장 가까운 방향의 넓은 부채꼴 범위를 가격합니다.", max=6, color={.35,.55,.22}},
+    {id="boomerang_axe", track="supplement", name="부메랑 도끼", desc="넓은 회전 피격 범위를 가진 도끼가 날아가 나무와 적을 가르고 손으로 돌아옵니다.", max=6, color={.6,.6,.65}},
+    {id="seed_mine", track="supplement", name="씨앗 지뢰", desc="주기적으로 씨앗 지뢰를 심습니다. 잠시 후 크게 터져 넓은 범위의 나무와 적에게 피해를 줍니다.", max=6, color={.65,.45,.2}},
     {id="chain_lightning", track="supplement", name="번개 사슬", desc="주기적으로 번개가 근처 나무·적 사이를 연쇄로 튀며 피해를 줍니다.", max=6, color={.35,.75,.95}},
 }
 
@@ -2001,6 +2002,21 @@ function ClearcutMode:applyClawSwipe(tx, ty, game)
     -- Preserve the accepted left-facing curve. Right-facing swipes use its
     -- exact mirror image rather than a 180-degree rotation with wrong chirality.
     local curveFlip=(game.player.facing or 1)>0 and -1 or 1
+    local dualHands=clawLevel>=6
+    local perpx,perpy=-ny,nx
+    local function spawnClaws(x,y)
+        if dualHands then
+            -- Two narrower mirrored hand swipes share one damage envelope.
+            -- offset + hand width equals halfWidth, so visuals cannot extend
+            -- beyond the gameplay hit area or leave an unshown damage strip.
+            local offset=halfWidth*.28
+            local handWidth=halfWidth-offset
+            MoleClawArt.spawn(self,x+perpx*offset,y+perpy*offset,angle,clawLevel,curveFlip,handWidth,1)
+            MoleClawArt.spawn(self,x-perpx*offset,y-perpy*offset,angle,clawLevel,-curveFlip,handWidth,2)
+        else
+            MoleClawArt.spawn(self,x,y,angle,clawLevel,curveFlip,halfWidth,1)
+        end
+    end
     local candidates = {}
     for _, node in ipairs(game.world.nodes) do
         if node.rushTree and node.active then
@@ -2016,7 +2032,7 @@ function ClearcutMode:applyClawSwipe(tx, ty, game)
     local marked=false
     for index=1,math.min(limit,#candidates) do
         local node = candidates[index].node
-        MoleClawArt.spawn(self,node.x,node.y-54,angle,clawLevel,curveFlip)
+        spawnClaws(node.x,node.y-54)
         marked=true
         node.rushHp = (node.rushHp or node.rushMaxHp) - damage
         game.world:impactNode(node, game, true)
@@ -2027,7 +2043,7 @@ function ClearcutMode:applyClawSwipe(tx, ty, game)
         local rx, ry = enemy.x-px, enemy.y-py
         local along, side = rx*nx+ry*ny, math.abs(rx*ny-ry*nx)
         if along >= 0 and along <= range and side <= halfWidth then
-            MoleClawArt.spawn(self,enemy.x,enemy.y-12,angle,clawLevel,curveFlip)
+            spawnClaws(enemy.x,enemy.y-12)
             marked=true
             enemy.hp, enemy.visualHit = enemy.hp - damage*2.2, .14
             SupplementArt.impact(self,"axe",enemy.x,enemy.y,26)
@@ -2035,7 +2051,7 @@ function ClearcutMode:applyClawSwipe(tx, ty, game)
     end
     if not marked then
         local contact=math.min(range,distance)
-        MoleClawArt.spawn(self,px+nx*contact,py+ny*contact,angle,clawLevel,curveFlip)
+        spawnClaws(px+nx*contact,py+ny*contact)
     end
     self.traitFx:emit("axe",px+nx*range*.58,py+ny*range*.58,{radius=halfWidth,power=.8,angle=math.atan2 and math.atan2(ny,nx) or 0})
     if game.camera then game.camera.trauma=math.min(1,game.camera.trauma+.09) end
@@ -2212,36 +2228,97 @@ end
 
 function ClearcutMode:updateBatSwarm(dt, game)
     local level = self:levelOf("bat_swarm")
-    if level <= 0 then self.bats = nil; return end
+    if level <= 0 then self.bats = nil;self.batAttackTimer=nil; return end
     local growth=self:growth("bat_swarm")
     local count = 1+math.floor(growth*3+.0001)
     self.bats = self.bats or {}
     for i = 1, count do
-        self.bats[i] = self.bats[i] or {angle = (i / count) * math.pi * 2, hitTimer = 0}
+        self.bats[i] = self.bats[i] or {angle = (i / count) * math.pi * 2,state="orbit"}
     end
     for i = #self.bats, count + 1, -1 do self.bats[i] = nil end
-    local radius = 78 + growth * 45
-    local dmg = .8 + growth * 2
+    local orbitRadius = 78 + growth * 45
+    local targetRange = 360 + growth * 180
+    local dmg = .9 + growth * 3.1
+    local atan2=math.atan2 or math.atan
+    local function alive(target)
+        return target and ((target.rushTree and target.active) or (not target.rushTree and target.hp and target.hp>0))
+    end
+    local function chooseTarget()
+        local best,bestD2=nil,targetRange*targetRange
+        -- Monster candidates are a separate first pass, so even a nearer tree
+        -- cannot steal a dive while a living monster is in search range.
+        for _,enemy in ipairs(self.enemies) do
+            if enemy.hp>0 then
+                local dx,dy=enemy.x-game.player.x,enemy.y-game.player.y
+                local d2=dx*dx+dy*dy
+                if d2<=bestD2 then best,bestD2=enemy,d2 end
+            end
+        end
+        if best then return best end
+        for _,node in ipairs(game.world.nodes) do
+            if node.rushTree and node.active then
+                local dx,dy=node.x-game.player.x,node.y-game.player.y
+                local d2=dx*dx+dy*dy
+                if d2<=bestD2 then best,bestD2=node,d2 end
+            end
+        end
+        return best
+    end
     for _, bat in ipairs(self.bats) do
-        bat.angle = bat.angle + dt * 2.6
-        bat.hitTimer = math.max(0, bat.hitTimer - dt)
-        local bx, by = game.player.x + math.cos(bat.angle) * radius, game.player.y + math.sin(bat.angle) * radius * .6 - 14
-        bat.x, bat.y = bx, by
-        if bat.hitTimer <= 0 then
-            bat.hitTimer = .6-growth*.15
-            for _, node in ipairs(game.world.nodes) do
-                if node.rushTree and node.active then
-                    local dx, dy = node.x - bx, node.y - by
-                    if dx*dx + dy*dy <= 24*24 then
-                        node.rushHp = (node.rushHp or node.rushMaxHp) - dmg
-                        game.world:impactNode(node, game, false)
-                        if node.rushHp <= 0 then self:fellTree(node, game) end
+        bat.angle = bat.angle + dt * 2.15
+        local orbitX=game.player.x+math.cos(bat.angle)*orbitRadius
+        local orbitY=game.player.y+math.sin(bat.angle)*orbitRadius*.6-14
+        if bat.state=="dive" then
+            bat.moveT=math.min(1,(bat.moveT or 0)+dt/(bat.moveDur or .28))
+            local target=bat.target
+            if alive(target) then
+                bat.targetX=target.x;bat.targetY=target.y-(target.rushTree and 42 or 12)
+            end
+            local p=1-(1-bat.moveT)^3
+            local oldX,oldY=bat.x or bat.startX,bat.y or bat.startY
+            bat.x=bat.startX+(bat.targetX-bat.startX)*p
+            bat.y=bat.startY+(bat.targetY-bat.startY)*p
+            bat.flightAngle=atan2(bat.y-oldY,bat.x-oldX)
+            if bat.moveT>=1 then
+                if alive(target) then
+                    if target.rushTree then
+                        target.rushHp=(target.rushHp or target.rushMaxHp)-dmg
+                        game.world:impactNode(target,game,false)
+                        if target.rushHp<=0 then self:fellTree(target,game) end
+                    else
+                        target.hp=target.hp-dmg;target.visualHit=.14
                     end
                 end
+                SupplementArt.impact(self,"bat",bat.targetX,bat.targetY,32)
+                bat.state="return";bat.moveT=0;bat.startX=bat.x;bat.startY=bat.y;bat.target=nil
             end
-            self:damageEnemiesInRadius(bx, by, 24, dmg, game)
+        elseif bat.state=="return" then
+            bat.moveT=math.min(1,(bat.moveT or 0)+dt/.24)
+            local p=bat.moveT*bat.moveT*(3-2*bat.moveT)
+            local oldX,oldY=bat.x or bat.startX,bat.y or bat.startY
+            bat.x=bat.startX+(orbitX-bat.startX)*p
+            bat.y=bat.startY+(orbitY-bat.startY)*p
+            bat.flightAngle=atan2(bat.y-oldY,bat.x-oldX)
+            if bat.moveT>=1 then bat.state="orbit" end
+        else
+            bat.state="orbit";bat.x,bat.y=orbitX,orbitY
+            bat.flightAngle=atan2(math.cos(bat.angle)*.6,-math.sin(bat.angle))
         end
     end
+    self.batAttackTimer=(self.batAttackTimer or 0)-dt
+    if self.batAttackTimer>0 then return end
+    local target=chooseTarget()
+    if not target then self.batAttackTimer=.18;return end
+    local selected
+    for step=1,count do
+        local index=((self.batAttackCursor or 0)+step-1)%count+1
+        if self.bats[index].state=="orbit" then selected=self.bats[index];self.batAttackCursor=index;break end
+    end
+    if not selected then self.batAttackTimer=.08;return end
+    selected.state="dive";selected.moveT=0;selected.moveDur=.22+math.min(.16,math.sqrt((target.x-selected.x)^2+(target.y-selected.y)^2)/1500)
+    selected.startX,selected.startY=selected.x,selected.y
+    selected.target=target;selected.targetX=target.x;selected.targetY=target.y-(target.rushTree and 42 or 12)
+    self.batAttackTimer=1.1-growth*.45
 end
 
 function ClearcutMode:updateThornAura(dt, game)
@@ -2251,7 +2328,7 @@ function ClearcutMode:updateThornAura(dt, game)
     if self.auraTimer > 0 then return end
     local growth=self:growth("thorn_aura")
     self.auraTimer = 2.2-growth*1.2
-    local radius = 55 + growth*103
+    local radius = 120 + growth*215
     local dmg = 1 + growth*3
     for _, node in ipairs(game.world.nodes) do
         if node.rushTree and node.active then
@@ -2326,7 +2403,7 @@ function ClearcutMode:updateVineWhip(dt, game)
     if self.whipTimer > 0 then return end
     local growth=self:growth("vine_whip")
     self.whipTimer = 7-growth*3.5
-    local range = 125+growth*155
+    local range = 260+growth*330
     -- 조준 방향은 몬스터를 우선한다: 사거리 안에 적이 있으면 나무는 후보에서 뺀다.
     local nearest, nearestD2 = nil, range * range
     for _, e in ipairs(self.enemies) do
@@ -2408,9 +2485,10 @@ function ClearcutMode:updateBoomerangAxe(dt, game)
             for _, node in ipairs(game.world.nodes) do
                 if node.rushTree and node.active and not b.hitSet[node] then
                     local dx2, dy2 = node.x - b.x, node.y - b.y
-                    if dx2*dx2 + dy2*dy2 <= 30*30 then
+                    local hitRadius=b.radius or 64
+                    if dx2*dx2 + dy2*dy2 <= hitRadius*hitRadius then
                         b.hitSet[node] = true
-                        SupplementArt.impact(self,"axe",node.x,node.y,24)
+                        SupplementArt.impact(self,"axe",node.x,node.y,hitRadius)
                         node.rushHp = (node.rushHp or node.rushMaxHp) - b.dmg
                         game.world:impactNode(node, game, false)
                         if node.rushHp <= 0 then self:fellTree(node, game) end
@@ -2420,9 +2498,10 @@ function ClearcutMode:updateBoomerangAxe(dt, game)
             for _, e in ipairs(self.enemies) do
                 if not b.hitSet[e] then
                     local dx2, dy2 = e.x - b.x, e.y - b.y
-                    if dx2*dx2 + dy2*dy2 <= 30*30 then
+                    local hitRadius=b.radius or 64
+                    if dx2*dx2 + dy2*dy2 <= hitRadius*hitRadius then
                         b.hitSet[e] = true
-                        SupplementArt.impact(self,"axe",e.x,e.y,24)
+                        SupplementArt.impact(self,"axe",e.x,e.y,hitRadius)
                         e.hp = e.hp - b.dmg
                         e.visualHit = .14
                     end
@@ -2441,7 +2520,8 @@ function ClearcutMode:updateBoomerangAxe(dt, game)
     local a = love.math.random() * math.pi * 2
     self.boomerangs[#self.boomerangs+1] = {
         x=game.player.x, y=game.player.y, dx=math.cos(a), dy=math.sin(a),
-        traveled=0,maxDist=200+growth*244,phase="out",hitSet={},dmg=2+growth*12.2,angle=a
+        traveled=0,maxDist=200+growth*244,phase="out",hitSet={},dmg=2+growth*12.2,
+        radius=64+growth*24,angle=a
     }
 end
 
@@ -2477,7 +2557,7 @@ function ClearcutMode:updateSeedMine(dt, game)
     local r = 40 + love.math.random() * 120
     self.seeds[#self.seeds+1] = {
         x=game.player.x + math.cos(a) * r, y=game.player.y + math.sin(a) * r,
-        fuse=1.1,maxFuse=1.1,radius=50+growth*89,dmg=2.5+growth*18.3
+        fuse=1.1,maxFuse=1.1,radius=110+growth*185,dmg=2.5+growth*18.3
     }
 end
 
@@ -3473,19 +3553,8 @@ function ClearcutMode:finish(game, victory)
     game.mode="clearcut_results"
 end
 
-local function drawBeeBody(x, y, angle, wingPhase)
-    love.graphics.push(); love.graphics.translate(x, y); love.graphics.rotate(angle)
-    local flap = math.abs(math.sin(wingPhase)) * .9 + .15
-    love.graphics.setColor(1, 1, 1, .5 * flap)
-    love.graphics.ellipse("fill", -.5, -2.4, 2.6, 1.3 * flap)
-    love.graphics.ellipse("fill", 1.6, -2.2, 2.2, 1.1 * flap)
-    love.graphics.setColor(.12, .09, .02, 1); love.graphics.ellipse("fill", 0, 0, 3.1, 2)
-    love.graphics.setColor(1, .78, .1, 1)
-    love.graphics.ellipse("fill", -1.6, 0, 1, 1.9)
-    love.graphics.ellipse("fill", .8, 0, 1, 1.9)
-    love.graphics.setColor(0, 0, 0, .8); love.graphics.setLineWidth(.7); love.graphics.ellipse("line", 0, 0, 3.1, 2)
-    love.graphics.setColor(.08, .06, .02, 1); love.graphics.circle("fill", 3, 0, 1)
-    love.graphics.pop()
+local function drawBeeBody(x, y, angle, wingPhase, scale)
+    BeeArt.draw(x,y,angle,wingPhase,scale)
 end
 
 local function drawBeehive(x, y, t)
@@ -3511,7 +3580,7 @@ local function drawBeehive(x, y, t)
     for i = 1, 3 do
         local a = t * 4.5 + i * 2.1
         local bx, by = x + math.cos(a) * 15, hy - 5 + math.sin(a * 1.4) * 9
-        drawBeeBody(bx, by, a + math.pi / 2, t * 30 + i)
+        drawBeeBody(bx, by, a + math.pi / 2, t * 30 + i,.72)
     end
 end
 
@@ -4616,7 +4685,7 @@ function ClearcutMode:drawWorldOverlay(game)
         for i = 1, 5 do
             local a = t * 14 + i * 1.3
             local bx, by = swarm.x + math.cos(a) * (8 + i), swarm.y + math.sin(a * 1.7) * (6 + i * .4)
-            drawBeeBody(bx, by, a, t * 34 + i * 2)
+            drawBeeBody(bx, by, a, t * 34 + i * 2,.90)
         end
     end
     if self.rootedTimer > 0 then
@@ -5040,6 +5109,28 @@ function ClearcutMode:drawHUD(game,fonts)
         love.graphics.setFont(fonts.small); love.graphics.setColor(accentColor[1], accentColor[2], accentColor[3], .95)
         local sub = isRain and (active and "불이 붙지 않는다" or "곧 비가 쏟아진다...") or (active and "낙석을 피해 움직여라" or "곧 땅이 흔들린다...")
         love.graphics.printf(sub, dbx, dby + 31, dbw, "center")
+    end
+
+    -- 연속 채집 콤보(생계형 나무꾼 전용, self.streak): 0.9초 안에 다시 타격하지
+    -- 않으면 끊긴다. 오른쪽 상단, 광폭화/재난 패널이 떠 있으면 그 아래로 밀려난다.
+    if self.streak > 0 then
+        local cbw = 190
+        local cbx = w - 16 - cbw
+        local stacked = 0
+        if self.berserkState == "warn" or self.berserkState == "active" then stacked = stacked + 1 end
+        if self.disasterState == "warn" or self.disasterState == "active" then stacked = stacked + 1 end
+        local cby = 16 + stacked * 62
+        love.graphics.setColor(.05, .045, .02, .92); love.graphics.rectangle("fill", cbx, cby, cbw, 54, 8, 8)
+        love.graphics.setLineWidth(1.5); love.graphics.setColor(1, .62, .18, .9)
+        love.graphics.rectangle("line", cbx + .5, cby + .5, cbw - 1, 53, 8, 8)
+        love.graphics.setFont(fonts.body); love.graphics.setColor(1, .85, .4, 1)
+        love.graphics.printf("연속 채집 ×" .. self.streak, cbx, cby + 6, cbw, "center")
+        local remaining = math.max(0, .9 - (self.elapsed - self.lastHitAt))
+        love.graphics.setColor(.14, .1, .05, .95); love.graphics.rectangle("fill", cbx + 12, cby + 33, cbw - 24, 12, 4, 4)
+        love.graphics.setColor(1, .55, .15, 1)
+        love.graphics.rectangle("fill", cbx + 12, cby + 33, (cbw - 24) * (remaining / .9), 12, 4, 4)
+        love.graphics.setFont(fonts.small); love.graphics.setColor(1, 1, 1, .92)
+        love.graphics.printf(string.format("%.1f초", remaining), cbx, cby + 33, cbw, "center")
     end
 
     local barH = 8

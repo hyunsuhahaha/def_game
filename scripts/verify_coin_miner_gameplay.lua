@@ -45,6 +45,24 @@ assert(mode:getUpgradeDefinition("detector").name:find("손톱 강화",1,true),"
 mode:updateMinerAttack(.3,game,false)
 assert(#mode.minerClawFx==0 and #mode.minerClawMarks==1,"contact flash should end while the scratch mark remains")
 
+-- Max rank uses both hands, but the paired visuals still form exactly one
+-- damage envelope and therefore never double the damage.
+local maxMode=ClearcutMode.new()
+maxMode.job="miner";maxMode.levels.detector=6
+maxMode.permanentTraits={attackSpeed=1,range=0,area=0,extraTargets=0,treeDamage=0,moveSpeed=1}
+local maxTree={rushTree=true,active=true,x=160,y=100,rushHp=100,rushMaxHp=100,treeVariant=1}
+local emptyWorld={nodes={maxTree},impactNode=function() end}
+local maxGame={player=player,world=emptyWorld,camera={trauma=0}}
+maxMode:applyClawSwipe(260,100,maxGame)
+assert(#maxMode.minerClawFx==2 and #maxMode.minerClawMarks==2,"level-six claw must swipe with both hands")
+local a,b=maxMode.minerClawFx[1],maxMode.minerClawFx[2]
+assert(a.hand==1 and b.hand==2 and a.curveFlip==-b.curveFlip,"two hands must use mirrored claw curves")
+local gameplayHalfWidth=34+maxMode:power("detector")*5
+local offset=math.abs(a.y-b.y)*.5
+assert(math.abs(offset+a.halfWidth-gameplayHalfWidth)<.001,"two-hand effect does not match gameplay hit width")
+local singleHitDamage=2+maxMode:power("detector")*.65
+assert(math.abs(maxTree.rushHp-(100-singleHitDamage))<.001,"two-hand visual must not apply claw damage twice")
+
 assert(mode:activateMinerBurrow(game)==true)
 assert(mode.minerBurrow and mode.minerBurrow.state=="enter")
 mode:updateMinerBurrow(.3,game)
