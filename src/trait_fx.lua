@@ -50,7 +50,8 @@ local function drawArc(cx,cy,r,a1,a2,segments)
     local points={}
     for i=0,segments do
         local a=a1+(a2-a1)*i/segments
-        points[#points+1],points[#points+1]=cx+math.cos(a)*r,cy+math.sin(a)*r*.58
+        points[#points+1]=cx+math.cos(a)*r
+        points[#points+1]=cy+math.sin(a)*r*.58
     end
     love.graphics.line(points)
 end

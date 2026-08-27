@@ -3,6 +3,9 @@ local TraitFx = require("src.trait_fx")
 local Cigarette = require("src.cigarette_sprite")
 local CigaretteButts = require("src.cigarette_butts")
 local CigaretteButtArt = require("src.cigarette_butt_art")
+local OilTrailArt = require("src.oil_trail_art")
+local StrawBaleArt = require("src.straw_bale_art")
+local MoleBurrowArt = require("src.mole_burrow_art")
 local ForestArt = require("src.forest_arcade_art")
 local ForestScenery = require("src.forest_scenery")
 local Fusions = require("src.clearcut_fusions")
@@ -38,7 +41,7 @@ local definitions = {
     {id="dry_forest", track="spread", name="건조주의보 무시", desc="꽁초의 착화 확률이 레벨당 +6%p 높아지고(최대 75%), 붙은 불이 주변 나무로 더 빠르고 넓게 번집니다.", max=6, color={1,.5,.15}, job="fire"},
     {id="oil_drum", track="spread", name="라이터 기름 유출", desc="나무가 다 타버리면 레벨당 폭발 확률이 크게 올라(1렙 7.5%→5렙 63%), 6렙에서는 100% 확정 발동합니다.", max=6, color={1,.62,.1}, job="fire"},
     {id="embers", track="spread", name="바람 부는 날 흡연", desc="다 타버린 나무에서 불씨가 튀어 멀리 있는 나무에도 옮겨붙습니다.", max=6, color={1,.75,.25}, job="fire"},
-    {id="straw_bale", track="spread", name="마른 건초더미 생성", desc="주기적으로 주변에 마른 건초더미를 만들어 둡니다. 건초더미는 불이 아주 잘 붙어서, 근처에서 불이 타오르면 그 즉시 옮겨붙어 한동안 활활 타오르며 그 위에 있는 적에게 지속 피해를 줍니다.", max=6, color={.85,.72,.25}, job="fire"},
+    {id="straw_bale", track="spread", name="마른 건초더미 생성", desc="주기적으로 주변에 마른 건초더미를 둡니다. 그 위에 담배꽁초를 던지면 0.5초 뒤 불이 붙어 주변 적에게 지속 피해를 줍니다. 불은 다른 대상으로 번지지 않습니다.", max=6, color={.85,.72,.25}, job="fire"},
     -- 억제력 (suppress) — 자연이 얼마나 다시 못 자라게 하느냐 [비건 단체 회장 전용 + 공용]
     {id="herbicide", track="suppress", name="제초제", desc="벤 자리가 죽은 땅이 될 확률이 레벨당 크게 올라(1렙 11%→5렙 92%), 6렙에서는 사실상 100% 확정됩니다.", max=6, color={.62,.4,.85}},
     {id="root_cutting", track="suppress", name="뿌리 절단", desc="나무를 벨 때마다 숲의 재생력이 약해집니다.", max=6, color={.5,.62,.9}},
@@ -49,9 +52,9 @@ local definitions = {
     {id="heavy_machinery", track="develop", name="중장비 투입", desc="돌진 경로의 폭이 넓어져 더 많은 나무를 밀어버립니다.", max=6, color={1,.72,.15}, job="developer"},
     {id="demolition", track="develop", name="철거 폭파", desc="돌진이 끝나는 지점에서 폭발이 일어나 주변 나무에도 피해를 줍니다.", max=6, color={1,.45,.15}, job="developer"},
     {id="site_clearance", track="develop", name="부지 정지 작업", desc="돌진이 지나간 자리는 다시는 나무가 자라지 않는 부지가 됩니다.", max=6, color={.55,.5,.55}, job="developer"},
-    -- 굴착력 (dig) — 한 번 내려찍을 때 얼마나 넓고 확실하게 파헤치느냐 [코인 채굴꾼 전용]
+    -- 굴착력 (dig) — 발톱 할퀴기와 지하 돌진으로 얼마나 거칠게 밀어내느냐 [코인 채굴꾼 전용]
     {id="detector", track="dig", name="복리로 자란 발톱", desc="기본 할퀴기의 범위와 피해가 늘어납니다. 채굴 장비보다 유지비가 싸다는 결론입니다.", max=6, color={.85,.68,.22}, job="miner"},
-    {id="burrow_uproot", track="dig", name="지하 강제집행", desc="SPACE 또는 우클릭 잠복의 재사용 시간이 줄고, 뿌리째 뽑아 던진 나무의 피해와 관통 횟수가 늘어납니다.", max=6, color={.58,.42,.24}, job="miner"},
+    {id="burrow_uproot", track="dig", name="지하 강제집행", desc="SPACE 또는 우클릭 잠복의 재사용 시간이 줄고, 이동 경로에서 자동으로 옆으로 튕겨 나가는 나무의 피해와 관통 횟수가 늘어납니다.", max=6, color={.58,.42,.24}, job="miner"},
     {id="deep_scan", track="dig", name="정밀 탐사", desc="탐지 반경이 넓어지고 판정 속도가 빨라집니다.", max=6, color={.95,.82,.35}, job="miner"},
     {id="backhoe", track="dig", name="굴착기 대여", desc="굴착 한 방의 범위와 위력이 커집니다. 렌탈비는... 나중에 생각하자.", max=6, color={.75,.55,.2}, job="miner"},
     {id="jackpot", track="dig", name="이번엔 진짜 있을 것 같다", desc="가끔 '발견!' 판정이 터져 훨씬 넓은 범위가 한 번에 무너지고 목재를 왕창 얻습니다.", max=6, color={1,.84,.3}, job="miner"},
@@ -130,6 +133,7 @@ end
 
 function ClearcutMode.new()
     return setmetatable({
+        sandbox=false,
         levels={}, choices={}, level=1, xp=0, xpNext=10, pending=0,
         totalWood=0, treesFelled=0, elapsed=0, initialTrees=0, remainingTrees=0,
         maxMulti=1, maxChain=0, axeCooldown=0, axeRange=150, milestoneFired={},
@@ -138,10 +142,10 @@ function ClearcutMode.new()
         bees={}, beeSlow=false, beeSwarmsTriggered=0, beehiveTotal=0,
         streak=0, lastHitAt=-10, molotovTimer=0, wildfireTimer=0, toxicTimer=0, evolutions={}, molotovs={},
         cigaretteButts={}, emberTransfers={}, emberArrivals={}, smokerGroundTime=0,
-        treeSparks={}, treeSparkArrivals={}, strawTimer=0, strawBales={},
-        oilTrail={}, oilTrailTimer=0,
+        treeSparks={}, treeSparkArrivals={}, strawTimer=0, strawBales={}, strawBaleSequence=0,
+        oilTrail={}, oilTrailTimer=0, oilTrailLastX=nil, oilTrailLastY=nil, oilTrailSequence=0,
         job=nil, attackCooldown=0, dashing=nil, dashTrail={}, smoking=nil,
-        minerClawAction=nil, minerBurrow=nil, minerBurrowCooldown=0, thrownTrees={},
+        minerClawAction=nil, minerBurrow=nil, minerBurrowCooldown=0, thrownTrees={}, burrowTracks={}, burrowTrackSequence=0,
         smokerHeldLast=false, physicalAction=nil, veganAction=nil, developerAction=nil,
         actionAudit={physicalImpact=0,cigaretteFlick=0,veganBite=0,developerRemote=0},
         hp=100, maxHp=100, invulnTimer=0, dead=false,
@@ -171,6 +175,22 @@ end
 
 function ClearcutMode:levelOf(id) return self.levels[id] or 0 end
 function ClearcutMode:getUpgradeDefinition(id) return upgradeById[id] end
+
+-- 스킬 연습장 전용: 현재 직업이 실제로 쓸 수 있는 스킬(직업 전용 + 공용) 전체를 나열한다.
+-- 만렙/배니시/카드 뽑기 같은 정상 진행 제약 없이 화면에서 바로 레벨을 조절하기 위한 목록이다.
+function ClearcutMode:sandboxSkillList()
+    local list = {}
+    for _, def in ipairs(definitions) do
+        if not def.job or def.job == self.job then list[#list + 1] = def end
+    end
+    return list
+end
+
+function ClearcutMode:sandboxSetLevel(id, delta)
+    local def = upgradeById[id]
+    if not def then return end
+    self.levels[id] = math.max(0, math.min(def.max, self:levelOf(id) + delta))
+end
 -- 레벨→실질 파워 곡선 (만렙 3→6 확장에 맞춘 재설계).
 -- 초반 픽은 완만하고, 3레벨이 옛 만렙과 거의 같고, 6레벨에서 옛 만렙의 약 1.87배로 마무리된다.
 -- 파워 스케일링(범위/피해/사거리 등)엔 이걸 쓰고, "만렙에서만" 발동하는 보너스 판정은 levelOf(id)>=6으로 확인한다.
@@ -317,14 +337,17 @@ function ClearcutMode:update(dt, game)
     self.elapsed = self.elapsed + dt
     self:updateHeldAxe(dt, game)
     self:updateThrownTrees(dt, game)
+    self:updateBurrowTracks(dt)
     self:updateSupplementSkills(dt, game)
     self:updateRegrowth(dt, game)
-    self:updateRootHazards(dt, game)
-    self:updateBees(dt, game)
     self:updateFire(dt, game)
     self:updateMolotovs(dt, game)
     self:updateMining(dt, game)
     self:updateToxicRain(dt, game)
+    -- 연습장(sandbox)에서는 이 함수들이 자기 안에서 바로 return 하므로(각 함수 상단의
+    -- sandbox 가드 참고) 자동 위협/스폰이 전부 꺼지고 "몹 소환" 버튼으로만 적이 생긴다.
+    self:updateRootHazards(dt, game)
+    self:updateBees(dt, game)
     self:updateTimeSpawner(dt, game)
     self:updateEliteTimer(dt, game)
     self:updateReaper(dt, game)
@@ -391,7 +414,7 @@ function ClearcutMode:regrowPulse(game)
     for i = 1, count do
         local node = candidates[i]
         node.active, node.rushHp = true, node.rushMaxHp
-        node.dominoChild, node.burning, node.fallT = nil, nil, nil
+        node.dominoChild, node.burning, node.fallT, node.uprooted = nil, nil, nil, nil
         self.remainingTrees = self.remainingTrees + 1
     end
     if count > 0 then
@@ -416,6 +439,7 @@ function ClearcutMode:spawnRootBurst(candidates, count, game)
 end
 
 function ClearcutMode:updateRootHazards(dt, game)
+    if self.sandbox then return end
     for i = #self.rootHazards, 1, -1 do
         local hazard = self.rootHazards[i]
         hazard.timer = hazard.timer - dt
@@ -441,6 +465,7 @@ function ClearcutMode:updateRootHazards(dt, game)
 end
 
 function ClearcutMode:updateBees(dt, game)
+    if self.sandbox then return end
     for i = #self.bees, 1, -1 do
         local swarm = self.bees[i]
         swarm.life = swarm.life - dt
@@ -548,6 +573,7 @@ end
 
 -- 뱀서라이크식 "시간이 지나면 화면이 적으로 가득 찬다" 압박: 파괴율과 무관하게 계속 스폰
 function ClearcutMode:updateTimeSpawner(dt, game)
+    if self.sandbox then return end
     self.timeSpawnTimer = self.timeSpawnTimer - dt
     if self.timeSpawnTimer > 0 then return end
     local curse = self:curseLevel()
@@ -565,6 +591,7 @@ end
 
 -- 정기 엘리트: 진행도와 무관하게 몇 분마다 훨씬 강한 개체가 등장
 function ClearcutMode:updateEliteTimer(dt, game)
+    if self.sandbox then return end
     self.eliteTimer = self.eliteTimer - dt
     if self.eliteTimer > 0 then return end
     self.eliteTimer = 200 * (self.eliteIntervalMul or 1)
@@ -577,6 +604,7 @@ end
 
 -- 뱀서라이크식 "사신" — 농성 방지용 무한 추격자, 오래 버틸수록 등장
 function ClearcutMode:updateReaper(dt, game)
+    if self.sandbox then return end
     if self.reaperSpawned or self.elapsed < 600 * (self.reaperDelayMul or 1) then return end
     self.reaperSpawned = true
     local a = love.math.random() * math.pi * 2
@@ -588,6 +616,7 @@ end
 -- 광폭화 라운드: 주기적으로 찾아오는 하드코어 서지 이벤트. 경고 → 광란 → 냉각 3단계로 돌며,
 -- 광란 중엔 스폰이 폭증하고 근처에 남아있는 나무들이 직접 뿌리를 뻗어 플레이어를 물어뜯는다.
 function ClearcutMode:updateBerserk(dt, game)
+    if self.sandbox then return end
     self.berserkTimer = self.berserkTimer - dt
     if self.berserkState == "idle" then
         if self.berserkTimer <= 0 then
@@ -662,6 +691,7 @@ end
 -- 자이라식 소환 식물: 주기적으로 플레이어 주변 땅이 갈라지며 이빨 달린 덩굴괴수가 솟아나 가시를 쏜다.
 -- 저주 레벨이 오를수록 더 자주, 더 많이 솟아난다. 진짜 몹으로 스폰되므로 처치하면 보상도 준다.
 function ClearcutMode:updateVinePlants(dt, game)
+    if self.sandbox then return end
     for i = #self.vineSpawns, 1, -1 do
         local v = self.vineSpawns[i]
         v.timer = v.timer - dt
@@ -688,6 +718,7 @@ end
 
 -- 자연재해: 화난 자연이 숲 그 자체를 무기로 쓴다. 비(방화 완전 봉쇄)와 지진(회피형 광역 낙석)을 순환시킨다.
 function ClearcutMode:updateDisasters(dt, game)
+    if self.sandbox then return end
     self.disasterTimer = self.disasterTimer - dt
     if self.disasterState == "idle" then
         if self.disasterTimer <= 0 then
@@ -1053,7 +1084,7 @@ function ClearcutMode:updateEnemies(dt, game)
             table.remove(self.enemies, i)
         end
     end
-    if self.remainingTrees <= 0 and not self.worldTreeSpawned then self:spawnWorldTree(game) end
+    if not self.sandbox and self.remainingTrees <= 0 and not self.worldTreeSpawned then self:spawnWorldTree(game) end
 end
 
 -- 담배꽁초가 나무에 처음 옮겨붙을 때 쓰는 불씨 궤적(emberTransfers/emberArrivals)과 똑같은
@@ -1066,9 +1097,8 @@ function ClearcutMode:spawnFireSpark(sx, sy, tx, ty)
     self.treeSparks[#self.treeSparks + 1] = {x = sx, y = sy, tx = tx, ty = ty, startAt = now, duration = duration, arrivesAt = now + duration}
 end
 
--- 마른 건초더미: 플레이어 주변에 실제로 놓이는 지면 오브젝트. 근처에서 나무가 타고 있으면
--- 판정 없이 즉시 옮겨붙고(=따로 확률을 굴리지 않음), 다른 나무로 불씨를 옮기는 게 아니라
--- 그 자리에서 한동안 계속 타오르며 위에 있는 적에게 지속 피해를 주는 화염 구역이 된다.
+-- 마른 건초더미: 꽁초가 더미 위에 실제로 착지했을 때만 예열을 시작한다.
+-- 0.5초 뒤 국소 화염 지대가 되며, 나무/다른 더미로는 절대 번지지 않는다.
 function ClearcutMode:updateStrawBales(dt, game)
     local now = self.smokerGroundTime
     for i = #self.strawBales, 1, -1 do
@@ -1082,19 +1112,22 @@ function ClearcutMode:updateStrawBales(dt, game)
             if now - bale.ignitedAt >= 6 then table.remove(self.strawBales, i) end
         else
             bale.age = bale.age + dt
-            local caught = false
-            if not self.rainSuppressFire then
-                for _, node in ipairs(game.world.nodes) do
-                    if node.rushTree and node.active and node.burning then
-                        local dx, dy = node.x - bale.x, node.y - bale.y
-                        if dx * dx + dy * dy <= 130 * 130 then caught = true; break end
+            if bale.primedAt then
+                if self.rainSuppressFire then
+                    bale.primedAt=nil
+                elseif now-bale.primedAt>=.5 then
+                    bale.ignited,bale.ignitedAt,bale.tickTimer=true,now,0
+                end
+            elseif not self.rainSuppressFire then
+                for _,butt in ipairs(self.cigaretteButts) do
+                    local dx,dy=butt.x-bale.x,butt.y-bale.y
+                    if dx*dx+dy*dy<=48*48 then
+                        bale.primedAt=now
+                        break
                     end
                 end
             end
-            if caught then
-                bale.ignited, bale.ignitedAt, bale.tickTimer = true, now, 0
-                game.world:igniteFx(bale.x, bale.y, false)
-            elseif bale.age >= 22 then
+            if not bale.primedAt and bale.age >= 22 then
                 table.remove(self.strawBales, i)
             end
         end
@@ -1106,7 +1139,11 @@ function ClearcutMode:updateStrawBales(dt, game)
         self.strawTimer = math.max(5, 12 - self:power("straw_bale") * 1.4)
         local a = love.math.random() * math.pi * 2
         local r = 70 + love.math.random() * 170
-        self.strawBales[#self.strawBales + 1] = {x = game.player.x + math.cos(a) * r, y = game.player.y + math.sin(a) * r, age = 0, ignited = false}
+        self.strawBaleSequence=(self.strawBaleSequence or 0)+1
+        self.strawBales[#self.strawBales + 1] = {
+            x=game.player.x+math.cos(a)*r,y=game.player.y+math.sin(a)*r,
+            age=0,ignited=false,variant=(self.strawBaleSequence-1)%2
+        }
     end
 end
 
@@ -1114,13 +1151,26 @@ end
 -- 남긴다. 담배꽁초가 그 위에 떨어지면 그 지점부터 이어진 자국을 따라(불이 옮겨붙듯 연쇄로)
 -- 화염대가 켜지고, 유지되는 동안 닿는 적에게 지속 피해를 준다.
 function ClearcutMode:updateOilTrail(dt, game)
-    if not self.evolutions.oilRoad then return end
+    if not self.evolutions.oilRoad then
+        self.oilTrailLastX,self.oilTrailLastY=nil,nil
+        return
+    end
     local now = self.smokerGroundTime
     self.oilTrailTimer = self.oilTrailTimer - dt
     if game.player.isMoving and self.oilTrailTimer <= 0 then
         self.oilTrailTimer = .16
-        self.oilTrail[#self.oilTrail + 1] = {x = game.player.x, y = game.player.y, spawnedAt = now, ignited = false}
+        local dx=game.player.x-(self.oilTrailLastX or game.player.x-(game.player.facing or 1))
+        local dy=game.player.y-(self.oilTrailLastY or game.player.y)
+        local angle=(math.abs(dx)+math.abs(dy)>.001) and math.atan2(dy,dx) or ((game.player.facing or 1)>0 and 0 or math.pi)
+        self.oilTrailSequence=(self.oilTrailSequence or 0)+1
+        self.oilTrail[#self.oilTrail + 1] = {
+            x=game.player.x,y=game.player.y,spawnedAt=now,ignited=false,
+            angle=angle,variant=(self.oilTrailSequence-1)%3+1,sequence=self.oilTrailSequence
+        }
+        self.oilTrailLastX,self.oilTrailLastY=game.player.x,game.player.y
         if #self.oilTrail > 90 then table.remove(self.oilTrail, 1) end
+    elseif not game.player.isMoving then
+        self.oilTrailLastX,self.oilTrailLastY=game.player.x,game.player.y
     end
     if not self.rainSuppressFire then
         for _, butt in ipairs(self.cigaretteButts) do
@@ -1151,7 +1201,6 @@ function ClearcutMode:igniteOilTrail(spot, game)
     if spot.ignited then return end
     local now = self.smokerGroundTime
     spot.ignited, spot.ignitedAt = true, now
-    game.world:igniteFx(spot.x, spot.y, false)
     local frontier, total = {spot}, 1
     while #frontier > 0 and total < 40 do
         local current = table.remove(frontier)
@@ -1160,25 +1209,10 @@ function ClearcutMode:igniteOilTrail(spot, game)
                 local dx, dy = other.x - current.x, other.y - current.y
                 if dx * dx + dy * dy <= 55 * 55 then
                     other.ignited, other.ignitedAt = true, now
-                    game.world:igniteFx(other.x, other.y, false)
                     frontier[#frontier + 1] = other
                     total = total + 1
                 end
             end
-        end
-    end
-end
-
-function ClearcutMode:drawOilTrail()
-    -- cigaretteIgnitedAt은 smokerGroundTime 기준으로 찍히므로, 그리기도 같은 시계를 써야 한다
-    -- (love.timer.getTime() 등 다른 시계를 섞으면 화염 성장 애니메이션 타이밍이 어긋난다).
-    local t = self.smokerGroundTime
-    for _, spot in ipairs(self.oilTrail) do
-        if spot.ignited then
-            CigaretteButtArt.drawTreeFire({x = spot.x, y = spot.y, cigaretteIgnitedAt = spot.ignitedAt}, t)
-        else
-            love.graphics.setColor(.08, .07, .05, .5)
-            love.graphics.ellipse("fill", spot.x, spot.y + 4, 13, 5)
         end
     end
 end
@@ -1697,41 +1731,254 @@ function ClearcutMode:applyVeganBite(tx, ty, game)
 end
 
 function ClearcutMode:updateMinerAttack(dt, game, heldOverride)
+    if self.minerBurrow then
+        self:updateMinerBurrow(dt, game)
+        return false
+    end
     local held = heldOverride
     if held == nil then held = love.mouse.isDown(1) end
-    local maxRange = 220 + self:power("detector") * 30 + self.permanentTraits.range
+    local maxRange = 112 + self:power("detector") * 16 + self.permanentTraits.range
     local tx, ty = self:aimPoint(game, maxRange)
-    self.aimX, self.aimY, self.aimRadius = tx, ty, 70 + self:power("detector") * 12 + self:power("deep_scan") * 22 + self.permanentTraits.area
-    if self.digAction then
-        local action = self.digAction
+    self.aimX, self.aimY = tx, ty
+    self.aimRadius = 34 + self:power("detector") * 5 + self:power("deep_scan") * 7 + self.permanentTraits.area * .35
+    if self.minerClawAction then
+        local action = self.minerClawAction
         action.t = math.min(action.dur, action.t + dt)
         local progress = action.t / action.dur
-        if game.player.setClearcutAction then game.player:setClearcutAction(progress) end
-        local dug = false
-        if not action.dug and progress >= .55 then
-            action.dug = true
-            self:applyDig(action.tx, action.ty, game)
-            dug = true
+        if game.player.setClearcutAction then game.player:setClearcutAction(math.min(.49, progress * .49)) end
+        local struck = false
+        -- 0.68 maps to action cell 3 (the authored claw-contact pose).
+        if not action.struck and progress >= .68 then
+            action.struck = true
+            self:applyClawSwipe(action.tx, action.ty, game)
+            struck = true
         end
         if action.t >= action.dur then
-            self.digAction = nil
+            self.minerClawAction = nil
             self.attackCooldown = .1
             if game.player.clearClearcutAction then game.player:clearClearcutAction() end
         end
-        return dug
+        return struck
     end
     self.attackCooldown = math.max(0, self.attackCooldown - dt)
     if not held or self.attackCooldown > 0 then return false end
     local speed = (game.tools.axe.speed or 1) * game.player.gather * (1 + self:power("deep_scan") * .12) * self.permanentTraits.attackSpeed
-    self.digAction = {t=0, dur=math.max(.42, .78/speed), tx=tx, ty=ty, dug=false}
+    self.minerClawAction = {t=0, dur=math.max(.34, .62/speed), tx=tx, ty=ty, struck=false}
     game.player.facing = tx < game.player.x and -1 or 1
     if game.player.setClearcutAction then game.player:setClearcutAction(0) end
     return false
 end
 
+local function pointSegmentDistanceSquared(px, py, ax, ay, bx, by)
+    local vx, vy = bx - ax, by - ay
+    local length2 = vx*vx + vy*vy
+    if length2 <= .001 then return (px-ax)^2 + (py-ay)^2 end
+    local u = math.max(0, math.min(1, ((px-ax)*vx + (py-ay)*vy) / length2))
+    local dx, dy = px - (ax + vx*u), py - (ay + vy*u)
+    return dx*dx + dy*dy
+end
+
+function ClearcutMode:applyClawSwipe(tx, ty, game)
+    local px, py = game.player.x, game.player.y
+    local dx, dy = tx - px, ty - py
+    local distance = math.sqrt(dx*dx + dy*dy)
+    if distance < 1 then dx, dy, distance = game.player.facing or 1, 0, 1 end
+    local nx, ny = dx / distance, dy / distance
+    local range = 112 + self:power("detector") * 16 + self.permanentTraits.range
+    local halfWidth = 34 + self:power("detector") * 5 + self:power("deep_scan") * 7 + self.permanentTraits.area * .35
+    local damage = 2 + self:power("detector") * .65 + self.permanentTraits.treeDamage
+    local candidates = {}
+    for _, node in ipairs(game.world.nodes) do
+        if node.rushTree and node.active then
+            local rx, ry = node.x - px, node.y - py
+            local along, side = rx*nx + ry*ny, math.abs(rx*ny - ry*nx)
+            if along >= 0 and along <= range and side <= halfWidth then
+                candidates[#candidates+1] = {node=node, along=along}
+            end
+        end
+    end
+    table.sort(candidates, function(a,b) return a.along < b.along end)
+    local limit = 1 + math.floor(self.permanentTraits.extraTargets or 0) + math.floor(self:power("deep_scan") * .45)
+    for index=1,math.min(limit,#candidates) do
+        local node = candidates[index].node
+        node.rushHp = (node.rushHp or node.rushMaxHp) - damage
+        game.world:impactNode(node, game, true)
+        SupplementArt.impact(self,"axe",node.x,node.y,30)
+        if node.rushHp <= 0 then self:fellTree(node,game) end
+    end
+    for _, enemy in ipairs(self.enemies) do
+        local rx, ry = enemy.x-px, enemy.y-py
+        local along, side = rx*nx+ry*ny, math.abs(rx*ny-ry*nx)
+        if along >= 0 and along <= range and side <= halfWidth then
+            enemy.hp, enemy.visualHit = enemy.hp - damage*2.2, .14
+            SupplementArt.impact(self,"axe",enemy.x,enemy.y,26)
+        end
+    end
+    self.traitFx:emit("axe",px+nx*range*.58,py+ny*range*.58,{radius=halfWidth,power=.8,angle=math.atan2 and math.atan2(ny,nx) or 0})
+    if game.camera then game.camera.trauma=math.min(1,game.camera.trauma+.09) end
+end
+
+function ClearcutMode:activateMinerBurrow(game)
+    if self.job ~= "miner" or self.dead or self.minerBurrow then return false end
+    if self.minerBurrowCooldown > 0 then
+        game:setNotice(string.format("잠복 재사용 %.1f초",self.minerBurrowCooldown),"ore")
+        return false
+    end
+    self.minerClawAction = nil
+    self.attackCooldown = 0
+    self.minerBurrow = {
+        state="enter", t=0, duration=3.2+self:power("burrow_uproot")*.22,
+        lastX=game.player.x,lastY=game.player.y,trackX=game.player.x,trackY=game.player.y,side=1,launched=0
+    }
+    self:addBurrowTrack(game.player.x,game.player.y,0,"entry")
+    if game.player.setClearcutAction then game.player:setClearcutAction(.52) end
+    game:setNotice("지하 강제집행 — 나무 밑으로 파고들어라!","ore")
+    return true
+end
+
+function ClearcutMode:addBurrowTrack(x,y,angle,kind)
+    self.burrowTrackSequence=(self.burrowTrackSequence or 0)+1
+    self.burrowTracks[#self.burrowTracks+1]={
+        x=x,y=y,angle=angle or 0,kind=kind,variant=(self.burrowTrackSequence-1)%6+1,life=18,maxLife=18
+    }
+    if #self.burrowTracks>360 then table.remove(self.burrowTracks,1) end
+end
+
+function ClearcutMode:updateBurrowTracks(dt)
+    for index=#self.burrowTracks,1,-1 do
+        local mark=self.burrowTracks[index];mark.life=mark.life-dt
+        if mark.life<=0 then table.remove(self.burrowTracks,index) end
+    end
+end
+
+function ClearcutMode:launchTreeSideways(node, moveX, moveY, burrow, game)
+    local length = math.sqrt(moveX*moveX + moveY*moveY)
+    if length < .01 then moveX,moveY,length=game.player.facing or 1,0,1 end
+    local nx,ny=moveX/length,moveY/length
+    local side=burrow.side
+    burrow.side=-burrow.side
+    local sx,sy=-ny*side,nx*side
+    local power=self:power("burrow_uproot")
+    local speed=610+power*55
+    local variant=node.treeVariant or 1
+    local x,y=node.x,node.y
+    if not self:fellTree(node,game) then return false end
+    node.fallT=nil
+    node.uprooted=true
+    self.thrownTrees[#self.thrownTrees+1]={
+        x=x,y=y,z=8,vx=sx*speed+nx*90,vy=sy*speed+ny*90,vz=390,
+        gravity=820,angle=0,spin=side*(3.8+power*.18),variant=variant,
+        damage=3.5+power*1.35,penetration=1+self:powerCount("burrow_uproot"),hit={}
+    }
+    burrow.launched=burrow.launched+1
+    self:addBurrowTrack(x,y,math.atan2(moveY,moveX),"root")
+    self.traitFx:emit("construction_blast",x,y,{radius=78,particles=24,power=1.05,color={.48,.3,.12}})
+    if game.camera then game.camera.trauma=math.min(1,game.camera.trauma+.22) end
+    return true
+end
+
+function ClearcutMode:updateMinerBurrow(dt, game)
+    local burrow=self.minerBurrow
+    if not burrow then return end
+    burrow.t=burrow.t+dt
+    if burrow.state=="enter" then
+        if game.player.setClearcutAction then game.player:setClearcutAction(.5+math.min(.16,burrow.t/.28*.16)) end
+        if burrow.t>=.28 then
+            burrow.state,burrow.t="tunnel",0
+            burrow.lastX,burrow.lastY=game.player.x,game.player.y
+        end
+        return
+    end
+    if burrow.state=="tunnel" then
+        local phase=math.floor(burrow.t*10)%2
+        if game.player.setClearcutAction then game.player:setClearcutAction(phase==0 and .72 or .88) end
+        local x0,y0=burrow.lastX,burrow.lastY
+        local x1,y1=game.player.x,game.player.y
+        local moveX,moveY=x1-x0,y1-y0
+        local trackDx,trackDy=x1-burrow.trackX,y1-burrow.trackY
+        local trackDistance=math.sqrt(trackDx*trackDx+trackDy*trackDy)
+        if trackDistance>=22 then
+            local nx,ny=trackDx/trackDistance,trackDy/trackDistance
+            local angle=math.atan2(ny,nx)
+            local traveled=22
+            while traveled<=trackDistance do
+                local tx,ty=burrow.trackX+nx*traveled,burrow.trackY+ny*traveled
+                self:addBurrowTrack(tx,ty,angle)
+                traveled=traveled+22
+            end
+            local used=traveled-22
+            burrow.trackX,burrow.trackY=burrow.trackX+nx*used,burrow.trackY+ny*used
+        end
+        local hitRadius=72+self:power("burrow_uproot")*5+self.permanentTraits.area*.25
+        for _,node in ipairs(game.world.nodes) do
+            if node.rushTree and node.active and pointSegmentDistanceSquared(node.x,node.y,x0,y0,x1,y1)<=hitRadius*hitRadius then
+                self:launchTreeSideways(node,moveX,moveY,burrow,game)
+            end
+        end
+        burrow.lastX,burrow.lastY=x1,y1
+        if burrow.t>=burrow.duration then
+            burrow.state,burrow.t="exit",0
+            self:addBurrowTrack(game.player.x,game.player.y,math.atan2(moveY,moveX),"exit")
+        end
+        return
+    end
+    if game.player.setClearcutAction then game.player:setClearcutAction(.62) end
+    if burrow.t>=.2 then
+        self.minerBurrow=nil
+        self.minerBurrowCooldown=math.max(3.4,7-self:power("burrow_uproot")*.55)
+        if game.player.clearClearcutAction then game.player:clearClearcutAction() end
+    end
+end
+
+function ClearcutMode:updateThrownTrees(dt, game)
+    self.minerBurrowCooldown=math.max(0,(self.minerBurrowCooldown or 0)-dt)
+    for index=#self.thrownTrees,1,-1 do
+        local tree=self.thrownTrees[index]
+        tree.x,tree.y=tree.x+tree.vx*dt,tree.y+tree.vy*dt
+        tree.z=tree.z+tree.vz*dt
+        tree.vz=tree.vz-tree.gravity*dt
+        tree.angle=tree.angle+tree.spin*dt
+        local remove=false
+        for _,node in ipairs(game.world.nodes) do
+            if not remove and node.rushTree and node.active and not tree.hit[node] then
+                local dx,dy=node.x-tree.x,node.y-tree.y
+                if dx*dx+dy*dy<=68*68 then
+                    tree.hit[node]=true
+                    node.rushHp=(node.rushHp or node.rushMaxHp)-tree.damage
+                    game.world:impactNode(node,game,true)
+                    SupplementArt.impact(self,"axe",node.x,node.y,42)
+                    if node.rushHp<=0 then self:fellTree(node,game) end
+                    tree.penetration=tree.penetration-1
+                    remove=tree.penetration<=0
+                end
+            end
+        end
+        for _,enemy in ipairs(self.enemies) do
+            if not remove and enemy.hp>0 and not tree.hit[enemy] then
+                local dx,dy=enemy.x-tree.x,enemy.y-tree.y
+                if dx*dx+dy*dy<=62*62 then
+                    tree.hit[enemy]=true
+                    enemy.hp,enemy.visualHit=enemy.hp-tree.damage*2.5,.18
+                    tree.penetration=tree.penetration-1
+                    remove=tree.penetration<=0
+                end
+            end
+        end
+        if tree.z<=0 and tree.vz<0 then remove=true end
+        if tree.x<40 or tree.y<40 or tree.x>game.world.width-40 or tree.y>game.world.height-40 then remove=true end
+        if remove then
+            self.traitFx:emit("construction_blast",tree.x,tree.y,{radius=68,particles=18,power=.85,color={.45,.28,.12}})
+            table.remove(self.thrownTrees,index)
+        end
+    end
+end
+
 function ClearcutMode:applyDig(tx, ty, game, isBonus)
     local backhoePower = self:power("backhoe")
-    local radius = (self.aimRadius or 70) * (isBonus and 2.2 or 1) + backhoePower * 14
+    -- Legacy jackpot/gold-rush excavation keeps its own radius; the claw HUD
+    -- reticle is intentionally much narrower and must not shrink this skill.
+    local digRadius = 70 + self:power("detector") * 12 + self:power("deep_scan") * 22 + self.permanentTraits.area
+    local radius = digRadius * (isBonus and 2.2 or 1) + backhoePower * 14
     local dmg = 4 + self:power("detector") * 2 + backhoePower * 2.5 + self.permanentTraits.treeDamage
     for _, node in ipairs(game.world.nodes) do
         if node.rushTree and node.active then
@@ -2671,7 +2918,7 @@ function ClearcutMode:onWood(amount, game)
         self.level, self.pending = self.level + 1, self.pending + 1
         self.xpNext = math.floor(10 + (self.level - 1) * 6.5)
     end
-    if self.pending > 0 and game.mode == "playing" and not os.getenv("LAST_HAUL_SELF_TEST") then self:openUpgradeChoices(game) end
+    if self.pending > 0 and game.mode == "playing" and not self.sandbox and not os.getenv("LAST_HAUL_SELF_TEST") then self:openUpgradeChoices(game) end
 end
 
 function ClearcutMode:upgradePool()
@@ -2881,7 +3128,7 @@ function ClearcutMode:fellTree(node, game)
         self.beeSwarmsTriggered = self.beeSwarmsTriggered + 1
         game:setNotice("벌집을 건드렸다 — 벌떼가 쫓아온다!", "ore")
     end
-    self:checkMilestones(game)
+    if not self.sandbox then self:checkMilestones(game) end
     return true
 end
 
@@ -2988,7 +3235,7 @@ function ClearcutMode:hitTree(primary, game)
         end
         self.maxChain = math.max(self.maxChain, chainCount)
     end
-    self:checkMilestones(game)
+    if not self.sandbox then self:checkMilestones(game) end
 end
 
 function ClearcutMode:finish(game, victory)
@@ -3534,16 +3781,6 @@ function ClearcutMode:drawCigaretteProjectiles(t)
     return #self.molotovs
 end
 
-local strawBaleRows = {
-    "..OOOO..",
-    ".OHYYHO.",
-    "OYYBBYYO",
-    "OYYBBYYO",
-    ".OYYYYO.",
-    "..OOOO..",
-}
-local strawBalePalette = {O={.28,.18,.08,1}, H={1,.92,.6,1}, Y={.86,.68,.28,1}, B={.42,.28,.12,1}}
-
 local leafIconRows = {
     "...OO...",
     "..OGGO..",
@@ -3817,7 +4054,8 @@ ClearcutMode.icons = {
     demolition = {rows = diamondRows, palette = demolitionPalette},
     site_clearance = {rows = boxRows, palette = siteClearancePalette},
     pickaxe = {rows = pickaxeIconRows, palette = pickaxeIconPalette},
-    detector = {rows = pickaxeIconRows, palette = pickaxeIconPalette},
+    detector = {rows = rootCuttingRows, palette = rootCuttingPalette},
+    burrow_uproot = {rows = rootCuttingRows, palette = rootCuttingPalette},
     deep_scan = {rows = diamondRows, palette = deepScanPalette},
     backhoe = {rows = boxRows, palette = backhoePalette},
     jackpot = {rows = blobRows, palette = jackpotPalette},
@@ -3882,6 +4120,30 @@ end
 ClearcutMode.drawEnemy = ForestArt.drawBody
 function ClearcutMode:queueWorldActors(queue,t)
     local groundTime=self.smokerGroundTime
+    for _,value in ipairs(self.burrowTracks) do
+        local mark=value
+        queue[#queue+1]={y=-200000+mark.y*.001,draw=function() MoleBurrowArt.draw(mark) end}
+    end
+    for _,value in ipairs(self.strawBales) do
+        local bale=value
+        queue[#queue+1]={y=bale.y,draw=function() StrawBaleArt.draw(bale,groundTime) end}
+    end
+    for index,value in ipairs(self.oilTrail) do
+        local spot=value
+        -- Ground liquid is always behind actors; flame/smoke participates in
+        -- the regular quarter-view foot-depth order.
+        queue[#queue+1]={y=-100000+spot.y*.001,draw=function() OilTrailArt.drawGround(spot,groundTime) end}
+        if spot.ignited then
+            queue[#queue+1]={y=spot.y+.1,draw=function() OilTrailArt.drawFlame(spot,groundTime) end}
+        end
+        local previous=self.oilTrail[index-1]
+        if previous then
+            queue[#queue+1]={y=-99999+math.min(previous.y,spot.y)*.001,draw=function() OilTrailArt.drawGroundBridge(previous,spot,groundTime) end}
+            if previous.ignited and spot.ignited then
+                queue[#queue+1]={y=(previous.y+spot.y)*.5+.1,draw=function() OilTrailArt.drawFlameBridge(previous,spot,groundTime) end}
+            end
+        end
+    end
     for _,value in ipairs(self.cigaretteButts) do
         local butt=value
         queue[#queue+1]={y=butt.y+3,draw=function() CigaretteButtArt.drawGround(butt,groundTime) end}
@@ -3912,19 +4174,6 @@ function ClearcutMode:drawCigaretteGroundEffects()
     -- 나무→나무 확산도 담배꽁초 확산과 동일한 궤적/도착 이펙트를 재사용한다.
     for _,spark in ipairs(self.treeSparks) do CigaretteButtArt.drawTransfer(spark,t) end
     for _,arrival in ipairs(self.treeSparkArrivals) do CigaretteButtArt.drawArrival(arrival,t) end
-end
-
-function ClearcutMode:drawStrawBales()
-    local t = self.smokerGroundTime
-    for _, bale in ipairs(self.strawBales) do
-        if bale.ignited then
-            CigaretteButtArt.drawTreeFire({x = bale.x, y = bale.y, cigaretteIgnitedAt = bale.ignitedAt}, t)
-        else
-            love.graphics.setColor(0, 0, 0, .28)
-            love.graphics.ellipse("fill", bale.x, bale.y + 7, 16, 5)
-            drawPixelGrid(strawBaleRows, strawBalePalette, bale.x, bale.y, 3)
-        end
-    end
 end
 
 function ClearcutMode:drawDeveloperMachinery(game, t)
@@ -4008,6 +4257,21 @@ function ClearcutMode:drawSupplementSkills(game, t)
     end
 end
 
+function ClearcutMode:drawThrownTrees(game)
+    local variants=(game.world.images and game.world.images.treeVariants) or {}
+    for _,tree in ipairs(self.thrownTrees) do
+        local image=variants[math.max(1,math.min(#variants,tree.variant or 1))]
+        if image then
+            local height=math.max(0,tree.z or 0)
+            local shadowScale=math.max(.35,1-height/520)
+            love.graphics.setColor(0,0,0,.3)
+            love.graphics.ellipse("fill",tree.x,tree.y+8,58*shadowScale,9*shadowScale)
+            love.graphics.setColor(1,1,1,1)
+            love.graphics.draw(image,tree.x,tree.y-height,tree.angle or 0,.82,.82,image:getWidth()/2,image:getHeight()*.91)
+        end
+    end
+end
+
 function ClearcutMode:drawWorldOverlay(game)
     love.graphics.setLineStyle("rough")
     local t = love.timer.getTime()
@@ -4043,15 +4307,12 @@ function ClearcutMode:drawWorldOverlay(game)
         drawPixelGrid(axeIconRows, axeIconPalette, px, py, 2.2)
     elseif self.job == "developer" then
         drawPixelGrid(hardhatIconRows, hardhatIconPalette, px, py, 2.4)
-    elseif self.job == "miner" then
-        local bob = math.sin(t * 2.6) * 2
-        drawPixelGrid(pickaxeIconRows, pickaxeIconPalette, px, py + bob, 2.2)
     elseif self.job == "philosopher" then
         local jitter = math.sin(t * 9) * 1.5
         drawPixelGrid(speechIconRows, speechIconPalette, px + jitter, py, 2.2)
     end
-    if (self.job == "fire" or self.job == "toxic" or self.job == "miner" or self.job == "philosopher") and self.aimX then
-        local ringColor = self.job == "fire" and {1, .5, .15} or self.job == "toxic" and {.55, .85, .45} or self.job == "miner" and {.85, .68, .22} or {.75, .9, .35}
+    if (self.job == "fire" or self.job == "toxic" or self.job == "philosopher") and self.aimX then
+        local ringColor = self.job == "fire" and {1, .5, .15} or self.job == "toxic" and {.55, .85, .45} or {.75, .9, .35}
         love.graphics.setColor(ringColor[1], ringColor[2], ringColor[3], .16); love.graphics.circle("fill", self.aimX, self.aimY, self.aimRadius)
         love.graphics.setLineWidth(2); love.graphics.setColor(ringColor[1], ringColor[2], ringColor[3], .85)
         love.graphics.circle("line", self.aimX, self.aimY, self.aimRadius)
@@ -4098,6 +4359,7 @@ function ClearcutMode:drawWorldOverlay(game)
         end
     end
     if self.job=="developer" then self:drawDeveloperMachinery(game,t) end
+    self:drawThrownTrees(game)
     self:drawSupplementSkills(game, t)
     self.traitFx:draw()
     for _, node in ipairs(game.world.nodes) do
@@ -4211,8 +4473,6 @@ function ClearcutMode:drawWorldOverlay(game)
     end
     self:drawCigaretteProjectiles(t)
     self:drawCigaretteGroundEffects()
-    self:drawStrawBales()
-    self:drawOilTrail()
     for _, tel in ipairs(self.bossTelegraphs) do
         if tel.kind == "line" then
             if tel.phase == "warn" then
@@ -4584,6 +4844,14 @@ function ClearcutMode:drawHUD(game,fonts)
     love.graphics.setFont(fonts.small); love.graphics.setColor(1,1,1,.9)
     love.graphics.print("Lv."..self.level,12,xpby-18)
     love.graphics.printf(math.floor(self.xp).." / "..self.xpNext,0,xpby-18,w-12,"right")
+    if self.job=="miner" then
+        local ready=(self.minerBurrowCooldown or 0)<=0 and not self.minerBurrow
+        local text=self.minerBurrow and "잠복 중 — 나무 밑으로 이동" or ready and "SPACE / 우클릭  잠복 준비" or string.format("잠복 재사용 %.1f초",self.minerBurrowCooldown)
+        love.graphics.setFont(fonts.small)
+        love.graphics.setColor(.035,.045,.035,.9); love.graphics.rectangle("fill",w/2-150,h-52,300,30,7,7)
+        love.graphics.setColor(ready and {.94,.76,.28,1} or {.72,.65,.52,1})
+        love.graphics.printf(text,w/2-146,h-45,292,"center")
+    end
 end
 
 local function octagonPoints(cx, cy, r, rot)
@@ -5102,9 +5370,9 @@ ClearcutMode.characters = {
     {id="developer", name="부동산 개발업자", icon="hardhat", color={1,.74,.1},
         tagline="여기에 아파트 지으면 됨.",
         detail="조준 방향으로 직접 돌진하며 경로상의 모든 것을 밀어버립니다. 넓은 범위를 순식간에 밀어내지만 재사용까지 잠깐 숨을 고릅니다."},
-    {id="miner", name="코인 채굴꾼", icon="pickaxe", color={.85,.68,.22},
+    {id="miner", name="코인 채굴꾼", icon="detector", color={.85,.68,.22},
         tagline="어릴 적 등산 갔다가 잃어버린 그 USB, 지금 시세로 수백억이다.",
-        detail="마우스 위치를 곡괭이로 내려찍어 반경 안의 나무를 뿌리째 파헤칩니다. 사거리는 짧지만 가끔 '발견!' 판정이 터져 훨씬 넓은 범위가 한 번에 무너집니다."},
+        detail="좌클릭으로 작은 굴착 발톱을 세워 전방을 할퀴고, SPACE 또는 우클릭으로 잠복합니다. 흙더미로 나무 밑을 지나가면 땅속 충격에 나무가 뿌리째 솟아 좌우로 날아갑니다."},
     {id="philosopher", name="차라투스트라는 이렇게 말했다", icon="speech", color={.75,.9,.35},
         tagline="태어난 것 자체가 형벌이다. 나는 그저 해방시켜줄 뿐이다.",
         detail="말이 너무 많다. 침이 마를 날이 없다. 마우스 방향으로 끝없이 일장연설을 쏟아내며 침을 튀깁니다. 버튼을 오래 붙잡을수록 사거리와 독성이 강해지고, 맞은 나무와 적은 서서히 '해방'됩니다."}

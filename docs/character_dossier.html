@@ -548,7 +548,7 @@ const TRAITS = {
   miner: {
     label: "코인 채굴꾼", accent: "var(--c-miner)",
     tagline: "그 삽질이 언젠가는 하드월렛을 찾아줄 것이다.",
-    doctrine: "탐지와 발굴을 번갈아 밀어붙여 넓은 구역을 통째로 파헤친다.",
+    doctrine: "작은 굴착 발톱으로 앞을 할퀴고, 잠복 상태로 나무 밑을 지나가 땅속 충격으로 통째로 옆에 날려버린다.",
     nodes: [
       {id:"miner_signal",name:"탐지 신호음",short:"삐빅",desc:"삽질 속도 +7%",max:3,costs:[18,32,50]},
       {id:"miner_coil",name:"코일 감도 조정",short:"더 멀리 삐빅",desc:"탐지 사거리 +14",max:3,costs:[22,38,58],requires:[["miner_signal",1]]},
@@ -679,7 +679,8 @@ const SKILLS = {
   },
   miner: { label: TRAITS.miner.label, accent: TRAITS.miner.accent, tagline: TRAITS.miner.tagline, doctrine: TRAITS.miner.doctrine,
     nodes: [
-      {id:"detector",track:"dig",name:"금속탐지기",desc:"기본 공격이 곡괭이로 바뀝니다. 마우스 위치를 파헤쳐 반경 안의 나무를 뿌리째 뽑습니다. 가끔 삑— 소리와 함께 대박이 터집니다."},
+      {id:"detector",track:"dig",name:"복리로 자란 발톱",desc:"기본 할퀴기의 범위와 피해가 늘어납니다. 채굴 장비보다 유지비가 싸다는 결론입니다."},
+      {id:"burrow_uproot",track:"dig",name:"지하 강제집행",desc:"SPACE 또는 우클릭 잠복의 재사용 시간이 줄고, 이동 경로에서 자동으로 옆으로 튕겨 나가는 나무의 피해와 관통 횟수가 늘어납니다."},
       {id:"deep_scan",track:"dig",name:"정밀 탐사",desc:"탐지 반경이 넓어지고 판정 속도가 빨라집니다."},
       {id:"backhoe",track:"dig",name:"굴착기 대여",desc:"굴착 한 방의 범위와 위력이 커집니다. 렌탈비는... 나중에 생각하자."},
       {id:"jackpot",track:"dig",name:"이번엔 진짜 있을 것 같다",desc:"가끔 '발견!' 판정이 터져 훨씬 넓은 범위가 한 번에 무너지고 목재를 왕창 얻습니다."},

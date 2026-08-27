@@ -36,7 +36,7 @@ local function loadClearcutSprites()
         fire = {file="smoker-atlas-pixel-v2.png", walkFeet={190,190,190,190,190,190}, actionFeet={190,190,190,190,190,190}, scale=.61},
         toxic = {file="vegan-atlas-pixel-v2.png", walkFeet={190,190,190,190,190,190}, actionFeet={190,190,190,190,190,190}, scale=.61},
         developer = {file="developer-atlas-pixel-v2.png", walkFeet={190,190,190,190,190,190}, actionFeet={190,190,190,190,190,190}, scale=.61},
-        miner = {file="coin-miner-mole-atlas-pixel-v3.png", walkFeet={190,190,190,190,190,190}, actionFeet={190,190,190,190,190,190}, scale=.74}
+        miner = {file="coin-miner-mole-atlas-pixel-v3.png", walkFeet={380,380,380,380,380,380}, actionFeet={380,380,380,380,380,380}, scale=.48}
     }
     -- The source smoker sheet turns left during the first four action poses.
     -- Normalize those cells at draw time; keep the original atlas untouched.
@@ -74,6 +74,7 @@ function Game.new()
     self.characterTraitBoard = CharacterTraitBoard.new(self.characterTraits, self.fonts, self.clearcutSprites)
     self.mode, self.notice, self.noticeKind, self.noticeTime = "lobby", "", "core", 0
     self.storyJob, self.storyPage, self.storyForced = nil, 1, false
+    self.sandboxMode = false
     self:resetRun(); self.mode = "lobby"
     return self
 end
@@ -187,10 +188,7 @@ function Game:depositCargo(message)
 end
 
 function Game:addRunXP(amount)
-    if self.runType=="clearcut" then
-        if self.clearcut and key=="space" then self.clearcut:activateMinerBurrow(self) end
-        return
-    end
+    if self.runType=="clearcut" then return end
     if self.runType=="rush" then return end
     amount = math.max(0, amount or 0)
     self.runXP = self.runXP + amount
@@ -281,6 +279,9 @@ function Game:keypressed(key)
             self.mode="character_traits"
         elseif action=="character_codex" then
             self.mode="character_codex"
+        elseif action=="skill_sandbox" then
+            self.sandboxMode=true
+            self.mode="clearcut_select"
         end
         return
     end
@@ -343,7 +344,11 @@ function Game:keypressed(key)
     if key == "escape" then self.mode = "lobby"; return end
     if self.ended and (key == "r" or key == "return") then self:startRun(); return end
     if key == "p" and self.runType~="rush" and self.runType~="clearcut" then self:prestigeRun(); return end
-    if self.runType=="rush" or self.runType=="clearcut" then return end
+    if self.runType=="clearcut" then
+        if key=="space" and self.clearcut then self.clearcut:activateMinerBurrow(self) end
+        return
+    end
+    if self.runType=="rush" then return end
     if key == "f" then
         local turret = self:getNearbyTurret()
         if turret then self:tryOpenTurretUpgrade(turret)
@@ -391,6 +396,7 @@ function Game:mousepressed(x, y, button)
         if action == "clearcut" then self.mode = "clearcut_select"
         elseif action == "character_traits" then self.characterTraitReturnMode="lobby"; self.mode = "character_traits"
         elseif action == "character_codex" then self.mode = "character_codex"
+        elseif action == "skill_sandbox" then self.sandboxMode = true; self.mode = "clearcut_select"
         elseif action == "settings" then self.mode = "settings" end
         return
     end
@@ -494,6 +500,7 @@ function Game:mousepressed(x, y, button)
         return
     end
     if self.ended then return end
+    if self.clearcut and self.clearcut.sandbox and button==1 and self:sandboxPanelClick(x, y) then return end
     if self.runType=="rush" or self.runType=="clearcut" then
         -- 벌목 러시/숲 전멸 모드는 개별 나무를 클릭하지 않는다. 버튼을 누르는 동안
         -- 해당 모드가 플레이어 주변의 나무를 자동 포착한다.
@@ -900,12 +907,84 @@ end
 function Game:chooseClearcutCharacter(index)
     local c = ClearcutMode.characters[index]
     if not c then return end
+    if self.sandboxMode then
+        self.sandboxMode = false
+        self:startClearcutSandbox(c.id)
+        return
+    end
     self.pendingClearcutCharacter=c.id
     if not self.characterTraits:hasSeenStory(c.id) then
         self:openCharacterStory(c.id, true)
     else
         self.mode="clearcut_map_select"
     end
+end
+
+-- 스킬 연습장: 자동 위협/스폰이 전부 꺼진 채로(ClearcutMode.sandbox=true) 그냥 나무만
+-- 있는 맵에 들어가서, 화면 우측 패널로 스킬 레벨을 직접 조절하고 "몹 소환" 버튼으로만
+-- 적을 부를 수 있다. 스토리/맵 선택 같은 정상 진행 절차는 전부 건너뛴다.
+function Game:startClearcutSandbox(characterId)
+    self:resetRun()
+    self.clearcut = ClearcutMode.new()
+    self.clearcut.job = characterId
+    self.clearcut.sandbox = true
+    self.clearcut.mapId = require("src.clearcut_maps").get(self.selectedClearcutMap or "forest").id
+    self.selectedClearcutMap = self.clearcut.mapId
+    self.player:setClearcutSprite(self.clearcutSprites[characterId] or self.clearcutSprites.physical, characterId)
+    self.clearcut:setup(self)
+    self.mode = "playing"
+end
+
+function Game:sandboxCharacterName(jobId)
+    for _, c in ipairs(ClearcutMode.characters) do if c.id == jobId then return c.name end end
+    return jobId
+end
+
+function Game:drawSandboxPanel()
+    local w, h, f = love.graphics.getWidth(), love.graphics.getHeight(), self.fonts
+    local skills = self.clearcut:sandboxSkillList()
+    local panelW, rowH = 300, 25
+    local panelH = math.min(h - 32, 96 + #skills * rowH + 74)
+    local x, y = w - panelW - 16, 16
+    UI.panel(x, y, panelW, panelH, {.3, .82, .5, 1}, .94)
+    love.graphics.setFont(f.small); love.graphics.setColor(1, .92, .55)
+    love.graphics.print("스킬 연습장", x + 14, y + 10)
+    love.graphics.setColor(.78, .87, .8)
+    love.graphics.print(self:sandboxCharacterName(self.clearcut.job), x + 14, y + 28)
+
+    self.sandboxSkillBoxes = {}
+    local rowY = y + 50
+    for _, def in ipairs(skills) do
+        local level = self.clearcut:levelOf(def.id)
+        love.graphics.setColor(1, 1, 1, .9)
+        love.graphics.printf(def.name .. "  " .. level .. "/" .. def.max, x + 14, rowY + 3, panelW - 90, "left")
+        local minusBox = {x = x + panelW - 64, y = rowY, w = 22, h = 20}
+        local plusBox = {x = x + panelW - 36, y = rowY, w = 22, h = 20}
+        UI.button(minusBox.x, minusBox.y, minusBox.w, minusBox.h, "-", true, f.small)
+        UI.button(plusBox.x, plusBox.y, plusBox.w, plusBox.h, "+", true, f.small)
+        self.sandboxSkillBoxes[#self.sandboxSkillBoxes + 1] = {id = def.id, minus = minusBox, plus = plusBox}
+        rowY = rowY + rowH
+    end
+
+    self.sandboxMobBox = {x = x + 14, y = y + panelH - 68, w = panelW - 28, h = 30}
+    UI.button(self.sandboxMobBox.x, self.sandboxMobBox.y, self.sandboxMobBox.w, self.sandboxMobBox.h, "몹 소환", true, f.body)
+    self.sandboxExitBox = {x = x + 14, y = y + panelH - 32, w = panelW - 28, h = 24}
+    UI.button(self.sandboxExitBox.x, self.sandboxExitBox.y, self.sandboxExitBox.w, self.sandboxExitBox.h, "← 로비로 나가기", true, f.small)
+end
+
+function Game:sandboxPanelClick(x, y)
+    if self.sandboxMobBox and x>=self.sandboxMobBox.x and x<=self.sandboxMobBox.x+self.sandboxMobBox.w and y>=self.sandboxMobBox.y and y<=self.sandboxMobBox.y+self.sandboxMobBox.h then
+        self.clearcut:spawnWave({squirrel=3, boar=2}, self); return true
+    end
+    if self.sandboxExitBox and x>=self.sandboxExitBox.x and x<=self.sandboxExitBox.x+self.sandboxExitBox.w and y>=self.sandboxExitBox.y and y<=self.sandboxExitBox.y+self.sandboxExitBox.h then
+        self:resetRun(); self.mode = "lobby"; return true
+    end
+    for _, box in ipairs(self.sandboxSkillBoxes or {}) do
+        local mb, pb = box.minus, box.plus
+        if x>=mb.x and x<=mb.x+mb.w and y>=mb.y and y<=mb.y+mb.h then self.clearcut:sandboxSetLevel(box.id, -1); return true end
+        if x>=pb.x and x<=pb.x+pb.w and y>=pb.y and y<=pb.y+pb.h then self.clearcut:sandboxSetLevel(box.id, 1); return true end
+    end
+    return false
 end
 
 -- forced=true: 캐릭터를 처음 고른 직후 강제로 띄우는 도입부(끝까지 봐야 진행되고, 이때만
@@ -1000,6 +1079,7 @@ function Game:draw()
     end
     if self.clearcut then self.clearcut:drawWorldOverlay(self) end
     self.camera:detach(); self:drawUI()
+    if self.clearcut and self.clearcut.sandbox then self:drawSandboxPanel() end
     if self.mode == "upgrade" then self.upgrades:drawSelection(self, self.fonts) end
     if self.mode == "rush_upgrade" then self.rush:drawSelection(self,self.fonts) end
     if self.mode == "clearcut_upgrade" then self.clearcut:drawSelection(self,self.fonts) end

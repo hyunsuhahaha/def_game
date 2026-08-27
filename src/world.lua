@@ -1411,7 +1411,7 @@ function World:draw(player, actorSource)
                     groundedRotated(treeImage, node.x, node.y, visual.scale * variantScale, angle)
                     return
                 elseif not node.active and node.rushTree then
-                    self:drawRushStump(node)
+                    if not node.uprooted then self:drawRushStump(node) end
                     return
                 elseif node.hitFlash and node.hitFlash > 0 then
                     local fx, fy = effectOrigin(node); love.graphics.setColor(1, .9, .42, node.hitFlash * 3.5); love.graphics.circle("fill", fx, fy, 36 + node.hitFlash * 70)

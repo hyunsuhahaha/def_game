@@ -30,6 +30,7 @@ function Lobby:keypressed(key)
     if key == "return" or key == "space" or key == "c" then return "clearcut" end
     if key == "t" then return "character_traits" end
     if key == "d" then return "character_codex" end
+    if key == "p" then return "skill_sandbox" end
 end
 
 function Lobby:mousepressed(x, y, button)
@@ -37,6 +38,7 @@ function Lobby:mousepressed(x, y, button)
     if inside(self.clearcutBox, x, y) then return "clearcut" end
     if inside(self.traitsBox, x, y) then return "character_traits" end
     if inside(self.codexBox, x, y) then return "character_codex" end
+    if inside(self.sandboxBox, x, y) then return "skill_sandbox" end
     if inside(self.settingsBox, x, y) then return "settings" end
 end
 
@@ -72,7 +74,8 @@ function Lobby:draw()
     self.settingsBox = {x = w - 30 - navW, y = navY, w = navW, h = 38}
     self.traitsBox = {x = self.settingsBox.x - navGap - navW, y = navY, w = navW, h = 38}
     self.codexBox = {x = self.traitsBox.x - navGap - navW, y = navY, w = navW, h = 38}
-    for _, item in ipairs({{box = self.codexBox, label = "캐릭터 도감"}, {box = self.traitsBox, label = "캐릭터 특성"}, {box = self.settingsBox, label = "설정"}}) do
+    self.sandboxBox = {x = self.codexBox.x - navGap - navW, y = navY, w = navW, h = 38}
+    for _, item in ipairs({{box = self.sandboxBox, label = "스킬 연습장"}, {box = self.codexBox, label = "캐릭터 도감"}, {box = self.traitsBox, label = "캐릭터 특성"}, {box = self.settingsBox, label = "설정"}}) do
         local hovered = inside(item.box, love.mouse.getPosition())
         love.graphics.setColor(.025, .055, .045, hovered and .84 or .66)
         love.graphics.rectangle("fill", item.box.x, item.box.y, item.box.w, item.box.h, 7, 7)

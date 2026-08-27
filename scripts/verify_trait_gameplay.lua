@@ -4,7 +4,9 @@ love={
     math={random=function(a,b) if a and b then return a elseif a then return 1 end return .99 end},
     mouse={isDown=function() return false end,getPosition=function() return 0,0 end},
     timer={getTime=function() return 0 end},
-    graphics={setColor=function() end,setLineWidth=function() end,line=function() end,circle=function() end,
+    graphics={setColor=function() end,setLineWidth=function() end,line=function(points)
+            if type(points)=="table" then assert(#points%2==0,"Number of vertex components must be a multiple of two.") end
+        end,circle=function() end,
         rectangle=function() end,polygon=function() end,push=function() end,pop=function() end,
         translate=function() end,rotate=function() end}
 }
@@ -64,5 +66,6 @@ assert(game.world.nodes[1].rushHp==2 and #developer.traitFx.events>0,"developer 
 
 local fx=TraitFx.new()
 for _,kind in ipairs({"axe","fire","bite","heal","dash","blast","refund"}) do fx:emit(kind,0,0,{particles=2}) end
-assert(pcall(fx.draw,fx),"high-resolution trait effect renderer failed")
+local rendered,renderError=pcall(fx.draw,fx)
+assert(rendered,"high-resolution trait effect renderer failed: "..tostring(renderError))
 print("TRAIT_GAMEPLAY_OK")

@@ -350,6 +350,41 @@ function SelfTest.run(game)
     game:advanceStory()
     ct:reset()
 
+    -- 스킬 연습장: 스토리/맵 선택을 건너뛰고 바로 진입하며, 자동 스폰이 전부 꺼지고
+    -- 스킬 목록은 해당 직업 전용 + 공용으로만 한정된다.
+    game.mode = "lobby"
+    game.sandboxMode = true
+    game:chooseClearcutCharacter(2)
+    assert(game.clearcut and game.clearcut.sandbox == true and game.clearcut.job == "fire", "스킬 연습장 진입 실패")
+    assert(game.mode == "playing" and not game.sandboxMode, "연습장 진입 후 상태 전환 실패")
+    local sandboxSkills = game.clearcut:sandboxSkillList()
+    local hasJobSkill, hasUniversalSkill, hasOtherJobSkill = false, false, false
+    for _, def in ipairs(sandboxSkills) do
+        if def.id == "molotov" then hasJobSkill = true end
+        if def.id == "domino" then hasUniversalSkill = true end
+        if def.id == "berserker" then hasOtherJobSkill = true end
+    end
+    assert(hasJobSkill and hasUniversalSkill and not hasOtherJobSkill, "연습장 스킬 목록이 직업 전용+공용으로 한정되지 않음")
+    game.clearcut:sandboxSetLevel("molotov", 1)
+    assert(game.clearcut:levelOf("molotov") == 1, "연습장 스킬 레벨 증가 실패")
+    game.clearcut:sandboxSetLevel("molotov", 99)
+    assert(game.clearcut:levelOf("molotov") == game.clearcut:getUpgradeDefinition("molotov").max, "연습장 스킬 레벨이 만렙을 넘음")
+    game.clearcut:sandboxSetLevel("molotov", -99)
+    assert(game.clearcut:levelOf("molotov") == 0, "연습장 스킬 레벨이 0 밑으로 안 내려감")
+    game.clearcut.enemies = {}
+    game.clearcut.timeSpawnTimer = 0
+    game.clearcut:updateTimeSpawner(.01, game)
+    game.clearcut.eliteTimer = 0
+    game.clearcut:updateEliteTimer(.01, game)
+    assert(#game.clearcut.enemies == 0, "연습장에서 자동 스폰(시간/정예)이 꺼지지 않음")
+    local sandboxDrawOk, sandboxDrawErr = pcall(game.draw, game)
+    assert(sandboxDrawOk, "스킬 연습장 렌더 실패: " .. tostring(sandboxDrawErr))
+    game:sandboxPanelClick(game.sandboxMobBox.x + 1, game.sandboxMobBox.y + 1)
+    assert(#game.clearcut.enemies > 0, "몹 소환 버튼으로 적 생성 실패")
+    game.clearcut.enemies = {}
+    game:sandboxPanelClick(game.sandboxExitBox.x + 1, game.sandboxExitBox.y + 1)
+    assert(game.mode == "lobby" and game.clearcut == nil, "연습장 나가기 버튼 동작 실패")
+
     game:startClearcut("physical")
     game.clearcut.reviveCharges = 1
     game.clearcut.hp, game.clearcut.maxHp, game.clearcut.invulnTimer, game.clearcut.dead = 10, 100, 0, false
@@ -617,7 +652,7 @@ function SelfTest.run(game)
     assert(drawOk, "오프스크린 인디케이터/신규 이펙트 렌더 실패: " .. tostring(drawErr))
     game.clearcut.enemies = {}
 
-    print("SELF_TEST_OK: LOBBY_DUAL_MODE RUSH_3MIN RUSH_FOREST RUSH_HOLD_TO_CHOP RUSH_MULTI_HIT RUSH_CHAIN_FELL RUSH_AUTO_PICKUP RUSH_THREE_CHOICES RUSH_AUTO_FRONT RUSH_RESULTS LOBBY_AUX_NAV SETTINGS BIG_TREE_SINGLE TREE_PER_HIT_DROP TREE_PROXIMITY_PICKUP QUARRY_GROUNDED QUARRY_PER_HIT_DROP QUARRY_ORE_RATIO QUARRY_PROXIMITY_PICKUP FARM TREE QUARRY_INFINITE TOOL_SPEED IMPACT_SYNC HARVEST_FEEDBACK VISIBLE_TURRET VISIBLE_DRONE VISIBLE_REPAIR_STATION MINING_DRILL_VFX RUN_LEVELUP THREE_CHOICES AUTOMATION EVOLUTION WALL_UPGRADE WALL_BLOCK HAMMER_REPAIR CRIT_CHANCE PRESTIGE_RUN MOVE_WHILE_FARM TURRET_SLOT_BASE TURRET_SLOT_TRAIT TURRET_SLOT_OCCUPIED TURRET_NEARBY TURRET_F_INTERACT TURRET_UPGRADE TURRET_AIM VISIBLE_BULLET MUZZLE_FLASH CHAIN_COIL_VFX EXPLOSIVE_SHELL_VFX META_SAVE TRAIT_TREE TRAIT_APPLY RUN_REWARD TEST_CURRENCY TEST_RESOURCES TEST_LEVELS TEST_RESET CIGARETTE_SMOKE_WINDUP CLEARCUT_CARD_FRAME CURSE_SCALING SWARM_SCALING TIME_SPAWNER ELITE_SPAWN REAPER_SPAWN REAPER_DASH_AI ELITE_THORN_FIRE STAGE_PROGRESSION WORLDTREE_ATTACKS WORLDTREE_ENRAGE SHADED_SPRITES BERSERK_ROUND BERSERK_TREE_FX CARD_REROLL CARD_BANISH ARCANA_STAGE SPECIAL_CARD VINE_PLANT NATURAL_DISASTER OFFSCREEN_INDICATOR CHARACTER_STORY_FLOW CHARACTER_CODEX")
+    print("SELF_TEST_OK: LOBBY_DUAL_MODE RUSH_3MIN RUSH_FOREST RUSH_HOLD_TO_CHOP RUSH_MULTI_HIT RUSH_CHAIN_FELL RUSH_AUTO_PICKUP RUSH_THREE_CHOICES RUSH_AUTO_FRONT RUSH_RESULTS LOBBY_AUX_NAV SETTINGS BIG_TREE_SINGLE TREE_PER_HIT_DROP TREE_PROXIMITY_PICKUP QUARRY_GROUNDED QUARRY_PER_HIT_DROP QUARRY_ORE_RATIO QUARRY_PROXIMITY_PICKUP FARM TREE QUARRY_INFINITE TOOL_SPEED IMPACT_SYNC HARVEST_FEEDBACK VISIBLE_TURRET VISIBLE_DRONE VISIBLE_REPAIR_STATION MINING_DRILL_VFX RUN_LEVELUP THREE_CHOICES AUTOMATION EVOLUTION WALL_UPGRADE WALL_BLOCK HAMMER_REPAIR CRIT_CHANCE PRESTIGE_RUN MOVE_WHILE_FARM TURRET_SLOT_BASE TURRET_SLOT_TRAIT TURRET_SLOT_OCCUPIED TURRET_NEARBY TURRET_F_INTERACT TURRET_UPGRADE TURRET_AIM VISIBLE_BULLET MUZZLE_FLASH CHAIN_COIL_VFX EXPLOSIVE_SHELL_VFX META_SAVE TRAIT_TREE TRAIT_APPLY RUN_REWARD TEST_CURRENCY TEST_RESOURCES TEST_LEVELS TEST_RESET CIGARETTE_SMOKE_WINDUP CLEARCUT_CARD_FRAME CURSE_SCALING SWARM_SCALING TIME_SPAWNER ELITE_SPAWN REAPER_SPAWN REAPER_DASH_AI ELITE_THORN_FIRE STAGE_PROGRESSION WORLDTREE_ATTACKS WORLDTREE_ENRAGE SHADED_SPRITES BERSERK_ROUND BERSERK_TREE_FX CARD_REROLL CARD_BANISH ARCANA_STAGE SPECIAL_CARD VINE_PLANT NATURAL_DISASTER OFFSCREEN_INDICATOR CHARACTER_STORY_FLOW CHARACTER_CODEX SKILL_SANDBOX")
 end
 
 return SelfTest
