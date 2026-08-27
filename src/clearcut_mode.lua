@@ -294,6 +294,12 @@ function ClearcutMode:generateForest(game, target)
     local w, h = game.world.width, game.world.height
     local spawnX, spawnY = w / 2, h / 2
     local stage=self.stage or 1
+    -- 온대 숲 계열(기본/초심자)에서만 조림 사업 특성이 스테이지 진행에 비례해
+    -- 추가 나무를 심어준다. 다른 바이옴은 자기만의 나무 수 곡선을 유지한다.
+    local isDefaultForest = game.world.clearcutMap=="forest" or game.world.clearcutMap=="beginner"
+    if isDefaultForest then
+        target = target + math.floor((self.permanentTraits.forestRestock or 0) * stage)
+    end
     local normalBase=stage==1 and 140 or (stage==2 and 120 or (stage==3 and 105 or 96))
     local normalFloor=stage==1 and 98 or (stage==2 and 82 or (stage==3 and 70 or 60))
     local islandBase=stage==1 and 100 or (stage==2 and 85 or (stage==3 and 75 or 68))
@@ -330,6 +336,8 @@ function ClearcutMode:generateForest(game, target)
             local variantCount = math.max(1, #(game.world.images.treeVariants or {}))
             local treeVariant = Maps.treeVariant(game.world,x,y,#game.world.nodes+1)
                 or ForestScenery.treeVariant(x,y,w,h,self.stage,#game.world.nodes+1,variantCount)
+            -- 다수종 조림 협약을 아직 안 찍었으면 온대 숲 계열은 기본 수종 하나만 자란다.
+            if isDefaultForest and (self.permanentTraits.treeVariety or 0) <= 0 then treeVariant = 1 end
             local hp = treeHpFor(game.world.clearcutMap, treeVariant)
             game.world.nodes[#game.world.nodes+1] = {kind="tree",x=x,y=y,work=0,workTime=1,active=true,respawn=0,rushTree=true,rushHp=hp,rushMaxHp=hp,beehive=beehive,treeVariant=treeVariant}
             if beehive then self.beehiveTotal = self.beehiveTotal + 1 end
@@ -3261,7 +3269,9 @@ function ClearcutMode:fellTree(node, game)
     if not node.active then return false end
     local wasBeehive = node.beehive
     node.active, node.respawn, node.rushHp = false, math.huge, 0
-    local amount = 4
+    -- 기본 수종보다 값나가는(=해금이 필요한) 수종은 더 많은 목재를 준다.
+    local amount = (node.treeVariant and node.treeVariant > 1) and 6 or 4
+    amount = math.floor(amount * (self.permanentTraits.woodYield or 1) + .5)
     game.world:harvestBurst(node, game, amount, "목재")
     game.world:spawnDrop("wood", amount, node.x, node.y - 10, 42, 30, 1.5)
     self.treesFelled = self.treesFelled + 1

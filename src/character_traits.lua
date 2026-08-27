@@ -295,6 +295,16 @@ jobs.universal = {
     }
 }
 
+-- 나무 = 재화라는 컨셉을 공용 트리에 반영: 목재 획득량 보너스는 루트(통근버스)
+-- 바로 다음 단계에 배치해 "루트에서 바로 이어지는" 재화 특성이 되게 하고, 조림
+-- 사업으로 스테이지당 나무 수를 늘리며, 그 조림 사업이 있어야 비로소 더 값나가는
+-- 수종(=지금 숲에 이미 있던 소나무/자작나무/단풍나무)이 함께 자라기 시작한다.
+expand("universal",{
+    {id="universal_lumberbonus",name="목재 실적 인정",short="벤 만큼 잡힌다",desc="목재 획득량 +12%",effect="woodYield",value=.12,requires={{"universal_shuttle",1}},icon="coins",color={.78,.62,.30}},
+    {id="universal_afforestation",name="선제적 조림 사업",short="미리 심어둔다",desc="스테이지 진행마다 나무 +6그루(스테이지 배수)",effect="forestRestock",value=6,requires={{"universal_shuttle",1}},icon="map",color={.42,.68,.40}},
+    {id="universal_seedbank",name="다수종 조림 협약",short="한 종만 심지 않는다",desc="벌목지에 더 값나가는 수종이 함께 자란다",effect="treeVariety",value=1,max=1,requires={{"universal_afforestation",1}},icon="leaf",color={.55,.72,.35}}
+})
+
 local byId = {}
 for job, group in pairs(jobs) do
     for _, node in ipairs(group.nodes) do node.job = job; byId[node.id] = node end
@@ -410,7 +420,7 @@ function CharacterTraits:markStorySeen(jobId)
     self:save()
 end
 
-local multiplicativeEffects = {attackSpeed=true, reward=true, burnSpeed=true, dashSpeed=true, moveSpeed=true}
+local multiplicativeEffects = {attackSpeed=true, reward=true, burnSpeed=true, dashSpeed=true, moveSpeed=true, woodYield=true}
 
 -- 직업 전용 트리 + 공용(universal) 트리를 합산한다: 어떤 직업을 골라도 공용 특성은 항상 적용된다.
 function CharacterTraits:effects(job)
@@ -420,7 +430,8 @@ function CharacterTraits:effects(job)
         burnSpeed=1, extraFires=0, spreadChance=0,
         biteDamage=0, plagueDuration=0,
         dashSpeed=1, sterileChance=0, aftershockRadius=0, cooldownRefund=0,
-        moveSpeed=1, pickupRadius=0, hpRegen=0, reviveCharges=0
+        moveSpeed=1, pickupRadius=0, hpRegen=0, reviveCharges=0,
+        woodYield=1, forestRestock=0, treeVariety=0
     }
     local function accumulate(nodes)
         for _, node in ipairs(nodes) do
