@@ -2061,7 +2061,7 @@ function ClearcutMode:updateThornAura(dt, game)
     if self.auraTimer > 0 then return end
     local power = self:power("thorn_aura")
     self.auraTimer = math.max(1, 1.9 - power * .3)
-    local radius = 50 + power * 18
+    local radius = 60 + power * 70
     local dmg = 1 + power
     for _, node in ipairs(game.world.nodes) do
         if node.rushTree and node.active then
@@ -2133,7 +2133,7 @@ function ClearcutMode:updateVineWhip(dt, game)
     self.whipTimer = (self.whipTimer or 0) - dt
     if self.whipTimer > 0 then return end
     self.whipTimer = math.max(3.5, 8 - power * 1.5)
-    local range = 130 + power * 25
+    local range = 140 + power * 85
     local nearest, nearestD2 = nil, range * range
     for _, node in ipairs(game.world.nodes) do
         if node.rushTree and node.active then
