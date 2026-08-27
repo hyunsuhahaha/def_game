@@ -58,11 +58,7 @@ local definitions = {
     {id="deep_scan", track="dig", name="정밀 탐사", desc="탐지 반경이 넓어지고 판정 속도가 빨라집니다.", max=6, color={.95,.82,.35}, job="miner"},
     {id="backhoe", track="dig", name="굴착기 대여", desc="굴착 한 방의 범위와 위력이 커집니다. 렌탈비는... 나중에 생각하자.", max=6, color={.75,.55,.2}, job="miner"},
     {id="jackpot", track="dig", name="이번엔 진짜 있을 것 같다", desc="가끔 '발견!' 판정이 터져 훨씬 넓은 범위가 한 번에 무너지고 목재를 왕창 얻습니다.", max=6, color={1,.84,.3}, job="miner"},
-    {id="brute_force", track="dig", name="브루트포스 어택", desc="주기적으로 무작위 숫자 조합을 사방으로 흩뿌려 닿는 나무와 적에게 피해를 줍니다.", max=6, color={.3,.9,.4}, job="miner"},
-    {id="ddos_attack", track="dig", name="디도스 공격", desc="주기적으로 가장 가까운 대상에게 패킷을 연사해 집중 피해를 줍니다.", max=6, color={1,.45,.25}, job="miner"},
-    {id="ransomware", track="dig", name="랜섬웨어", desc="나무 하나를 감염시켜 지속 피해를 주고, 쓰러지면 가까운 나무로 감염이 옮겨붙습니다.", max=6, color={.7,.15,.2}, job="miner"},
-    {id="zeroday_exploit", track="dig", name="제로데이 익스플로잇", desc="아주 가끔 알려지지 않은 취약점을 찾아내 대상 하나에게 압도적인 피해를 입힙니다.", max=6, color={1,.92,.35}, job="miner"},
-    {id="port_scan", track="dig", name="포트 스캔", desc="주기적으로 주변을 스캔해, 체력이 낮은 나무나 적을 즉시 처리합니다.", max=6, color={.3,.85,.9}, job="miner"},
+    {id="brute_force", track="dig", name="브루트포스 어택", desc="지상에서 수많은 숫자 조합을 빠르게 생성한 뒤 사방으로 발사합니다. 날아간 숫자는 닿는 나무와 적에게 피해를 줍니다.", max=6, color={.3,.9,.4}, job="miner"},
     -- 독설력 (venom) — 말을 오래 붙잡을수록 사거리와 독성이 강해진다 [차라투스트라는 이렇게 말했다 전용]
     {id="monologue", track="venom", name="아무 말 대잔치", desc="기본 공격이 장광설로 바뀝니다. 마우스 방향으로 계속 침을 튀기며, 말이 길어질수록 사거리와 피해가 늘어납니다.", max=6, color={.75,.85,.3}, job="philosopher"},
     {id="footnote", track="venom", name="각주 남발", desc="말하는 속도가 빨라져 침이 더 자주 튑니다.", max=6, color={.85,.9,.4}, job="philosopher"},
@@ -190,6 +186,17 @@ function ClearcutMode:sandboxSetLevel(id, delta)
     local def = upgradeById[id]
     if not def then return end
     self.levels[id] = math.max(0, math.min(def.max, self:levelOf(id) + delta))
+end
+
+-- 융합 스킬은 정상적으로는 재료 두 스킬을 만렙 찍고 3택 카드 화면에서 확정 획득해야
+-- 하는데, 연습장은 그 카드 흐름 자체를 건너뛰므로(checkEvolutions가 절대 호출 안 됨)
+-- 재료를 만렙 찍어도 자동으로 붙지 않는다. 그래서 배움 여부를 직접 켜고 끌 수 있게 한다.
+function ClearcutMode:sandboxFusionList()
+    return Fusions.forJob(self)
+end
+
+function ClearcutMode:sandboxToggleFusion(id)
+    self.evolutions[id] = not self.evolutions[id]
 end
 -- 레벨→실질 파워 곡선 (만렙 3→6 확장에 맞춘 재설계).
 -- 초반 픽은 완만하고, 3레벨이 옛 만렙과 거의 같고, 6레벨에서 옛 만렙의 약 1.87배로 마무리된다.
@@ -2034,10 +2041,6 @@ function ClearcutMode:updateSupplementSkills(dt, game)
     self:updateChainLightning(dt, game)
     self:updateSporeCloud(dt, game)
     self:updateBruteForce(dt, game)
-    self:updateDdosAttack(dt, game)
-    self:updateRansomware(dt, game)
-    self:updateZeroDay(dt, game)
-    self:updatePortScan(dt, game)
     if self.auraPulse then self.auraPulse = math.max(0, self.auraPulse - dt * 2.2) end
 end
 

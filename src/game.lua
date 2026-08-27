@@ -943,8 +943,10 @@ end
 function Game:drawSandboxPanel()
     local w, h, f = love.graphics.getWidth(), love.graphics.getHeight(), self.fonts
     local skills = self.clearcut:sandboxSkillList()
+    local fusions = self.clearcut:sandboxFusionList()
     local panelW, rowH = 300, 25
-    local panelH = math.min(h - 32, 96 + #skills * rowH + 74)
+    local fusionBlockH = #fusions > 0 and (22 + #fusions * rowH) or 0
+    local panelH = math.min(h - 32, 96 + #skills * rowH + fusionBlockH + 74)
     local x, y = w - panelW - 16, 16
     UI.panel(x, y, panelW, panelH, {.3, .82, .5, 1}, .94)
     love.graphics.setFont(f.small); love.graphics.setColor(1, .92, .55)
@@ -966,6 +968,20 @@ function Game:drawSandboxPanel()
         rowY = rowY + rowH
     end
 
+    self.sandboxFusionBoxes = {}
+    if #fusions > 0 then
+        love.graphics.setFont(f.small); love.graphics.setColor(1, .85, .5)
+        love.graphics.print("융합 스킬 · 재료 무시하고 켜고 끄기", x + 14, rowY + 2)
+        rowY = rowY + 20
+        for _, def in ipairs(fusions) do
+            local learned = self.clearcut.evolutions[def.id] == true
+            local toggleBox = {x = x + 14, y = rowY, w = panelW - 28, h = 22}
+            UI.button(toggleBox.x, toggleBox.y, toggleBox.w, toggleBox.h, def.name .. "  ·  " .. (learned and "배움" or "미보유"), true, f.small)
+            self.sandboxFusionBoxes[#self.sandboxFusionBoxes + 1] = {id = def.id, box = toggleBox}
+            rowY = rowY + rowH
+        end
+    end
+
     self.sandboxMobBox = {x = x + 14, y = y + panelH - 68, w = panelW - 28, h = 30}
     UI.button(self.sandboxMobBox.x, self.sandboxMobBox.y, self.sandboxMobBox.w, self.sandboxMobBox.h, "몹 소환", true, f.body)
     self.sandboxExitBox = {x = x + 14, y = y + panelH - 32, w = panelW - 28, h = 24}
@@ -983,6 +999,10 @@ function Game:sandboxPanelClick(x, y)
         local mb, pb = box.minus, box.plus
         if x>=mb.x and x<=mb.x+mb.w and y>=mb.y and y<=mb.y+mb.h then self.clearcut:sandboxSetLevel(box.id, -1); return true end
         if x>=pb.x and x<=pb.x+pb.w and y>=pb.y and y<=pb.y+pb.h then self.clearcut:sandboxSetLevel(box.id, 1); return true end
+    end
+    for _, box in ipairs(self.sandboxFusionBoxes or {}) do
+        local b = box.box
+        if x>=b.x and x<=b.x+b.w and y>=b.y and y<=b.y+b.h then self.clearcut:sandboxToggleFusion(box.id); return true end
     end
     return false
 end
