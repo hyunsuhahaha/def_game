@@ -1603,11 +1603,15 @@ function ClearcutMode:updateSmokeRing(dt, game)
     -- 처음엔 작게 시작해서 날아갈수록 점점 커진다(실제 담배연기 도넛처럼).
     local grow = math.min(1, ring.traveled / ring.maxRange)
     ring.radius = ring.startRadius + (ring.maxRadius - ring.startRadius) * grow
+    -- 실제로 그려지는 도넛 스프라이트는 ring.radius보다 눈에 띄게 커 보인다
+    -- (smoke_ring_art.lua의 scale=ring.radius/78, 원점 96 기준 ≈ 1.23배). 판정을
+    -- 눈에 보이는 크기에 맞춰 넓힌다.
+    local hitRadius = ring.radius * 1.3
     for _, e in ipairs(self.enemies) do
         if not ring.hit[e] then
             local dx, dy = e.x - ring.x, e.y - ring.y
             local dist = math.sqrt(dx * dx + dy * dy)
-            if dist <= ring.radius then
+            if dist <= hitRadius then
                 ring.hit[e] = true
                 local nx, ny = dist > .01 and dx / dist or 1, dist > .01 and dy / dist or 0
                 e.hp = e.hp - ring.dmg
@@ -1619,7 +1623,7 @@ function ClearcutMode:updateSmokeRing(dt, game)
     for _, node in ipairs(game.world.nodes) do
         if node.rushTree and node.active and not ring.hit[node] then
             local dx, dy = node.x - ring.x, node.y - ring.y
-            if dx * dx + dy * dy <= ring.radius * ring.radius then
+            if dx * dx + dy * dy <= hitRadius * hitRadius then
                 ring.hit[node] = true
                 node.rushHp = (node.rushHp or node.rushMaxHp) - ring.dmg
                 game.world:impactNode(node, game, true)
