@@ -1149,9 +1149,9 @@ end
 function ClearcutMode:updateStrawBales(dt, game)
     local now = self.smokerGroundTime
     local growth=self:growth("straw_bale")
-    local radius=105+growth*55
-    local damage=4+growth*4
-    local triggerRadius=68+growth*22
+    local radius=150+growth*70
+    local damage=7+growth*6
+    local triggerRadius=110+growth*40
     for i = #self.strawBales, 1, -1 do
         local bale = self.strawBales[i]
         bale.radius,bale.damage,bale.triggerRadius=bale.radius or radius,bale.damage or damage,bale.triggerRadius or triggerRadius
@@ -1194,7 +1194,7 @@ function ClearcutMode:updateStrawBales(dt, game)
         self.strawBaleSequence=(self.strawBaleSequence or 0)+1
         self.strawBales[#self.strawBales + 1] = {
             x=game.player.x+math.cos(a)*r,y=game.player.y+math.sin(a)*r,
-            age=0,ignited=false,variant=(self.strawBaleSequence-1)%2,
+            age=0,ignited=false,variant=(self.strawBaleSequence-1)%2,spawnedAt=now,
             radius=radius,damage=damage,triggerRadius=triggerRadius
         }
     end

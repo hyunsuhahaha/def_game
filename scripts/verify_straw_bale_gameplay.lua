@@ -30,8 +30,8 @@ assert(igniteFxCalls==0,"generic tree ignition FX masks authored bale animation"
 -- Local DOT stays intact, without invoking any spread path.
 mode.smokerGroundTime=10.9;mode:updateStrawBales(.4,game)
 local openingGrowth=(.5/5.6)^1.35
-local expectedRadius,expectedDamage=105+openingGrowth*55,4+openingGrowth*4
-assert(mode.damageAudit and math.abs(mode.damageAudit.radius-expectedRadius)<.001 and mode.damageAudit.radius>105)
+local expectedRadius,expectedDamage=150+openingGrowth*70,7+openingGrowth*6
+assert(mode.damageAudit and math.abs(mode.damageAudit.radius-expectedRadius)<.001 and mode.damageAudit.radius>150)
 assert(math.abs(mode.damageAudit.damage-expectedDamage)<.001)
 assert(spreadCalls==0,"hay fire spread to another target")
 
@@ -63,4 +63,4 @@ if STRAW_CAPTURE then
         fixture.save("docs/previews/straw-bale-v4-"..frame.."-draws.json")
     end
 end
-print("STRAW_BALE_GAMEPLAY_OK cigarette_only delay=0.5 dot=107..160 damage=4..8 spread=none continuous_shader=v4")
+print("STRAW_BALE_GAMEPLAY_OK cigarette_only delay=0.5 dot=150..220 damage=7..13 spread=none continuous_shader=v4")

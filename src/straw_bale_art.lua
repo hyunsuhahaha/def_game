@@ -13,18 +13,19 @@ local function load()
     fireShader=love.graphics.newShader("assets/shaders/straw-bale-fire.glsl")
 end
 
-local function drawBody(bale,alpha)
+local function drawBody(bale,alpha,squash)
     load();love.graphics.setColor(1,1,1,alpha or 1)
-    love.graphics.draw(body,math.floor(bale.x+.5),math.floor(bale.y+.5),0,BODY_SCALE,BODY_SCALE,BW/2,278)
+    local sx,sy=BODY_SCALE*(2-(squash or 1)),BODY_SCALE*(squash or 1)
+    love.graphics.draw(body,math.floor(bale.x+.5),math.floor(bale.y+.5),0,sx,sy,BW/2,278)
 end
 
 local function drawRange(bale,t,fade)
     local radius=bale.radius or 105
     local pulse=.82+.18*math.sin(t*5.2+(bale.variant or 0))
-    love.graphics.setColor(1,.25,.035,.085*fade)
+    love.graphics.setColor(1,.3,.04,.13*fade)
     love.graphics.ellipse("fill",bale.x,bale.y+3,radius,radius*.34)
     love.graphics.setLineWidth(2)
-    love.graphics.setColor(1,.54,.12,.38*fade*pulse)
+    love.graphics.setColor(1,.58,.14,.5*fade*pulse)
     love.graphics.ellipse("line",bale.x,bale.y+3,radius,radius*.34)
 end
 
@@ -49,25 +50,38 @@ local function drawPrime(bale,t,p)
     end
 end
 
+local FALL_DUR,FALL_HEIGHT=.42,230
+
 function Art.draw(bale,t)
     load();local previous={love.graphics.getColor()};t=t or 0
+    local elapsed=bale.spawnedAt and (t-bale.spawnedAt) or FALL_DUR
+    local dropY,squash=0,1
+    if elapsed<FALL_DUR then
+        local p=math.max(0,elapsed/FALL_DUR)
+        dropY=-(1-p*p)*FALL_HEIGHT
+        local shadowP=math.min(1,p*1.3)
+        love.graphics.setColor(0,0,0,.30*shadowP)
+        love.graphics.ellipse("fill",bale.x,bale.y+6,58*shadowP,17*shadowP)
+        if p>.84 then squash=1-math.sin((p-.84)/.16*math.pi)*.22 end
+    end
+    local bale={x=bale.x,y=bale.y+dropY,radius=bale.radius,variant=bale.variant,ignited=bale.ignited,ignitedAt=bale.ignitedAt,primedAt=bale.primedAt}
     if bale.ignited then
         local age=math.max(0,t-(bale.ignitedAt or t))
         local fade=math.min(1,age/.12)*math.min(1,math.max(0,(6-age)/.55))
         drawRange(bale,t,fade)
-        flameLayer(bale,t,bale.x-50,bale.y-57,92,136,0,fade*.88,(bale.variant or 0)+.3)
-        flameLayer(bale,t+.21,bale.x,bale.y-61,104,190,0,fade,(bale.variant or 0)+1.1)
-        flameLayer(bale,t+.43,bale.x+52,bale.y-55,90,148,0,fade*.90,(bale.variant or 0)+2.4)
+        flameLayer(bale,t,bale.x-56,bale.y-60,120,178,0,fade*.98,(bale.variant or 0)+.3)
+        flameLayer(bale,t+.21,bale.x,bale.y-65,136,248,0,fade,(bale.variant or 0)+1.1)
+        flameLayer(bale,t+.43,bale.x+58,bale.y-58,118,192,0,fade*.98,(bale.variant or 0)+2.4)
         drawBody(bale,fade)
-        flameLayer(bale,t+.12,bale.x-62,bale.y-30,68,92,1,fade*.82,(bale.variant or 0)+3.0)
-        flameLayer(bale,t+.31,bale.x-23,bale.y-38,78,126,1,fade*.94,(bale.variant or 0)+4.2)
-        flameLayer(bale,t+.50,bale.x+23,bale.y-39,78,112,1,fade*.92,(bale.variant or 0)+5.5)
-        flameLayer(bale,t+.68,bale.x+61,bale.y-28,68,88,1,fade*.80,(bale.variant or 0)+6.8)
+        flameLayer(bale,t+.12,bale.x-68,bale.y-32,88,120,1,fade*.94,(bale.variant or 0)+3.0)
+        flameLayer(bale,t+.31,bale.x-25,bale.y-41,101,164,1,fade,(bale.variant or 0)+4.2)
+        flameLayer(bale,t+.50,bale.x+25,bale.y-42,101,146,1,fade*.98,(bale.variant or 0)+5.5)
+        flameLayer(bale,t+.68,bale.x+67,bale.y-31,88,114,1,fade*.92,(bale.variant or 0)+6.8)
     elseif bale.primedAt then
         local p=math.min(1,math.max(0,(t-bale.primedAt)/.5))
         drawBody(bale,1);drawPrime(bale,t,p)
     else
-        drawBody(bale,1)
+        drawBody(bale,1,squash)
     end
     love.graphics.setColor(unpack(previous))
 end
