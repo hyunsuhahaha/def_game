@@ -1,7 +1,7 @@
 local Game
 local game
-local frontendCapture = os.getenv("LAST_HAUL_CAPTURE_SETTINGS") or os.getenv("LAST_HAUL_CAPTURE_CLEARCUT_MAP_SELECT") or os.getenv("LAST_HAUL_CAPTURE_CLEARCUT_BRIEFING") or os.getenv("LAST_HAUL_CAPTURE_CHARACTER_TRAITS")
-local captureFrames = frontendCapture and 8 or (os.getenv("LAST_HAUL_CAPTURE_TURRET_FIRE") and 3 or (os.getenv("LAST_HAUL_CAPTURE_DRILL") and 2 or ((os.getenv("LAST_HAUL_CAPTURE_RUSH") or os.getenv("LAST_HAUL_CAPTURE_LOBBY") or os.getenv("LAST_HAUL_CAPTURE_CLEARCUT") or os.getenv("LAST_HAUL_CAPTURE_CLEARCUT_UPGRADE") or os.getenv("LAST_HAUL_CAPTURE_CLEARCUT_RESULTS") or os.getenv("LAST_HAUL_CAPTURE_CLEARCUT_THREATS") or os.getenv("LAST_HAUL_CAPTURE_CLEARCUT_BUILDS") or os.getenv("LAST_HAUL_CAPTURE_CLEARCUT_CHAR_SELECT") or os.getenv("LAST_HAUL_CAPTURE_CLEARCUT_FIREJOB") or os.getenv("LAST_HAUL_CAPTURE_CLEARCUT_DEVJOB") or os.getenv("LAST_HAUL_CAPTURE_CLEARCUT_COMBAT") or os.getenv("LAST_HAUL_CAPTURE_CLEARCUT_DEFEAT") or os.getenv("LAST_HAUL_CAPTURE_CLEARCUT_MILESTONE") or os.getenv("LAST_HAUL_CAPTURE_VEGAN_FORK")) and 6 or (os.getenv("LAST_HAUL_CAPTURE_HARVEST") and 10 or ((os.getenv("LAST_HAUL_CAPTURE") or os.getenv("LAST_HAUL_CAPTURE_GAME") or os.getenv("LAST_HAUL_CAPTURE_FARM") or os.getenv("LAST_HAUL_CAPTURE_MINE") or os.getenv("LAST_HAUL_CAPTURE_WALL") or os.getenv("LAST_HAUL_CAPTURE_REPAIR") or os.getenv("LAST_HAUL_CAPTURE_META") or os.getenv("LAST_HAUL_CAPTURE_RESULTS") or os.getenv("LAST_HAUL_CAPTURE_UPGRADE") or os.getenv("LAST_HAUL_CAPTURE_UNITS") or os.getenv("LAST_HAUL_CAPTURE_TEST_OPTIONS") or os.getenv("LAST_HAUL_CAPTURE_TURRET_PROMPT") or os.getenv("LAST_HAUL_CAPTURE_TURRET_PLACEMENT") or os.getenv("LAST_HAUL_CAPTURE_TURRET_UPGRADE")) and 30 or nil)))))
+local frontendCapture = os.getenv("LAST_HAUL_CAPTURE_SETTINGS") or os.getenv("LAST_HAUL_CAPTURE_CLEARCUT_MAP_SELECT") or os.getenv("LAST_HAUL_CAPTURE_CLEARCUT_BRIEFING") or os.getenv("LAST_HAUL_CAPTURE_CHARACTER_TRAITS") or os.getenv("LAST_HAUL_CAPTURE_ACHIEVEMENTS")
+local captureFrames = frontendCapture and 8 or (os.getenv("LAST_HAUL_CAPTURE_TURRET_FIRE") and 3 or (os.getenv("LAST_HAUL_CAPTURE_DRILL") and 2 or ((os.getenv("LAST_HAUL_CAPTURE_RUSH") or os.getenv("LAST_HAUL_CAPTURE_LOBBY") or os.getenv("LAST_HAUL_CAPTURE_CLEARCUT") or os.getenv("LAST_HAUL_CAPTURE_CLEARCUT_UPGRADE") or os.getenv("LAST_HAUL_CAPTURE_CLEARCUT_RESULTS") or os.getenv("LAST_HAUL_CAPTURE_CLEARCUT_THREATS") or os.getenv("LAST_HAUL_CAPTURE_CLEARCUT_BUILDS") or os.getenv("LAST_HAUL_CAPTURE_CLEARCUT_CHAR_SELECT") or os.getenv("LAST_HAUL_CAPTURE_CLEARCUT_FIREJOB") or os.getenv("LAST_HAUL_CAPTURE_CLEARCUT_DEVJOB") or os.getenv("LAST_HAUL_CAPTURE_CLEARCUT_COMBAT") or os.getenv("LAST_HAUL_CAPTURE_CLEARCUT_DEFEAT") or os.getenv("LAST_HAUL_CAPTURE_CLEARCUT_MILESTONE") or os.getenv("LAST_HAUL_CAPTURE_VEGAN_FORK") or os.getenv("LAST_HAUL_CAPTURE_ACHIEVEMENT_POPUP")) and 6 or (os.getenv("LAST_HAUL_CAPTURE_HARVEST") and 10 or ((os.getenv("LAST_HAUL_CAPTURE") or os.getenv("LAST_HAUL_CAPTURE_GAME") or os.getenv("LAST_HAUL_CAPTURE_FARM") or os.getenv("LAST_HAUL_CAPTURE_MINE") or os.getenv("LAST_HAUL_CAPTURE_WALL") or os.getenv("LAST_HAUL_CAPTURE_REPAIR") or os.getenv("LAST_HAUL_CAPTURE_META") or os.getenv("LAST_HAUL_CAPTURE_RESULTS") or os.getenv("LAST_HAUL_CAPTURE_UPGRADE") or os.getenv("LAST_HAUL_CAPTURE_UNITS") or os.getenv("LAST_HAUL_CAPTURE_TEST_OPTIONS") or os.getenv("LAST_HAUL_CAPTURE_TURRET_PROMPT") or os.getenv("LAST_HAUL_CAPTURE_TURRET_PLACEMENT") or os.getenv("LAST_HAUL_CAPTURE_TURRET_UPGRADE")) and 30 or nil)))))
 if os.getenv("LAST_HAUL_UI_CAPTURE_MODE") then
     function love.errorhandler(message)
         io.stderr:write("UI_CAPTURE_ERROR: "..tostring(message).."\n")
@@ -330,6 +330,17 @@ function love.load()
     if os.getenv("LAST_HAUL_CAPTURE_CLEARCUT_MAP_SELECT") then game.pendingClearcutCharacter="fire"; game.clearcutMapFocus=3; game.mode="clearcut_map_select" end
     if os.getenv("LAST_HAUL_CAPTURE_CLEARCUT_BRIEFING") then game.pendingClearcutCharacter="fire"; game.selectedClearcutMap="madagascar"; game.mode="clearcut_briefing" end
     if os.getenv("LAST_HAUL_CAPTURE_CHARACTER_TRAITS") then game.characterTraitReturnMode="lobby"; game.mode="character_traits" end
+    if os.getenv("LAST_HAUL_CAPTURE_ACHIEVEMENTS") then
+        local a=game.achievements
+        a.data.points=11
+        a.data.stats={total_trees=1380,best_run_trees=184,best_chain=23,best_stage=4,bosses=7,maps_seen=4,species_broadleaf=124,species_pine=76,species_birch=43,species_maple=101,job_fire_trees=312,vegan_eaten=64}
+        a:check();a.queue={};a.popup=nil;game.mode="achievements"
+    end
+    if os.getenv("LAST_HAUL_CAPTURE_ACHIEVEMENT_POPUP") then
+        game:startClearcut("physical","forest")
+        local def;for _,d in ipairs(game.achievements:getDefinitions())do if d.id=="species_broadleaf"then def=d break end end
+        game.achievements.popup={def=def,t=.72,dur=4.2}
+    end
     local uiCaptureMode=os.getenv("LAST_HAUL_UI_CAPTURE_MODE")
     if uiCaptureMode=="settings" then game.mode="settings"
     elseif uiCaptureMode=="map" then game.pendingClearcutCharacter="fire"; game.clearcutMapFocus=3; game.mode="clearcut_map_select"
@@ -390,6 +401,7 @@ function love.update(dt)
 end
 function love.draw()
     game:draw()
+    game:drawAchievementOverlay()
     if captureFrames and captureFrames <= 0 then
         captureFrames = nil
         love.graphics.captureScreenshot(function(data)

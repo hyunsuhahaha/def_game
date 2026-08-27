@@ -266,6 +266,13 @@ function ClearcutMode:setup(game)
     local spawnX, spawnY = w / 2, h / 2
     game.player.x, game.player.y = spawnX, spawnY
     self.permanentTraits = (game.characterTraits and game.characterTraits:effects(self.job)) or self.permanentTraits
+    if game.achievements then
+        local ae=game.achievements:effects()
+        self.permanentTraits.treeDamage=(self.permanentTraits.treeDamage or 0)+(ae.treeDamage or 0)
+        self.permanentTraits.maxHp=(self.permanentTraits.maxHp or 0)+(ae.maxHp or 0)
+        self.permanentTraits.woodYield=(self.permanentTraits.woodYield or 1)*(ae.woodYield or 1)
+        self.permanentTraits.moveSpeed=(self.permanentTraits.moveSpeed or 1)*(ae.moveSpeed or 1)
+    end
     self.baseSpeed = 320 * (self.permanentTraits.moveSpeed or 1)
     game.player.speed, game.player.capacity, game.player.gather = self.baseSpeed, 99999, 1.15
     game.camera.x, game.camera.y, game.camera.zoom = spawnX, spawnY, game.world.stageZoom or .84
@@ -1053,6 +1060,7 @@ end
 
 function ClearcutMode:onEnemyDefeated(e, game)
     self.kills = self.kills + 1
+    if e.def.boss and game.achievements then game.achievements:add("bosses",1) end
     if e.def.reward and e.def.reward > 0 then self:onWood(e.def.reward, game) end
     if e == self.worldTree then
         game:setNotice("스테이지 " .. self.stage .. " 클리어 — 세계수를 쓰러뜨렸다!", "food")
@@ -1922,6 +1930,7 @@ function ClearcutMode:applyVeganFork(action, game)
             if self:fellTree(node,game) then
                 consumed=consumed+1
                 self.actionAudit.veganConsume=self.actionAudit.veganConsume+1
+                if game.achievements then game.achievements:add("vegan_eaten",1) end
                 local plate=self:power("clean_plate")
                 if plate>0 then
                     self.hp=math.min(self.maxHp,self.hp+1+math.floor(plate/2))
@@ -3468,6 +3477,7 @@ function ClearcutMode:fellTree(node, game)
     game.world:harvestBurst(node, game, amount, "목재")
     game.world:spawnDrop("wood", amount, node.x, node.y - 10, 42, 30, 1.5)
     self.treesFelled = self.treesFelled + 1
+    if game.achievements then game.achievements:recordTree(self.mapId,node.treeVariant or 1,self.job) end
     self.remainingTrees = math.max(0, self.remainingTrees - 1)
     if love.math.random() < (self.permanentTraits.sterileChance or 0) then
         node.sterile = true
@@ -3598,6 +3608,7 @@ function ClearcutMode:finish(game, victory)
     local traitReward = math.max(1, math.floor(baseReward * (self.permanentTraits.reward or 1) + .5))
     if game.characterTraits then game.characterTraits:addCurrency(traitReward) end
     game.result={elapsed=math.floor(self.elapsed),wood=self.totalWood,trees=self.treesFelled,total=self.initialTrees,maxMulti=self.maxMulti,maxChain=self.maxChain,level=self.level,stage=self.stage,regrowPulses=self.regrowPulses,treesRevived=self.treesRevived,rootedCount=self.rootedCount,beeSwarms=self.beeSwarmsTriggered,victory=victory,kills=self.kills,traitEarned=traitReward,traitCurrency=game.characterTraits and game.characterTraits.data.currency or traitReward}
+    if game.achievements then game.achievements:recordRun(game.result) end
     game.mode="clearcut_results"
 end
 

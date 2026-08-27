@@ -16,6 +16,8 @@ local CharacterStory = require("src.character_story")
 local Buildings = require("src.buildings")
 local Cigarette = require("src.cigarette_sprite")
 local VeganForkArt = require("src.vegan_fork_art")
+local Achievements = require("src.achievements")
+local AchievementBoard = require("src.achievement_board")
 local resourceLabels = {wood = "목재", stone = "돌", ore = "광석", food = "식량"}
 
 local Game = {}
@@ -75,12 +77,14 @@ function Game.new()
         hammer = {name = "나무 수리 망치", speed = 1, type = "방벽 수리"}
     }
     self.wallCosts = {{wood = 0, stone = 0}, {wood = 12, stone = 8}, {wood = 22, stone = 16}, {wood = 36, stone = 28}}
-    local temporaryProfile = os.getenv("LAST_HAUL_SELF_TEST") or os.getenv("LAST_HAUL_CAPTURE_META") or os.getenv("LAST_HAUL_CAPTURE_RESULTS") or os.getenv("LAST_HAUL_CAPTURE_TEST_OPTIONS") or os.getenv("LAST_HAUL_CAPTURE_TURRET_PROMPT") or os.getenv("LAST_HAUL_CAPTURE_TURRET_PLACEMENT")
+    local temporaryProfile = os.getenv("LAST_HAUL_SELF_TEST") or os.getenv("LAST_HAUL_CAPTURE_META") or os.getenv("LAST_HAUL_CAPTURE_RESULTS") or os.getenv("LAST_HAUL_CAPTURE_TEST_OPTIONS") or os.getenv("LAST_HAUL_CAPTURE_TURRET_PROMPT") or os.getenv("LAST_HAUL_CAPTURE_TURRET_PLACEMENT") or os.getenv("LAST_HAUL_CAPTURE_ACHIEVEMENTS") or os.getenv("LAST_HAUL_CAPTURE_ACHIEVEMENT_POPUP")
     self.progression = Progression.new(temporaryProfile ~= nil)
     self.characterTraits = CharacterTraits.new(temporaryProfile ~= nil)
+    self.achievements = Achievements.new(temporaryProfile ~= nil)
     self.world = World.new(); self.lobby = Lobby.new(self.world.images, self.fonts)
     self.traitTree = TraitTree.new(self.progression, self.fonts, self.world.images, self.world.buildingIcons)
     self.characterTraitBoard = CharacterTraitBoard.new(self.characterTraits, self.fonts, self.clearcutSprites)
+    self.achievementBoard = AchievementBoard.new(self.achievements, self.fonts)
     self.mode, self.notice, self.noticeKind, self.noticeTime = "lobby", "", "core", 0
     self.storyJob, self.storyPage, self.storyForced = nil, 1, false
     self.sandboxMode = false
@@ -183,7 +187,7 @@ function Game:useTestOption(index)
         if self.testReturnMode=="playing" or self.testReturnMode=="upgrade" then self:grantTestLevels(10); self.testMessage="생산 레벨 10회분을 지급했습니다. 메뉴를 닫으면 3택이 시작됩니다."
         else self.testLevelsNextRun=(self.testLevelsNextRun or 0)+10; self.testMessage="다음 런 생산 레벨 +10을 예약했습니다." end
     elseif index==4 then
-        if self.testResetArmed and self.testResetTime>0 then self.progression:reset(); self.testResetArmed=false; self.testMessage="영구 재화와 모든 영구 특성을 초기화했습니다."
+        if self.testResetArmed and self.testResetTime>0 then self.progression:reset();self.characterTraits:reset();self.achievements:reset();self.testResetArmed=false;self.testMessage="영구 재화·특성·업적 기록을 초기화했습니다."
         else self.testResetArmed,self.testResetTime=true,4; self.testMessage="초기화하려면 4초 안에 버튼을 한 번 더 누르세요." end
     end
 end
@@ -242,10 +246,12 @@ function Game:prestigeRun()
 end
 
 function Game:update(dt)
+    self.achievements:update(dt)
+    self.achievementBoard:update(dt)
     if self.paused then return end
     if self.mode == "lobby" then self.lobby:update(dt); return end
     if self.mode == "settings" then self.lobby:update(dt); return end
-    if self.mode == "clearcut_select" or self.mode == "clearcut_map_select" or self.mode == "clearcut_briefing" or self.mode == "character_story" or self.mode == "character_codex" then return end
+    if self.mode == "clearcut_select" or self.mode == "clearcut_map_select" or self.mode == "clearcut_briefing" or self.mode == "character_story" or self.mode == "character_codex" or self.mode == "achievements" then return end
     if self.mode == "character_traits" then self.characterTraitBoard:update(dt); return end
     if self.mode == "test_options" then self.testResetTime=math.max(0,(self.testResetTime or 0)-dt); if self.testResetTime<=0 then self.testResetArmed=false end; return end
     if self.mode == "meta" then self.traitTree:update(dt); return end
@@ -291,10 +297,16 @@ function Game:keypressed(key)
             self.mode="character_traits"
         elseif action=="character_codex" then
             self.mode="character_codex"
+        elseif action=="achievements" then
+            self.mode="achievements"
         elseif action=="skill_sandbox" then
             self.sandboxMode=true
             self.mode="clearcut_select"
         end
+        return
+    end
+    if self.mode == "achievements" then
+        if self.achievementBoard:keypressed(key)=="back" then self.mode="lobby" end
         return
     end
     if self.mode == "character_codex" then
@@ -433,8 +445,13 @@ function Game:mousepressed(x, y, button)
         if action == "clearcut" then self.mode = "clearcut_select"
         elseif action == "character_traits" then self.characterTraitReturnMode="lobby"; self.mode = "character_traits"
         elseif action == "character_codex" then self.mode = "character_codex"
+        elseif action == "achievements" then self.mode = "achievements"
         elseif action == "skill_sandbox" then self.sandboxMode = true; self.mode = "clearcut_select"
         elseif action == "settings" then self.mode = "settings" end
+        return
+    end
+    if self.mode == "achievements" then
+        if self.achievementBoard:mousepressed(x,y,button)=="back" then self.mode="lobby" end
         return
     end
     if self.mode == "character_codex" then
@@ -606,6 +623,7 @@ end
 
 function Game:wheelmoved(x, y)
     if self.mode=="character_traits" then self.characterTraitBoard:wheelmoved(x,y); return end
+    if self.mode=="achievements" then self.achievementBoard:wheelmoved(x,y); return end
     if self.mode ~= "playing" or y == 0 then return end
     if self.world.overviewBounds then return end -- keep every coastline visible
     if not (love.keyboard.isDown("lctrl") or love.keyboard.isDown("rctrl")) then return end
@@ -1135,6 +1153,7 @@ end
 function Game:draw()
     if self.mode=="test_options" then self:drawTestOptions(); return end
     if self.mode == "lobby" then self.lobby:draw(); return end
+    if self.mode == "achievements" then local w,h=love.graphics.getDimensions();self.lobby:drawBackground(w,h);self.achievementBoard:draw();return end
     if self.mode == "clearcut_select" then self:drawClearcutSelect(); return end
     if self.mode == "character_codex" then self:drawCharacterCodex(); return end
     if self.mode == "character_story" then self:drawCharacterStory(); return end
@@ -1219,6 +1238,10 @@ function Game:pauseButtons()
     return px, py, pw, ph,
         {x = px + 30, y = py + 96, w = pw - 60, h = 52},
         {x = px + 30, y = py + 160, w = pw - 60, h = 52}
+end
+
+function Game:drawAchievementOverlay()
+    self.achievementBoard:drawPopup()
 end
 
 function Game:drawPauseOverlay()
