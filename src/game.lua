@@ -357,7 +357,7 @@ function Game:keypressed(key)
     if self.runType=="clearcut" then
         if key=="space" and self.clearcut then
             self.clearcut:activateMinerBurrow(self)
-            self.clearcut:activateSmokeRing(self)
+            self.clearcut:beginSmokeRingCharge(self)
             self.clearcut:activateRevival(self)
         end
         return
@@ -370,6 +370,12 @@ function Game:keypressed(key)
         return
     end
     if key == "1" or key == "2" or key == "3" or key == "4" or key == "5" then self:useAbility(tonumber(key)) end
+end
+
+function Game:keyreleased(key)
+    if key=="space" and self.runType=="clearcut" and self.clearcut then
+        self.clearcut:releaseSmokeRingCharge(self)
+    end
 end
 
 function Game:useAbility(index)

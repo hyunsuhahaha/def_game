@@ -68,18 +68,18 @@ assert(small:choiceAt(smallBox.x+smallBox.w/2,smallBox.y+smallBox.h/2)==1,"scale
 if FUSION_CAPTURE then fixture.save("docs/previews/fusion-wildfire-small-draws.json") end
 love.graphics.getDimensions=function() return 1280,720 end
 
--- One last shockwave level unlocks TWO recipes. Both guaranteed; backlog retained.
-local m,g=setup("physical")
-local shockwaveMax=m:getUpgradeDefinition("shockwave").max
-m.levels={berserker=m:getUpgradeDefinition("berserker").max,domino=m:getUpgradeDefinition("domino").max,shockwave=shockwaveMax-1};m.pending=3
-m.choices={m:getUpgradeDefinition("shockwave")};g.mode="clearcut_upgrade"
-assert(m:choose(1,g) and m.fusionChoice.id=="collapse" and m.pending==2)
-assert(m:choose(1,g) and m.fusionChoice.id=="frenzy" and m.pending==2)
+-- One last oil-drum level unlocks TWO current recipes. Both are queued and guaranteed.
+local m,g=setup("fire")
+local oilMax=m:getUpgradeDefinition("oil_drum").max
+m.levels={molotov=m:getUpgradeDefinition("molotov").max,straw_bale=m:getUpgradeDefinition("straw_bale").max,oil_drum=oilMax-1};m.pending=3
+m.choices={m:getUpgradeDefinition("oil_drum")};g.mode="clearcut_upgrade"
+assert(m:choose(1,g) and m.fusionChoice.id=="wildfire" and m.pending==2)
+assert(m:choose(1,g) and m.fusionChoice.id=="oilRoad" and m.pending==2)
 assert(m:choose(1,g) and m.selectionKind=="upgrade" and m.pending==2 and #m.choices>0)
-assert(m.evolutions.collapse and m.evolutions.frenzy)
+assert(m.evolutions.wildfire and m.evolutions.oilRoad)
 fixture.reset();m:drawHUD(g,fonts)
 local hud="";for _,op in ipairs(fixture.commands) do hud=hud..(op.text or "") end
-assert(hud:find("벌목 붕괴",1,true) and hud:find("무한 야근",1,true),"HUD omits acquired fusions")
+assert(hud:find("산불",1,true) and hud:find("기름을 실수로 붓다",1,true),"HUD omits acquired fusions")
 fixture.reset();Fusions.drawProgress(m,fonts)
 if FUSION_CAPTURE then fixture.save("docs/previews/fusion-progress-draws.json") end
 
@@ -103,12 +103,12 @@ nearby:updateChests(.01,ng);assert(not nearby.chests[2].collected,"chest collect
 local all,ag=setup("physical")
 for _,def in ipairs(all:upgradePool()) do all.levels[def.id]=def.max end
 all.pending=1;all:openUpgradeChoices(ag)
-for i=1,3 do assert(all.selectionKind=="fusion");all:choose(1,ag) end
+assert(all.selectionKind=="fusion" and all.fusionChoice.id=="frenzy");all:choose(1,ag)
 assert(all.choices[1].recovery and all.pending==1,"all-max run deadlocked")
 all.hp=50;assert(all:choose(1,ag) and all.hp==70 and ag.mode=="playing" and all.pending==0)
 local banned,bg=setup("physical")
-banned.choices={banned:getUpgradeDefinition("domino")};banned.totalWood=100;banned.banishArmed=true
-for _,def in ipairs(banned:upgradePool()) do if def.id~="domino" then banned.banished[def.id]=true end end
+banned.choices={banned:getUpgradeDefinition("wide_blade")};banned.totalWood=100;banned.banishArmed=true
+for _,def in ipairs(banned:upgradePool()) do if def.id~="wide_blade" then banned.banished[def.id]=true end end
 assert(banned:choose(1,bg) and banned.choices[1].recovery,"empty banish pool deadlocked")
 
 -- Requirement levels come from upgrade definitions, not a second hardcoded max.
@@ -133,20 +133,6 @@ local function spread(fused)
 end
 assert(not spread(false) and spread(true),"wildfire spread range unchanged")
 
--- Collapse direction must survive harvestBurst's random fall direction.
-local c1,c2,c3=tree(0,1,false),tree(210,1),tree(420,1)
-c1.fallDir=1;c1.dominoChild=true
-local collapse,clg=setup("physical",{c1,c2,c3});collapse.levels.domino=3
-collapse:onTreeFallen(c1,clg);assert(c2.active,"normal domino unexpectedly recursed")
-collapse.evolutions.collapse=true
-collapse:onTreeFallen(c1,clg);assert(not c2.active and c2.fallDir==1)
-collapse:onTreeFallen(c2,clg);assert(not c3.active and collapse.treesFelled==2)
-collapse:onTreeFallen(c2,clg);assert(collapse.treesFelled==2,"duplicate fall duplicated rewards")
-
-local dead,dg=setup("fire",{tree(0,1)})
-dead.evolutions.deadGround=true;dead:fellTree(dg.world.nodes[1],dg)
-assert(dg.world.nodes[1].sterile,"deadGround is not guaranteed")
-
 local function frenzy(streak,enabled)
     local p,q=tree(0,10),tree(130,10)
     local mode,game=setup("physical",{p,q});mode.streak=streak;mode.evolutions.frenzy=enabled
@@ -156,14 +142,6 @@ local function frenzy(streak,enabled)
 end
 assert(frenzy(8,true)==10 and frenzy(9,false)==10,"frenzy active without threshold/fusion")
 local hp,enemyHp,fx=frenzy(9,true);assert(hp==7 and enemyHp==88 and fx==1,"frenzy lacks tree/enemy shockwave")
-
-local a,b,c=tree(0),tree(50,1,false),tree(500)
-local toxic,tg=setup("toxic",{a,b,c});tg.player.x=0
-toxic.levels.toxic_rain=3;toxic.evolutions.necrosis=true;toxic.aimRadius=100
-toxic.toxicTimer=999;toxic:updateToxicRain(0,tg)
-assert(a.sterile and b.sterile and not c.sterile,"passive necrosis misses live/stump targets")
-a.sterile=nil;b.sterile=nil;toxic:applyVeganBite(0,0,tg)
-assert(a.sterile and b.sterile,"manual necrosis missing")
 
 local n1,n2=tree(120,1,false),tree(300)
 local dev,dg2=setup("developer",{n1,n2});dg2.player.x=0
@@ -175,7 +153,7 @@ assert(n1.sterile and not n2.sterile,"newtown footprint wrong")
 all.generateForest=function() end
 ag.camera={trauma=0};ag.world.width=1000;ag.world.height=1000
 all:advanceStage(ag)
-assert(all.evolutions.collapse and all.evolutions.frenzy and all.evolutions.deadGround,"stage reset erased fusions")
+assert(all.evolutions.frenzy,"stage reset erased fusions")
 
 -- Existing upgrade/arcana cards still run through the scaled wrapper. Their
 -- legacy stencil decorations are not rasterized by this interaction check.
@@ -194,4 +172,4 @@ for _,job in ipairs({"physical","fire","toxic","developer"}) do
     ui.selectionKind="arcana";ui:rollArcanaChoices();ui:drawSelection(ug,fonts)
     assert(#ui.choiceBoxes==3 and not ui.rerollBox,"arcana inherited stale upgrade controls")
 end
-print("CLEARCUT_FUSIONS_OK recipes=6 acquisition=guaranteed multi=queued chest=separate effects=verified")
+print("CLEARCUT_FUSIONS_OK recipes="..#Fusions.definitions.." acquisition=guaranteed multi=queued chest=separate effects=verified")

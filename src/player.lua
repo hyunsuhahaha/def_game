@@ -105,9 +105,7 @@ function Player:update(dt, world, game)
     if self.isMoving then
         dx, dy = dx / len, dy / len
         if dx ~= 0 then self.facing = dx < 0 and -1 or 1 end
-        self.x = math.max(75, math.min(world.width - 75, self.x + dx * self.speed * dt))
-        self.y = math.max(75, math.min(world.height - 75, self.y + dy * self.speed * dt))
-        self.x,self.y=require("src.clearcut_maps").constrain(world,self.x,self.y,18)
+        self.x,self.y=require("src.clearcut_maps").constrain(world,self.x+dx*self.speed*dt,self.y+dy*self.speed*dt,75)
         self.walkClock = self.walkClock + dt * 9
     end
     if self.repairingWall then

@@ -41,6 +41,8 @@ def main():
  run(ROOT/'scripts/verify_clearcut_maps.lua','MAP_CAPTURE=true')
  ids=['forest','mangrove','madagascar','island']
  frames,renderer,shaders=replay([OUT/f'map-{name}-draws.json' for name in ids],(1280,720))
+ late,late_renderer,late_shaders=replay([OUT/f'map-{name}-stage4-draws.json' for name in ids],(1280,720))
+ assert renderer==late_renderer
  (ROOT/'assets/maps').mkdir(exist_ok=True)
  board=Image.new('RGB',(1536,964),(21,32,31));pen=ImageDraw.Draw(board)
  font=ImageFont.truetype(str(ROOT/'assets/font-korean-bold.ttf'),25)
@@ -56,6 +58,14 @@ def main():
   pen.text((x+16,y+12),labels[i],font=font,fill=(232,223,178))
   board.paste(frame.resize((768,432),Image.Resampling.NEAREST),(x,y+50))
  board.save(OUT/'clearcut-maps-v1.png')
+ progression=Image.new('RGB',(1536,1928),(21,32,31));progression_pen=ImageDraw.Draw(progression)
+ for i,(name,opening,endgame) in enumerate(zip(ids,frames,late)):
+  y=i*482
+  progression_pen.text((16,y+12),labels[i]+' — 1스테이지',font=font,fill=(232,223,178))
+  progression_pen.text((784,y+12),'4스테이지',font=font,fill=(232,223,178))
+  progression.paste(opening.resize((768,432),Image.Resampling.NEAREST),(0,y+50))
+  progression.paste(endgame.resize((768,432),Image.Resampling.NEAREST),(768,y+50))
+ progression.save(OUT/'clearcut-progression-v1.png')
  for name in ['crocodile','angryLemur']:
   action,_,_=replay([OUT/f'biome-action-{name}-{n}-draws.json' for n in range(15)],(1280,720))
   assert len({im.tobytes() for im in action})>8,'attack animation stalled'
@@ -66,6 +76,6 @@ def main():
   contact.save(OUT/f'biome-action-{name}-v1.png')
  run(ROOT/'scripts/verify_clearcut_maps.lua','MAP_UI_CAPTURE=true')
  layouts={str(w):menu(OUT/f'map-select-{w}-draws.json',(w,h)) for w,h in [(960,540),(1280,720)]}
- (OUT/'clearcut-maps-verification.json').write_text(json.dumps(dict(renderer=renderer,shaders=shaders,maps=ids,native_tree_species=9,attacks=['crocodile','angryLemur'],layout=layouts,window='none',capture='Lua world, camera, player and combat overlay; HUD excluded'),ensure_ascii=False,indent=2),encoding='utf-8')
- print('CLEARCUT_MAP_RENDER_OK maps=4 motion=3 attacks=2 menu=960x540/1280x720 shaders='+str(shaders)+' renderer='+renderer)
+ (OUT/'clearcut-maps-verification.json').write_text(json.dumps(dict(renderer=renderer,shaders=shaders+late_shaders,maps=ids,progression=['stage1','stage4'],native_tree_species=9,attacks=['crocodile','angryLemur'],layout=layouts,window='none',capture='Lua world, camera, player and combat overlay; HUD excluded'),ensure_ascii=False,indent=2),encoding='utf-8')
+ print('CLEARCUT_MAP_RENDER_OK maps=4 progression=stage1/stage4 motion=3 attacks=2 menu=960x540/1280x720 shaders='+str(shaders+late_shaders)+' renderer='+renderer)
 if __name__=='__main__':main()

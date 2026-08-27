@@ -16,8 +16,9 @@ mode:updateStrawBales(.1,game)
 local bale=mode.strawBales[1]
 assert(not bale.primedAt and not bale.ignited,"burning tree still auto-ignites hay")
 
--- Only a landed cigarette begins the exact half-second anticipation.
-mode.cigaretteButts={{x=112,y=122}}
+-- The larger bale accepts a cigarette across its visible top, then keeps the
+-- exact half-second anticipation.
+mode.cigaretteButts={{x=168,y=120}}
 mode:updateStrawBales(.01,game)
 assert(bale.primedAt==10 and not bale.ignited,"cigarette did not prime bale")
 mode.smokerGroundTime=10.49;mode:updateStrawBales(.48,game)
@@ -28,19 +29,38 @@ assert(igniteFxCalls==0,"generic tree ignition FX masks authored bale animation"
 
 -- Local DOT stays intact, without invoking any spread path.
 mode.smokerGroundTime=10.9;mode:updateStrawBales(.4,game)
-assert(mode.damageAudit and mode.damageAudit.radius==60 and mode.damageAudit.damage==4)
+local openingGrowth=(.5/5.6)^1.35
+local expectedRadius,expectedDamage=105+openingGrowth*55,4+openingGrowth*4
+assert(mode.damageAudit and math.abs(mode.damageAudit.radius-expectedRadius)<.001 and mode.damageAudit.radius>105)
+assert(math.abs(mode.damageAudit.damage-expectedDamage)<.001)
 assert(spreadCalls==0,"hay fire spread to another target")
 
 mode.cigaretteButts={}
 fixture.reset();local queue={};mode:queueWorldActors(queue,mode.smokerGroundTime)
-local found=false
+local found,bodyLarge,continuous=false,false,false
 for _,entry in ipairs(queue) do
     entry.draw()
 end
 for _,op in ipairs(fixture.commands) do
-    if op.file=="assets/fx/straw-bale/straw-bale-atlas-pixel-v3.png" then
-        found=true;assert(op.op=="draw" and op.filter=="nearest")
+    if op.file=="assets/fx/straw-bale/straw-bale-body-pixel-v4.png" then
+        found=true;bodyLarge=op.op=="draw" and op.filter=="nearest" and op.args[4]==.55
+    elseif op.file=="assets/fx/straw-bale/straw-bale-atlas-pixel-v3.png" and op.shader=="assets/shaders/straw-bale-fire.glsl" then
+        continuous=op.uniforms.fireTime and op.uniforms.fireGrid[1]>=34 and op.uniforms.fireLayer~=nil
     end
 end
 assert(found,"authored straw-bale atlas was not depth-queued")
-print("STRAW_BALE_GAMEPLAY_OK cigarette_only delay=0.5 dot=60x4 spread=none atlas=v3")
+assert(bodyLarge,"straw-bale body was not enlarged")
+assert(continuous,"continuous-time flame shader was not depth-queued")
+if STRAW_CAPTURE then
+    bale.x,bale.y=320,310
+    local ground=love.graphics.newImage("assets/forest-ground-tile-v1.png")
+    for frame=0,17 do
+        mode.smokerGroundTime=10.5+frame/30
+        fixture.reset();love.graphics.setColor(1,1,1,1)
+        love.graphics.draw(ground,0,0,0,640/ground:getWidth(),360/ground:getHeight())
+        local frameQueue={};mode:queueWorldActors(frameQueue,mode.smokerGroundTime)
+        for _,entry in ipairs(frameQueue) do entry.draw() end
+        fixture.save("docs/previews/straw-bale-v4-"..frame.."-draws.json")
+    end
+end
+print("STRAW_BALE_GAMEPLAY_OK cigarette_only delay=0.5 dot=107..160 damage=4..8 spread=none continuous_shader=v4")

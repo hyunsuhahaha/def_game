@@ -15,4 +15,5 @@ game=(root/'src/game.lua').read_text(encoding='utf-8')
 mode=(root/'src/clearcut_mode.lua').read_text(encoding='utf-8')
 assert 'philosopher-atlas-pixel-v2.png' in game
 assert 'PhilosopherArt.channel' in mode and 'PhilosopherArt.draw' in mode
+assert 'revivalSpread = self.revivalTimer > 0 and 1.5 or 1' in mode
 print('PHILOSOPHER_ASSETS_OK frames=12 binary_alpha=true runtime_wired=true')

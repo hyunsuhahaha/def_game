@@ -3,10 +3,10 @@ local Maps={}
 -- One geometry source for collision, wildlife and the terrain shader.
 Maps.island={radiusX=1300,radiusY=660,width=3400,height=2200}
 Maps.catalog={
-    {id="forest",name="온대 숲",subtitle="능선 · 낙엽길 · 깊은 숲",desc="기존 숲. 네 종류의 나무와 바위, 고사리가 섞인 넓은 전장.",short="네 종류의 나무가 섞인 넓은 숲.",trees=260,color={.53,.68,.30}},
-    {id="mangrove",name="맹그로브 숲",subtitle="청록 물길 · 뿌리 · 물가의 게",desc="얕은 물길과 드러난 지주뿌리. 커다란 집게를 든 게가 진흙 물가를 걷는 습지.",short="얕은 물길을 건너는 뿌리 숲.",trees=230,tree="mangrove",color={.26,.72,.65}},
-    {id="madagascar",name="마다가스카르 숲",subtitle="붉은 흙 · 바오밥 · 여우원숭이",desc="통 모양 바오밥과 부채잎 식물, 줄무늬 꼬리의 여우원숭이가 어울리는 붉은 땅.",short="붉은 땅 위의 바오밥 군락.",trees=220,tree="baobab",color={.85,.48,.28}},
-    {id="island",name="무인도 전소",subtitle="넓은 섬 · 혼합 야자림 · 앵무새",desc="넓어진 해안과 혼합 야자림 280그루. 섬 전역을 돌아다니며 태우는 전장으로, 사방의 바다도 보입니다.",short="사방이 바다인 섬 전체를 전소.",trees=280,tree="palm",color={.30,.70,.88}},
+    {id="forest",name="온대 숲",subtitle="능선 · 낙엽길 · 깊은 숲",desc="작은 벌목지 60그루에서 시작해 깊은 숲으로 확장됩니다.",short="60그루 벌목지에서 깊은 숲으로.",trees=60,color={.53,.68,.30}},
+    {id="mangrove",name="맹그로브 숲",subtitle="청록 물길 · 뿌리 · 물가의 게",desc="성긴 물가 55그루에서 시작해 지주뿌리 습지 전역으로 진입합니다.",short="55그루 물가에서 수로 전역으로.",trees=55,tree="mangrove",color={.26,.72,.65}},
+    {id="madagascar",name="마다가스카르 숲",subtitle="붉은 흙 · 바오밥 · 여우원숭이",desc="성긴 붉은 땅 50그루에서 시작해 바오밥 혼합림으로 전진합니다.",short="50그루 붉은 땅에서 내륙으로.",trees=50,tree="baobab",color={.85,.48,.28}},
+    {id="island",name="무인도 전소",subtitle="해변 상륙 · 혼합 야자림 · 앵무새",desc="상륙 구역 65그루부터 태우며 섬과 사방의 해안을 개방합니다.",short="65그루 해변에서 섬 전체로.",trees=65,tree="palm",color={.30,.70,.88}},
     {id="beginner",name="초심자의 숲",subtitle="좁은 개활지 · 듬성듬성한 나무",desc="처음 시작하기 좋은 좁고 여유로운 숲. 온대 숲과 같은 나무들이지만 훨씬 듬성듬성 나 있습니다.",short="좁고 나무가 듬성듬성한 초심자 숲.",trees=45,preview="forest",color={.62,.78,.42}},
 }
 local byId,images={},{}
@@ -19,9 +19,34 @@ for i,def in ipairs(Maps.catalog) do def.index=i;byId[def.id]=def end
 function Maps.get(id) return byId[id] or Maps.catalog[1] end
 function Maps.treeTarget(id,stage)
     local def=Maps.get(id)
-    if def.id=="island" then return math.min(520,def.trees+((stage or 1)-1)*60) end
     if def.id=="beginner" then return def.trees+((stage or 1)-1)*16 end
-    return def.trees+((stage or 1)-1)*45
+    local targets={forest={60,130,220,320},mangrove={55,120,205,295},
+        madagascar={50,115,195,285},island={65,145,260,380}}
+    local list=targets[def.id] or targets.forest;stage=stage or 1
+    if stage<=#list then return list[stage] end
+    return math.min(def.id=="island" and 520 or 500,list[#list]+(stage-#list)*(def.id=="island" and 120 or 85))
+end
+local stageSizes={
+    normal={{2400,1400},{2800,1700},{3050,1900},{3200,2000}},
+    island={{2200,1400},{2800,1750},{3150,2000},{3400,2200}},
+}
+function Maps.configureStage(world,stage)
+    stage=math.max(1,stage or 1);world.clearcutStage=stage
+    local kind=world.clearcutMap=="island" and "island" or "normal"
+    local size=stageSizes[kind][math.min(stage,4)]
+    if world.clearcutMap=="beginner" then size={world.width,world.height} end
+    world.playBounds={x=(world.width-size[1])/2,y=(world.height-size[2])/2,w=size[1],h=size[2]}
+    world.stageZoom=stage==1 and .84 or (stage==2 and .79 or (stage==3 and .75 or .72))
+    world.overviewBounds=nil
+    if world.clearcutMap=="island" and stage>=4 then
+        world.overviewBounds={x=world.width/2,y=world.height/2-55,w=3100,h=1850}
+    end
+end
+function Maps.insidePlayable(world,x,y,margin)
+    local b=world and world.playBounds
+    if not b then return true end
+    margin=margin or 0
+    return x>=b.x+margin and x<=b.x+b.w-margin and y>=b.y+margin and y<=b.y+b.h-margin
 end
 function Maps.islandDistance(x,y,w,h)
     local dx,dy=(x-w/2)/Maps.island.radiusX,(y-h/2)/Maps.island.radiusY
@@ -33,6 +58,7 @@ function Maps.channelDistance(x,y,w,h)
         math.abs(y-(h*.65+math.sin(x/340)*125))-90)
 end
 function Maps.canPlant(world,x,y)
+    if not Maps.insidePlayable(world,x,y,90) then return false end
     local id=world.clearcutMap
     if id=="island" then return Maps.islandDistance(x,y,world.width,world.height)<.80 end
     if id=="mangrove" then return Maps.channelDistance(x,y,world.width,world.height)>26 end
@@ -69,8 +95,12 @@ function Maps.treeVariant(world,x,y,index)
     end
 end
 function Maps.constrain(world,x,y,margin)
-    if not world or world.clearcutMap~="island" then return x,y end
-    local limit=1-(margin or 18)/Maps.island.radiusY
+    if not world then return x,y end
+    margin=margin or 18
+    local b=world.playBounds
+    if b then x=math.max(b.x+margin,math.min(b.x+b.w-margin,x));y=math.max(b.y+margin,math.min(b.y+b.h-margin,y)) end
+    if world.clearcutMap~="island" then return x,y end
+    local limit=1-margin/Maps.island.radiusY
     local d=Maps.islandDistance(x,y,world.width,world.height)
     if d>limit then
         local scale=limit/d
@@ -85,10 +115,10 @@ function Maps.configure(world,id)
     if def.id=="island" then
         world.width,world.height=Maps.island.width,Maps.island.height
         -- Includes crown overhang, beach, sea on every side, and room for the HUD.
-        world.overviewBounds={x=world.width/2,y=world.height/2-55,w=3100,h=1850}
     elseif def.id=="beginner" then
         world.width,world.height=1900,1200
     end
+    Maps.configureStage(world,1)
     if Maps.species[def.id] then
         world.images.treeVariants={}
         for _,name in ipairs(Maps.species[def.id]) do
@@ -104,11 +134,11 @@ function Maps.configure(world,id)
     end
 end
 function Maps.filterScenery(world)
-    if world.clearcutMap==nil or world.clearcutMap=="forest" then return end
+    if world.clearcutMap==nil then return end
     for _,list in ipairs({world.forestScenery.ground,world.forestScenery.actors}) do
         for i=#list,1,-1 do
             local p=list[i]
-            if not Maps.canPlant(world,p.x,p.y) or (p.kind=="leaves" and world.clearcutMap~="madagascar") then table.remove(list,i) end
+            if not Maps.canPlant(world,p.x,p.y) or (p.kind=="leaves" and world.clearcutMap~="madagascar" and world.clearcutMap~="forest" and world.clearcutMap~="beginner") then table.remove(list,i) end
         end
     end
 end

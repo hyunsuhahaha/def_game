@@ -364,6 +364,9 @@ end
 function love.keypressed(key)
     game:keypressed(key)
 end
+function love.keyreleased(key)
+    game:keyreleased(key)
+end
 function love.mousepressed(x, y, button)
     game:mousepressed(x, y, button)
 end

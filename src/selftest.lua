@@ -416,6 +416,19 @@ function SelfTest.run(game)
     assert(game.clearcut.smokeRingCooldown < 8, "도넛 강화가 재사용 대기시간을 줄이지 않음")
     assert(game.clearcut.smokeRing.dmg > 10, "도넛 강화가 피해를 늘리지 않음")
     assert(game.clearcut.smokeRing.maxRadius > 52, "도넛 강화가 크기를 늘리지 않음")
+    local normalMaxDmg, normalMaxRadius = game.clearcut.smokeRing.dmg, game.clearcut.smokeRing.maxRadius
+    -- 만렙 SPACE 차지는 완충했을 때만 강화된다. 중간 해제는 같은 만렙 일반 도넛이다.
+    game.clearcut.smokeRing, game.clearcut.smokeRingCooldown = nil, 0
+    assert(game.clearcut:beginSmokeRingCharge(game), "만렙 도넛 차지 시작 실패")
+    game.clearcut:updateSmokeRing(.5, game)
+    assert(game.clearcut:releaseSmokeRingCharge(game), "미완충 도넛 해제 발사 실패")
+    assert(not game.clearcut.smokeRing.charged, "미완충 도넛이 차지 판정됨")
+    assert(game.clearcut.smokeRing.dmg == normalMaxDmg and game.clearcut.smokeRing.maxRadius == normalMaxRadius, "미완충 도넛이 일반 만렙 수치와 다름")
+    game.clearcut.smokeRing, game.clearcut.smokeRingCooldown = nil, 0
+    assert(game.clearcut:beginSmokeRingCharge(game), "초농축 도넛 차지 재시작 실패")
+    game.clearcut:updateSmokeRing(game.clearcut.smokeRingChargeDuration, game)
+    assert(game.clearcut.smokeRing and game.clearcut.smokeRing.charged, "완충 시 초농축 도넛 자동 발사 실패")
+    assert(game.clearcut.smokeRing.dmg > normalMaxDmg * 2 and game.clearcut.smokeRing.maxRadius > normalMaxRadius * 1.5, "초농축 도넛 강화 폭이 부족함")
     game.clearcut.levels.smoke_ring = 0
     game.clearcut.smokeRing, game.clearcut.smokeRingCooldown = nil, 0
 

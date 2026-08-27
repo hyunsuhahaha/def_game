@@ -1,5 +1,7 @@
 package.path="./?.lua;./?/init.lua;"..package.path
 local fixture=require("scripts.forest_render_fixture")
+-- Map-density captures do not inspect the rotation of tiny bee/particle primitives.
+love.graphics.rotate=love.graphics.rotate or function() end
 local width,height=1280,720
 love.graphics.getDimensions=function() return width,height end
 love.graphics.getWidth=function() return width end;love.graphics.getHeight=function() return height end
@@ -37,7 +39,20 @@ for _,def in ipairs(Maps.catalog) do
     local g=newGame();g:startClearcut("fire",def.id)
     local m,w=g.clearcut,g.world
     assert(g.mode=="playing" and w.clearcutMap==def.id and m.mapId==def.id)
+    assert(m.regrowGrace==90 and m.regrowInterval==12 and m.timeSpawnTimer==35)
+    assert(m.berserkTimer==170 and m.vinePlantTimer==60 and m.disasterTimer==150)
     assert(#w.nodes==def.trees and m.remainingTrees==def.trees,def.id.." target underfilled: "..#w.nodes)
+    if def.id~="beginner" then
+        assert(w.playBounds.w<w.width or w.playBounds.h<w.height,"stage 1 starts at final map footprint")
+    end
+    local edgeX,edgeY=Maps.constrain(w,-99999,99999,75)
+    assert(Maps.insidePlayable(w,edgeX,edgeY,75),def.id.." movement escaped stage bounds")
+    g.camera:update(10,{x=99999,y=-99999},w)
+    local viewL,viewT,viewR,viewB=g.camera:visibleBounds()
+    assert(viewL>=w.playBounds.x-.01 and viewT>=w.playBounds.y-.01
+        and viewR<=w.playBounds.x+w.playBounds.w+.01 and viewB<=w.playBounds.y+w.playBounds.h+.01,
+        def.id.." camera escaped stage bounds")
+    g.camera.x,g.camera.y=w.width/2,w.height/2
     local speciesCounts={}
     for _,node in ipairs(w.nodes) do
         assert(Maps.canPlant(w,node.x,node.y),def.id.." tree in water")
@@ -75,6 +90,7 @@ for _,def in ipairs(Maps.catalog) do
     totalTrees=totalTrees+#w.nodes
     -- Both scripted waves and the timer/elite paths use the same regional table.
     m.enemies={};m:spawnWave({squirrel=2,boar=1,turret=1},g)
+    assert(#m.enemies==3,"stage 1 milestone wave was not reduced")
     local seen={}
     for _,e in ipairs(m.enemies) do
         seen[e.kind]=true
@@ -91,22 +107,27 @@ for _,def in ipairs(Maps.catalog) do
     if def.id=="mangrove" then assert(seen.crocodile and seen.marshCrab)
     elseif def.id=="madagascar" then assert(seen.angryLemur)
     elseif def.id=="island" then assert(seen.shoreCrab) end
-    m.enemies={};m.timeSpawnTimer=0;m:updateTimeSpawner(.01,g)
-    assert(#m.enemies>0)
+    m.enemies={};m.elapsed=30;m.timeSpawnTimer=0;m:updateTimeSpawner(.01,g)
+    assert(#m.enemies==1 and m.timeSpawnTimer==9,"opening spawn pressure regressed")
     for _,e in ipairs(m.enemies) do assert(e.kind==BiomeEnemies.resolve(def.id,e.kind)) end
+    m.enemies={};m.elapsed=100;m.timeSpawnTimer=0;m:updateTimeSpawner(.01,g)
+    assert(#m.enemies>=1 and #m.enemies<=2 and m.timeSpawnTimer==7,"mid-opening spawn pressure regressed")
+    local disasterTimer=m.disasterTimer;m.stage=1;m:updateDisasters(20,g)
+    assert(m.disasterState=="idle" and m.disasterTimer==disasterTimer,"stage 1 disaster was not locked")
     m.enemies={};m.eliteTimer=0;m:updateEliteTimer(.01,g)
     assert(#m.enemies==1 and m.enemies[1].elite)
     m.enemies={}
     if def.tree then assert(w.images.treeVariants[1].path:find(def.tree,1,true)) end
     if def.id=="island" then
         assert(Maps.island.radiusX*Maps.island.radiusY>=4*650*330,"island land area was not expanded")
-        assert(def.trees>=260 and Maps.treeTarget(def.id,2)>def.trees,"island still a short 55-tree stage")
+        assert(def.trees==65 and Maps.treeTarget(def.id,2)==145,"island opening progression lost")
         local minX,minY,maxX,maxY=w.width,w.height,0,0
         for _,n in ipairs(w.nodes) do minX=math.min(minX,n.x);maxX=math.max(maxX,n.x);minY=math.min(minY,n.y);maxY=math.max(maxY,n.y) end
-        assert(maxX-minX>1800 and maxY-minY>900,"trees still occupy the old small island")
+        assert(maxX-minX>900 and maxY-minY>450,"island opening collapsed into one clearing")
         for _,p in ipairs(w.biomeLife.items) do
             if p.kind=="crab" then local d=Maps.islandDistance(p.homeX,p.homeY,w.width,w.height);assert(d>.90 and d<.98,"beach crab left on old shoreline") end
         end
+        Maps.configureStage(w,4);g.camera.zoom=w.stageZoom
         for _,size in ipairs({{960,540},{1280,720},{1920,1080},{2560,1080}}) do
             width,height=unpack(size)
             g.camera:update(.1,{x=9999,y=-9999},w)
@@ -122,6 +143,7 @@ for _,def in ipairs(Maps.catalog) do
             local cx,cy=g.camera:screenToWorld(width/2,height/2)
             assert(cx==g.camera.x and cy==g.camera.y)
         end
+        Maps.configureStage(w,1);g.camera.zoom=w.stageZoom
         width,height=1280,720;g.camera:update(0,g.player,w)
         for _,kind in ipairs({"squirrel","boar","turret","ent","worldtree","reaper"}) do
             local e=m:spawnEnemy(kind,-400,9000)
@@ -161,12 +183,23 @@ for _,def in ipairs(Maps.catalog) do
     end
     -- Retry keeps biome, subsequent stages keep biome and correct targets.
     g:startClearcut("fire");assert(g.clearcut.mapId==def.id and g.world.clearcutMap==def.id,"retry loses map")
+    local openingW,openingH,openingZoom=g.world.playBounds.w,g.world.playBounds.h,g.world.stageZoom
     g.clearcut:advanceStage(g)
     assert(g.clearcut.stage==2 and #g.world.nodes==Maps.treeTarget(def.id,2),def.id.." stage target lost")
+    if def.id~="beginner" then
+        assert(g.world.playBounds.w>openingW and g.world.playBounds.h>openingH and g.world.stageZoom<openingZoom,
+            def.id.." stage 2 did not expand the playable footprint")
+    end
     for stage=3,5 do
-        g.world.nodes={};g.clearcut.stage=stage
+        g.world.nodes={};g.clearcut.stage=stage;Maps.configureStage(g.world,stage)
         g.clearcut:generateForest(g,Maps.treeTarget(def.id,stage))
         assert(#g.world.nodes==Maps.treeTarget(def.id,stage),def.id.." stage "..stage.." underfilled "..#g.world.nodes)
+        if MAP_CAPTURE and stage==4 and def.id~="beginner" then
+            g.player.x,g.player.y=g.world.width/2,g.world.height/2
+            g.camera.x,g.camera.y,g.camera.zoom=g.player.x,g.player.y,g.world.stageZoom
+            fixture.time=.2;fixture.reset();g.camera:attach();g.world:draw(g.player,g.clearcut);g.clearcut:drawWorldOverlay(g);g.camera:detach()
+            fixture.save("docs/previews/map-"..def.id.."-stage4-draws.json")
+        end
     end
     if def.id~="forest" and def.id~="beginner" then
         for _,seed in ipairs({17,83,421}) do
@@ -226,6 +259,7 @@ end
 print("BIOME_COMBAT_OK waves=regional timer=regional elite=regional windup=visible swept=one_hit sidestep=ok facing=ok")
 -- Selection flow handles every actual job (including later additions).
 for i,c in ipairs(Mode.characters) do
+    traits:markStorySeen(c.id)
     local g=newGame();g:chooseClearcutCharacter(i)
     assert(g.mode=="clearcut_map_select" and g.pendingClearcutCharacter==c.id)
     Game.keypressed(g,"escape");assert(g.mode=="clearcut_select")
@@ -247,4 +281,4 @@ for _,size in ipairs({{960,540},{1280,720}}) do
         fixture.save("docs/previews/map-select-"..width.."-draws.json")
     end
 end
-print("CLEARCUT_MAPS_OK maps="..#Maps.catalog.." first_stage_trees="..totalTrees.." stages=1..5 jobs="..#Mode.characters.." sea=bounded camera=all_sides retry=kept keyboard=ok mouse=ok")
+print("CLEARCUT_MAPS_OK maps="..#Maps.catalog.." first_stage_trees="..totalTrees.." stages=1..5 pacing=opening_locked jobs="..#Mode.characters.." sea=bounded camera=all_sides retry=kept keyboard=ok mouse=ok")

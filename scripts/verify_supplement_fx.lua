@@ -13,24 +13,25 @@ local function setup(id,nodes,enemies)
 end
 -- Orbit pose is the collision pose; no distant hit or new damage schedule.
 -- 레벨→파워 곡선 재설계(만렙 3→6) 반영: 1레벨의 실질 파워는 power(1)=.5 (옛 선형값 1의 절반).
-local a,b=tree(82,-14),tree(500)
+local openingGrowth=(.5/5.6)^1.35
+local a,b=tree(79.7,-14),tree(500)
 local m,g=setup("bat_swarm",{a,b});m:updateBatSwarm(0,g)
-assert(#m.bats==2);near(a.rushHp,998.7);near(b.rushHp,1000)
-near(m.bats[2].x,82);near(m.bats[2].y,-14)
-m:updateBatSwarm(.1,g);near(a.rushHp,998.7)
+assert(#m.bats==1);near(a.rushHp,1000-(.8+openingGrowth*2));near(b.rushHp,1000)
+near(m.bats[1].x,78+openingGrowth*45);near(m.bats[1].y,-14)
+m:updateBatSwarm(.1,g);near(a.rushHp,1000-(.8+openingGrowth*2))
 -- Aura ticks at its real radius, not the visible fringe.
-a,b=tree(59),tree(60);m,g=setup("thorn_aura",{a,b});m:updateThornAura(0,g)
-assert(m.auraRadius==59 and m.auraPulse==1);near(a.rushHp,998.5);near(b.rushHp,1000)
-m:updateThornAura(.2,g);near(a.rushHp,998.5)
+a,b=tree(58),tree(60);m,g=setup("thorn_aura",{a,b});m:updateThornAura(0,g)
+near(m.auraRadius,55+openingGrowth*103);assert(m.auraPulse==1);near(a.rushHp,1000-(1+openingGrowth*3));near(b.rushHp,1000)
+m:updateThornAura(.2,g);near(a.rushHp,1000-(1+openingGrowth*3))
 -- Crow chooses the farthest valid target, not the nearest or an out-of-range one.
 a,b=tree(100),tree(510);local e,out=enemy(600),enemy(621)
 m,g=setup("crow_strike",{a,b},{e,out});m:updateCrowStrike(0,g)
-near(e.hp,987.25);near(a.rushHp,1000);near(b.rushHp,1000);near(out.hp,995.75) -- splash only
+near(e.hp,1000-(3.5+openingGrowth*30.5));near(a.rushHp,1000);near(b.rushHp,1000);near(out.hp,1000)
 assert(#m.crowFx==1 and m.crowFx[1].x==600);near(m.crowFx[1].angle,0)
 m:updateCrowStrike(.33,g);assert(#m.crowFx==0)
 -- Nearest direction, cone exclusion, snapshot origin: moving cannot drag a hit.
 a,b=tree(0,60),tree(100,0);m,g=setup("vine_whip",{a,b});m:updateVineWhip(0,g)
-near(a.rushHp,994.75);near(b.rushHp,1000);near(m.whipFx[1].angle,math.pi/2)
+near(a.rushHp,1000-(2.25+openingGrowth*15.75));near(b.rushHp,1000);near(m.whipFx[1].angle,math.pi/2)
 g.player.x=77;assert(m.whipFx[1].x==0 and m.whipFx[1].y==0)
 m:updateVineWhip(.23,g);assert(#m.whipFx==0)
 -- Axe hits once per leg, including a target exactly at the turning endpoint.
@@ -56,29 +57,21 @@ Art.update(m,.3);assert(#m.supplementImpacts==0)
 -- Chain records actual consecutive hits; never revisits or jumps across >260.
 a,b=tree(90),tree(300);e,out=enemy(500),enemy(900)
 m,g=setup("chain_lightning",{a,b},{e,out});m:updateChainLightning(0,g)
-local points=m.lightningFx[1].points;assert(#points==4)
-for i,x in ipairs({0,90,300,500}) do assert(points[i].x==x) end
-near(a.rushHp,996);near(b.rushHp,996);near(e.hp,996);near(out.hp,1000)
+local points=m.lightningFx[1].points;assert(#points==3)
+for i,x in ipairs({0,90,300}) do assert(points[i].x==x) end
+near(a.rushHp,1000-(1.75+openingGrowth*12.45));near(b.rushHp,1000-(1.75+openingGrowth*12.45));near(e.hp,1000);near(out.hp,1000)
 m:updateChainLightning(.26,g);assert(#m.lightningFx==0)
--- Spores reuse the existing infection queue; no direct damage or duplicate DOT.
-a,b=tree(110),tree(165);e=enemy(120)
-m,g=setup("spore_cloud",{a,b},{e});m:updateSporeCloud(0,g)
-assert(#m.plagued==2 and a.plagueMarked and e.plagueMarked and not b.plagueMarked)
-near(a.rushHp,1000);near(e.hp,1000);assert(#m.supplementImpacts==2)
-m.spore.hitTimer=0;m:updateSporeCloud(0,g);assert(#m.plagued==2)
-m:updatePlague(.01,g);near(a.rushHp,997.5);near(e.hp,997.5)
-m:updatePlague(.3,g);near(e.hp,997.5)
-m:updatePlague(.31,g);near(e.hp,995)
 -- Bounded transient storage / all events age out, including a long update.
 for i=1,100 do Art.impact(m,"seed",i,0,70) end
 assert(#m.supplementImpacts==64 and m.supplementImpacts[1].x==37)
 Art.update(m,10);assert(#m.supplementImpacts==0)
 -- Render actual assets/shader without mutating timers, targets, HP or combat RNG.
 a=tree(100);e=enemy(130);m,g=setup("thorn_aura",{a},{e})
-m.levels={bat_swarm=3,thorn_aura=3,crow_strike=3,vine_whip=3,boomerang_axe=3,seed_mine=3,chain_lightning=3,spore_cloud=3}
+m.levels={bat_swarm=3,thorn_aura=3,crow_strike=3,vine_whip=3,boomerang_axe=3,seed_mine=3,chain_lightning=3}
 love.math.random=function() return .12 end
 m:updateSupplementSkills(.01,g)
 Art.impact(m,"seed",120,0,100)
+Art.impact(m,"infection",160,0,24)
 local hp,treeHp,time,life=e.hp,a.rushHp,m.supplementTime,m.supplementImpacts[1].life
 local previous=love.graphics.newShader("sentinel");love.graphics.setShader(previous)
 love.graphics.setColor(.2,.3,.4,.5)
@@ -100,4 +93,4 @@ for i=1,7 do assert(kinds[i],"missing FX shader branch "..i) end
 for _,id in ipairs({"bat","crow","axe","seed"}) do assert(sprites["assets/fx/supplement/"..id.."-atlas-v1.png"]) end
 local first=fixture.commands[1].uniforms.clock
 fixture.reset();m:drawSupplementSkills(g,1999);assert(fixture.commands[1].uniforms.clock==first,"paused draw animates")
-print("SUPPLEMENT_FX_OK skills=8 targeting/fuse/DOT/roundtrip/render-purity/cleanup")
+print("SUPPLEMENT_FX_OK skills=7 opening-curve/targeting/fuse/roundtrip/render-purity/cleanup")

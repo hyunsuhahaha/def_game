@@ -13,6 +13,7 @@ local function gameWithTree()
         x=0, y=0, gather=1, facing=1,
         setClearcutAction=function(self, value) self.action=value end,
         clearClearcutAction=function(self) self.action=nil end,
+        playAutoAxeSwing=function(self,targetX) self.autoAxeTarget=targetX end,
         cancelInteraction=function() end
     }
     return {
@@ -28,10 +29,11 @@ physical.job = "physical"
 local impacts = 0
 physical.hitTree = function() impacts = impacts + 1 end
 physical:updatePhysicalAttack(0, physicalGame, true)
-physical:updatePhysicalAttack(physical.physicalAction.dur * .67, physicalGame, true)
-assert(impacts == 0, "physical impact fired before axe contact frame")
-physical:updatePhysicalAttack(physical.physicalAction.dur * .02, physicalGame, true)
-assert(impacts == 1 and physical.actionAudit.physicalImpact == 1, "physical impact did not fire once on contact")
+assert(impacts==1 and physicalGame.player.autoAxeTarget==50,"held axe did not immediately hit/animate its target")
+physical:updatePhysicalAttack(0,physicalGame,true)
+assert(impacts==1,"held axe ignored its cooldown")
+physical:updatePhysicalAttack(physical.axeCooldown+.01,physicalGame,true)
+assert(impacts==2,"held axe did not repeat after cooldown")
 
 local smoker, smokerGame = ClearcutMode.new(), gameWithTree()
 smoker.job = "fire"
@@ -60,9 +62,8 @@ developer.job = "developer"
 local remotePresses = 0
 developer.startDash = function() remotePresses = remotePresses + 1 end
 developer:updateDeveloperAttack(0, developerGame, true)
-developer:updateDeveloperAttack(developer.developerAction.dur * .57, developerGame, true)
-assert(remotePresses == 0, "developer dash fired before remote press frame")
-developer:updateDeveloperAttack(developer.developerAction.dur * .02, developerGame, true)
-assert(remotePresses == 1 and developer.actionAudit.developerRemote == 1, "developer remote did not trigger dash exactly once")
+assert(remotePresses==1,"developer held attack did not immediately start its dash")
+developer:updateDeveloperAttack(0,developerGame,false)
+assert(remotePresses==1,"developer dash fired after input release")
 
 print("CLEARCUT_ACTION_TIMING_OK")

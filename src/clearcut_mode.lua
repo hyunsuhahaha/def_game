@@ -14,6 +14,8 @@ local Fusions = require("src.clearcut_fusions")
 local BiomeEnemies = require("src.biome_enemies")
 local SupplementArt = require("src.supplement_art")
 local PhilosopherArt = require("src.philosopher_art")
+local RevivalCrowdArt = require("src.revival_crowd_art")
+local SmokeRingArt = require("src.smoke_ring_art")
 
 local ClearcutMode = {}
 ClearcutMode.__index = ClearcutMode
@@ -42,8 +44,8 @@ local definitions = {
     {id="molotov", track="spread", name="꽁초 투척", desc="사거리와 꽁초의 불씨 전이 범위가 늘어나고, 주기적으로 하나 더 튕깁니다. 바닥의 꽁초는 7초간 남아 주변 나무에 기본 42%(최대 75%) 확률로 불을 옮깁니다.", max=6, color={1,.35,.12}, job="fire"},
     {id="dry_forest", track="spread", name="건조주의보 무시", desc="꽁초의 착화 확률이 레벨당 +6%p 높아지고(최대 75%), 붙은 불이 주변 나무로 더 빠르고 넓게 번집니다.", max=6, color={1,.5,.15}, job="fire"},
     {id="oil_drum", track="spread", name="라이터 기름 유출", desc="나무가 다 타버리면 레벨당 폭발 확률이 크게 올라(1렙 7.5%→5렙 63%), 6렙에서는 100% 확정 발동합니다.", max=6, color={1,.62,.1}, job="fire"},
-    {id="straw_bale", track="spread", name="마른 건초더미 생성", desc="주기적으로 주변에 마른 건초더미를 둡니다. 그 위에 담배꽁초를 던지면 0.5초 뒤 불이 붙어 주변 적에게 지속 피해를 줍니다. 불은 다른 대상으로 번지지 않습니다.", max=6, color={.85,.72,.25}, job="fire"},
-    {id="smoke_ring", track="spread", name="도넛 강화 — 니코틴 농축", desc="SPACE로 쏘는 도넛 연기의 재사용 대기시간이 줄고, 피해·넉백·크기가 늘어납니다.", max=6, color={1,.68,.2}, job="fire"},
+    {id="straw_bale", track="spread", name="마른 건초더미 생성", desc="주기적으로 큰 건초더미를 둡니다. 꽁초가 닿으면 0.5초 뒤 불이 붙고, 레벨에 따라 넓어지는 화염 지대가 주변 적에게 지속 피해를 줍니다. 불은 다른 대상으로 번지지 않습니다.", max=6, color={.85,.72,.25}, job="fire"},
+    {id="smoke_ring", track="spread", name="도넛 강화 — 니코틴 농축", desc="SPACE로 쏘는 도넛 연기의 재사용 대기시간이 줄고, 피해·넉백·크기가 늘어납니다. 6레벨에는 SPACE를 끝까지 충전하면 초농축 도넛이 발사됩니다. 중간에 놓으면 일반 도넛과 같습니다.", max=6, color={1,.68,.2}, job="fire"},
     -- 억제력 (suppress) — 자연이 얼마나 다시 못 자라게 하느냐 [비건 단체 회장 전용 + 공용]
     {id="toxic_rain", track="suppress", name="친환경 제초 캠페인", desc="맹독 공격의 범위와 피해가 늘어나고, 평소에도 주변에 약하게 지속 피해를 줍니다.", max=6, color={.55,.85,.45}, job="toxic"},
     {id="forced_growth", track="suppress", name="강제 성장", desc="숲의 재생 속도가 크게 빨라지지만, 목재 경험치 획득량도 크게 늘어납니다.", max=6, color={.85,.7,.25}},
@@ -130,7 +132,7 @@ function ClearcutMode.new()
         levels={}, choices={}, level=1, xp=0, xpNext=10, pending=0,
         totalWood=0, treesFelled=0, elapsed=0, initialTrees=0, remainingTrees=0,
         maxMulti=1, maxChain=0, axeCooldown=0, axeRange=150, milestoneFired={},
-        regrowTimer=0, regrowGrace=45, regrowInterval=7, regrowPulses=0, treesRevived=0, regrowFlash=0,
+        regrowTimer=0, regrowGrace=90, regrowInterval=12, regrowPulses=0, treesRevived=0, regrowFlash=0,
         rootHazards={}, rootedTimer=0, rootedCount=0,
         bees={}, beeSlow=false, beeSwarmsTriggered=0, beehiveTotal=0,
         streak=0, lastHitAt=-10, molotovTimer=0, wildfireTimer=0, toxicTimer=0, evolutions={}, molotovs={},
@@ -139,7 +141,7 @@ function ClearcutMode.new()
         oilTrail={}, oilTrailTimer=0, oilTrailLastX=nil, oilTrailLastY=nil, oilTrailSequence=0,
         job=nil, attackCooldown=0, dashing=nil, dashTrail={}, smoking=nil,
         minerClawAction=nil, minerClawFx={}, minerClawMarks={}, minerBurrow=nil, minerBurrowCooldown=0, thrownTrees={}, burrowTracks={}, burrowTrackSequence=0,
-        smokeRing=nil, smokeRingCooldown=0,
+        smokeRing=nil, smokeRingCooldown=0, smokeRingCharge=nil, smokeRingChargeDuration=1.5,
         salivaGauge=100, salivaGaugeMax=100, salivaDrainRate=30, salivaRegenRate=25, salivaExhausted=false,
         revivalTimer=0, revivalCooldown=0,
         smokerHeldLast=false, physicalAction=nil, veganAction=nil, developerAction=nil,
@@ -147,9 +149,9 @@ function ClearcutMode.new()
         hp=100, maxHp=100, invulnTimer=0, dead=false,
         enemies={}, projectiles={}, bossTelegraphs={}, waveFired={}, worldTreeSpawned=false, readyToFinish=false, activeBoss=nil, kills=0,
         chests={}, chestPending=false, molotovShots=0, wildburstTimer=10, plagued={}, dodges=0,
-        timeSpawnTimer=18, eliteTimer=200, reaperSpawned=false,
+        timeSpawnTimer=35, eliteTimer=200, reaperSpawned=false,
         stage=1, stageBossHpMul=1,
-        berserkState="idle", berserkTimer=85, berserkCycleCount=0, berserkTreeTimer=0, berserkKillsStart=0, berserkFlashNodes={},
+        berserkState="idle", berserkTimer=170, berserkCycleCount=0, berserkTreeTimer=0, berserkKillsStart=0, berserkFlashNodes={},
         banished={}, rerollCount=0, banishArmed=false, selectionKind="upgrade", arcanaChoices={}, arcanaPicked={},
         dmgTakenMul=1, woodGainMul=1, curseBoostMul=1, eliteIntervalMul=1, reaperDelayMul=1, regrowSuppressed=false,
         berserkCooldownMul=1, berserkBonusMul=1,
@@ -162,8 +164,8 @@ function ClearcutMode.new()
             moveSpeed=1, pickupRadius=0, hpRegen=0, reviveCharges=0
         },
         reviveCharges=0,
-        vinePlantTimer=24, vineSpawns={},
-        disasterState="idle", disasterTimer=75, disasterType=nil, rainSuppressFire=false, quakeShakes={},
+        vinePlantTimer=60, vineSpawns={},
+        disasterState="idle", disasterTimer=150, disasterType=nil, rainSuppressFire=false, quakeShakes={},
         offscreenPulse=0,
         traitFx=TraitFx.new()
     }, ClearcutMode)
@@ -217,6 +219,11 @@ function ClearcutMode:powerCount(id)
     if self:levelOf(id) <= 0 then return 0 end
     return math.max(1, math.floor(self:power(id)))
 end
+-- 0..1 authored progression for skills whose first rank must establish identity
+-- without immediately reaching the old screen-clearing values.
+function ClearcutMode:growth(id)
+    return math.min(1,(self:power(id)/levelCurve[7])^1.35)
+end
 function ClearcutMode:pickupRadius() return 165 + self:power("magnet") * 95 + (self.permanentTraits.pickupRadius or 0) end
 function ClearcutMode:pickupSpeed() return 15 + self:power("magnet") * 4 end
 function ClearcutMode:destructionPct() return self.initialTrees > 0 and math.min(100, (1 - self.remainingTrees / self.initialTrees) * 100) or 0 end
@@ -252,7 +259,7 @@ function ClearcutMode:setup(game)
     self.permanentTraits = (game.characterTraits and game.characterTraits:effects(self.job)) or self.permanentTraits
     self.baseSpeed = 320 * (self.permanentTraits.moveSpeed or 1)
     game.player.speed, game.player.capacity, game.player.gather = self.baseSpeed, 99999, 1.15
-    game.camera.x, game.camera.y, game.camera.zoom = spawnX, spawnY, .72
+    game.camera.x, game.camera.y, game.camera.zoom = spawnX, spawnY, game.world.stageZoom or .84
     if game.world.overviewBounds and game.camera.update then game.camera:update(0,game.player,game.world) end
     self.maxHp = self.maxHp + (self.permanentTraits.maxHp or 0)
     self.hp = self.maxHp
@@ -284,24 +291,30 @@ function ClearcutMode:generateForest(game, target)
     local Maps=require("src.clearcut_maps")
     local w, h = game.world.width, game.world.height
     local spawnX, spawnY = w / 2, h / 2
-    local minSepBase = game.world.clearcutMap=="island" and 70 or (game.world.clearcutMap=="beginner" and 165 or 108)
-    local minSepFloor = game.world.clearcutMap=="island" and 42 or (game.world.clearcutMap=="beginner" and 90 or 60)
+    local stage=self.stage or 1
+    local normalBase=stage==1 and 140 or (stage==2 and 120 or (stage==3 and 105 or 96))
+    local normalFloor=stage==1 and 98 or (stage==2 and 82 or (stage==3 and 70 or 60))
+    local islandBase=stage==1 and 100 or (stage==2 and 85 or (stage==3 and 75 or 68))
+    local islandFloor=stage==1 and 78 or (stage==2 and 68 or (stage==3 and 58 or (stage==4 and 48 or 42)))
+    local minSepBase = game.world.clearcutMap=="island" and islandBase or (game.world.clearcutMap=="beginner" and 165 or normalBase)
+    local minSepFloor = game.world.clearcutMap=="island" and islandFloor or (game.world.clearcutMap=="beginner" and 90 or normalFloor)
     local attempts, minSep = 0, minSepBase
     -- Large islands (and the beginner map's tighter world, which needs many relax cycles
     -- to walk minSep down from its sparse starting value) need more land samples in later stages.
-    local attemptLimit=game.world.clearcutMap=="island" and math.max(12000,target*70)
+    local attemptLimit=game.world.clearcutMap=="island" and math.max(40000,target*160)
         or game.world.clearcutMap=="beginner" and math.max(60000,target*350)
-        or 12000
+        or math.max(36000,target*180)
     while #game.world.nodes < target and attempts < attemptLimit do
         attempts = attempts + 1
         -- New open pockets must not reduce later stages' tree objectives.
         -- Relax spacing only after a dense placement pass stalls; never fill paths.
-        if attempts%1800==0 then minSep=math.max(minSepFloor,minSep-8) end
+        if attempts%1200==0 then minSep=math.max(minSepFloor,minSep-8) end
         local x = love.math.random(130, w - 130)
         local y = love.math.random(130, h - 130)
         local sdx, sdy = x - spawnX, y - spawnY
         local clearSpawn = sdx*sdx + sdy*sdy > 260*260 and not ForestScenery.isOpen(x,y,w,h)
             and not ForestScenery.isSceneryPocket(x,y,w,h)
+            and Maps.insidePlayable(game.world,x,y,110)
         if game.world.clearcutMap and game.world.clearcutMap~="forest" then
             clearSpawn=Maps.treeSpace(game.world,x,y)
         end
@@ -331,6 +344,9 @@ function ClearcutMode:advanceStage(game)
     CigaretteButts.reset(self)
     self.supplementImpacts, self.crowFx, self.whipFx, self.lightningFx = {}, {}, {}, {}
     self.stage = self.stage + 1
+    require("src.clearcut_maps").configureStage(game.world,self.stage)
+    game.camera.zoom=game.world.stageZoom or game.camera.zoom
+    self.regrowInterval=self.stage==1 and 12 or (self.stage==2 and 9 or 7)
     self.stageBossHpMul = 1 + (self.stage - 1) * .55
     game.world.nodes, game.world.drops = {}, {}
     self.enemies, self.projectiles, self.bossTelegraphs = {}, {}, {}
@@ -583,8 +599,9 @@ end
 
 function ClearcutMode:spawnWave(counts, game)
     local swarmMul = (1 + (self:curseLevel() - 1) * .6) * self:berserkMultiplier()
+    local stageMul = self.stage==1 and .5 or (self.stage==2 and .78 or 1)
     for kind, count in pairs(counts) do
-        local scaledCount = math.max(count, math.floor(count * swarmMul + .5))
+        local scaledCount = math.max(1,math.floor(count*swarmMul*stageMul+.5))
         for _ = 1, scaledCount do
             local a = love.math.random() * math.pi * 2
             local r = 480 + love.math.random() * 180
@@ -601,8 +618,9 @@ function ClearcutMode:updateTimeSpawner(dt, game)
     if self.timeSpawnTimer > 0 then return end
     local curse = self:curseLevel()
     local berserkMul = self:berserkMultiplier()
-    self.timeSpawnTimer = math.max(.5, (6.5 - curse * 1.1) / berserkMul)
-    local count = math.floor((1 + curse * 1.4) * berserkMul)
+    local opening=self.elapsed<90 and 1 or (self.elapsed<180 and 2 or nil)
+    self.timeSpawnTimer = opening==1 and 9 or (opening==2 and 7 or math.max(.5,(6.5-curse*1.1)/berserkMul))
+    local count = opening and (opening==1 and 1 or (love.math.random()<.5 and 1 or 2)) or math.floor((1+curse*1.4)*berserkMul)
     local pool = {"squirrel", "squirrel", "boar"}
     for _ = 1, count do
         local kind = pool[love.math.random(#pool)]
@@ -742,6 +760,7 @@ end
 -- 자연재해: 화난 자연이 숲 그 자체를 무기로 쓴다. 비(방화 완전 봉쇄)와 지진(회피형 광역 낙석)을 순환시킨다.
 function ClearcutMode:updateDisasters(dt, game)
     if self.sandbox then return end
+    if self.stage<2 then return end
     self.disasterTimer = self.disasterTimer - dt
     if self.disasterState == "idle" then
         if self.disasterTimer <= 0 then
@@ -1129,13 +1148,18 @@ end
 -- 0.5초 뒤 국소 화염 지대가 되며, 나무/다른 더미로는 절대 번지지 않는다.
 function ClearcutMode:updateStrawBales(dt, game)
     local now = self.smokerGroundTime
+    local growth=self:growth("straw_bale")
+    local radius=105+growth*55
+    local damage=4+growth*4
+    local triggerRadius=68+growth*22
     for i = #self.strawBales, 1, -1 do
         local bale = self.strawBales[i]
+        bale.radius,bale.damage,bale.triggerRadius=bale.radius or radius,bale.damage or damage,bale.triggerRadius or triggerRadius
         if bale.ignited then
             bale.tickTimer = (bale.tickTimer or 0) - dt
             if bale.tickTimer <= 0 then
                 bale.tickTimer = .4
-                self:damageEnemiesInRadius(bale.x, bale.y, 60, 4, game)
+                self:damageEnemiesInRadius(bale.x,bale.y,bale.radius,bale.damage,game)
             end
             if now - bale.ignitedAt >= 6 then table.remove(self.strawBales, i) end
         else
@@ -1149,7 +1173,7 @@ function ClearcutMode:updateStrawBales(dt, game)
             elseif not self.rainSuppressFire then
                 for _,butt in ipairs(self.cigaretteButts) do
                     local dx,dy=butt.x-bale.x,butt.y-bale.y
-                    if dx*dx+dy*dy<=48*48 then
+                    if dx*dx+dy*dy<=bale.triggerRadius*bale.triggerRadius then
                         bale.primedAt=now
                         break
                     end
@@ -1170,7 +1194,8 @@ function ClearcutMode:updateStrawBales(dt, game)
         self.strawBaleSequence=(self.strawBaleSequence or 0)+1
         self.strawBales[#self.strawBales + 1] = {
             x=game.player.x+math.cos(a)*r,y=game.player.y+math.sin(a)*r,
-            age=0,ignited=false,variant=(self.strawBaleSequence-1)%2
+            age=0,ignited=false,variant=(self.strawBaleSequence-1)%2,
+            radius=radius,damage=damage,triggerRadius=triggerRadius
         }
     end
 end
@@ -1430,7 +1455,27 @@ end
 -- 화염/착화가 아니라 순수 연기 — 자기 자리에서 팽창하는 게 아니라, 실제 스모크링처럼
 -- 고리 모양을 유지한 채 캐릭터가 바라보는 방향(마우스 조준이 아님)으로 날아가며
 -- 닿는 적에게 피해와 넉백을 준다.
-function ClearcutMode:activateSmokeRing(game)
+function ClearcutMode:beginSmokeRingCharge(game)
+    if self.job ~= "fire" or self.dead or self.smokeRing or self.smokeRingCharge then return false end
+    if self.smokeRingCooldown > 0 then
+        game:setNotice(string.format("도넛 연기 재사용 %.1f초", self.smokeRingCooldown), "food")
+        return false
+    end
+    if self:levelOf("smoke_ring") < 6 then return self:activateSmokeRing(game, false) end
+    self.smokeRingCharge={t=0}
+    if game.player.setClearcutAction then game.player:setClearcutAction(.03) end
+    game:setNotice("초농축 도넛 차지 — SPACE 유지", "food")
+    return true
+end
+
+function ClearcutMode:releaseSmokeRingCharge(game)
+    if not self.smokeRingCharge then return false end
+    self.smokeRingCharge=nil
+    if game.player.clearClearcutAction then game.player:clearClearcutAction() end
+    return self:activateSmokeRing(game, false)
+end
+
+function ClearcutMode:activateSmokeRing(game, charged)
     if self.job ~= "fire" or self.dead or self.smokeRing then return false end
     if self.smokeRingCooldown > 0 then
         game:setNotice(string.format("도넛 연기 재사용 %.1f초", self.smokeRingCooldown), "food")
@@ -1438,22 +1483,35 @@ function ClearcutMode:activateSmokeRing(game)
     end
     local power = self:power("smoke_ring")
     self.smokeRingCooldown = math.max(4, 8 - power)
-    local maxRange = 460
+    charged=charged or false
+    local maxRange = 460 * (charged and 1.45 or 1)
     local _, mouthY, facing, tipX = self:smokerMouthPose(game)
     local nx, ny = facing, 0
-    local speed = 480
+    local speed = 480 * (charged and 1.18 or 1)
+    local strength=charged and 2.35 or 1
     self.smokeRing = {
         x=tipX, y=mouthY, vx=nx * speed, vy=ny * speed,
-        radius=14, startRadius=14, maxRadius=52 + power * 6,
-        dmg=10 + power * 3, knockback=420 + power * 20,
-        maxRange=maxRange, traveled=0, hit={}
+        radius=14, startRadius=14, maxRadius=(52 + power * 6) * (charged and 1.65 or 1),
+        dmg=(10 + power * 3) * strength, knockback=(420 + power * 20) * (charged and 1.8 or 1),
+        maxRange=maxRange, traveled=0, hit={}, charged=charged
     }
-    game:setNotice("도넛 연기 — 후우...", "food")
+    game:setNotice(charged and "초농축 도넛 — 푸우우우!" or "도넛 연기 — 후우...", "food")
     return true
 end
 
 function ClearcutMode:updateSmokeRing(dt, game)
     self.smokeRingCooldown = math.max(0, self.smokeRingCooldown - dt)
+    if self.smokeRingCharge then
+        self.smokeRingCharge.t=math.min(self.smokeRingChargeDuration,self.smokeRingCharge.t+dt)
+        local progress=self.smokeRingCharge.t/self.smokeRingChargeDuration
+        if game.player.setClearcutAction then game.player:setClearcutAction(.03+progress*.42) end
+        if progress>=1 then
+            self.smokeRingCharge=nil
+            if game.player.clearClearcutAction then game.player:clearClearcutAction() end
+            self:activateSmokeRing(game,true)
+            if game.camera then game.camera.trauma=math.min(1,(game.camera.trauma or 0)+.28) end
+        end
+    end
     local ring = self.smokeRing
     if not ring then return end
     local step = math.sqrt(ring.vx * ring.vx + ring.vy * ring.vy) * dt
@@ -2051,7 +2109,7 @@ function ClearcutMode:updateThrownTrees(dt, game)
     end
 end
 
--- 공용 보조 스킬 8종과 직업 전용 스킬. 시각 이벤트는 전투 시간으로만 진행한다.
+-- 공용 보조 스킬 7종과 직업 전용 스킬. 시각 이벤트는 전투 시간으로만 진행한다.
 function ClearcutMode:updateSupplementSkills(dt, game)
     SupplementArt.update(self,dt)
     self:updateBatSwarm(dt, game)
@@ -2068,22 +2126,22 @@ end
 function ClearcutMode:updateBatSwarm(dt, game)
     local level = self:levelOf("bat_swarm")
     if level <= 0 then self.bats = nil; return end
-    local power = self:power("bat_swarm")
-    local count = self:powerCount("bat_swarm") + 1
+    local growth=self:growth("bat_swarm")
+    local count = 1+math.floor(growth*3+.0001)
     self.bats = self.bats or {}
     for i = 1, count do
         self.bats[i] = self.bats[i] or {angle = (i / count) * math.pi * 2, hitTimer = 0}
     end
     for i = #self.bats, count + 1, -1 do self.bats[i] = nil end
-    local radius = 78 + power * 8
-    local dmg = 1 + power * .6
+    local radius = 78 + growth * 45
+    local dmg = .8 + growth * 2
     for _, bat in ipairs(self.bats) do
         bat.angle = bat.angle + dt * 2.6
         bat.hitTimer = math.max(0, bat.hitTimer - dt)
         local bx, by = game.player.x + math.cos(bat.angle) * radius, game.player.y + math.sin(bat.angle) * radius * .6 - 14
         bat.x, bat.y = bx, by
         if bat.hitTimer <= 0 then
-            bat.hitTimer = .45
+            bat.hitTimer = .6-growth*.15
             for _, node in ipairs(game.world.nodes) do
                 if node.rushTree and node.active then
                     local dx, dy = node.x - bx, node.y - by
@@ -2104,10 +2162,10 @@ function ClearcutMode:updateThornAura(dt, game)
     if level <= 0 then return end
     self.auraTimer = (self.auraTimer or 0) - dt
     if self.auraTimer > 0 then return end
-    local power = self:power("thorn_aura")
-    self.auraTimer = math.max(1, 1.9 - power * .3)
-    local radius = 60 + power * 70
-    local dmg = 1 + power
+    local growth=self:growth("thorn_aura")
+    self.auraTimer = 2.2-growth*1.2
+    local radius = 55 + growth*103
+    local dmg = 1 + growth*3
     for _, node in ipairs(game.world.nodes) do
         if node.rushTree and node.active then
             local dx, dy = node.x - game.player.x, node.y - game.player.y
@@ -2133,8 +2191,8 @@ function ClearcutMode:updateCrowStrike(dt, game)
     if level <= 0 then return end
     self.crowTimer = (self.crowTimer or 0) - dt
     if self.crowTimer > 0 then return end
-    local power = self:power("crow_strike")
-    self.crowTimer = math.max(1.4, 3.6 - power * .8)
+    local growth=self:growth("crow_strike")
+    self.crowTimer = 5-growth*3.6
     local range = 620
     local best, bestD2 = nil, -1
     for _, node in ipairs(game.world.nodes) do
@@ -2150,8 +2208,8 @@ function ClearcutMode:updateCrowStrike(dt, game)
         if d2 <= range*range and d2 > bestD2 then best, bestD2 = e, d2 end
     end
     if not best then return end
-    local dmg = 6 + power * 5
-    local radius = 55 + power * 10
+    local dmg = 3.5 + growth*30.5
+    local radius = 35 + growth*80
     if best.rushTree then
         best.rushHp = (best.rushHp or best.rushMaxHp) - dmg
         game.world:impactNode(best, game, true)
@@ -2160,7 +2218,7 @@ function ClearcutMode:updateCrowStrike(dt, game)
         best.hp = best.hp - dmg
         best.visualHit = .14
     end
-    self:damageEnemiesInRadius(best.x, best.y, radius, dmg * .5, game)
+    if level>=2 then self:damageEnemiesInRadius(best.x,best.y,radius,dmg*.5,game) end
     self.crowFx[#self.crowFx+1] = {x=best.x, y=best.y, angle=math.atan2(best.y-game.player.y,best.x-game.player.x), life=.32, maxLife=.32}
     if game.camera then game.camera.trauma = math.min(1, game.camera.trauma + .12) end
 end
@@ -2174,11 +2232,11 @@ function ClearcutMode:updateVineWhip(dt, game)
         if fx.life <= 0 then table.remove(self.whipFx, i) end
     end
     if level <= 0 then return end
-    local power = self:power("vine_whip")
     self.whipTimer = (self.whipTimer or 0) - dt
     if self.whipTimer > 0 then return end
-    self.whipTimer = math.max(3.5, 8 - power * 1.5)
-    local range = 140 + power * 85
+    local growth=self:growth("vine_whip")
+    self.whipTimer = 7-growth*3.5
+    local range = 125+growth*155
     local nearest, nearestD2 = nil, range * range
     for _, node in ipairs(game.world.nodes) do
         if node.rushTree and node.active then
@@ -2196,7 +2254,7 @@ function ClearcutMode:updateVineWhip(dt, game)
     local angle
     if nearest then angle = atan2(nearest.y - game.player.y, nearest.x - game.player.x)
     else angle = (game.player.facing or 1) > 0 and 0 or math.pi end
-    local dmg = 4 + power * 2.5
+    local dmg = 2.25+growth*15.75
     local cone = .75
     for _, node in ipairs(game.world.nodes) do
         if node.rushTree and node.active then
@@ -2283,14 +2341,14 @@ function ClearcutMode:updateBoomerangAxe(dt, game)
         if turning and not remove then b.phase="back";b.hitSet={} end
     end
     if level <= 0 then return end
-    local power = self:power("boomerang_axe")
     self.boomerangTimer = (self.boomerangTimer or 0) - dt
     if self.boomerangTimer > 0 then return end
-    self.boomerangTimer = math.max(1.2, 2.6 - power * .4)
+    local growth=self:growth("boomerang_axe")
+    self.boomerangTimer = 3.2-growth*2
     local a = love.math.random() * math.pi * 2
     self.boomerangs[#self.boomerangs+1] = {
         x=game.player.x, y=game.player.y, dx=math.cos(a), dy=math.sin(a),
-        traveled=0, maxDist=220 + power * 40, phase="out", hitSet={}, dmg=3 + power * 2, angle=a
+        traveled=0,maxDist=200+growth*244,phase="out",hitSet={},dmg=2+growth*12.2,angle=a
     }
 end
 
@@ -2318,15 +2376,15 @@ function ClearcutMode:updateSeedMine(dt, game)
         end
     end
     if level <= 0 then return end
-    local power = self:power("seed_mine")
     self.seedTimer = (self.seedTimer or 0) - dt
     if self.seedTimer > 0 then return end
-    self.seedTimer = math.max(1.6, 3.2 - power * .5)
+    local growth=self:growth("seed_mine")
+    self.seedTimer = 4-growth*2.4
     local a = love.math.random() * math.pi * 2
     local r = 40 + love.math.random() * 120
     self.seeds[#self.seeds+1] = {
         x=game.player.x + math.cos(a) * r, y=game.player.y + math.sin(a) * r,
-        fuse=1.1, maxFuse=1.1, radius=55 + power * 15, dmg=4 + power * 3
+        fuse=1.1,maxFuse=1.1,radius=50+growth*89,dmg=2.5+growth*18.3
     }
 end
 
@@ -2339,13 +2397,13 @@ function ClearcutMode:updateChainLightning(dt, game)
         if fx.life <= 0 then table.remove(self.lightningFx, i) end
     end
     if level <= 0 then return end
-    local power = self:power("chain_lightning")
     self.lightningTimer = (self.lightningTimer or 0) - dt
     if self.lightningTimer > 0 then return end
-    self.lightningTimer = math.max(1.8, 4 - power * .6)
-    local jumps = 2 + self:powerCount("chain_lightning")
+    local growth=self:growth("chain_lightning")
+    self.lightningTimer = 4.5-growth*2.7
+    local jumps = 2+math.floor(growth*5+.0001)
     local hopRange = 260
-    local dmg = 3 + power * 2
+    local dmg = 1.75+growth*12.45
     local visited = {}
     local cx, cy = game.player.x, game.player.y
     local points = {{x=cx, y=cy}}
@@ -2696,6 +2754,8 @@ function ClearcutMode:activateRevival(game)
     local power = self:power("revival_meeting")
     self.revivalCooldown = math.max(12, 20 - power * 1.5)
     self.revivalTimer = 6 + power
+    self.revivalCenterX,self.revivalCenterY=game.player.x,game.player.y
+    RevivalCrowdArt.start(self,game)
     game.world.particles[#game.world.particles+1] = {
         x=game.player.x, y=game.player.y, life=.4, maxLife=.4, size=70, color={.75,.9,.35}, ring=true
     }
@@ -2712,6 +2772,7 @@ function ClearcutMode:updateRevival(dt, game)
     self.revivalCooldown = math.max(0, self.revivalCooldown - dt)
     self.revivalTimer = math.max(0, self.revivalTimer - dt)
     PhilosopherArt.update(self,dt)
+    RevivalCrowdArt.update(self,dt)
 end
 
 -- 기본공격 "끝없는 설교": 누르고 있는 동안 침을 계속 쏘지만, 침 게이지가 계속 줄어든다.
@@ -2734,8 +2795,9 @@ function ClearcutMode:updatePhilosopherAttack(dt, game, heldOverride)
     end
     local verbosity = self.revivalTimer > 0 and 1 or math.min(1, (self.rantTimer or 0) / 3)
     self.aimX, self.aimY = tx, ty
-    self.aimRadius = (55 + self:power("monologue") * 10 + self:power("loud_voice") * 20) * (1 + verbosity * .55) + self.permanentTraits.area
-    PhilosopherArt.channel(self,game,firing,tx,ty,verbosity)
+    local revivalSpread = self.revivalTimer > 0 and 1.5 or 1
+    self.aimRadius = ((55 + self:power("monologue") * 10 + self:power("loud_voice") * 20) * (1 + verbosity * .55) + self.permanentTraits.area) * revivalSpread
+    PhilosopherArt.channel(self,game,firing,tx,ty,verbosity,self.revivalTimer > 0)
     if game.player.setClearcutAction then game.player:setClearcutAction(.08 + ((self.rantTimer or 0) * 2.4 % 1) * .9) end
     local wasHeld = self.rantHeldLast
     self.rantHeldLast = firing
@@ -4171,6 +4233,7 @@ end
 ClearcutMode.drawEnemy = ForestArt.drawBody
 function ClearcutMode:queueWorldActors(queue,t)
     local groundTime=self.smokerGroundTime
+    RevivalCrowdArt.queue(self,queue)
     for _,value in ipairs(self.burrowTracks) do
         local mark=value
         queue[#queue+1]={y=-200000+mark.y*.001,draw=function() MoleBurrowArt.draw(mark) end}
@@ -4275,6 +4338,7 @@ function ClearcutMode:drawWorldOverlay(game)
     local t = love.timer.getTime()
     local px, py = game.player.x + 14, game.player.y - 34
     if self.job == "fire" then
+        SmokeRingArt.drawCharge(self,game,t)
         local smoking = self.smoking
         if smoking and smoking.phase ~= "flick" then
             self:drawSmokerReloadBar(game)

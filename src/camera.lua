@@ -14,8 +14,11 @@ function Camera:update(dt, target, world)
         return
     end
     local halfW, halfH = w / (2 * self.zoom), h / (2 * self.zoom)
-    local tx = math.max(halfW, math.min(world.width - halfW, target.x))
-    local ty = math.max(halfH, math.min(world.height - halfH, target.y))
+    local b=world.playBounds or {x=0,y=0,w=world.width,h=world.height}
+    local minX,maxX=b.x+halfW,b.x+b.w-halfW
+    local minY,maxY=b.y+halfH,b.y+b.h-halfH
+    local tx=minX>maxX and b.x+b.w/2 or math.max(minX,math.min(maxX,target.x))
+    local ty=minY>maxY and b.y+b.h/2 or math.max(minY,math.min(maxY,target.y))
     local smoothing = 1 - math.exp(-dt * 7)
     self.x = self.x + (tx - self.x) * smoothing
     self.y = self.y + (ty - self.y) * smoothing
