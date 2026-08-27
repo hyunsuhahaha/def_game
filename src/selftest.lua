@@ -403,6 +403,16 @@ function SelfTest.run(game)
     assert(not game.clearcut:activateSmokeRing(game), "쿨다운 중에도 도넛 연기가 재발동됨")
     game.clearcut.enemies = {}
 
+    -- 도넛 강화(smoke_ring) 스킬을 레벨업하면 실제로 재사용시간/피해/크기가 좋아져야 한다.
+    game.clearcut.smokeRingCooldown = 0
+    game.clearcut.levels.smoke_ring = 6
+    assert(game.clearcut:activateSmokeRing(game), "도넛 강화 만렙 상태에서 도넛 연기 재발동 실패")
+    assert(game.clearcut.smokeRingCooldown < 8, "도넛 강화가 재사용 대기시간을 줄이지 않음")
+    assert(game.clearcut.smokeRing.dmg > 10, "도넛 강화가 피해를 늘리지 않음")
+    assert(game.clearcut.smokeRing.radius > 52, "도넛 강화가 크기를 늘리지 않음")
+    game.clearcut.levels.smoke_ring = 0
+    game.clearcut.smokeRing, game.clearcut.smokeRingCooldown = nil, 0
+
     -- 융합 스킬: 재료를 만렙 찍을 필요 없이 목록에서 바로 켜고 끌 수 있어야 한다.
     local sandboxFusions = game.clearcut:sandboxFusionList()
     local hasWildfire = false
@@ -713,6 +723,14 @@ function SelfTest.run(game)
     local revivalTimerBefore, revivalCooldownBefore = game.clearcut.revivalTimer, game.clearcut.revivalCooldown
     game.clearcut:updateRevival(1, game)
     assert(game.clearcut.revivalTimer < revivalTimerBefore and game.clearcut.revivalCooldown < revivalCooldownBefore, "부흥회 지속시간/쿨다운이 시간에 따라 줄지 않음")
+    game.clearcut.revivalTimer, game.clearcut.revivalCooldown = 0, 0
+
+    -- 부흥회 강화(revival_meeting) 스킬을 레벨업하면 쿨다운이 줄고 지속시간이 늘어야 한다.
+    game.clearcut.levels.revival_meeting = 6
+    assert(game.clearcut:activateRevival(game), "부흥회 강화 만렙 상태에서 부흥회 재발동 실패")
+    assert(game.clearcut.revivalCooldown < 20, "부흥회 강화가 재사용 대기시간을 줄이지 않음")
+    assert(game.clearcut.revivalTimer > 6, "부흥회 강화가 지속시간을 늘리지 않음")
+    game.clearcut.levels.revival_meeting = 0
     game.clearcut.revivalTimer, game.clearcut.revivalCooldown = 0, 0
 
     print("SELF_TEST_OK: LOBBY_DUAL_MODE RUSH_3MIN RUSH_FOREST RUSH_HOLD_TO_CHOP RUSH_MULTI_HIT RUSH_CHAIN_FELL RUSH_AUTO_PICKUP RUSH_THREE_CHOICES RUSH_AUTO_FRONT RUSH_RESULTS LOBBY_AUX_NAV SETTINGS BIG_TREE_SINGLE TREE_PER_HIT_DROP TREE_PROXIMITY_PICKUP QUARRY_GROUNDED QUARRY_PER_HIT_DROP QUARRY_ORE_RATIO QUARRY_PROXIMITY_PICKUP FARM TREE QUARRY_INFINITE TOOL_SPEED IMPACT_SYNC HARVEST_FEEDBACK VISIBLE_TURRET VISIBLE_DRONE VISIBLE_REPAIR_STATION MINING_DRILL_VFX RUN_LEVELUP THREE_CHOICES AUTOMATION EVOLUTION WALL_UPGRADE WALL_BLOCK HAMMER_REPAIR CRIT_CHANCE PRESTIGE_RUN MOVE_WHILE_FARM TURRET_SLOT_BASE TURRET_SLOT_TRAIT TURRET_SLOT_OCCUPIED TURRET_NEARBY TURRET_F_INTERACT TURRET_UPGRADE TURRET_AIM VISIBLE_BULLET MUZZLE_FLASH CHAIN_COIL_VFX EXPLOSIVE_SHELL_VFX META_SAVE TRAIT_TREE TRAIT_APPLY RUN_REWARD TEST_CURRENCY TEST_RESOURCES TEST_LEVELS TEST_RESET CIGARETTE_SMOKE_WINDUP CLEARCUT_CARD_FRAME CURSE_SCALING SWARM_SCALING TIME_SPAWNER ELITE_SPAWN REAPER_SPAWN REAPER_DASH_AI ELITE_THORN_FIRE STAGE_PROGRESSION WORLDTREE_ATTACKS WORLDTREE_ENRAGE SHADED_SPRITES BERSERK_ROUND BERSERK_TREE_FX CARD_REROLL CARD_BANISH ARCANA_STAGE SPECIAL_CARD VINE_PLANT NATURAL_DISASTER OFFSCREEN_INDICATOR CHARACTER_STORY_FLOW CHARACTER_CODEX SKILL_SANDBOX SANDBOX_FUSION SMOKE_RING SALIVA_GAUGE REVIVAL_MEETING")

@@ -42,6 +42,7 @@ local definitions = {
     {id="dry_forest", track="spread", name="건조주의보 무시", desc="꽁초의 착화 확률이 레벨당 +6%p 높아지고(최대 75%), 붙은 불이 주변 나무로 더 빠르고 넓게 번집니다.", max=6, color={1,.5,.15}, job="fire"},
     {id="oil_drum", track="spread", name="라이터 기름 유출", desc="나무가 다 타버리면 레벨당 폭발 확률이 크게 올라(1렙 7.5%→5렙 63%), 6렙에서는 100% 확정 발동합니다.", max=6, color={1,.62,.1}, job="fire"},
     {id="straw_bale", track="spread", name="마른 건초더미 생성", desc="주기적으로 주변에 마른 건초더미를 둡니다. 그 위에 담배꽁초를 던지면 0.5초 뒤 불이 붙어 주변 적에게 지속 피해를 줍니다. 불은 다른 대상으로 번지지 않습니다.", max=6, color={.85,.72,.25}, job="fire"},
+    {id="smoke_ring", track="spread", name="도넛 강화 — 니코틴 농축", desc="SPACE로 쏘는 도넛 연기의 재사용 대기시간이 줄고, 피해·넉백·크기가 늘어납니다.", max=6, color={1,.68,.2}, job="fire"},
     -- 억제력 (suppress) — 자연이 얼마나 다시 못 자라게 하느냐 [비건 단체 회장 전용 + 공용]
     {id="toxic_rain", track="suppress", name="친환경 제초 캠페인", desc="맹독 공격의 범위와 피해가 늘어나고, 평소에도 주변에 약하게 지속 피해를 줍니다.", max=6, color={.55,.85,.45}, job="toxic"},
     {id="forced_growth", track="suppress", name="강제 성장", desc="숲의 재생 속도가 크게 빨라지지만, 목재 경험치 획득량도 크게 늘어납니다.", max=6, color={.85,.7,.25}},
@@ -56,6 +57,7 @@ local definitions = {
     {id="brute_force", track="dig", name="브루트포스 어택", desc="지상에서 수많은 숫자 조합을 빠르게 생성한 뒤 사방으로 발사합니다. 날아간 숫자는 닿는 나무와 적에게 피해를 줍니다.", max=6, color={.3,.9,.4}, job="miner"},
     -- 독설력 (venom) — 말을 오래 붙잡을수록 사거리와 독성이 강해진다 [차라투스트라는 이렇게 말했다 전용]
     {id="monologue", track="venom", name="끝없는 설교", desc="기본 공격이 장광설로 바뀝니다. 공격 버튼을 누르고 있는 동안 침방울을 연속으로 쏘며, 그동안 침 게이지가 계속 줄어듭니다. 게이지가 바닥나면 강제로 멈추고 25% 이상 회복해야 다시 쏠 수 있습니다. 말이 길어질수록 사거리와 피해가 늘어납니다.", max=6, color={.75,.85,.3}, job="philosopher"},
+    {id="revival_meeting", track="venom", name="부흥회 강화 — 열성 신도", desc="SPACE로 여는 부흥회의 재사용 대기시간이 줄고, 지속시간과 그동안의 침 피해 배율이 늘어납니다.", max=6, color={.9,.85,.35}, job="philosopher"},
     {id="footnote", track="venom", name="각주 남발", desc="말하는 속도가 빨라져 침이 더 자주 튑니다.", max=6, color={.85,.9,.4}, job="philosopher"},
     {id="loud_voice", track="venom", name="목청 키우기", desc="침이 닿는 범위가 넓어집니다.", max=6, color={.65,.8,.3}, job="philosopher"},
     {id="saliva_gland", track="venom", name="침샘 발달", desc="침에 맞은 대상은 서서히 중독되어 지속 피해를 입습니다.", max=6, color={.55,.72,.25}, job="philosopher"},
@@ -1432,7 +1434,8 @@ function ClearcutMode:activateSmokeRing(game)
         game:setNotice(string.format("도넛 연기 재사용 %.1f초", self.smokeRingCooldown), "food")
         return false
     end
-    self.smokeRingCooldown = 8
+    local power = self:power("smoke_ring")
+    self.smokeRingCooldown = math.max(4, 8 - power)
     local maxRange = 460
     local tx, ty = self:aimPoint(game, maxRange)
     local _, mouthY, facing, tipX = self:smokerMouthPose(game)
@@ -1441,7 +1444,8 @@ function ClearcutMode:activateSmokeRing(game)
     local nx, ny = dist > .01 and dx / dist or facing, dist > .01 and dy / dist or 0
     local speed = 480
     self.smokeRing = {
-        x=tipX, y=mouthY, vx=nx * speed, vy=ny * speed, radius=52,
+        x=tipX, y=mouthY, vx=nx * speed, vy=ny * speed, radius=52 + power * 6,
+        dmg=10 + power * 3, knockback=420 + power * 20,
         maxRange=maxRange, traveled=0, puffTimer=0, hit={}
     }
     game:setNotice("도넛 연기 — 후우...", "food")
@@ -1469,9 +1473,9 @@ function ClearcutMode:updateSmokeRing(dt, game)
             if dist <= ring.radius then
                 ring.hit[e] = true
                 local nx, ny = dist > .01 and dx / dist or 1, dist > .01 and dy / dist or 0
-                e.hp = e.hp - 10
+                e.hp = e.hp - ring.dmg
                 e.visualHit = .14
-                e.knockVX, e.knockVY, e.knockTimer = nx * 420, ny * 420, .32
+                e.knockVX, e.knockVY, e.knockTimer = nx * ring.knockback, ny * ring.knockback, .32
             end
         end
     end
@@ -2660,8 +2664,9 @@ function ClearcutMode:activateRevival(game)
         game:setNotice(string.format("부흥회 재개최 %.1f초", self.revivalCooldown), "food")
         return false
     end
-    self.revivalCooldown = 20
-    self.revivalTimer = 6
+    local power = self:power("revival_meeting")
+    self.revivalCooldown = math.max(12, 20 - power * 1.5)
+    self.revivalTimer = 6 + power
     game.world.particles[#game.world.particles+1] = {
         x=game.player.x, y=game.player.y, life=.4, maxLife=.4, size=70, color={.75,.9,.35}, ring=true
     }
@@ -2728,7 +2733,8 @@ end
 
 function ClearcutMode:applySpit(tx, ty, verbosity, game, isBonus, isExtra)
     local radius = (self.aimRadius or 60) * (isBonus and 1.8 or 1)
-    local dmg = (2 + self:power("monologue") + verbosity * 2 + self.permanentTraits.biteDamage) * ((self.revivalTimer or 0) > 0 and 1.8 or 1)
+    local revivalMul = (self.revivalTimer or 0) > 0 and (1.8 + self:power("revival_meeting") * .2) or 1
+    local dmg = (2 + self:power("monologue") + verbosity * 2 + self.permanentTraits.biteDamage) * revivalMul
     local salivaLevel = self:levelOf("saliva_gland")
     local plagueTimer = (isBonus and 7 or 4) + self.permanentTraits.plagueDuration
     for _, node in ipairs(game.world.nodes) do
@@ -4054,6 +4060,8 @@ local heavyMachineryRows = {
     "...OOO...",
 }
 local heavyMachineryPalette = {O={.22,.16,.02,1}, H={1,.9,.55,1}, W={.85,.62,.15,1}, T={.6,.42,.08,1}, D={.28,.19,.03,1}}
+local smokeRingPalette = {O={.22,.18,.05,1}, H={.95,.85,.6,1}, W={.85,.65,.25,1}}
+local revivalMeetingPalette = {O={.24,.2,.04,1}, H={1,.95,.65,1}, W={.9,.8,.3,1}, D={.55,.45,.1,1}}
 
 ClearcutMode.icons = {
     axe = {rows = axeIconRows, palette = axeIconPalette},
@@ -4071,6 +4079,7 @@ ClearcutMode.icons = {
     heavy_machinery = {rows = heavyMachineryRows, palette = heavyMachineryPalette},
     demolition = {rows = diamondRows, palette = demolitionPalette},
     site_clearance = {rows = boxRows, palette = siteClearancePalette},
+    smoke_ring = {rows = blobRows, palette = smokeRingPalette},
     pickaxe = {rows = pickaxeIconRows, palette = pickaxeIconPalette},
     detector = {rows = rootCuttingRows, palette = rootCuttingPalette},
     burrow_uproot = {rows = rootCuttingRows, palette = rootCuttingPalette},
@@ -4079,6 +4088,7 @@ ClearcutMode.icons = {
     footnote = {rows = stickRows, palette = footnotePalette},
     loud_voice = {rows = diamondRows, palette = loudVoicePalette},
     saliva_gland = {rows = blobRows, palette = salivaGlandPalette},
+    revival_meeting = {rows = boxRows, palette = revivalMeetingPalette},
     bat_swarm = {rows = batIconRows, palette = batIconPalette},
     thorn_aura = {rows = thornIconRows, palette = thornIconPalette},
     crow_strike = {rows = crowIconRows, palette = crowIconPalette},
