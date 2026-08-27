@@ -4838,8 +4838,8 @@ local function drawOffscreenIndicators(self, game, fonts, w, h, t)
     end
 end
 
--- 순수 아이콘 그리드. 텍스트 없이 아이콘 + 레벨 숫자만으로 지금까지 찍은
--- 스킬을 보여준다. 트랙별로 묶고, 그 안에서는 레벨 높은 순으로 정렬.
+-- 세로 한 줄짜리 아이콘 스택. 텍스트 없이 아이콘 + 레벨 숫자만으로 지금까지
+-- 찍은 스킬을 보여준다. 트랙별로 묶고, 그 안에서는 레벨 높은 순으로 정렬.
 function ClearcutMode:drawSkillTracker(fonts)
     local picks={}
     for id,level in pairs(self.levels) do
@@ -4856,15 +4856,11 @@ function ClearcutMode:drawSkillTracker(fonts)
     end)
     local x0,y0=16,254
     local chip,gap=40,5
-    local cols=8
-    local rows=math.ceil(#picks/cols)
     love.graphics.setColor(.035,.05,.06,.9)
-    love.graphics.rectangle("fill",x0,y0,cols*(chip+gap)+gap,rows*(chip+gap)+gap,8,8)
+    love.graphics.rectangle("fill",x0,y0,chip+gap*2,#picks*(chip+gap)+gap,8,8)
     for i,pick in ipairs(picks) do
-        local col=(i-1)%cols
-        local row=math.floor((i-1)/cols)
-        local cx=x0+gap+col*(chip+gap)
-        local cy=y0+gap+row*(chip+gap)
+        local cx=x0+gap
+        local cy=y0+gap+(i-1)*(chip+gap)
         local color=pick.def.color or {.7,.7,.7,1}
         love.graphics.setColor(color[1]*.3,color[2]*.3,color[3]*.3,.95)
         love.graphics.rectangle("fill",cx,cy,chip,chip,5,5)
