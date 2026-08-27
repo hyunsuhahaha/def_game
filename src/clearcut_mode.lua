@@ -1152,16 +1152,28 @@ function ClearcutMode:updateStrawBales(dt, game)
     local radius=150+growth*70
     local damage=7+growth*6
     local triggerRadius=110+growth*40
+    local duration=6+growth*6
     for i = #self.strawBales, 1, -1 do
         local bale = self.strawBales[i]
-        bale.radius,bale.damage,bale.triggerRadius=bale.radius or radius,bale.damage or damage,bale.triggerRadius or triggerRadius
+        bale.radius,bale.damage,bale.triggerRadius,bale.duration=bale.radius or radius,bale.damage or damage,bale.triggerRadius or triggerRadius,bale.duration or duration
         if bale.ignited then
             bale.tickTimer = (bale.tickTimer or 0) - dt
             if bale.tickTimer <= 0 then
                 bale.tickTimer = .4
                 self:damageEnemiesInRadius(bale.x,bale.y,bale.radius,bale.damage,game)
+                -- 불씨를 옮겨붙이는 게 아니라, 반경 안의 나무를 곧바로 지속 피해로 태운다.
+                for _,node in ipairs(game.world.nodes) do
+                    if node.rushTree and node.active then
+                        local dx,dy=node.x-bale.x,node.y-bale.y
+                        if dx*dx+dy*dy<=bale.radius*bale.radius then
+                            node.rushHp=(node.rushHp or node.rushMaxHp)-bale.damage
+                            game.world:impactNode(node,game,false)
+                            if node.rushHp<=0 then self:fellTree(node,game) end
+                        end
+                    end
+                end
             end
-            if now - bale.ignitedAt >= 6 then table.remove(self.strawBales, i) end
+            if now - bale.ignitedAt >= bale.duration then table.remove(self.strawBales, i) end
         else
             bale.age = bale.age + dt
             if bale.primedAt then
@@ -1188,14 +1200,14 @@ function ClearcutMode:updateStrawBales(dt, game)
     if level <= 0 then return end
     self.strawTimer = self.strawTimer - dt
     if self.strawTimer <= 0 then
-        self.strawTimer = math.max(5, 12 - self:power("straw_bale") * 1.4)
+        self.strawTimer = math.max(9, 15 - self:power("straw_bale") * 1.4)
         local a = love.math.random() * math.pi * 2
         local r = 70 + love.math.random() * 170
         self.strawBaleSequence=(self.strawBaleSequence or 0)+1
         self.strawBales[#self.strawBales + 1] = {
             x=game.player.x+math.cos(a)*r,y=game.player.y+math.sin(a)*r,
             age=0,ignited=false,variant=(self.strawBaleSequence-1)%2,spawnedAt=now,
-            radius=radius,damage=damage,triggerRadius=triggerRadius
+            radius=radius,damage=damage,triggerRadius=triggerRadius,duration=duration
         }
     end
 end

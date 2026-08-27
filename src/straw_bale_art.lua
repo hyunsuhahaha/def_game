@@ -64,19 +64,20 @@ function Art.draw(bale,t)
         love.graphics.ellipse("fill",bale.x,bale.y+6,58*shadowP,17*shadowP)
         if p>.84 then squash=1-math.sin((p-.84)/.16*math.pi)*.22 end
     end
-    local bale={x=bale.x,y=bale.y+dropY,radius=bale.radius,variant=bale.variant,ignited=bale.ignited,ignitedAt=bale.ignitedAt,primedAt=bale.primedAt}
+    local bale={x=bale.x,y=bale.y+dropY,radius=bale.radius,variant=bale.variant,ignited=bale.ignited,ignitedAt=bale.ignitedAt,primedAt=bale.primedAt,duration=bale.duration}
     if bale.ignited then
         local age=math.max(0,t-(bale.ignitedAt or t))
-        local fade=math.min(1,age/.12)*math.min(1,math.max(0,(6-age)/.55))
+        local duration=bale.duration or 6
+        local fade=math.min(1,age/.12)*math.min(1,math.max(0,(duration-age)/.55))
         drawRange(bale,t,fade)
-        flameLayer(bale,t,bale.x-56,bale.y-60,120,178,0,fade*.98,(bale.variant or 0)+.3)
-        flameLayer(bale,t+.21,bale.x,bale.y-65,136,248,0,fade,(bale.variant or 0)+1.1)
-        flameLayer(bale,t+.43,bale.x+58,bale.y-58,118,192,0,fade*.98,(bale.variant or 0)+2.4)
+        flameLayer(bale,t,bale.x-46,bale.y-50,100,148,0,fade*.98,(bale.variant or 0)+.3)
+        flameLayer(bale,t+.21,bale.x,bale.y-54,113,206,0,fade,(bale.variant or 0)+1.1)
+        flameLayer(bale,t+.43,bale.x+48,bale.y-48,98,159,0,fade*.98,(bale.variant or 0)+2.4)
         drawBody(bale,fade)
-        flameLayer(bale,t+.12,bale.x-68,bale.y-32,88,120,1,fade*.94,(bale.variant or 0)+3.0)
-        flameLayer(bale,t+.31,bale.x-25,bale.y-41,101,164,1,fade,(bale.variant or 0)+4.2)
-        flameLayer(bale,t+.50,bale.x+25,bale.y-42,101,146,1,fade*.98,(bale.variant or 0)+5.5)
-        flameLayer(bale,t+.68,bale.x+67,bale.y-31,88,114,1,fade*.92,(bale.variant or 0)+6.8)
+        flameLayer(bale,t+.12,bale.x-56,bale.y-27,73,100,1,fade*.94,(bale.variant or 0)+3.0)
+        flameLayer(bale,t+.31,bale.x-21,bale.y-34,84,136,1,fade,(bale.variant or 0)+4.2)
+        flameLayer(bale,t+.50,bale.x+21,bale.y-35,84,121,1,fade*.98,(bale.variant or 0)+5.5)
+        flameLayer(bale,t+.68,bale.x+56,bale.y-26,73,95,1,fade*.92,(bale.variant or 0)+6.8)
     elseif bale.primedAt then
         local p=math.min(1,math.max(0,(t-bale.primedAt)/.5))
         drawBody(bale,1);drawPrime(bale,t,p)

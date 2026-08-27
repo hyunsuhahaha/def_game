@@ -5,7 +5,7 @@ local mode=Mode.new();mode.job="fire";mode.levels.straw_bale=1;mode.strawTimer=9
 mode.strawBales={{x=100,y=120,age=0,ignited=false,variant=0}}
 mode.cigaretteButts={}
 local spreadCalls,igniteFxCalls=0,0
-local game={player={x=0,y=0},world={nodes={{rushTree=true,active=true,burning=true,x=100,y=120}},igniteFx=function() igniteFxCalls=igniteFxCalls+1 end}}
+local game={player={x=0,y=0},world={nodes={{rushTree=true,active=true,burning=true,x=100,y=120,rushHp=1000,rushMaxHp=1000}},igniteFx=function() igniteFxCalls=igniteFxCalls+1 end,impactNode=function() end}}
 mode.damageEnemiesInRadius=function(self,x,y,radius,damage)
     self.damageAudit={x=x,y=y,radius=radius,damage=damage}
 end
@@ -34,6 +34,11 @@ local expectedRadius,expectedDamage=150+openingGrowth*70,7+openingGrowth*6
 assert(mode.damageAudit and math.abs(mode.damageAudit.radius-expectedRadius)<.001 and mode.damageAudit.radius>150)
 assert(math.abs(mode.damageAudit.damage-expectedDamage)<.001)
 assert(spreadCalls==0,"hay fire spread to another target")
+
+-- Nearby trees take the burn as direct continuous damage, not an ember hand-off.
+local scorched=game.world.nodes[1]
+assert(math.abs(scorched.rushHp-(1000-expectedDamage))<.001,"nearby tree did not take straw-bale burn damage")
+assert(spreadCalls==0 and igniteFxCalls==0,"straw bale used the ember-transfer path instead of direct damage")
 
 mode.cigaretteButts={}
 fixture.reset();local queue={};mode:queueWorldActors(queue,mode.smokerGroundTime)
