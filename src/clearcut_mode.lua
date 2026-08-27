@@ -274,12 +274,14 @@ end
 -- 나무 종류(스프라이트 variant)별 기초 체력. 예전엔 전부 3으로 고정이라 종류와 상관없이
 -- 도끼 몇 번(스킬 몇 개만 찍어도 한 방)이면 쓰러졌다 — 굵고 단단해 보이는 나무는 실제로도
 -- 더 오래 버티도록 종류별로 나눴다. 순서는 world.lua/clearcut_maps.lua의 variant 그림 순서와 맞춘다.
+-- 초반에 나무가 너무 순식간에 쓰러져 긴장감이 없다는 피드백으로 전반적으로 상향
+-- (기존 대비 약 1.6~2배).
 local treeHpByMapVariant = {
-    forest = {4, 3, 2, 5},      -- 활엽수, 소나무, 자작나무, 단풍나무
-    beginner = {4, 3, 2, 5},    -- 초심자의 숲도 같은 4종
-    mangrove = {5, 4, 2},       -- 맹그로브, 아비케니아, 니파야자
-    madagascar = {8, 4, 2},     -- 바오밥(굵은 몸통), 타마린드, 코미포라
-    island = {3, 4, 4},         -- 야자, 씨아몬드, 판다누스
+    forest = {7, 5, 4, 9},      -- 활엽수, 소나무, 자작나무, 단풍나무
+    beginner = {7, 5, 4, 9},    -- 초심자의 숲도 같은 4종
+    mangrove = {9, 7, 4},       -- 맹그로브, 아비케니아, 니파야자
+    madagascar = {14, 7, 4},    -- 바오밥(굵은 몸통), 타마린드, 코미포라
+    island = {5, 7, 7},         -- 야자, 씨아몬드, 판다누스
 }
 local function treeHpFor(mapId, variant)
     local list = treeHpByMapVariant[mapId] or treeHpByMapVariant.forest
