@@ -352,6 +352,7 @@ function Game:keypressed(key)
         if key=="space" and self.clearcut then
             self.clearcut:activateMinerBurrow(self)
             self.clearcut:activateSmokeRing(self)
+            self.clearcut:activateRevival(self)
         end
         return
     end

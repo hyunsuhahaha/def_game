@@ -138,6 +138,7 @@ function ClearcutMode.new()
         minerClawAction=nil, minerClawFx={}, minerClawMarks={}, minerBurrow=nil, minerBurrowCooldown=0, thrownTrees={}, burrowTracks={}, burrowTrackSequence=0,
         smokeRing=nil, smokeRingCooldown=0,
         salivaGauge=100, salivaGaugeMax=100, salivaDrainRate=30, salivaRegenRate=25, salivaExhausted=false,
+        revivalTimer=0, revivalCooldown=0,
         smokerHeldLast=false, physicalAction=nil, veganAction=nil, developerAction=nil,
         actionAudit={physicalImpact=0,cigaretteFlick=0,veganBite=0,developerRemote=0},
         hp=100, maxHp=100, invulnTimer=0, dead=false,
@@ -362,6 +363,7 @@ function ClearcutMode:update(dt, game)
     self:updateFire(dt, game)
     self:updateMolotovs(dt, game)
     self:updateSmokeRing(dt, game)
+    self:updateRevival(dt, game)
     self:updateToxicRain(dt, game)
     -- 연습장(sandbox)에서는 이 함수들이 자기 안에서 바로 return 하므로(각 함수 상단의
     -- sandbox 가드 참고) 자동 위협/스폰이 전부 꺼지고 "몹 소환" 버튼으로만 적이 생긴다.
@@ -2649,6 +2651,34 @@ function ClearcutMode:updatePortScan(dt, game)
     end
 end
 
+-- 철학자 전용 SPACE 액션: 부흥회 개최. 광신도들이 잠깐 나타났다 사라지고, 그 몇 초 동안
+-- "끝없는 설교"가 강화된다 — 침 게이지 소모 없이, 항상 최대 장광설(verbosity=1) 상태로,
+-- 데미지도 크게 오른다. 새 자원을 만들지 않고 기존 설교 시스템 위에 얹는 버프형 스킬이다.
+function ClearcutMode:activateRevival(game)
+    if self.job ~= "philosopher" or self.dead then return false end
+    if self.revivalCooldown > 0 then
+        game:setNotice(string.format("부흥회 재개최 %.1f초", self.revivalCooldown), "food")
+        return false
+    end
+    self.revivalCooldown = 20
+    self.revivalTimer = 6
+    game.world.particles[#game.world.particles+1] = {
+        x=game.player.x, y=game.player.y, life=.4, maxLife=.4, size=70, color={.75,.9,.35}, ring=true
+    }
+    for i = 1, 10 do
+        local a = (i / 10) * math.pi * 2
+        local r = 30 + love.math.random() * 40
+        game.world:addParticle(game.player.x + math.cos(a) * r, game.player.y + math.sin(a) * r * .6, {.75, .9, .35}, true, false)
+    end
+    game:setNotice("부흥회 개최 — 광신도들이 응답한다", "food")
+    return true
+end
+
+function ClearcutMode:updateRevival(dt, game)
+    self.revivalCooldown = math.max(0, self.revivalCooldown - dt)
+    self.revivalTimer = math.max(0, self.revivalTimer - dt)
+end
+
 -- 기본공격 "끝없는 설교": 누르고 있는 동안 침을 계속 쏘지만, 침 게이지가 계속 줄어든다.
 -- 게이지가 바닥나면 강제로 채널링이 끊기고(exhausted), 25%까지 회복해야 다시 쏠 수 있다
 -- — 딱 0을 스쳐 지나가며 쏘다 멈추다를 반복하는 깜빡임을 막기 위한 히스테리시스.
@@ -2667,7 +2697,7 @@ function ClearcutMode:updatePhilosopherAttack(dt, game, heldOverride)
     else
         self.rantTimer = math.max(0, (self.rantTimer or 0) - dt * 2)
     end
-    local verbosity = math.min(1, (self.rantTimer or 0) / 3)
+    local verbosity = self.revivalTimer > 0 and 1 or math.min(1, (self.rantTimer or 0) / 3)
     self.aimX, self.aimY = tx, ty
     self.aimRadius = (55 + self:power("monologue") * 10 + self:power("loud_voice") * 20) * (1 + verbosity * .55) + self.permanentTraits.area
     if game.player.setClearcutAction then game.player:setClearcutAction(.5 + verbosity * .3) end
@@ -2681,10 +2711,12 @@ function ClearcutMode:updatePhilosopherAttack(dt, game, heldOverride)
         if game.player.clearClearcutAction then game.player:clearClearcutAction() end
         return false
     end
-    self.salivaGauge = math.max(0, self.salivaGauge - self.salivaDrainRate * dt)
-    if self.salivaGauge <= 0 then
-        self.salivaExhausted = true
-        game:setNotice("설교에 지쳤다 — 침이 마름", "food")
+    if self.revivalTimer <= 0 then
+        self.salivaGauge = math.max(0, self.salivaGauge - self.salivaDrainRate * dt)
+        if self.salivaGauge <= 0 then
+            self.salivaExhausted = true
+            game:setNotice("설교에 지쳤다 — 침이 마름", "food")
+        end
     end
     self.spitTimer = (self.spitTimer or 0) - dt
     if self.spitTimer > 0 then return false end
@@ -2696,7 +2728,7 @@ end
 
 function ClearcutMode:applySpit(tx, ty, verbosity, game, isBonus, isExtra)
     local radius = (self.aimRadius or 60) * (isBonus and 1.8 or 1)
-    local dmg = 2 + self:power("monologue") + verbosity * 2 + self.permanentTraits.biteDamage
+    local dmg = (2 + self:power("monologue") + verbosity * 2 + self.permanentTraits.biteDamage) * ((self.revivalTimer or 0) > 0 and 1.8 or 1)
     local salivaLevel = self:levelOf("saliva_gland")
     local plagueTimer = (isBonus and 7 or 4) + self.permanentTraits.plagueDuration
     for _, node in ipairs(game.world.nodes) do
@@ -4780,6 +4812,14 @@ function ClearcutMode:drawHUD(game,fonts)
     if self.job=="fire" then
         local ready=(self.smokeRingCooldown or 0)<=0 and not self.smokeRing
         local text=self.smokeRing and "도넛 연기 — 후우..." or ready and "SPACE  도넛 연기 준비" or string.format("도넛 연기 재사용 %.1f초",self.smokeRingCooldown)
+        love.graphics.setFont(fonts.small)
+        love.graphics.setColor(.035,.045,.035,.9); love.graphics.rectangle("fill",w/2-150,h-52,300,30,7,7)
+        love.graphics.setColor(ready and {.94,.76,.28,1} or {.72,.65,.52,1})
+        love.graphics.printf(text,w/2-146,h-45,292,"center")
+    end
+    if self.job=="philosopher" then
+        local ready=(self.revivalCooldown or 0)<=0 and (self.revivalTimer or 0)<=0
+        local text=self.revivalTimer>0 and string.format("부흥회 진행 중 — %.1f초",self.revivalTimer) or ready and "SPACE  부흥회 개최 준비" or string.format("부흥회 재개최 %.1f초",self.revivalCooldown)
         love.graphics.setFont(fonts.small)
         love.graphics.setColor(.035,.045,.035,.9); love.graphics.rectangle("fill",w/2-150,h-52,300,30,7,7)
         love.graphics.setColor(ready and {.94,.76,.28,1} or {.72,.65,.52,1})
