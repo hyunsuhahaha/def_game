@@ -437,7 +437,7 @@ const TRAITS = {
   fire: {
     label: "흡연자", accent: "var(--c-fire)",
     tagline: "불씨 하나쯤은 자연이 알아서 처리하겠지.",
-    doctrine: "긴 흡연 준비 끝에 꽁초를 날려 넓은 숲을 연쇄 점화한다. SPACE로는 담배 연기로 도넛(스모크 링)을 만들어 조준 방향으로 쏘아 보내, 날아가는 고리에 닿는 나무와 적에게 피해를 주고(적은 넉백까지) 지나간다.",
+    doctrine: "긴 흡연 준비 끝에 꽁초를 날려 넓은 숲을 연쇄 점화한다. SPACE로는 담배 연기로 도넛(스모크 링)을 만들어 캐릭터가 바라보는 방향으로 쏘아 보내(마우스 조준이 아님), 날아가는 고리에 닿는 나무와 적에게 피해를 주고(적은 넉백까지) 지나간다.",
     nodes: [
       {id:"fire_nicotine",name:"니코틴 내성",short:"한 모금 더",desc:"흡연·투척 속도 +7%",max:3,costs:[18,32,50]},
       {id:"fire_filter",name:"장초 필터",short:"끝까지 태우기",desc:"꽁초 투척 사거리 +24",max:3,costs:[22,38,58],requires:[["fire_nicotine",1]]},
@@ -635,6 +635,9 @@ const TRAITS = {
       {id:"universal_cart",name:"물류용 카트 지급",short:"손 안 대도 된다",desc:"자원 획득 반경 +30",max:3,costs:[34,54,78],requires:[["universal_snackbar",1]]},
       {id:"universal_severance",name:"퇴직 위로금 사전 적립",short:"한 번은 봐준다",desc:"쓰러졌을 때 1회 부활 (체력 50% 회복)",max:1,costs:[110],requires:[["universal_bike",1],["universal_profitshare",1]]},
       {id:"universal_finalwelfare",name:"총무팀의 마지막 배려",short:"최종 복지",desc:"쓰러졌을 때 부활 횟수 +1",max:1,costs:[190],requires:[["universal_severance",1]],capstone:true},
+      {id:"universal_lumberbonus",name:"목재 실적 인정",short:"벤 만큼 잡힌다",desc:"목재 획득량 +12%",max:3,costs:[36,62,94],requires:[["universal_shuttle",1]]},
+      {id:"universal_afforestation",name:"선제적 조림 사업",short:"미리 심어둔다",desc:"스테이지 진행마다 나무 +6그루(스테이지 배수)",max:3,costs:[36,62,94],requires:[["universal_shuttle",1]]},
+      {id:"universal_seedbank",name:"다수종 조림 협약",short:"한 종만 심지 않는다",desc:"벌목지에 더 값나가는 수종이 함께 자란다",max:1,costs:[135],requires:[["universal_afforestation",1]]},
     ]
   }
 };
@@ -660,7 +663,7 @@ const SKILLS = {
       {id:"molotov",track:"spread",name:"꽁초 투척",desc:"사거리와 꽁초의 불씨 전이 범위가 늘어나고, 주기적으로 하나 더 튕깁니다. 바닥의 꽁초는 7초간 남아 주변 나무에 기본 42%(최대 75%) 확률로 불을 옮깁니다."},
       {id:"dry_forest",track:"spread",name:"건조주의보 무시",desc:"꽁초의 착화 확률이 레벨당 +6%p 높아지고(최대 75%), 붙은 불이 주변 나무로 더 빠르고 넓게 번집니다."},
       {id:"oil_drum",track:"spread",name:"라이터 기름 유출",desc:"나무가 다 타버리면 레벨당 폭발 확률이 크게 올라(1렙 7.5%→5렙 63%), 6렙에서는 100% 확정 발동합니다."},
-      {id:"straw_bale",track:"spread",name:"마른 건초더미 생성",desc:"주기적으로 큰 건초더미를 둡니다. 꽁초가 닿으면 0.5초 뒤 불이 붙고, 레벨에 따라 넓어지는 화염 지대가 주변 적에게 지속 피해를 줍니다. 불은 다른 대상으로 번지지 않습니다."},
+      {id:"straw_bale",track:"spread",name:"마른 건초더미 생성",desc:"주기적으로 큰 건초더미를 둡니다. 꽁초가 닿으면 0.5초 뒤 불이 붙고, 레벨에 따라 넓어지는 화염 지대가 주변 나무와 적에게 지속 피해를 줍니다. 불이 옮겨붙어 다른 대상을 점화시키지는 않습니다."},
       {id:"smoke_ring",track:"spread",name:"도넛 강화 — 니코틴 농축",desc:"SPACE로 쏘는 도넛 연기의 재사용 대기시간이 줄고, 피해·넉백·크기가 늘어납니다. 6레벨에는 SPACE를 끝까지 충전하면 초농축 도넛이 발사됩니다. 중간에 놓으면 일반 도넛과 같습니다."},
     ]
   },
