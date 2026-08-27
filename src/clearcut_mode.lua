@@ -101,10 +101,10 @@ local arcanaDefs = {
 
 local milestones = {
     {pct=10, text="\"숲이 당신의 존재를 알아챈 것 같다...\"", wave={squirrel=4}},
-    {pct=30, text="다람쥐들이 사방으로 도망치기 시작한다.", wave={squirrel=4, boar=2}},
-    {pct=50, text="숲의 절반이 사라졌다.", wave={squirrel=3}, boss="ent"},
-    {pct=70, text="숲이... 이상할 정도로 조용해졌다.", wave={boar=4, turret=3}},
-    {pct=90, text="거의 다 왔다. 마지막 나무들이 보인다.", wave={squirrel=6, boar=3, turret=2}}
+    {pct=30, text="다람쥐들이 사방으로 도망치기 시작한다.", wave={squirrel=4, boar=2, planter=1}},
+    {pct=50, text="숲의 절반이 사라졌다.", wave={squirrel=3, planter=1}, boss="ent"},
+    {pct=70, text="숲이... 이상할 정도로 조용해졌다.", wave={boar=4, turret=3, planter=2}},
+    {pct=90, text="거의 다 왔다. 마지막 나무들이 보인다.", wave={squirrel=6, boar=3, turret=2, planter=2}}
 }
 
 local enemyDefs = {
@@ -116,7 +116,10 @@ local enemyDefs = {
     worldtree = {name="세계수", hp=950, speed=0, damage=0, radius=92, color={.26,.5,.22}, boss=true, finalBoss=true,
         slamInterval=4, slamRadius=150, slamDamage=18, summonInterval=7, reward=0},
     reaper = {name="숲의 사신", hp=550, speed=118, damage=14, radius=24, color={.1,.03,.05}, hitCooldown=.65, reward=60},
-    vineSprout = {name="식충 덩굴괴수", hp=42, speed=0, damage=6, radius=27, color={.35,.65,.25}, ranged=true, thornAttack=true, range=360, fireInterval=1.55, reward=7, hitCooldown=1}
+    vineSprout = {name="식충 덩굴괴수", hp=42, speed=0, damage=6, radius=27, color={.35,.65,.25}, ranged=true, thornAttack=true, range=360, fireInterval=1.55, reward=7, hitCooldown=1},
+    -- 직접 공격은 없지만, 주기적으로 주변에 쓰러진 나무를 되살린다 — 방치하면
+    -- 애써 벤 자리가 다시 채워지니 먼저 처치하는 편이 이득인 "우선 처치" 유형.
+    planter = {name="재생의 정령", hp=55, speed=0, damage=0, radius=24, color={.4,.78,.35}, hitCooldown=1, reward=9, plantInterval=7, plantRadius=190}
 }
 
 for kind,def in pairs(BiomeEnemies.definitions) do enemyDefs[kind]=def end
@@ -474,6 +477,32 @@ function ClearcutMode:regrowPulse(game)
         if game.camera then game.camera.trauma = math.min(1, game.camera.trauma + .25) end
         self:spawnRootBurst(candidates, count, game)
     end
+end
+
+-- "재생의 정령" 전용: regrowPulse와 같은 원리(쓰러진 나무를 되살림)지만 숲
+-- 전체가 아니라 이 몹 주변에만 국한된다. 살려두면 계속 되풀이되니 먼저 잡는
+-- 편이 이득이라는 신호를 그대로 준다.
+function ClearcutMode:plantTreesNear(e, game)
+    local radius = e.def.plantRadius or 190
+    local candidates = {}
+    for _, node in ipairs(game.world.nodes) do
+        if node.rushTree and not node.active and not node.sterile then
+            local dx, dy = node.x - e.x, node.y - e.y
+            if dx*dx + dy*dy <= radius*radius then candidates[#candidates+1] = node end
+        end
+    end
+    if #candidates == 0 then return end
+    for i = #candidates, 2, -1 do local j = love.math.random(i); candidates[i], candidates[j] = candidates[j], candidates[i] end
+    local count = math.min(3, #candidates)
+    for i = 1, count do
+        local node = candidates[i]
+        node.active, node.rushHp = true, node.rushMaxHp
+        node.burning, node.fallT, node.uprooted = nil, nil, nil
+        self.remainingTrees = self.remainingTrees + 1
+    end
+    self.treesRevived = self.treesRevived + count
+    game:setNotice(string.format("%s이(가) 나무 %d그루를 심었다!", e.def.name, count), "food")
+    self:spawnRootBurst(candidates, count, game)
 end
 
 function ClearcutMode:spawnRootBurst(candidates, count, game)
@@ -1134,6 +1163,13 @@ function ClearcutMode:updateEnemies(dt, game)
             if e.summonTimer <= 0 then
                 e.summonTimer = def.summonInterval
                 self:spawnWave({squirrel = 2, boar = 1}, game)
+            end
+        end
+        if def.plantInterval then
+            e.plantTimer = (e.plantTimer or def.plantInterval) - dt
+            if e.plantTimer <= 0 then
+                e.plantTimer = def.plantInterval
+                self:plantTreesNear(e, game)
             end
         end
         if e.hp <= 0 then
