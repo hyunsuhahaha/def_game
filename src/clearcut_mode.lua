@@ -2208,18 +2208,21 @@ function ClearcutMode:updateCrowStrike(dt, game)
     local growth=self:growth("crow_strike")
     self.crowTimer = 5-growth*3.6
     local range = 620
+    -- 공용 스킬은 무조건 몬스터부터 노린다: 사거리 안에 적이 있으면 나무는 아예 후보에서 뺀다.
     local best, bestD2 = nil, -1
-    for _, node in ipairs(game.world.nodes) do
-        if node.rushTree and node.active then
-            local dx, dy = node.x - game.player.x, node.y - game.player.y
-            local d2 = dx*dx + dy*dy
-            if d2 <= range*range and d2 > bestD2 then best, bestD2 = node, d2 end
-        end
-    end
     for _, e in ipairs(self.enemies) do
         local dx, dy = e.x - game.player.x, e.y - game.player.y
         local d2 = dx*dx + dy*dy
         if d2 <= range*range and d2 > bestD2 then best, bestD2 = e, d2 end
+    end
+    if not best then
+        for _, node in ipairs(game.world.nodes) do
+            if node.rushTree and node.active then
+                local dx, dy = node.x - game.player.x, node.y - game.player.y
+                local d2 = dx*dx + dy*dy
+                if d2 <= range*range and d2 > bestD2 then best, bestD2 = node, d2 end
+            end
+        end
     end
     if not best then return end
     local dmg = 3.5 + growth*30.5
@@ -2251,18 +2254,21 @@ function ClearcutMode:updateVineWhip(dt, game)
     local growth=self:growth("vine_whip")
     self.whipTimer = 7-growth*3.5
     local range = 125+growth*155
+    -- 조준 방향은 몬스터를 우선한다: 사거리 안에 적이 있으면 나무는 후보에서 뺀다.
     local nearest, nearestD2 = nil, range * range
-    for _, node in ipairs(game.world.nodes) do
-        if node.rushTree and node.active then
-            local dx, dy = node.x - game.player.x, node.y - game.player.y
-            local d2 = dx*dx + dy*dy
-            if d2 <= nearestD2 then nearest, nearestD2 = node, d2 end
-        end
-    end
     for _, e in ipairs(self.enemies) do
         local dx, dy = e.x - game.player.x, e.y - game.player.y
         local d2 = dx*dx + dy*dy
         if d2 <= nearestD2 then nearest, nearestD2 = e, d2 end
+    end
+    if not nearest then
+        for _, node in ipairs(game.world.nodes) do
+            if node.rushTree and node.active then
+                local dx, dy = node.x - game.player.x, node.y - game.player.y
+                local d2 = dx*dx + dy*dy
+                if d2 <= nearestD2 then nearest, nearestD2 = node, d2 end
+            end
+        end
     end
     local atan2 = math.atan2 or math.atan
     local angle
@@ -2422,19 +2428,23 @@ function ClearcutMode:updateChainLightning(dt, game)
     local cx, cy = game.player.x, game.player.y
     local points = {{x=cx, y=cy}}
     for _ = 1, jumps do
+        -- 매 점프마다 몬스터를 먼저 찾는다: 사거리 안에 아직 안 맞은 적이 있으면
+        -- 나무는 후보에서 빠진다 (적이 소진돼야 비로소 나무로 넘어간다).
         local target, bestD2 = nil, hopRange * hopRange
-        for _, node in ipairs(game.world.nodes) do
-            if node.rushTree and node.active and not visited[node] then
-                local dx, dy = node.x - cx, node.y - cy
-                local d2 = dx*dx + dy*dy
-                if d2 <= bestD2 then target, bestD2 = node, d2 end
-            end
-        end
         for _, e in ipairs(self.enemies) do
             if not visited[e] then
                 local dx, dy = e.x - cx, e.y - cy
                 local d2 = dx*dx + dy*dy
                 if d2 <= bestD2 then target, bestD2 = e, d2 end
+            end
+        end
+        if not target then
+            for _, node in ipairs(game.world.nodes) do
+                if node.rushTree and node.active and not visited[node] then
+                    local dx, dy = node.x - cx, node.y - cy
+                    local d2 = dx*dx + dy*dy
+                    if d2 <= bestD2 then target, bestD2 = node, d2 end
+                end
             end
         end
         if not target then break end
