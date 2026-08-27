@@ -18,7 +18,7 @@ local player={x=100,y=100,facing=1,gather=1,setClearcutAction=function(self,p) s
 local treeA={rushTree=true,active=true,x=160,y=100,rushHp=3,rushMaxHp=3,treeVariant=2}
 local treeC={rushTree=true,active=true,x=205,y=100,rushHp=3,rushMaxHp=3,treeVariant=3}
 local treeD={rushTree=true,active=true,x=280,y=100,rushHp=3,rushMaxHp=3,treeVariant=4}
-local treeB={rushTree=true,active=true,x=160,y=250,rushHp=3,rushMaxHp=3,treeVariant=1}
+local treeB={rushTree=true,active=true,x=160,y=320,rushHp=3,rushMaxHp=3,treeVariant=1}
 local world={
     nodes={treeA,treeC,treeD,treeB}, width=1000,height=1000,drops={},images={treeVariants={}},
     impactNode=function() end, addParticle=function() particles=particles+1 end,
@@ -47,6 +47,30 @@ assert(#mode.minerClawMarks==3 and mode.minerClawMarks[1].life==6,"claw gouges w
 assert(mode:getUpgradeDefinition("detector").name:find("손톱 강화",1,true),"miner claw upgrade is not identified as a job skill")
 mode:updateMinerAttack(.3,game,false)
 assert(#mode.minerClawFx==0 and #mode.minerClawMarks==3,"contact flashes should end while all scratch marks remain")
+
+-- Continuous movement during the wind-up must carry the original direction
+-- with the mole instead of swinging back toward a stale mouse world point.
+local moveMode=ClearcutMode.new();moveMode.job="miner";moveMode.levels.detector=1
+moveMode.permanentTraits={attackSpeed=1,range=0,area=0,extraTargets=0,treeDamage=0,moveSpeed=1}
+local movePlayer={x=100,y=100,facing=1,gather=1,setClearcutAction=function() end,clearClearcutAction=function() end}
+local moveTree={rushTree=true,active=true,x=250,y=180,rushHp=10,rushMaxHp=10,treeVariant=1}
+local moveGame={player=movePlayer,tools={axe={speed=1}},world={nodes={moveTree},impactNode=function() end},
+    camera={screenToWorld=function() return 220,100 end,trauma=0}}
+moveMode:updateMinerAttack(0,moveGame,true);moveMode:updateMinerAttack(.2,moveGame,true)
+movePlayer.y=180;moveMode:updateMinerAttack(.25,moveGame,true)
+assert(moveTree.rushHp<10,"moving during claw wind-up detached the hitbox from the mole")
+
+-- Aiming at the visible upper tree, rather than its root anchor, still hits
+-- the vertical body segment and places the contact effect at that height.
+local canopyMode=ClearcutMode.new();canopyMode.job="miner";canopyMode.levels.detector=1
+canopyMode.permanentTraits={attackSpeed=1,range=0,area=0,extraTargets=0,treeDamage=0,moveSpeed=1}
+local canopyPlayer={x=100,y=100,facing=1,gather=1,setClearcutAction=function() end,clearClearcutAction=function() end}
+local canopyTree={rushTree=true,active=true,x=160,y=100,rushHp=10,rushMaxHp=10,treeVariant=1}
+local canopyGame={player=canopyPlayer,tools={axe={speed=1}},world={nodes={canopyTree},impactNode=function() end},
+    camera={screenToWorld=function() return 160,-50 end,trauma=0}}
+canopyMode:updateMinerAttack(0,canopyGame,true);canopyMode:updateMinerAttack(.45,canopyGame,true)
+assert(canopyTree.rushHp<10,"claw aimed at the visible tree body only checked the root point")
+assert(canopyMode.minerClawFx[1].y<canopyTree.y,"tree contact effect was not placed on the actual visible hit height")
 
 -- Max rank uses both hands, but the paired visuals still form exactly one
 -- damage envelope and therefore never double the damage.

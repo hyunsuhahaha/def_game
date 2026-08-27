@@ -5150,9 +5150,11 @@ function ClearcutMode:drawHUD(game,fonts)
         love.graphics.printf(sub, dbx, dby + 31, dbw, "center")
     end
 
-    -- 연속 채집 콤보(전 직업 공용, self.streak): 0.9초 안에 다시 타격하지
-    -- 않으면 끊긴다. 오른쪽 상단, 광폭화/재난 패널이 떠 있으면 그 아래로 밀려난다.
-    if self.streak > 0 then
+    -- 연속 채집 콤보(world.lua의 harvestChain — 나무를 벨 때마다 이미 세계 곳곳에
+    -- "연속 채집 x N" 팝업으로 떠 있던 바로 그 값). 2.4초 안에 또 나무를 못 베면
+    -- 끊긴다. 오른쪽 상단, 광폭화/재난 패널이 떠 있으면 그 아래로 밀려난다.
+    local harvestChain = game.world.harvestChain or 0
+    if harvestChain >= 2 then
         local cbw = 190
         local cbx = w - 16 - cbw
         local stacked = 0
@@ -5163,11 +5165,12 @@ function ClearcutMode:drawHUD(game,fonts)
         love.graphics.setLineWidth(1.5); love.graphics.setColor(1, .62, .18, .9)
         love.graphics.rectangle("line", cbx + .5, cby + .5, cbw - 1, 53, 8, 8)
         love.graphics.setFont(fonts.body); love.graphics.setColor(1, .85, .4, 1)
-        love.graphics.printf("연속 채집 ×" .. self.streak, cbx, cby + 6, cbw, "center")
-        local remaining = math.max(0, .9 - (self.elapsed - self.lastHitAt))
+        love.graphics.printf("연속 채집 ×" .. harvestChain, cbx, cby + 6, cbw, "center")
+        local maxWindow = 2.4
+        local remaining = math.max(0, game.world.harvestChainTime or 0)
         love.graphics.setColor(.14, .1, .05, .95); love.graphics.rectangle("fill", cbx + 12, cby + 33, cbw - 24, 12, 4, 4)
         love.graphics.setColor(1, .55, .15, 1)
-        love.graphics.rectangle("fill", cbx + 12, cby + 33, (cbw - 24) * (remaining / .9), 12, 4, 4)
+        love.graphics.rectangle("fill", cbx + 12, cby + 33, (cbw - 24) * (remaining / maxWindow), 12, 4, 4)
         love.graphics.setFont(fonts.small); love.graphics.setColor(1, 1, 1, .92)
         love.graphics.printf(string.format("%.1f초", remaining), cbx, cby + 33, cbw, "center")
     end
