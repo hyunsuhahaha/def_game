@@ -1,0 +1,20 @@
+package.path="./?.lua;./?/init.lua;"..package.path
+local Mode=require("src.clearcut_mode")
+local function check(w,h,count,bottom)
+ local x,y,cw,ch,gap=Mode.selectionCardLayout(w,h,count,bottom)
+ local groupW=cw*count+gap*(count-1)
+ assert(math.abs((x+groupW/2)-w/2)<.01,"card group is not horizontally centered")
+ assert(y>=145 and y+ch<=(bottom or h-142)+.01,"card group exceeds vertical card area")
+ return x,y,cw,ch,gap
+end
+local _,fy,fw,fh=check(1920,1080,3,922)
+assert(fw>=340 and fh==500 and fy>250,"fullscreen cards did not expand/center vertically")
+local _,_,sw,sh=check(1280,720,3,584)
+assert(sw>=340 and sh>=410,"1280 card readability floor regressed")
+check(1280,720,4,562)
+local source=assert(io.open("src/clearcut_mode.lua","rb")):read("*a")
+assert(source:find("selectionDescriptionFont",1,true) and source:find("selectionDescriptions",1,true),"long-description fitting missing")
+assert(source:find("straw_bale = {rows = strawBaleRows",1,true),"straw bale card icon missing")
+local fusion=assert(io.open("src/clearcut_fusions.lua","rb")):read("*a")
+assert(fusion:find("height%-panelH%-12"),"fusion progress panel still uses fixed y")
+print("LEVELUP_CARD_LAYOUT_OK fullscreen=1920x1080 centered responsive=960..1920 descriptions=fitted icons=complete")

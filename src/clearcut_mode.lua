@@ -4393,6 +4393,18 @@ local forkRows = {
     "...TWWT..",
     "...DOOD..",
 }
+local strawBaleRows = {
+    "..OOOOO..",
+    ".OHYYYHO.",
+    "OHYTYTYHO",
+    "OHYYYYYHO",
+    "OHYTYTYHO",
+    "OHYYYYYHO",
+    "OHYTYTYHO",
+    ".OHHHHHO.",
+    "..OOOOO..",
+}
+local strawBalePalette = {O={.2,.11,.025,1},H={.62,.34,.07,1},Y={.94,.68,.19,1},T={1,.87,.42,1}}
 
 ClearcutMode.icons = {
     axe = {rows = axeIconRows, palette = axeIconPalette},
@@ -4404,6 +4416,7 @@ ClearcutMode.icons = {
     shockwave = {rows = diamondRows, palette = shockwavePalette},
     dry_forest = {rows = diamondRows, palette = dryForestPalette},
     oil_drum = {rows = boxRows, palette = oilDrumPalette},
+    straw_bale = {rows = strawBaleRows, palette = strawBalePalette},
     fork = {rows = forkRows, palette = forkPalette},
     fork_feast = {rows = forkRows, palette = forkPalette},
     buffet_fork = {rows = forkRows, palette = forkPalette},
@@ -5534,6 +5547,48 @@ function ClearcutMode:selectionMousePosition()
     return x,y
 end
 
+-- 카드 묶음을 실제 화면의 가로·세로 중앙에 놓는 단일 레이아웃 소스.
+-- 960×540은 drawSelection의 1280×720 가상 화면을 그대로 축소하고,
+-- 큰 전체화면에서는 카드 폭·높이와 위아래 여백을 함께 늘린다.
+local function selectionCardLayout(w,h,count,bottomOverride)
+    local gap=count>=4 and 20 or 24
+    local maxW=count>=4 and 330 or 350
+    local cardW=math.min(maxW,(w-120-gap*(count-1))/count)
+    local top,bottom=145,bottomOverride or (h-142)
+    local available=math.max(410,bottom-top)
+    local cardH=math.max(410,math.min(500,available))
+    local y=top+math.max(0,(available-cardH)/2)
+    local startX=(w-(cardW*count+gap*(count-1)))/2
+    return startX,y,cardW,cardH,gap
+end
+ClearcutMode.selectionCardLayout=selectionCardLayout
+
+local function selectionDescriptionFont(fonts,text,width,maxHeight)
+    for _,font in ipairs({fonts.body,fonts.small,fonts.micro or fonts.small}) do
+        local _,lines=font:getWrap(text,width)
+        if #lines*font:getHeight()<=maxHeight then return font end
+    end
+    return fonts.micro or fonts.small
+end
+
+-- 카드에서는 효과를 빠르게 비교할 수 있도록 긴 기획 설명을 핵심 작동만 남겨 줄인다.
+-- 상세 수치와 전체 문장은 인물 기록부/스킬 설명 원본(def.desc)에 그대로 보존한다.
+local selectionDescriptions={
+    molotov="꽁초 사거리·불씨 범위·직격 피해가 증가합니다. 바닥의 꽁초는 7초 동안 남아 주변 나무에 불을 옮깁니다.",
+    dry_forest="꽁초 착화 확률이 증가하고, 붙은 불이 주변 나무로 더 빠르고 넓게 번집니다.",
+    oil_drum="불탄 나무가 폭발할 확률이 크게 증가합니다. 6레벨에는 폭발이 반드시 발생합니다.",
+    straw_bale="큰 건초더미를 설치합니다. 꽁초가 닿으면 0.5초 뒤 넓은 화염 지대가 생겨 나무와 적에게 지속 피해를 줍니다.",
+    smoke_ring="SPACE 도넛 연기의 재사용 시간·피해·넉백·크기를 강화합니다. 6레벨 완충 시 초농축 도넛을 발사합니다.",
+    detector="보이는 발톱 궤적 전체를 공격합니다. 범위와 피해가 증가하며, 6레벨에는 양손으로 할퀵니다.",
+    burrow_uproot="잠복 재사용 시간이 줄고, 이동 경로에서 뽑혀 나가는 나무의 피해와 관통 수가 증가합니다.",
+    monologue="공격이 장광설로 바뀝니다. 누르는 동안 침을 연속 발사하며, 오래 말할수록 사거리와 피해가 증가합니다. 게이지가 바닥나면 25% 회복 후 다시 발사합니다.",
+    revival_meeting="SPACE 부흥회의 재사용 시간이 줄고 지속시간과 침 피해 배율이 증가합니다.",
+    bat_swarm="박쥐가 주변 대상을 골라 급강하합니다. 사거리 안에서는 몬스터를 나무보다 먼저 노립니다.",
+    vine_whip="가장 가까운 방향으로 긴 덩굴을 휘둘러 넓은 부채꼴 범위를 공격합니다.",
+    chain_lightning="번개가 근처 나무와 적 사이를 연쇄로 튀며 여러 번 피해를 줍니다.",
+}
+local function selectionDescription(def)return selectionDescriptions[def.id] or def.desc end
+
 function ClearcutMode:drawSelection(game,fonts)
     local w,h=love.graphics.getDimensions()
     local vw,vh=math.max(1280,w),math.max(720,h)
@@ -5561,12 +5616,11 @@ function ClearcutMode:drawSelectionContent(game,fonts,w,h)
     if self.selectionKind == "arcana" then
         love.graphics.setFont(fonts.title); love.graphics.setColor(arcanaColor); love.graphics.printf("아르카나 선택",0,66,w,"center")
         love.graphics.setFont(fonts.small); love.graphics.setColor(.85,.78,.95); love.graphics.printf("선택한 효과는 이번 판 동안 유지됩니다.",0,112,w,"center")
-        local gap,cardW,cardH=24,math.min(320,(w-96)/3),430
-        local startX=w/2-(cardW*3+gap*2)/2
+        local startX,cardY,cardW,cardH,gap=selectionCardLayout(w,h,3)
         local mx,my=self:selectionMousePosition()
         local revealElapsed = t - (self.choicesRevealAt or t)
         for i,def in ipairs(self.arcanaChoices) do
-            local x,y=startX+(i-1)*(cardW+gap),165
+            local x,y=startX+(i-1)*(cardW+gap),cardY
             self.choiceBoxes[i]={x=x,y=y,w=cardW,h=cardH}
             local hovered = mx>=x and mx<=x+cardW and my>=y and my<=y+cardH
             local cx = x+cardW/2
@@ -5577,26 +5631,32 @@ function ClearcutMode:drawSelectionContent(game,fonts,w,h)
             else
             drawUpgradeCardFrame(x,y,cardW,cardH,arcanaColor,hovered,nil,t)
             local iconDef = {rows=arcanaShapeRows[def.icon], palette=arcanaIconPalette(def.color)}
-            drawIconSocket(x+cardW/2,y+108,arcanaColor,iconDef,t)
+            local iconY=y+math.min(112,cardH*.25)
+            local nameY=y+cardH*.42
+            local tagY=nameY+31
+            local descY=tagY+45
+            local footerY=y+cardH-68
+            drawIconSocket(x+cardW/2,iconY,arcanaColor,iconDef,t)
             love.graphics.setColor(.06,.09,.08,.92); love.graphics.rectangle("fill",x+16,y+16,34,30,7,7)
             love.graphics.setFont(fonts.heading); love.graphics.setColor(1,1,1); love.graphics.printf(tostring(i),x+16,y+21,34,"center")
-            love.graphics.setFont(fonts.heading); love.graphics.setColor(1,1,1); love.graphics.printf(def.name,x+16,y+182,cardW-32,"center")
+            love.graphics.setFont(fonts.heading); love.graphics.setColor(1,1,1); love.graphics.printf(def.name,x+16,nameY,cardW-32,"center")
             do
                 local tagText = "아르카나"
                 love.graphics.setFont(fonts.small)
                 local tagW = math.min(cardW-40, fonts.small:getWidth(tagText)+28)
                 local tagX = cx - tagW/2
-                love.graphics.setColor(arcanaColor[1],arcanaColor[2],arcanaColor[3],.22); love.graphics.rectangle("fill",tagX,y+211,tagW,22,11,11)
-                love.graphics.setColor(arcanaColor[1],arcanaColor[2],arcanaColor[3],.9); love.graphics.setLineWidth(1.3); love.graphics.rectangle("line",tagX,y+211,tagW,22,11,11)
-                love.graphics.setColor(1,.96,.85,1); love.graphics.printf(tagText,tagX,y+216,tagW,"center")
+                love.graphics.setColor(arcanaColor[1],arcanaColor[2],arcanaColor[3],.22); love.graphics.rectangle("fill",tagX,tagY,tagW,22,11,11)
+                love.graphics.setColor(arcanaColor[1],arcanaColor[2],arcanaColor[3],.9); love.graphics.setLineWidth(1.3); love.graphics.rectangle("line",tagX,tagY,tagW,22,11,11)
+                love.graphics.setColor(1,.96,.85,1); love.graphics.printf(tagText,tagX,tagY+5,tagW,"center")
             end
-            love.graphics.setColor(1,1,1,.14); love.graphics.line(x+22,y+245,x+cardW-22,y+245)
-            love.graphics.setFont(fonts.small); love.graphics.setColor(.86,.82,.92)
-            love.graphics.printf(def.desc,x+22,y+256,cardW-44,"center")
-            love.graphics.setColor(1,1,1,.14); love.graphics.line(x+22,y+352,x+cardW-22,y+352)
-            love.graphics.setColor(arcanaColor[1],arcanaColor[2],arcanaColor[3],.14); love.graphics.rectangle("fill",x+16,y+362,cardW-32,58,8,8)
+            love.graphics.setColor(1,1,1,.17); love.graphics.line(x+22,descY-11,x+cardW-22,descY-11)
+            local desc=selectionDescription(def)
+            love.graphics.setFont(selectionDescriptionFont(fonts,desc,cardW-44,footerY-descY-14)); love.graphics.setColor(.92,.88,.97)
+            love.graphics.printf(desc,x+22,descY,cardW-44,"center")
+            love.graphics.setColor(1,1,1,.17); love.graphics.line(x+22,footerY-10,x+cardW-22,footerY-10)
+            love.graphics.setColor(arcanaColor[1],arcanaColor[2],arcanaColor[3],.17); love.graphics.rectangle("fill",x+16,footerY,cardW-32,54,8,8)
             love.graphics.setFont(fonts.heading); love.graphics.setColor(arcanaColor)
-            love.graphics.printf("영구 효과 · 되돌릴 수 없음",x+20,y+382,cardW-40,"center")
+            love.graphics.printf("영구 효과 · 되돌릴 수 없음",x+20,footerY+16,cardW-40,"center")
             end
             love.graphics.pop()
         end
@@ -5606,14 +5666,13 @@ function ClearcutMode:drawSelectionContent(game,fonts,w,h)
     love.graphics.setFont(fonts.title); love.graphics.setColor(1,.82,.3); love.graphics.printf("벌목 방식 진화",0,66,w,"center")
     love.graphics.setFont(fonts.small); love.graphics.setColor(.72,.88,.76); love.graphics.printf("스킬 하나를 선택합니다.",0,112,w,"center")
     local numCards = self.specialCard and 4 or 3
-    local gap = 22
-    local cardW = math.min(300, (w-96-gap*(numCards-1))/numCards)
-    local cardH = 430
-    local startX = w/2-(cardW*numCards+gap*(numCards-1))/2
+    local progressH=30+#Fusions.forJob(self)*22
+    local buttonY=h-progressH-12-44-14
+    local startX,cardY,cardW,cardH,gap=selectionCardLayout(w,h,numCards,buttonY-14)
     local mx,my=self:selectionMousePosition()
     local revealElapsed = t - (self.choicesRevealAt or t)
     for i,def in ipairs(self.choices) do
-        local x,y=startX+(i-1)*(cardW+gap),165
+        local x,y=startX+(i-1)*(cardW+gap),cardY
         self.choiceBoxes[i]={x=x,y=y,w=cardW,h=cardH}
         local hovered = mx>=x and mx<=x+cardW and my>=y and my<=y+cardH
         local jobColor = jobFlavorColors[def.job] or universalColor
@@ -5625,7 +5684,12 @@ function ClearcutMode:drawSelectionContent(game,fonts,w,h)
         else
         drawUpgradeCardFrame(x,y,cardW,cardH,jobColor,hovered,def.job,t)
         local iconDef = ClearcutMode.icons[def.id == "molotov" and "cigarette" or def.id]
-        drawIconSocket(x+cardW/2,y+108,jobColor,iconDef,t)
+        local iconY=y+math.min(112,cardH*.25)
+        local nameY=y+cardH*.42
+        local tagY=nameY+31
+        local descY=tagY+45
+        local footerY=y+cardH-68
+        drawIconSocket(x+cardW/2,iconY,jobColor,iconDef,t)
         love.graphics.setColor(.06,.09,.08,.92); love.graphics.rectangle("fill",x+16,y+16,34,30,7,7)
         love.graphics.setFont(fonts.heading); love.graphics.setColor(1,1,1); love.graphics.printf(tostring(i),x+16,y+21,34,"center")
         if self.banishArmed and not jobFor[def.id] then
@@ -5633,25 +5697,26 @@ function ClearcutMode:drawSelectionContent(game,fonts,w,h)
             love.graphics.rectangle("line",x+3,y+3,cardW-6,cardH-6,12,12)
         end
         -- 이름 · 트랙 태그 칩 · 구분선 · 설명 · 구분선 · 레벨 진행도 순으로 명확히 분리한다.
-        love.graphics.setFont(fonts.heading); love.graphics.setColor(1,1,1); love.graphics.printf(def.name,x+16,y+182,cardW-32,"center")
+        love.graphics.setFont(fonts.heading); love.graphics.setColor(1,1,1); love.graphics.printf(def.name,x+16,nameY,cardW-32,"center")
         local trackText = trackLabels[def.track] or ""
         if trackText ~= "" then
             love.graphics.setFont(fonts.small)
             local tagW = math.min(cardW-40, fonts.small:getWidth(trackText)+28)
             local tagX = cx - tagW/2
-            love.graphics.setColor(jobColor[1],jobColor[2],jobColor[3],.22); love.graphics.rectangle("fill",tagX,y+211,tagW,22,11,11)
-            love.graphics.setColor(jobColor[1],jobColor[2],jobColor[3],.9); love.graphics.setLineWidth(1.3); love.graphics.rectangle("line",tagX,y+211,tagW,22,11,11)
-            love.graphics.setColor(jobColor[1]*.4+.6,jobColor[2]*.4+.6,jobColor[3]*.4+.6,1); love.graphics.printf(trackText,tagX,y+216,tagW,"center")
+            love.graphics.setColor(jobColor[1],jobColor[2],jobColor[3],.22); love.graphics.rectangle("fill",tagX,tagY,tagW,22,11,11)
+            love.graphics.setColor(jobColor[1],jobColor[2],jobColor[3],.9); love.graphics.setLineWidth(1.3); love.graphics.rectangle("line",tagX,tagY,tagW,22,11,11)
+            love.graphics.setColor(jobColor[1]*.4+.6,jobColor[2]*.4+.6,jobColor[3]*.4+.6,1); love.graphics.printf(trackText,tagX,tagY+5,tagW,"center")
         end
-        love.graphics.setColor(1,1,1,.14); love.graphics.line(x+22,y+245,x+cardW-22,y+245)
-        love.graphics.setFont(fonts.small); love.graphics.setColor(.8,.87,.83)
-        love.graphics.printf(def.desc,x+22,y+256,cardW-44,"center")
-        love.graphics.setColor(1,1,1,.14); love.graphics.line(x+22,y+352,x+cardW-22,y+352)
-        love.graphics.setColor(jobColor[1],jobColor[2],jobColor[3],.14); love.graphics.rectangle("fill",x+16,y+362,cardW-32,58,8,8)
+        love.graphics.setColor(1,1,1,.17); love.graphics.line(x+22,descY-11,x+cardW-22,descY-11)
+        local desc=selectionDescription(def)
+        love.graphics.setFont(selectionDescriptionFont(fonts,desc,cardW-44,footerY-descY-14)); love.graphics.setColor(.9,.94,.91)
+        love.graphics.printf(desc,x+22,descY,cardW-44,"center")
+        love.graphics.setColor(1,1,1,.17); love.graphics.line(x+22,footerY-10,x+cardW-22,footerY-10)
+        love.graphics.setColor(jobColor[1],jobColor[2],jobColor[3],.17); love.graphics.rectangle("fill",x+16,footerY,cardW-32,54,8,8)
         local curLevel = self:levelOf(def.id)
         local label=def.recovery and "체력 +20" or ("Lv."..curLevel.."  →  Lv."..(curLevel+1))
         love.graphics.setFont(fonts.heading); love.graphics.setColor(1,.8,.32)
-        love.graphics.printf(label,x+20,y+370,cardW-40,"center")
+        love.graphics.printf(label,x+20,footerY+8,cardW-40,"center")
         if not def.recovery and def.max and def.max > 1 then
             local dotGap, dotR = 15, 4
             local dotsW = (def.max-1)*dotGap
@@ -5659,11 +5724,11 @@ function ClearcutMode:drawSelectionContent(game,fonts,w,h)
             for lvl = 1, def.max do
                 local px = dx0 + (lvl-1)*dotGap
                 if lvl <= curLevel then
-                    love.graphics.setColor(jobColor[1],jobColor[2],jobColor[3],1); love.graphics.circle("fill",px,y+404,dotR)
+                    love.graphics.setColor(jobColor[1],jobColor[2],jobColor[3],1); love.graphics.circle("fill",px,footerY+41,dotR)
                 elseif lvl == curLevel+1 then
-                    love.graphics.setColor(1,.8,.32,.6+math.sin(t*5)*.3); love.graphics.setLineWidth(2); love.graphics.circle("line",px,y+404,dotR+1)
+                    love.graphics.setColor(1,.8,.32,.6+math.sin(t*5)*.3); love.graphics.setLineWidth(2); love.graphics.circle("line",px,footerY+41,dotR+1)
                 else
-                    love.graphics.setColor(1,1,1,.22); love.graphics.setLineWidth(1); love.graphics.circle("line",px,y+404,dotR)
+                    love.graphics.setColor(1,1,1,.22); love.graphics.setLineWidth(1); love.graphics.circle("line",px,footerY+41,dotR)
                 end
             end
         end
@@ -5674,7 +5739,7 @@ function ClearcutMode:drawSelectionContent(game,fonts,w,h)
     if self.specialCard then
         local def = self.specialCard
         local i = 4
-        local x,y = startX+(i-1)*(cardW+gap),165
+        local x,y = startX+(i-1)*(cardW+gap),cardY
         self.choiceBoxes.special={x=x,y=y,w=cardW,h=cardH}
         local hovered = mx>=x and mx<=x+cardW and my>=y and my<=y+cardH
         local elapsed = t - (self.specialCardRevealAt or t)
@@ -5686,26 +5751,32 @@ function ClearcutMode:drawSelectionContent(game,fonts,w,h)
         else
             drawUpgradeCardFrame(x,y,cardW,cardH,specialColor,hovered,nil,t)
             local iconDef = {rows=arcanaShapeRows[def.icon], palette=arcanaIconPalette(def.color)}
-            drawIconSocket(x+cardW/2,y+108,specialColor,iconDef,t,true)
+            local iconY=y+math.min(112,cardH*.25)
+            local nameY=y+cardH*.42
+            local tagY=nameY+31
+            local descY=tagY+45
+            local footerY=y+cardH-68
+            drawIconSocket(x+cardW/2,iconY,specialColor,iconDef,t,true)
             love.graphics.setColor(.06,.09,.08,.92); love.graphics.rectangle("fill",x+16,y+16,34,30,7,7)
             love.graphics.setFont(fonts.heading); love.graphics.setColor(1,1,1); love.graphics.printf("4",x+16,y+21,34,"center")
-            love.graphics.setFont(fonts.heading); love.graphics.setColor(1,1,1); love.graphics.printf(def.name,x+16,y+182,cardW-32,"center")
+            love.graphics.setFont(fonts.heading); love.graphics.setColor(1,1,1); love.graphics.printf(def.name,x+16,nameY,cardW-32,"center")
             do
                 local tagText = "★ 스페셜 카드"
                 love.graphics.setFont(fonts.small)
                 local tagW = math.min(cardW-40, fonts.small:getWidth(tagText)+28)
                 local tagX = cx - tagW/2
-                love.graphics.setColor(specialColor[1],specialColor[2],specialColor[3],.22); love.graphics.rectangle("fill",tagX,y+211,tagW,22,11,11)
-                love.graphics.setColor(specialColor[1],specialColor[2],specialColor[3],.9); love.graphics.setLineWidth(1.3); love.graphics.rectangle("line",tagX,y+211,tagW,22,11,11)
-                love.graphics.setColor(1,.95,.75,1); love.graphics.printf(tagText,tagX,y+216,tagW,"center")
+                love.graphics.setColor(specialColor[1],specialColor[2],specialColor[3],.22); love.graphics.rectangle("fill",tagX,tagY,tagW,22,11,11)
+                love.graphics.setColor(specialColor[1],specialColor[2],specialColor[3],.9); love.graphics.setLineWidth(1.3); love.graphics.rectangle("line",tagX,tagY,tagW,22,11,11)
+                love.graphics.setColor(1,.95,.75,1); love.graphics.printf(tagText,tagX,tagY+5,tagW,"center")
             end
-            love.graphics.setColor(1,1,1,.14); love.graphics.line(x+22,y+245,x+cardW-22,y+245)
-            love.graphics.setFont(fonts.small); love.graphics.setColor(.9,.86,.72)
-            love.graphics.printf(def.desc,x+22,y+256,cardW-44,"center")
-            love.graphics.setColor(1,1,1,.14); love.graphics.line(x+22,y+352,x+cardW-22,y+352)
-            love.graphics.setColor(specialColor[1],specialColor[2],specialColor[3],.14); love.graphics.rectangle("fill",x+16,y+362,cardW-32,58,8,8)
+            love.graphics.setColor(1,1,1,.17); love.graphics.line(x+22,descY-11,x+cardW-22,descY-11)
+            local desc=selectionDescription(def)
+            love.graphics.setFont(selectionDescriptionFont(fonts,desc,cardW-44,footerY-descY-14)); love.graphics.setColor(.96,.92,.79)
+            love.graphics.printf(desc,x+22,descY,cardW-44,"center")
+            love.graphics.setColor(1,1,1,.17); love.graphics.line(x+22,footerY-10,x+cardW-22,footerY-10)
+            love.graphics.setColor(specialColor[1],specialColor[2],specialColor[3],.17); love.graphics.rectangle("fill",x+16,footerY,cardW-32,54,8,8)
             love.graphics.setFont(fonts.heading); love.graphics.setColor(specialColor)
-            love.graphics.printf("영구 효과 · 되돌릴 수 없음",x+20,y+382,cardW-40,"center")
+            love.graphics.printf("영구 효과 · 되돌릴 수 없음",x+20,footerY+16,cardW-40,"center")
         end
         love.graphics.pop()
         if p >= 1 then
@@ -5732,7 +5803,7 @@ function ClearcutMode:drawSelectionContent(game,fonts,w,h)
 
     if not self.chestPending then
         local btnW,btnH,btnGap=150,44,16
-        local by = 165+cardH+26
+        local by = buttonY
         local bx = w/2-(btnW*2+btnGap)/2
         self.rerollBox={x=bx,y=by,w=btnW,h=btnH}
         self.banishBox={x=bx+btnW+btnGap,y=by,w=btnW,h=btnH}
@@ -5741,7 +5812,7 @@ function ClearcutMode:drawSelectionContent(game,fonts,w,h)
         local canBanish = self.banishArmed or self.totalWood >= self:banishCost()
         UI.button(bx+btnW+btnGap,by,btnW,btnH,self.banishArmed and "배니시할 카드 선택" or string.format("배니시 (목재 %d)",self:banishCost()),canBanish,fonts.small,mx,my)
     end
-    Fusions.drawProgress(self,fonts,w)
+    Fusions.drawProgress(self,fonts,w,h)
 end
 
 function ClearcutMode:choiceAt(x,y)

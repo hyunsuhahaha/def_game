@@ -87,12 +87,13 @@ function Fusions.drawAcquisition(mode,fonts,w,h)
     UI.button(box.x,box.y,box.w,box.h,"[1 / Enter] 융합 획득",true,fonts.heading,mx,my)
 end
 
-function Fusions.drawProgress(mode,fonts,width)
+function Fusions.drawProgress(mode,fonts,width,height)
     local rows=Fusions.forJob(mode)
     local w=width or love.graphics.getDimensions()
     local cw=math.min(1060,w-48)
-    local x,y=(w-cw)/2,608
-    UI.panel(x,y,cw,30+#rows*22,{1,.72,.24},.96)
+    local panelH=30+#rows*22
+    local x,y=(w-cw)/2,(height and height-panelH-12 or 608)
+    UI.panel(x,y,cw,panelH,{1,.72,.24},.96)
     love.graphics.setFont(fonts.small);love.graphics.setColor(1,.83,.4)
     love.graphics.print("융합 조합 — 두 스킬 모두 MAX면 즉시 획득 카드 등장",x+14,y+7)
     for i,def in ipairs(rows) do

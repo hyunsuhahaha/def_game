@@ -312,9 +312,11 @@ function love.load()
     if os.getenv("LAST_HAUL_CAPTURE_CLEARCUT_UPGRADE") then
         game:startClearcut(os.getenv("LAST_HAUL_CLEARCUT_JOB")); game.clearcut.level = 5
         game.clearcut:rollChoices()
+        -- 반응형 카드 검수는 가장 긴 설명과 전용 아이콘을 고정해 겹침을 재현한다.
+        game.clearcut.choices={game.clearcut:getUpgradeDefinition("monologue"),game.clearcut:getUpgradeDefinition("straw_bale"),game.clearcut:getUpgradeDefinition("smoke_ring")}
         game.clearcut.choicesRevealAt = love.timer.getTime() - 1
         game.mode = "clearcut_upgrade"
-        captureFrames = 40
+        captureFrames = 8
     end
     if os.getenv("LAST_HAUL_CAPTURE_CLEARCUT_RESULTS") then
         game:startClearcut()
