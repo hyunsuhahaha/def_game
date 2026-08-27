@@ -8,7 +8,7 @@ local function load()
     burnShader=love.graphics.newShader("assets/shaders/cigarette-butt-burn.glsl")
     fxShader=love.graphics.newShader("assets/shaders/cigarette-ground-fx.glsl")
 end
-local function fx(kind,x,y,w,h,time,strength)
+local function fx(kind,x,y,w,h,time,strength,angle)
     load()
     local previous=love.graphics.getShader()
     love.graphics.setShader(fxShader)
@@ -16,8 +16,22 @@ local function fx(kind,x,y,w,h,time,strength)
     fxShader:send("fxGrid",{math.ceil(w*3.2),math.ceil(h*3.2)})
     fxShader:send("strength",strength)
     love.graphics.setColor(1,1,1,1)
-    love.graphics.draw(sprite,x-w/2,y-h,0,w/256,h/64)
+    if angle then
+        love.graphics.push()
+        love.graphics.translate(x,y)
+        love.graphics.rotate(angle)
+        love.graphics.draw(sprite,-w/2,-h,0,w/256,h/64)
+        love.graphics.pop()
+    else
+        love.graphics.draw(sprite,x-w/2,y-h,0,w/256,h/64)
+    end
     love.graphics.setShader(previous)
+end
+
+-- 회전 가능한 연기(fxKind=2) 조각 하나. 도넛 연기처럼 방사형으로 배치해 실제 담배연기
+-- 셰이더(흐릿하고 결이 있는 질감)를 재사용하면서 단색 원 테두리보다 훨씬 "연기답게" 보인다.
+function Art.drawSmokeWisp(x,y,angle,w,h,time,strength)
+    fx(2,x,y,w,h,time,strength,angle)
 end
 local function body(x,y,angle,progress,heat,time,alpha)
     load()

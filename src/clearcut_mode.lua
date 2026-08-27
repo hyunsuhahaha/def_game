@@ -1444,9 +1444,10 @@ function ClearcutMode:activateSmokeRing(game)
     local nx, ny = dist > .01 and dx / dist or facing, dist > .01 and dy / dist or 0
     local speed = 480
     self.smokeRing = {
-        x=tipX, y=mouthY, vx=nx * speed, vy=ny * speed, radius=52 + power * 6,
+        x=tipX, y=mouthY, vx=nx * speed, vy=ny * speed,
+        radius=14, startRadius=14, maxRadius=52 + power * 6,
         dmg=10 + power * 3, knockback=420 + power * 20,
-        maxRange=maxRange, traveled=0, puffTimer=0, hit={}
+        maxRange=maxRange, traveled=0, hit={}
     }
     game:setNotice("도넛 연기 — 후우...", "food")
     return true
@@ -1459,13 +1460,9 @@ function ClearcutMode:updateSmokeRing(dt, game)
     local step = math.sqrt(ring.vx * ring.vx + ring.vy * ring.vy) * dt
     ring.x, ring.y = ring.x + ring.vx * dt, ring.y + ring.vy * dt
     ring.traveled = ring.traveled + step
-    ring.puffTimer = ring.puffTimer - dt
-    if ring.puffTimer <= 0 then
-        ring.puffTimer = .05
-        game.world.particles[#game.world.particles+1] = {
-            x=ring.x, y=ring.y, life=.26, maxLife=.26, size=ring.radius, color={.72,.7,.66}, ring=true
-        }
-    end
+    -- 처음엔 작게 시작해서 날아갈수록 점점 커진다(실제 담배연기 도넛처럼).
+    local grow = math.min(1, ring.traveled / ring.maxRange)
+    ring.radius = ring.startRadius + (ring.maxRadius - ring.startRadius) * grow
     for _, e in ipairs(self.enemies) do
         if not ring.hit[e] then
             local dx, dy = e.x - ring.x, e.y - ring.y
@@ -1480,6 +1477,20 @@ function ClearcutMode:updateSmokeRing(dt, game)
         end
     end
     if ring.traveled >= ring.maxRange then self.smokeRing = nil end
+end
+
+-- 단색 원 테두리 대신, 담배연기 셰이더 조각(질감 있는 뿌연 결)을 고리 둘레에 방사형으로
+-- 배치해 실제 도넛 연기처럼 보이게 한다. 각 조각은 중심에서 바깥을 향해 뻗는다.
+function ClearcutMode:drawSmokeRing(t)
+    local ring = self.smokeRing
+    if not ring then return end
+    local wisps = 10
+    for i = 1, wisps do
+        local a = (i / wisps) * math.pi * 2
+        local wx, wy = ring.x + math.cos(a) * ring.radius, ring.y + math.sin(a) * ring.radius
+        local size = 18 + ring.radius * .38
+        CigaretteButtArt.drawSmokeWisp(wx, wy, a + math.pi / 2, size, size * 1.4, t + i * .3, .85)
+    end
 end
 
 function ClearcutMode:updateToxicRain(dt, game)
@@ -4266,6 +4277,7 @@ function ClearcutMode:drawWorldOverlay(game)
                 love.graphics.rectangle("fill",math.floor(tipX+.5),math.floor(mouthY-.5),2,2)
             end
         end
+        self:drawSmokeRing(t)
     elseif self.job == "toxic" then
         local bob = math.sin(t * 2.4) * 2
         drawPixelGrid(leafIconRows, leafIconPalette, px, py + bob, 2.4)

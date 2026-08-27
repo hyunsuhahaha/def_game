@@ -394,6 +394,9 @@ function SelfTest.run(game)
     local smokeTarget = game.clearcut:spawnEnemy("squirrel", ring.x + 120, ring.y)
     smokeTarget.hp = 50
     local smokeXBefore = smokeTarget.x
+    game.mode = "playing"
+    local smokeDrawOk, smokeDrawErr = pcall(game.draw, game)
+    assert(smokeDrawOk, "도넛 연기 비행 중 렌더 실패: " .. tostring(smokeDrawErr))
     for _ = 1, 60 do game.clearcut:updateSmokeRing(1 / 60, game) end
     assert(smokeTarget.hp < 50, "도넛 연기가 적에게 피해를 주지 않음")
     assert((smokeTarget.knockTimer or 0) > 0, "도넛 연기가 적을 넉백 상태로 만들지 않음")
@@ -409,7 +412,7 @@ function SelfTest.run(game)
     assert(game.clearcut:activateSmokeRing(game), "도넛 강화 만렙 상태에서 도넛 연기 재발동 실패")
     assert(game.clearcut.smokeRingCooldown < 8, "도넛 강화가 재사용 대기시간을 줄이지 않음")
     assert(game.clearcut.smokeRing.dmg > 10, "도넛 강화가 피해를 늘리지 않음")
-    assert(game.clearcut.smokeRing.radius > 52, "도넛 강화가 크기를 늘리지 않음")
+    assert(game.clearcut.smokeRing.maxRadius > 52, "도넛 강화가 크기를 늘리지 않음")
     game.clearcut.levels.smoke_ring = 0
     game.clearcut.smokeRing, game.clearcut.smokeRingCooldown = nil, 0
 
