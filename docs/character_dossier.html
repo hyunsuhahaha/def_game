@@ -699,8 +699,6 @@ const SKILLS = {
     doctrine: "기본 공격과 무관하게 자동으로 발동하는 패시브 4종 + 전 직업에 열려 있는 파괴/억제 카드 4종.",
     nodes: [
       {id:"domino",track:"destroy",name:"도미노",desc:"쓰러지는 나무가 진행 방향의 다른 나무를 함께 쓰러뜨립니다."},
-      {id:"herbicide",track:"suppress",name:"제초제",desc:"벤 자리가 죽은 땅이 될 확률이 레벨당 크게 올라(1렙 11%→5렙 92%), 6렙에서는 사실상 100% 확정됩니다."},
-      {id:"root_cutting",track:"suppress",name:"뿌리 절단",desc:"나무를 벨 때마다 숲의 재생력이 약해집니다."},
       {id:"forced_growth",track:"suppress",name:"강제 성장",desc:"숲의 재생 속도가 크게 빨라지지만, 목재 경험치 획득량도 크게 늘어납니다."},
       {id:"bat_swarm",track:"supplement",name:"박쥐 떼",desc:"박쥐가 주위를 맴돌며 닿는 나무와 적에게 지속적으로 피해를 줍니다."},
       {id:"thorn_aura",track:"supplement",name:"가시 오라",desc:"몸 주위에 가시덩굴이 돋아나 주기적으로 주변 나무와 적에게 피해를 줍니다."},
@@ -715,8 +713,7 @@ const SKILLS = {
 };
 
 /* 융합 스킬: 두 스킬을 모두 만렙 찍으면 자동으로 3택 화면에서 확정 획득하는 조합 카드
-   (src/clearcut_fusions.lua Fusions.definitions 기준). needs는 같은 job의 스킬 id를 가리키며,
-   job이 없는 융합(deadGround)은 재료가 전부 공용 패시브라 "공용 패시브" 탭에 넣었다. */
+   (src/clearcut_fusions.lua Fusions.definitions 기준). needs는 같은 job의 스킬 id를 가리킨다. */
 const FUSIONS = {
   physical: [
     {name:"벌목 붕괴", needs:["shockwave","domino"], desc:"도미노로 쓰러진 나무도 같은 방향으로 다음 나무를 쓰러뜨립니다. 살아 있는 나무가 이어지는 동안 연쇄 붕괴가 계속됩니다."},
@@ -726,9 +723,6 @@ const FUSIONS = {
     {name:"산불", needs:["molotov","oil_drum"], desc:"3초마다 꽁초를 추가 투척합니다. 붙은 불의 확산 반경이 35%, 확산 확률이 50% 증가합니다. 꽁초의 잔류·불씨 전이 과정은 유지됩니다."},
     {name:"기름을 실수로 붓다", needs:["oil_drum","straw_bale"], desc:"이동하는 동안 밟고 지나간 자리에 기름 자국이 남습니다. 그 위에 담배꽁초가 떨어지면 그대로 옮겨붙어, 이어진 기름 자국을 따라 벽처럼 길게 늘어선 화염대가 잠시 유지되며 닿는 적에게 지속 피해를 줍니다."},
   ],
-  toxic: [
-    {name:"생태계 다이어트", needs:["toxic_rain","root_cutting"], desc:"직접 살포와 주기적 맹독 범위에 닿은 나무와 그루터기를 즉시 불모지로 만듭니다. 나무를 먼저 쓰러뜨릴 필요가 없습니다."},
-  ],
   developer: [
     {name:"뉴타운 계획", needs:["heavy_machinery","site_clearance"], desc:"돌진 종료 지점의 반경 160을 추가로 정지합니다. 범위 안의 나무와 그루터기는 모두 불모지가 되어 다시 자라지 않습니다."},
   ],
@@ -737,9 +731,6 @@ const FUSIONS = {
   ],
   philosopher: [
     {name:"영원회귀", needs:["footnote","saliva_gland"], desc:"말을 최고조로 끌고 가다 마우스에서 손을 떼면, 마지막 지점에 큰 침 웅덩이가 남아 반경 안 모두를 오래 중독시킵니다."},
-  ],
-  universal: [
-    {name:"죽은 땅", needs:["herbicide","root_cutting"], desc:"앞으로 베는 모든 나무의 자리가 확정적으로 불모지가 됩니다. 불·맹독·중장비로 쓰러뜨린 나무에도 적용됩니다."},
   ],
 };
 

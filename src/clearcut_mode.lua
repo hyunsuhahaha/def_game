@@ -44,8 +44,6 @@ local definitions = {
     {id="oil_drum", track="spread", name="라이터 기름 유출", desc="나무가 다 타버리면 레벨당 폭발 확률이 크게 올라(1렙 7.5%→5렙 63%), 6렙에서는 100% 확정 발동합니다.", max=6, color={1,.62,.1}, job="fire"},
     {id="straw_bale", track="spread", name="마른 건초더미 생성", desc="주기적으로 주변에 마른 건초더미를 둡니다. 그 위에 담배꽁초를 던지면 0.5초 뒤 불이 붙어 주변 적에게 지속 피해를 줍니다. 불은 다른 대상으로 번지지 않습니다.", max=6, color={.85,.72,.25}, job="fire"},
     -- 억제력 (suppress) — 자연이 얼마나 다시 못 자라게 하느냐 [비건 단체 회장 전용 + 공용]
-    {id="herbicide", track="suppress", name="제초제", desc="벤 자리가 죽은 땅이 될 확률이 레벨당 크게 올라(1렙 11%→5렙 92%), 6렙에서는 사실상 100% 확정됩니다.", max=6, color={.62,.4,.85}},
-    {id="root_cutting", track="suppress", name="뿌리 절단", desc="나무를 벨 때마다 숲의 재생력이 약해집니다.", max=6, color={.5,.62,.9}},
     {id="toxic_rain", track="suppress", name="친환경 제초 캠페인", desc="맹독 공격의 범위와 피해가 늘어나고, 평소에도 주변에 약하게 지속 피해를 줍니다.", max=6, color={.55,.85,.45}, job="toxic"},
     {id="forced_growth", track="suppress", name="강제 성장", desc="숲의 재생 속도가 크게 빨라지지만, 목재 경험치 획득량도 크게 늘어납니다.", max=6, color={.85,.7,.25}},
     -- 개발력 (develop) — 말뚝 → 중장비 → 폭파 [부동산 개발업자 전용]
@@ -418,9 +416,8 @@ function ClearcutMode:regrowPulse(game)
     if #activeTrees == 0 then return end
     local minutes = self.elapsed / 60
     local base = math.min(.16, .02 + minutes * .022)
-    local suppress = math.min(.75, self:power("root_cutting") * .16)
     local boost = self:power("forced_growth") * .5
-    local regrowPct = base * (1 - suppress) * (1 + boost)
+    local regrowPct = base * (1 + boost)
     local radius = 230
     local candidates = {}
     for _, node in ipairs(game.world.nodes) do
@@ -1432,15 +1429,12 @@ function ClearcutMode:updateToxicRain(dt, game)
     self.toxicTimer = 0
     local radius = 120 + power * 20
     for _, node in ipairs(game.world.nodes) do
-        if node.rushTree and (node.active or self.evolutions.necrosis) then
+        if node.rushTree and node.active then
             local dx, dy = node.x - game.player.x, node.y - game.player.y
             if dx*dx + dy*dy <= radius*radius then
-                if self.evolutions.necrosis then node.sterile=true end
-                if node.active then
-                    node.rushHp = (node.rushHp or node.rushMaxHp) - power
-                    game.world:impactNode(node, game, false)
-                    if node.rushHp <= 0 then self:fellTree(node, game) end
-                end
+                node.rushHp = (node.rushHp or node.rushMaxHp) - power
+                game.world:impactNode(node, game, false)
+                if node.rushHp <= 0 then self:fellTree(node, game) end
             end
         end
     end
@@ -1705,10 +1699,6 @@ function ClearcutMode:applyVeganBite(tx, ty, game)
     local reach = math.min(#candidates, radiusCount + math.floor(self.permanentTraits.extraTargets))
     for i = 1, reach do
         local node = candidates[i].node
-        if self.evolutions.necrosis and not node.sterile then
-            node.sterile = true
-            game.world:addParticle(node.x, node.y - 30, {.55, .35, .25}, false, false)
-        end
         if node.active then
             node.rushHp = (node.rushHp or node.rushMaxHp) - dmg
             game.world:impactNode(node, game, true)
@@ -3164,9 +3154,7 @@ function ClearcutMode:fellTree(node, game)
     game.world:spawnDrop("wood", amount, node.x, node.y - 10, 42, 30, 1.5)
     self.treesFelled = self.treesFelled + 1
     self.remainingTrees = math.max(0, self.remainingTrees - 1)
-    local herbLevel = self:levelOf("herbicide")
-    if self.evolutions.deadGround or (herbLevel > 0 and love.math.random() < self:power("herbicide") * .22)
-        or love.math.random() < (self.permanentTraits.sterileChance or 0) then
+    if love.math.random() < (self.permanentTraits.sterileChance or 0) then
         node.sterile = true
     end
     if self.permanentTraits.healOnFell and self.permanentTraits.healOnFell > 0 then
@@ -4012,7 +4000,6 @@ local dryForestPalette = {O={.3,.08,.02,1}, H={1,.85,.4,1}, W={1,.42,.1,1}}
 local demolitionPalette = {O={.3,.05,.02,1}, H={1,.75,.35,1}, W={1,.35,.15,1}}
 local oilDrumPalette = {O={.18,.11,.02,1}, H={1,.82,.4,1}, W={.75,.5,.15,1}, D={.4,.24,.05,1}}
 local siteClearancePalette = {O={.15,.15,.16,1}, H={.85,.85,.85,1}, W={.55,.5,.5,1}, D={.35,.32,.32,1}}
-local herbicidePalette = {O={.2,.1,.28,1}, H={.9,.8,1,1}, T={.6,.4,.85,1}}
 local forcedGrowthPalette = {O={.16,.22,.05,1}, H={.85,.95,.6,1}, T={.4,.72,.22,1}}
 local pileDrivingPalette = {O={.2,.14,.06,1}, H={.92,.85,.7,1}, T={.55,.4,.2,1}}
 local toxicRainPalette = {O={.14,.24,.1,1}, H={.9,.98,.85,1}, W={.6,.85,.5,1}}
@@ -4076,8 +4063,6 @@ ClearcutMode.icons = {
     domino = {rows = dominoRows, palette = dominoPalette},
     dry_forest = {rows = diamondRows, palette = dryForestPalette},
     oil_drum = {rows = boxRows, palette = oilDrumPalette},
-    herbicide = {rows = stickRows, palette = herbicidePalette},
-    root_cutting = {rows = rootCuttingRows, palette = rootCuttingPalette},
     toxic_rain = {rows = blobRows, palette = toxicRainPalette},
     forced_growth = {rows = stickRows, palette = forcedGrowthPalette},
     pile_driving = {rows = stickRows, palette = pileDrivingPalette},
