@@ -1,5 +1,11 @@
 # 최우선: 모든 그래픽 작업 전에 필수 스타일 가이드 확인
 
+## 저장소 내 공통 그래픽 스킬 — 모든 PC·모든 에이전트 필수
+
+**그래픽을 만들거나 수정하거나 검수하는 모든 에이전트는 작업 시작 전에 [`.agents/skills/defense-game-pixel-art/SKILL.md`](.agents/skills/defense-game-pixel-art/SKILL.md)를 읽고 전 과정을 적용한다.** 스킬 자동 검색 여부에 의존하지 않는다. 이 파일과 스킬은 Git 저장소에 함께 보관되므로 다른 PC에서 복제하거나 다른 AI를 사용해도 동일한 진입 규칙을 따른다. 스킬의 실제 화면 참조, 런타임 연결, 판정 일치, 오프스크린 시각 검수, 전체 헤드리스 테스트 중 하나라도 생략하면 그래픽 작업은 미완료다.
+
+**ALL AGENTS ON EVERY MACHINE: Before creating, editing, or reviewing any graphics, read and apply [`.agents/skills/defense-game-pixel-art/SKILL.md`](.agents/skills/defense-game-pixel-art/SKILL.md). Do not rely on automatic skill discovery; this tracked AGENTS.md is the mandatory entry point.**
+
 **모든 AI는 그래픽을 만들거나 수정하기 전에 [GRAPHICS_STYLE_GUIDE.md](docs/GRAPHICS_STYLE_GUIDE.md)를 읽고, 그 문서가 지정한 실제 v3 화면과 자산 보드 이미지를 열어 본다. 현재 그래픽은 숲에만 한정하지 않는 향후 모든 그래픽의 표현 기준이다. 외형 설명, 좋은 예/금지 예, 제작 수치, 대상별 적용법, 실패 수정법, 완료 체크리스트와 AI 전달 문구를 따른다. “인디·고퀄·고밀도”라는 단어만으로 스타일을 추측하지 않는다.**
 
 **ALL GRAPHICS TASKS: Read docs/GRAPHICS_STYLE_GUIDE.md and visually inspect its current-v3 references BEFORE editing. Apply its style and acceptance checklist to every asset category. Do not substitute your own interpretation of indie, high quality, or pixel art.**

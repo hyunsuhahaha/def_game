@@ -1,0 +1,4 @@
+interface:
+  display_name: "Defense Game Pixel Art"
+  short_description: "Create and verify this game's pixel-art assets"
+  default_prompt: "Use $defense-game-pixel-art to create or revise a game asset, integrate it, and verify it at runtime scale."
