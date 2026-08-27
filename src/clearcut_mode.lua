@@ -56,7 +56,7 @@ local definitions = {
     {id="demolition", track="develop", name="철거 폭파", desc="돌진이 끝나는 지점에서 폭발이 일어나 주변 나무에도 피해를 줍니다.", max=6, color={1,.45,.15}, job="developer"},
     {id="site_clearance", track="develop", name="부지 정지 작업", desc="돌진이 지나간 자리는 다시는 나무가 자라지 않는 부지가 됩니다.", max=6, color={.55,.5,.55}, job="developer"},
     -- 굴착력 (dig) — 발톱 할퀴기와 지하 돌진으로 얼마나 거칠게 밀어내느냐 [코인 채굴꾼 전용]
-    {id="detector", track="dig", name="손톱 강화 — 복리 발톱", desc="기본 할퀴기의 범위와 피해가 늘어나고 보이는 발톱 궤적도 실제 판정 폭에 맞춰 커집니다. 6레벨에는 양손으로 동시에 할퀴지만 피해는 한 번만 적용됩니다.", max=6, color={.85,.68,.22}, job="miner"},
+    {id="detector", track="dig", name="손톱 강화 — 복리 발톱", desc="보이는 발톱 궤적 전체의 나무와 적을 모두 할퀴며 범위와 피해가 강화됩니다. 휘두르는 동안 이동해도 시작 방향의 판정이 두더지를 따라오고, 6레벨에는 양손으로 동시에 할퀴지만 대상별 피해는 한 번만 적용됩니다.", max=6, color={.85,.68,.22}, job="miner"},
     {id="burrow_uproot", track="dig", name="지하 강제집행", desc="SPACE 또는 우클릭 잠복의 재사용 시간이 줄고, 이동 경로에서 자동으로 옆으로 튕겨 나가는 나무의 피해와 관통 횟수가 늘어납니다.", max=6, color={.58,.42,.24}, job="miner"},
     {id="brute_force", track="dig", name="브루트포스 어택", desc="지상에서 수많은 숫자 조합을 빠르게 생성한 뒤 사방으로 발사합니다. 날아간 숫자는 닿는 나무와 적에게 피해를 줍니다.", max=6, color={.3,.9,.4}, job="miner"},
     -- 독설력 (venom) — 말을 오래 붙잡을수록 사거리와 독성이 강해진다 [차라투스트라는 이렇게 말했다 전용]
@@ -1809,6 +1809,7 @@ function ClearcutMode:updateFireAttack(dt, game, heldOverride)
         smoking.fired = true
         self:hurlMolotovAt(smoking.tx, smoking.ty, game)
         self.actionAudit.cigaretteFlick = self.actionAudit.cigaretteFlick + 1
+        self.streak, self.lastHitAt = self.streak + 1, self.elapsed
         fired = true
     end
     if smoking.t >= smoking.dur then self:startSmoking(game) end
@@ -1875,6 +1876,7 @@ function ClearcutMode:updateToxicAttack(dt, game, heldOverride)
             action.bit = true
             self:applyVeganBite(action.tx, action.ty, game)
             self.actionAudit.veganBite = self.actionAudit.veganBite + 1
+            self.streak, self.lastHitAt = self.streak + 1, self.elapsed
             bit = true
         end
         if action.t >= action.dur then
@@ -1958,7 +1960,14 @@ function ClearcutMode:updateMinerAttack(dt, game, heldOverride)
         -- 0.68 maps to action cell 3 (the authored claw-contact pose).
         if not action.struck and progress >= .68 then
             action.struck = true
-            self:applyClawSwipe(action.tx, action.ty, game)
+            local range=112+self:power("detector")*16+self.permanentTraits.range
+            -- Clearcut movement continues during the wind-up. Keep the input
+            -- direction, but rebuild the endpoint from the current player
+            -- position so the claw cannot swing at a stale world coordinate.
+            local strikeX=game.player.x+(action.dirX or 1)*range
+            local strikeY=game.player.y+(action.dirY or 0)*range
+            self:applyClawSwipe(strikeX,strikeY,game)
+            self.streak, self.lastHitAt = self.streak + 1, self.elapsed
             struck = true
         end
         if action.t >= action.dur then
@@ -1971,7 +1980,11 @@ function ClearcutMode:updateMinerAttack(dt, game, heldOverride)
     self.attackCooldown = math.max(0, self.attackCooldown - dt)
     if not held or self.attackCooldown > 0 then return false end
     local speed = (game.tools.axe.speed or 1) * game.player.gather * self.permanentTraits.attackSpeed
-    self.minerClawAction = {t=0, dur=math.max(.34, .62/speed), tx=tx, ty=ty, struck=false}
+    local dx,dy=tx-game.player.x,ty-game.player.y
+    local distance=math.sqrt(dx*dx+dy*dy)
+    if distance<1 then dx,dy,distance=game.player.facing or 1,0,1 end
+    self.minerClawAction = {t=0, dur=math.max(.34, .62/speed), tx=tx, ty=ty,
+        dirX=dx/distance,dirY=dy/distance,struck=false}
     game.player.facing = tx < game.player.x and -1 or 1
     if game.player.setClearcutAction then game.player:setClearcutAction(0) end
     return false
@@ -1994,6 +2007,10 @@ function ClearcutMode:applyClawSwipe(tx, ty, game)
     local nx, ny = dx / distance, dy / distance
     local range = 112 + self:power("detector") * 16 + self.permanentTraits.range
     local halfWidth = 34 + self:power("detector") * 5 + self.permanentTraits.area * .35
+    -- The authored atlas extends about 85/39 half-widths forward from its
+    -- anchor. Include that visible lobe in damage instead of stopping at the
+    -- effect centre and showing a harmless slash over distant targets.
+    local hitRange=range+halfWidth*(85/39)
     local damage = 2 + self:power("detector") * .65 + self.permanentTraits.treeDamage
     local clawLevel = self:levelOf("detector")
     local angle
@@ -2017,22 +2034,43 @@ function ClearcutMode:applyClawSwipe(tx, ty, game)
             MoleClawArt.spawn(self,x,y,angle,clawLevel,curveFlip,halfWidth,1)
         end
     end
+    -- Return the visible contact on a vertical body segment. Trees are tall
+    -- sprites anchored at their roots; testing only node.y made a swipe aimed
+    -- at the visible trunk/canopy miss even while the effect crossed it.
+    local function verticalContact(x,top,bottom)
+        local ys={top,(top+bottom)*.5,bottom}
+        if math.abs(nx)>.0001 then ys[#ys+1]=py+(x-px)*ny/nx end -- zero side distance
+        if math.abs(ny)>.0001 then
+            ys[#ys+1]=py-(x-px)*nx/ny -- attack start plane
+            ys[#ys+1]=py+(hitRange-(x-px)*nx)/ny -- visible attack end plane
+        end
+        local bestY,bestAlong,bestSide
+        for _,value in ipairs(ys) do
+            local y=math.max(top,math.min(bottom,value))
+            local rx,ry=x-px,y-py
+            local along=rx*nx+ry*ny
+            local side=math.abs(rx*ny-ry*nx)
+            if along>=0 and along<=hitRange and (not bestSide or side<bestSide) then
+                bestY,bestAlong,bestSide=y,along,side
+            end
+        end
+        if bestSide and bestSide<=halfWidth then return bestY,bestAlong end
+    end
     local candidates = {}
     for _, node in ipairs(game.world.nodes) do
         if node.rushTree and node.active then
-            local rx, ry = node.x - px, node.y - py
-            local along, side = rx*nx + ry*ny, math.abs(rx*ny - ry*nx)
-            if along >= 0 and along <= range and side <= halfWidth then
-                candidates[#candidates+1] = {node=node, along=along}
-            end
+            local hitY,along=verticalContact(node.x,node.y-150,node.y)
+            if hitY then candidates[#candidates+1]={node=node,along=along,hitY=hitY} end
         end
     end
     table.sort(candidates, function(a,b) return a.along < b.along end)
-    local limit = 1 + math.floor(self.permanentTraits.extraTargets or 0)
     local marked=false
-    for index=1,math.min(limit,#candidates) do
-        local node = candidates[index].node
-        spawnClaws(node.x,node.y-54)
+    -- A broad visible swipe is an area attack: every body crossed by the same
+    -- envelope takes one hit. A nearer tree must not shield everything behind it.
+    for index=1,#candidates do
+        local candidate=candidates[index]
+        local node = candidate.node
+        spawnClaws(node.x,candidate.hitY)
         marked=true
         node.rushHp = (node.rushHp or node.rushMaxHp) - damage
         game.world:impactNode(node, game, true)
@@ -2040,10 +2078,9 @@ function ClearcutMode:applyClawSwipe(tx, ty, game)
         if node.rushHp <= 0 then self:fellTree(node,game) end
     end
     for _, enemy in ipairs(self.enemies) do
-        local rx, ry = enemy.x-px, enemy.y-py
-        local along, side = rx*nx+ry*ny, math.abs(rx*ny-ry*nx)
-        if along >= 0 and along <= range and side <= halfWidth then
-            spawnClaws(enemy.x,enemy.y-12)
+        local hitY=verticalContact(enemy.x,enemy.y-28,enemy.y+4)
+        if hitY then
+            spawnClaws(enemy.x,hitY)
             marked=true
             enemy.hp, enemy.visualHit = enemy.hp - damage*2.2, .14
             SupplementArt.impact(self,"axe",enemy.x,enemy.y,26)
@@ -2997,6 +3034,7 @@ function ClearcutMode:updatePhilosopherAttack(dt, game, heldOverride)
     if self.spitTimer > 0 then return false end
     local rate = math.max(.14, (.5 - self:power("footnote") * .1 - verbosity * .2) / self.permanentTraits.attackSpeed)
     self.spitTimer = rate
+    self.streak, self.lastHitAt = self.streak + 1, self.elapsed
     self:applySpit(tx, ty, verbosity, game)
     return true
 end
@@ -3072,6 +3110,7 @@ function ClearcutMode:startDash(tx, ty, game)
     local dx, dy = tx - game.player.x, ty - game.player.y
     local dist = math.sqrt(dx*dx + dy*dy)
     if dist < 1 then return end
+    self.streak, self.lastHitAt = self.streak + 1, self.elapsed
     local heavyLevel = self:levelOf("heavy_machinery")
     local width = self:developerDashWidth()
     local megaProject = heavyLevel >= 6 and love.math.random() < .2
@@ -3580,7 +3619,7 @@ local function drawBeehive(x, y, t)
     for i = 1, 3 do
         local a = t * 4.5 + i * 2.1
         local bx, by = x + math.cos(a) * 15, hy - 5 + math.sin(a * 1.4) * 9
-        drawBeeBody(bx, by, a + math.pi / 2, t * 30 + i,.72)
+        drawBeeBody(bx, by, a + math.pi / 2, t * 30 + i,1.02)
     end
 end
 
@@ -4685,7 +4724,7 @@ function ClearcutMode:drawWorldOverlay(game)
         for i = 1, 5 do
             local a = t * 14 + i * 1.3
             local bx, by = swarm.x + math.cos(a) * (8 + i), swarm.y + math.sin(a * 1.7) * (6 + i * .4)
-            drawBeeBody(bx, by, a, t * 34 + i * 2,.90)
+            drawBeeBody(bx, by, a, t * 34 + i * 2,1.30)
         end
     end
     if self.rootedTimer > 0 then
@@ -5111,7 +5150,7 @@ function ClearcutMode:drawHUD(game,fonts)
         love.graphics.printf(sub, dbx, dby + 31, dbw, "center")
     end
 
-    -- 연속 채집 콤보(생계형 나무꾼 전용, self.streak): 0.9초 안에 다시 타격하지
+    -- 연속 채집 콤보(전 직업 공용, self.streak): 0.9초 안에 다시 타격하지
     -- 않으면 끊긴다. 오른쪽 상단, 광폭화/재난 패널이 떠 있으면 그 아래로 밀려난다.
     if self.streak > 0 then
         local cbw = 190

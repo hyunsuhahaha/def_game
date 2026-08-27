@@ -17,9 +17,10 @@ local particles=0
 local player={x=100,y=100,facing=1,gather=1,setClearcutAction=function(self,p) self.pose=p end,clearClearcutAction=function(self) self.pose=nil end}
 local treeA={rushTree=true,active=true,x=160,y=100,rushHp=3,rushMaxHp=3,treeVariant=2}
 local treeC={rushTree=true,active=true,x=205,y=100,rushHp=3,rushMaxHp=3,treeVariant=3}
+local treeD={rushTree=true,active=true,x=280,y=100,rushHp=3,rushMaxHp=3,treeVariant=4}
 local treeB={rushTree=true,active=true,x=160,y=250,rushHp=3,rushMaxHp=3,treeVariant=1}
 local world={
-    nodes={treeA,treeC,treeB}, width=1000,height=1000,drops={},images={treeVariants={}},
+    nodes={treeA,treeC,treeD,treeB}, width=1000,height=1000,drops={},images={treeVariants={}},
     impactNode=function() end, addParticle=function() particles=particles+1 end,
     harvestBurst=function(node) node.fallT=.1 end, spawnDrop=function() end
 }
@@ -36,14 +37,16 @@ mode:updateMinerAttack(.2,game,true)
 assert(treeA.rushHp==3,"claw damage happened before the contact frame")
 mode:updateMinerAttack(.25,game,true)
 assert(treeA.rushHp<3,"claw contact frame did not damage the forward tree")
-assert(#mode.minerClawFx==1,"claw contact did not create its directional pixel effect")
+assert(treeC.rushHp<3,"a nearer tree incorrectly shielded another target inside the visible swipe")
+assert(treeD.rushHp<3,"visible forward claw lobe still has no matching damage range")
+assert(#mode.minerClawFx==3,"every target crossed by the claw must receive a contact effect")
 assert(mode.minerClawFx[1].x==treeA.x and mode.minerClawFx[1].x~=player.x,"claw effect must originate at the struck point, never the mole")
 assert(math.abs(mode.minerClawFx[1].angle)<.001,"rightward claw effect is not aligned to the attack vector")
 assert(mode.minerClawFx[1].curveFlip==-1,"rightward claw must be the mirror image of the accepted leftward curve")
-assert(#mode.minerClawMarks==1 and mode.minerClawMarks[1].life==6,"claw gouge was not left on the struck surface")
+assert(#mode.minerClawMarks==3 and mode.minerClawMarks[1].life==6,"claw gouges were not left on every struck surface")
 assert(mode:getUpgradeDefinition("detector").name:find("손톱 강화",1,true),"miner claw upgrade is not identified as a job skill")
 mode:updateMinerAttack(.3,game,false)
-assert(#mode.minerClawFx==0 and #mode.minerClawMarks==1,"contact flash should end while the scratch mark remains")
+assert(#mode.minerClawFx==0 and #mode.minerClawMarks==3,"contact flashes should end while all scratch marks remain")
 
 -- Max rank uses both hands, but the paired visuals still form exactly one
 -- damage envelope and therefore never double the damage.
