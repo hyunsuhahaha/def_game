@@ -4838,6 +4838,54 @@ local function drawOffscreenIndicators(self, game, fonts, w, h, t)
     end
 end
 
+-- TFT류 시너지 트래커: 지금까지 찍은 스킬을 작은 픽셀 아이콘 + 레벨 배지로
+-- 한눈에 보여준다. 트랙(파괴력/확산력/...)별로 묶고, 그 안에서는 레벨 높은
+-- 순으로 정렬해 어떤 방향으로 빌드가 쏠려 있는지 바로 읽히게 한다.
+function ClearcutMode:drawSkillTracker(fonts)
+    local picks={}
+    for id,level in pairs(self.levels) do
+        if level>0 then
+            local def=self:getUpgradeDefinition(id)
+            if def then picks[#picks+1]={id=id,level=level,def=def} end
+        end
+    end
+    if #picks==0 then return end
+    table.sort(picks,function(a,b)
+        if a.def.track~=b.def.track then return a.def.track<b.def.track end
+        if a.level~=b.level then return a.level>b.level end
+        return a.id<b.id
+    end)
+    local x0,y0,w=16,254,360
+    local chip,gap=52,6
+    local cols=math.max(1,math.floor((w+gap)/(chip+gap)))
+    local rows=math.ceil(#picks/cols)
+    love.graphics.setColor(.035,.05,.06,.9)
+    love.graphics.rectangle("fill",x0,y0,w,rows*(chip+gap)+gap+18,8,8)
+    love.graphics.setFont(fonts.small); love.graphics.setColor(.75,.85,.8)
+    love.graphics.print("보유 스킬",x0+10,y0+6)
+    local top=y0+22
+    for i,pick in ipairs(picks) do
+        local col=(i-1)%cols
+        local row=math.floor((i-1)/cols)
+        local cx=x0+gap+col*(chip+gap)
+        local cy=top+row*(chip+gap)
+        local color=pick.def.color or {.7,.7,.7,1}
+        love.graphics.setColor(color[1]*.28,color[2]*.28,color[3]*.28,.95)
+        love.graphics.rectangle("fill",cx,cy,chip,chip,6,6)
+        love.graphics.setLineWidth(1.5); love.graphics.setColor(color[1],color[2],color[3],.9)
+        love.graphics.rectangle("line",cx+.5,cy+.5,chip-1,chip-1,6,6)
+        local iconDef=ClearcutMode.icons[pick.id]
+        if iconDef then
+            local px=26/#iconDef.rows[1]
+            drawPixelGrid(iconDef.rows,iconDef.palette,cx+chip/2,cy+chip/2-4,px)
+        end
+        love.graphics.setColor(.04,.05,.05,.92)
+        love.graphics.rectangle("fill",cx+chip-19,cy+chip-16,19,16,4,0)
+        love.graphics.setFont(fonts.small); love.graphics.setColor(1,.88,.45,1)
+        love.graphics.printf(tostring(pick.level),cx+chip-19,cy+chip-15,19,"center")
+    end
+end
+
 function ClearcutMode:drawHUD(game,fonts)
     local w,h=love.graphics.getDimensions()
     local t = love.timer.getTime()
@@ -4863,6 +4911,8 @@ function ClearcutMode:drawHUD(game,fonts)
     love.graphics.setFont(fonts.small); love.graphics.setColor(1,.4,.35); love.graphics.print("HP",30,199)
     UI.bar(66,199,296,18,math.max(0,self.hp/self.maxHp),{1,.32,.26,1},{.14,.06,.05,.95})
     love.graphics.setFont(fonts.small); love.graphics.setColor(1,1,1); love.graphics.printf(math.ceil(self.hp).." / "..self.maxHp,66,201,296,"center")
+
+    self:drawSkillTracker(fonts)
 
     local pct = self:destructionPct()
     local barW = 300
