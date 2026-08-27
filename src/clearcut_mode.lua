@@ -55,7 +55,7 @@ local definitions = {
     {id="burrow_uproot", track="dig", name="지하 강제집행", desc="SPACE 또는 우클릭 잠복의 재사용 시간이 줄고, 이동 경로에서 자동으로 옆으로 튕겨 나가는 나무의 피해와 관통 횟수가 늘어납니다.", max=6, color={.58,.42,.24}, job="miner"},
     {id="brute_force", track="dig", name="브루트포스 어택", desc="지상에서 수많은 숫자 조합을 빠르게 생성한 뒤 사방으로 발사합니다. 날아간 숫자는 닿는 나무와 적에게 피해를 줍니다.", max=6, color={.3,.9,.4}, job="miner"},
     -- 독설력 (venom) — 말을 오래 붙잡을수록 사거리와 독성이 강해진다 [차라투스트라는 이렇게 말했다 전용]
-    {id="monologue", track="venom", name="아무 말 대잔치", desc="기본 공격이 장광설로 바뀝니다. 마우스 방향으로 계속 침을 튀기며, 말이 길어질수록 사거리와 피해가 늘어납니다.", max=6, color={.75,.85,.3}, job="philosopher"},
+    {id="monologue", track="venom", name="끝없는 설교", desc="기본 공격이 장광설로 바뀝니다. 공격 버튼을 누르고 있는 동안 침방울을 연속으로 쏘며, 그동안 침 게이지가 계속 줄어듭니다. 게이지가 바닥나면 강제로 멈추고 25% 이상 회복해야 다시 쏠 수 있습니다. 말이 길어질수록 사거리와 피해가 늘어납니다.", max=6, color={.75,.85,.3}, job="philosopher"},
     {id="footnote", track="venom", name="각주 남발", desc="말하는 속도가 빨라져 침이 더 자주 튑니다.", max=6, color={.85,.9,.4}, job="philosopher"},
     {id="loud_voice", track="venom", name="목청 키우기", desc="침이 닿는 범위가 넓어집니다.", max=6, color={.65,.8,.3}, job="philosopher"},
     {id="saliva_gland", track="venom", name="침샘 발달", desc="침에 맞은 대상은 서서히 중독되어 지속 피해를 입습니다.", max=6, color={.55,.72,.25}, job="philosopher"},
@@ -137,6 +137,7 @@ function ClearcutMode.new()
         job=nil, attackCooldown=0, dashing=nil, dashTrail={}, smoking=nil,
         minerClawAction=nil, minerClawFx={}, minerClawMarks={}, minerBurrow=nil, minerBurrowCooldown=0, thrownTrees={}, burrowTracks={}, burrowTrackSequence=0,
         smokeRing=nil, smokeRingCooldown=0,
+        salivaGauge=100, salivaGaugeMax=100, salivaDrainRate=30, salivaRegenRate=25, salivaExhausted=false,
         smokerHeldLast=false, physicalAction=nil, veganAction=nil, developerAction=nil,
         actionAudit={physicalImpact=0,cigaretteFlick=0,veganBite=0,developerRemote=0},
         hp=100, maxHp=100, invulnTimer=0, dead=false,
@@ -1420,9 +1421,9 @@ function ClearcutMode:updateFire(dt, game)
     end
 end
 
--- 흡연자 전용 SPACE 액션: 담배 연기를 도넛 모양으로 크게 내뿜는다. 화염/착화가 아니라
--- 순수 연기 — 링이 팽창하며 닿는 적에게 피해와 넉백을 준다. 자기 자신은 링 안쪽(구멍)에
--- 남아 있어 결과적으로 주변을 밀어내는 자기방어 겸 공격기다.
+-- 흡연자 전용 SPACE 액션: 담배 연기로 도넛(스모크 링)을 만들어 입에서 앞으로 쏜다.
+-- 화염/착화가 아니라 순수 연기 — 자기 자리에서 팽창하는 게 아니라, 실제 스모크링처럼
+-- 고리 모양을 유지한 채 조준 방향으로 날아가며 닿는 적에게 피해와 넉백을 준다.
 function ClearcutMode:activateSmokeRing(game)
     if self.job ~= "fire" or self.dead or self.smokeRing then return false end
     if self.smokeRingCooldown > 0 then
@@ -1430,7 +1431,17 @@ function ClearcutMode:activateSmokeRing(game)
         return false
     end
     self.smokeRingCooldown = 8
-    self.smokeRing = {x=game.player.x, y=game.player.y, t=0, dur=.5, maxRadius=300, puffTimer=0, hit={}}
+    local maxRange = 460
+    local tx, ty = self:aimPoint(game, maxRange)
+    local _, mouthY, facing, tipX = self:smokerMouthPose(game)
+    local dx, dy = tx - tipX, ty - mouthY
+    local dist = math.sqrt(dx * dx + dy * dy)
+    local nx, ny = dist > .01 and dx / dist or facing, dist > .01 and dy / dist or 0
+    local speed = 480
+    self.smokeRing = {
+        x=tipX, y=mouthY, vx=nx * speed, vy=ny * speed, radius=52,
+        maxRange=maxRange, traveled=0, puffTimer=0, hit={}
+    }
     game:setNotice("도넛 연기 — 후우...", "food")
     return true
 end
@@ -1439,20 +1450,20 @@ function ClearcutMode:updateSmokeRing(dt, game)
     self.smokeRingCooldown = math.max(0, self.smokeRingCooldown - dt)
     local ring = self.smokeRing
     if not ring then return end
-    ring.t = ring.t + dt
-    local progress = math.min(1, ring.t / ring.dur)
-    ring.radius = ring.maxRadius * progress
+    local step = math.sqrt(ring.vx * ring.vx + ring.vy * ring.vy) * dt
+    ring.x, ring.y = ring.x + ring.vx * dt, ring.y + ring.vy * dt
+    ring.traveled = ring.traveled + step
     ring.puffTimer = ring.puffTimer - dt
     if ring.puffTimer <= 0 then
-        ring.puffTimer = .06
+        ring.puffTimer = .05
         game.world.particles[#game.world.particles+1] = {
-            x=ring.x, y=ring.y, life=.3, maxLife=.3, size=ring.radius, color={.72,.7,.66}, ring=true
+            x=ring.x, y=ring.y, life=.26, maxLife=.26, size=ring.radius, color={.72,.7,.66}, ring=true
         }
     end
     for _, e in ipairs(self.enemies) do
         if not ring.hit[e] then
             local dx, dy = e.x - ring.x, e.y - ring.y
-            local dist = math.sqrt(dx*dx + dy*dy)
+            local dist = math.sqrt(dx * dx + dy * dy)
             if dist <= ring.radius then
                 ring.hit[e] = true
                 local nx, ny = dist > .01 and dx / dist or 1, dist > .01 and dy / dist or 0
@@ -1462,7 +1473,7 @@ function ClearcutMode:updateSmokeRing(dt, game)
             end
         end
     end
-    if progress >= 1 then self.smokeRing = nil end
+    if ring.traveled >= ring.maxRange then self.smokeRing = nil end
 end
 
 function ClearcutMode:updateToxicRain(dt, game)
@@ -2638,13 +2649,20 @@ function ClearcutMode:updatePortScan(dt, game)
     end
 end
 
+-- 기본공격 "끝없는 설교": 누르고 있는 동안 침을 계속 쏘지만, 침 게이지가 계속 줄어든다.
+-- 게이지가 바닥나면 강제로 채널링이 끊기고(exhausted), 25%까지 회복해야 다시 쏠 수 있다
+-- — 딱 0을 스쳐 지나가며 쏘다 멈추다를 반복하는 깜빡임을 막기 위한 히스테리시스.
 function ClearcutMode:updatePhilosopherAttack(dt, game, heldOverride)
     local held = heldOverride
     if held == nil then held = love.mouse.isDown(1) end
+    if self.salivaExhausted and self.salivaGauge >= self.salivaGaugeMax * .25 then
+        self.salivaExhausted = false
+    end
+    local firing = held and not self.salivaExhausted and self.salivaGauge > 0
     local maxRange = 200 + self:power("monologue") * 30 + self:power("loud_voice") * 30 + self.permanentTraits.range
     local tx, ty = self:aimPoint(game, maxRange)
     game.player.facing = tx < game.player.x and -1 or 1
-    if held then
+    if firing then
         self.rantTimer = math.min(3, (self.rantTimer or 0) + dt)
     else
         self.rantTimer = math.max(0, (self.rantTimer or 0) - dt * 2)
@@ -2654,13 +2672,19 @@ function ClearcutMode:updatePhilosopherAttack(dt, game, heldOverride)
     self.aimRadius = (55 + self:power("monologue") * 10 + self:power("loud_voice") * 20) * (1 + verbosity * .55) + self.permanentTraits.area
     if game.player.setClearcutAction then game.player:setClearcutAction(.5 + verbosity * .3) end
     local wasHeld = self.rantHeldLast
-    self.rantHeldLast = held
-    if not held then
+    self.rantHeldLast = firing
+    if not firing then
+        self.salivaGauge = math.min(self.salivaGaugeMax, self.salivaGauge + self.salivaRegenRate * dt)
         if wasHeld and verbosity >= .999 and self.evolutions.eternal_return then
             self:applySpit(self.aimX, self.aimY, 1, game, true)
         end
         if game.player.clearClearcutAction then game.player:clearClearcutAction() end
         return false
+    end
+    self.salivaGauge = math.max(0, self.salivaGauge - self.salivaDrainRate * dt)
+    if self.salivaGauge <= 0 then
+        self.salivaExhausted = true
+        game:setNotice("설교에 지쳤다 — 침이 마름", "food")
     end
     self.spitTimer = (self.spitTimer or 0) - dt
     if self.spitTimer > 0 then return false end
@@ -3732,6 +3756,37 @@ function ClearcutMode:drawSmokerReloadBar(game)
     love.graphics.rectangle("fill", barX, y - capH / 2, barW, capH)
 end
 
+-- 철학자 전용: "끝없는 설교"가 소모하는 침 게이지. 리로드 바와 달리 이건 잔량을 그대로
+-- 보여주는 채움 막대(게이지) 형태 — 다 마시면 붉게 바뀌어 탈진 상태임을 알려준다.
+function ClearcutMode:drawSalivaGauge(game)
+    local ratio = math.max(0, math.min(1, self.salivaGauge / self.salivaGaugeMax))
+    local w, px = 96, 2
+    local x = math.floor(game.player.x - w / 2)
+    local y = math.floor(game.player.y - 120)
+    local capH = 8
+
+    love.graphics.setColor(0, 0, 0, .4)
+    love.graphics.rectangle("fill", x - px - 2, y - capH / 2 - 2, w + px * 2 + 4, capH + 4)
+
+    -- 대괄호 [ ]
+    love.graphics.setColor(1, 1, 1, .6)
+    love.graphics.rectangle("fill", x - px, y - capH / 2, px, capH)
+    love.graphics.rectangle("fill", x + w, y - capH / 2, px, capH)
+
+    -- 빈 트랙
+    love.graphics.setColor(1, 1, 1, .18)
+    love.graphics.rectangle("fill", x, y - px / 2, w, px)
+
+    -- 채워진 만큼(남은 침의 양)
+    local fillW = math.floor(w * ratio)
+    if fillW > 0 then
+        love.graphics.setColor(0, 0, 0, 1)
+        love.graphics.rectangle("fill", x - px, y - capH / 2 - px, fillW + px * 2, capH + px * 2)
+        if self.salivaExhausted then love.graphics.setColor(.75, .32, .3, 1) else love.graphics.setColor(.55, .85, .35, 1) end
+        love.graphics.rectangle("fill", x, y - capH / 2, fillW, capH)
+    end
+end
+
 function ClearcutMode:drawSmokerCigarette(game)
     if self.job~="fire" or not self.smoking or self.smoking.phase=="flick" then return false end
     local mouthX,mouthY,facing,tipX=self:smokerMouthPose(game)
@@ -4211,6 +4266,7 @@ function ClearcutMode:drawWorldOverlay(game)
             love.graphics.setColor(1,.66,.16,.9); love.graphics.rectangle("fill",ex-9,ey-2,18,4); love.graphics.rectangle("fill",ex-2,ey-9,4,18)
         end
     end
+    if self.job == "philosopher" then self:drawSalivaGauge(game) end
     if self.job == "developer" and #self.dashTrail > 0 then
         for _, tr in ipairs(self.dashTrail) do
             local a = math.max(0, tr.life / tr.maxLife)

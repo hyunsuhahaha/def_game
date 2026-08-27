@@ -383,18 +383,23 @@ function SelfTest.run(game)
     assert(#game.clearcut.enemies > 0, "몹 소환 버튼으로 적 생성 실패")
     game.clearcut.enemies = {}
 
-    -- 흡연자 SPACE 액션: 도넛 연기 — 팽창하는 링에 닿는 적에게 피해+넉백을 준다.
-    local smokeTarget = game.clearcut:spawnEnemy("squirrel", game.player.x + 40, game.player.y)
-    smokeTarget.hp = 50
-    local smokeXBefore = smokeTarget.x
+    -- 흡연자 SPACE 액션: 도넛 연기 — 입에서 조준 방향으로 날아가는 고리에 닿는 적에게
+    -- 피해+넉백을 준다(자기 자리에서 팽창하는 게 아니라 실제로 날아가는 투사체).
     assert(game.clearcut:activateSmokeRing(game), "도넛 연기 발동 실패")
     assert(game.clearcut.smokeRingCooldown > 0, "도넛 연기 쿨다운 시작 실패")
+    -- 조준(마우스) 방향은 헤드리스 환경에서 예측 불가하므로, 테스트에서는 +x 방향으로
+    -- 고정해 결정론적으로 검증한다.
+    local ring = game.clearcut.smokeRing
+    ring.vx, ring.vy = 480, 0
+    local smokeTarget = game.clearcut:spawnEnemy("squirrel", ring.x + 120, ring.y)
+    smokeTarget.hp = 50
+    local smokeXBefore = smokeTarget.x
     for _ = 1, 60 do game.clearcut:updateSmokeRing(1 / 60, game) end
     assert(smokeTarget.hp < 50, "도넛 연기가 적에게 피해를 주지 않음")
     assert((smokeTarget.knockTimer or 0) > 0, "도넛 연기가 적을 넉백 상태로 만들지 않음")
     game.clearcut:updateEnemies(.05, game)
     assert(smokeTarget.x ~= smokeXBefore, "도넛 연기 넉백이 실제로 이동에 반영되지 않음")
-    assert(game.clearcut.smokeRing == nil, "도넛 연기가 팽창 완료 후 소멸하지 않음")
+    assert(game.clearcut.smokeRing == nil, "도넛 연기가 최대 사거리 도달 후 소멸하지 않음")
     assert(not game.clearcut:activateSmokeRing(game), "쿨다운 중에도 도넛 연기가 재발동됨")
     game.clearcut.enemies = {}
 
@@ -682,7 +687,21 @@ function SelfTest.run(game)
     assert(drawOk, "오프스크린 인디케이터/신규 이펙트 렌더 실패: " .. tostring(drawErr))
     game.clearcut.enemies = {}
 
-    print("SELF_TEST_OK: LOBBY_DUAL_MODE RUSH_3MIN RUSH_FOREST RUSH_HOLD_TO_CHOP RUSH_MULTI_HIT RUSH_CHAIN_FELL RUSH_AUTO_PICKUP RUSH_THREE_CHOICES RUSH_AUTO_FRONT RUSH_RESULTS LOBBY_AUX_NAV SETTINGS BIG_TREE_SINGLE TREE_PER_HIT_DROP TREE_PROXIMITY_PICKUP QUARRY_GROUNDED QUARRY_PER_HIT_DROP QUARRY_ORE_RATIO QUARRY_PROXIMITY_PICKUP FARM TREE QUARRY_INFINITE TOOL_SPEED IMPACT_SYNC HARVEST_FEEDBACK VISIBLE_TURRET VISIBLE_DRONE VISIBLE_REPAIR_STATION MINING_DRILL_VFX RUN_LEVELUP THREE_CHOICES AUTOMATION EVOLUTION WALL_UPGRADE WALL_BLOCK HAMMER_REPAIR CRIT_CHANCE PRESTIGE_RUN MOVE_WHILE_FARM TURRET_SLOT_BASE TURRET_SLOT_TRAIT TURRET_SLOT_OCCUPIED TURRET_NEARBY TURRET_F_INTERACT TURRET_UPGRADE TURRET_AIM VISIBLE_BULLET MUZZLE_FLASH CHAIN_COIL_VFX EXPLOSIVE_SHELL_VFX META_SAVE TRAIT_TREE TRAIT_APPLY RUN_REWARD TEST_CURRENCY TEST_RESOURCES TEST_LEVELS TEST_RESET CIGARETTE_SMOKE_WINDUP CLEARCUT_CARD_FRAME CURSE_SCALING SWARM_SCALING TIME_SPAWNER ELITE_SPAWN REAPER_SPAWN REAPER_DASH_AI ELITE_THORN_FIRE STAGE_PROGRESSION WORLDTREE_ATTACKS WORLDTREE_ENRAGE SHADED_SPRITES BERSERK_ROUND BERSERK_TREE_FX CARD_REROLL CARD_BANISH ARCANA_STAGE SPECIAL_CARD VINE_PLANT NATURAL_DISASTER OFFSCREEN_INDICATOR CHARACTER_STORY_FLOW CHARACTER_CODEX SKILL_SANDBOX SANDBOX_FUSION SMOKE_RING")
+    -- 철학자 기본공격 "끝없는 설교": 누르고 있으면 침 게이지가 계속 줄고, 바닥나면
+    -- 누르고 있어도 강제로 멈춘다. 25%까지 회복해야 다시 쏠 수 있다(깜빡임 방지).
+    game:startClearcut("philosopher")
+    assert(game.clearcut.salivaGauge == game.clearcut.salivaGaugeMax, "침 게이지 초기값 실패")
+    for _ = 1, 200 do game.clearcut:updatePhilosopherAttack(1 / 60, game, true) end
+    assert(game.clearcut.salivaGauge < 1, "계속 눌러도 침 게이지가 소모되지 않음")
+    assert(game.clearcut.salivaExhausted == true, "게이지 소진 시 탈진 상태로 전환되지 않음")
+    for _ = 1, 30 do game.clearcut:updatePhilosopherAttack(1 / 60, game, true) end
+    assert(game.clearcut.salivaGauge > 0, "탈진 중에도 게이지가 회복되지 않음(들고 있어도 회복은 되어야 함)")
+    assert(game.clearcut.salivaGauge < game.clearcut.salivaGaugeMax * .25, "게이지가 이미 25% 넘게 회복된 상태에서 테스트를 계속할 수 없음")
+    for _ = 1, 300 do game.clearcut:updatePhilosopherAttack(1 / 60, game, false) end
+    assert(game.clearcut.salivaExhausted == false, "25% 이상 회복 후에도 탈진 상태가 풀리지 않음")
+    assert(game.clearcut.salivaGauge == game.clearcut.salivaGaugeMax, "쉬는 동안 게이지가 완전히 회복되지 않음")
+
+    print("SELF_TEST_OK: LOBBY_DUAL_MODE RUSH_3MIN RUSH_FOREST RUSH_HOLD_TO_CHOP RUSH_MULTI_HIT RUSH_CHAIN_FELL RUSH_AUTO_PICKUP RUSH_THREE_CHOICES RUSH_AUTO_FRONT RUSH_RESULTS LOBBY_AUX_NAV SETTINGS BIG_TREE_SINGLE TREE_PER_HIT_DROP TREE_PROXIMITY_PICKUP QUARRY_GROUNDED QUARRY_PER_HIT_DROP QUARRY_ORE_RATIO QUARRY_PROXIMITY_PICKUP FARM TREE QUARRY_INFINITE TOOL_SPEED IMPACT_SYNC HARVEST_FEEDBACK VISIBLE_TURRET VISIBLE_DRONE VISIBLE_REPAIR_STATION MINING_DRILL_VFX RUN_LEVELUP THREE_CHOICES AUTOMATION EVOLUTION WALL_UPGRADE WALL_BLOCK HAMMER_REPAIR CRIT_CHANCE PRESTIGE_RUN MOVE_WHILE_FARM TURRET_SLOT_BASE TURRET_SLOT_TRAIT TURRET_SLOT_OCCUPIED TURRET_NEARBY TURRET_F_INTERACT TURRET_UPGRADE TURRET_AIM VISIBLE_BULLET MUZZLE_FLASH CHAIN_COIL_VFX EXPLOSIVE_SHELL_VFX META_SAVE TRAIT_TREE TRAIT_APPLY RUN_REWARD TEST_CURRENCY TEST_RESOURCES TEST_LEVELS TEST_RESET CIGARETTE_SMOKE_WINDUP CLEARCUT_CARD_FRAME CURSE_SCALING SWARM_SCALING TIME_SPAWNER ELITE_SPAWN REAPER_SPAWN REAPER_DASH_AI ELITE_THORN_FIRE STAGE_PROGRESSION WORLDTREE_ATTACKS WORLDTREE_ENRAGE SHADED_SPRITES BERSERK_ROUND BERSERK_TREE_FX CARD_REROLL CARD_BANISH ARCANA_STAGE SPECIAL_CARD VINE_PLANT NATURAL_DISASTER OFFSCREEN_INDICATOR CHARACTER_STORY_FLOW CHARACTER_CODEX SKILL_SANDBOX SANDBOX_FUSION SMOKE_RING SALIVA_GAUGE")
 end
 
 return SelfTest
