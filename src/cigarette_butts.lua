@@ -16,6 +16,8 @@ function Butts.reset(mode)
     for _,transfer in ipairs(mode.emberTransfers or {}) do release(transfer) end
     for _,flight in ipairs(mode.molotovs or {}) do if flight.target then flight.target.igniting=nil end end
     mode.cigaretteButts,mode.emberTransfers,mode.emberArrivals={}, {}, {}
+    -- 나무→나무 확산 스파크(같은 이펙트를 재사용하는 별도 배열)도 함께 초기화한다.
+    mode.treeSparks,mode.treeSparkArrivals={}, {}
     mode.smokerGroundTime=0
 end
 

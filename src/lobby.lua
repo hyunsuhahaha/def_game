@@ -29,12 +29,14 @@ end
 function Lobby:keypressed(key)
     if key == "return" or key == "space" or key == "c" then return "clearcut" end
     if key == "t" then return "character_traits" end
+    if key == "d" then return "character_codex" end
 end
 
 function Lobby:mousepressed(x, y, button)
     if button ~= 1 then return end
     if inside(self.clearcutBox, x, y) then return "clearcut" end
     if inside(self.traitsBox, x, y) then return "character_traits" end
+    if inside(self.codexBox, x, y) then return "character_codex" end
     if inside(self.settingsBox, x, y) then return "settings" end
 end
 
@@ -69,7 +71,8 @@ function Lobby:draw()
     local navY, navGap, navW = 24, 10, 116
     self.settingsBox = {x = w - 30 - navW, y = navY, w = navW, h = 38}
     self.traitsBox = {x = self.settingsBox.x - navGap - navW, y = navY, w = navW, h = 38}
-    for _, item in ipairs({{box = self.traitsBox, label = "캐릭터 특성"}, {box = self.settingsBox, label = "설정"}}) do
+    self.codexBox = {x = self.traitsBox.x - navGap - navW, y = navY, w = navW, h = 38}
+    for _, item in ipairs({{box = self.codexBox, label = "캐릭터 도감"}, {box = self.traitsBox, label = "캐릭터 특성"}, {box = self.settingsBox, label = "설정"}}) do
         local hovered = inside(item.box, love.mouse.getPosition())
         love.graphics.setColor(.025, .055, .045, hovered and .84 or .66)
         love.graphics.rectangle("fill", item.box.x, item.box.y, item.box.w, item.box.h, 7, 7)

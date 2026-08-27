@@ -22,7 +22,7 @@ local jobDesc = {
     fire = "마우스 위치에 꽁초를 튕깁니다. 꽁초는 바닥에 남아 타들어가며 주변 나무로 기본 42%(최대 75%) 확률로 불씨를 옮깁니다. 착지 즉시 불붙지는 않습니다.",
     toxic = "기본 공격이 도끼질 대신 마우스 위치에 '친환경' 제초제를 살포하는 것으로 바뀝니다. 숲을 지키기 위해 숲을 없앤다.",
     developer = "기본 공격이 도끼질 대신 마우스 방향으로 중장비 돌진하는 것으로 바뀝니다. 여기에 아파트 지으면 됨.",
-    miner = "기본 공격이 도끼질 대신 마우스 위치를 곡괭이로 파헤치는 것으로 바뀝니다. 그 시절 그 USB는 대체 어디 묻힌 걸까.",
+    miner = "거대한 발톱으로 전방을 할퀴고, 땅속에 잠복해 지나치는 나무를 뿌리째 뽑아 던집니다.",
     philosopher = "기본 공격이 도끼질 대신 마우스 방향으로 끝없는 일장연설이 됩니다. 침이 사방으로 튀고, 말이 길어질수록 사거리와 독성이 강해집니다."
 }
 
@@ -38,6 +38,7 @@ local definitions = {
     {id="dry_forest", track="spread", name="건조주의보 무시", desc="꽁초의 착화 확률이 레벨당 +6%p 높아지고(최대 75%), 붙은 불이 주변 나무로 더 빠르고 넓게 번집니다.", max=6, color={1,.5,.15}, job="fire"},
     {id="oil_drum", track="spread", name="라이터 기름 유출", desc="나무가 다 타버리면 레벨당 폭발 확률이 크게 올라(1렙 7.5%→5렙 63%), 6렙에서는 100% 확정 발동합니다.", max=6, color={1,.62,.1}, job="fire"},
     {id="embers", track="spread", name="바람 부는 날 흡연", desc="다 타버린 나무에서 불씨가 튀어 멀리 있는 나무에도 옮겨붙습니다.", max=6, color={1,.75,.25}, job="fire"},
+    {id="straw_bale", track="spread", name="마른 건초더미 생성", desc="주기적으로 주변에 마른 건초더미를 만들어 둡니다. 건초더미는 불이 아주 잘 붙어서, 근처에서 불이 타오르면 그 즉시 옮겨붙어 한동안 활활 타오르며 그 위에 있는 적에게 지속 피해를 줍니다.", max=6, color={.85,.72,.25}, job="fire"},
     -- 억제력 (suppress) — 자연이 얼마나 다시 못 자라게 하느냐 [비건 단체 회장 전용 + 공용]
     {id="herbicide", track="suppress", name="제초제", desc="벤 자리가 죽은 땅이 될 확률이 레벨당 크게 올라(1렙 11%→5렙 92%), 6렙에서는 사실상 100% 확정됩니다.", max=6, color={.62,.4,.85}},
     {id="root_cutting", track="suppress", name="뿌리 절단", desc="나무를 벨 때마다 숲의 재생력이 약해집니다.", max=6, color={.5,.62,.9}},
@@ -49,7 +50,8 @@ local definitions = {
     {id="demolition", track="develop", name="철거 폭파", desc="돌진이 끝나는 지점에서 폭발이 일어나 주변 나무에도 피해를 줍니다.", max=6, color={1,.45,.15}, job="developer"},
     {id="site_clearance", track="develop", name="부지 정지 작업", desc="돌진이 지나간 자리는 다시는 나무가 자라지 않는 부지가 됩니다.", max=6, color={.55,.5,.55}, job="developer"},
     -- 굴착력 (dig) — 한 번 내려찍을 때 얼마나 넓고 확실하게 파헤치느냐 [코인 채굴꾼 전용]
-    {id="detector", track="dig", name="금속탐지기", desc="기본 공격이 곡괭이로 바뀝니다. 마우스 위치를 파헤쳐 반경 안의 나무를 뿌리째 뽑습니다. 가끔 삑— 소리와 함께 대박이 터집니다.", max=6, color={.85,.68,.22}, job="miner"},
+    {id="detector", track="dig", name="복리로 자란 발톱", desc="기본 할퀴기의 범위와 피해가 늘어납니다. 채굴 장비보다 유지비가 싸다는 결론입니다.", max=6, color={.85,.68,.22}, job="miner"},
+    {id="burrow_uproot", track="dig", name="지하 강제집행", desc="SPACE 또는 우클릭 잠복의 재사용 시간이 줄고, 뿌리째 뽑아 던진 나무의 피해와 관통 횟수가 늘어납니다.", max=6, color={.58,.42,.24}, job="miner"},
     {id="deep_scan", track="dig", name="정밀 탐사", desc="탐지 반경이 넓어지고 판정 속도가 빨라집니다.", max=6, color={.95,.82,.35}, job="miner"},
     {id="backhoe", track="dig", name="굴착기 대여", desc="굴착 한 방의 범위와 위력이 커집니다. 렌탈비는... 나중에 생각하자.", max=6, color={.75,.55,.2}, job="miner"},
     {id="jackpot", track="dig", name="이번엔 진짜 있을 것 같다", desc="가끔 '발견!' 판정이 터져 훨씬 넓은 범위가 한 번에 무너지고 목재를 왕창 얻습니다.", max=6, color={1,.84,.3}, job="miner"},
@@ -136,7 +138,10 @@ function ClearcutMode.new()
         bees={}, beeSlow=false, beeSwarmsTriggered=0, beehiveTotal=0,
         streak=0, lastHitAt=-10, molotovTimer=0, wildfireTimer=0, toxicTimer=0, evolutions={}, molotovs={},
         cigaretteButts={}, emberTransfers={}, emberArrivals={}, smokerGroundTime=0,
+        treeSparks={}, treeSparkArrivals={}, strawTimer=0, strawBales={},
+        oilTrail={}, oilTrailTimer=0,
         job=nil, attackCooldown=0, dashing=nil, dashTrail={}, smoking=nil,
+        minerClawAction=nil, minerBurrow=nil, minerBurrowCooldown=0, thrownTrees={},
         smokerHeldLast=false, physicalAction=nil, veganAction=nil, developerAction=nil,
         actionAudit={physicalImpact=0,cigaretteFlick=0,veganBite=0,developerRemote=0},
         hp=100, maxHp=100, invulnTimer=0, dead=false,
@@ -153,8 +158,10 @@ function ClearcutMode.new()
             extraTargets=0, treeDamage=0, healOnFell=0, executeChance=0,
             burnSpeed=1, extraFires=0, spreadChance=0,
             biteDamage=0, plagueDuration=0,
-            dashSpeed=1, sterileChance=0, aftershockRadius=0, cooldownRefund=0
+            dashSpeed=1, sterileChance=0, aftershockRadius=0, cooldownRefund=0,
+            moveSpeed=1, pickupRadius=0, hpRegen=0, reviveCharges=0
         },
+        reviveCharges=0,
         vinePlantTimer=24, vineSpawns={},
         disasterState="idle", disasterTimer=75, disasterType=nil, rainSuppressFire=false, quakeShakes={},
         offscreenPulse=0,
@@ -183,7 +190,7 @@ function ClearcutMode:powerCount(id)
     if self:levelOf(id) <= 0 then return 0 end
     return math.max(1, math.floor(self:power(id)))
 end
-function ClearcutMode:pickupRadius() return 165 + self:power("magnet") * 95 end
+function ClearcutMode:pickupRadius() return 165 + self:power("magnet") * 95 + (self.permanentTraits.pickupRadius or 0) end
 function ClearcutMode:pickupSpeed() return 15 + self:power("magnet") * 4 end
 function ClearcutMode:destructionPct() return self.initialTrees > 0 and math.min(100, (1 - self.remainingTrees / self.initialTrees) * 100) or 0 end
 -- 뱀서라이크식 단일 난이도 다이얼: 진행도와 무관하게 순수 경과시간으로만 오른다 (농성 방지)
@@ -215,15 +222,18 @@ function ClearcutMode:setup(game)
     local w, h = game.world.width, game.world.height
     local spawnX, spawnY = w / 2, h / 2
     game.player.x, game.player.y = spawnX, spawnY
-    self.baseSpeed = 320
+    self.permanentTraits = (game.characterTraits and game.characterTraits:effects(self.job)) or self.permanentTraits
+    self.baseSpeed = 320 * (self.permanentTraits.moveSpeed or 1)
     game.player.speed, game.player.capacity, game.player.gather = self.baseSpeed, 99999, 1.15
     game.camera.x, game.camera.y, game.camera.zoom = spawnX, spawnY, .72
     if game.world.overviewBounds and game.camera.update then game.camera:update(0,game.player,game.world) end
-    self.permanentTraits = (game.characterTraits and game.characterTraits:effects(self.job)) or self.permanentTraits
     self.maxHp = self.maxHp + (self.permanentTraits.maxHp or 0)
     self.hp = self.maxHp
+    self.reviveCharges = math.floor(self.permanentTraits.reviveCharges or 0)
     self:generateForest(game, Maps.treeTarget(self.mapId,1))
-    game:setNotice(Maps.get(self.mapId).name.." — 마우스를 누른 채 나무 근처로 이동하세요", "food")
+    local notice=Maps.get(self.mapId).name.." — 마우스를 누른 채 나무 근처로 이동하세요"
+    if self.job=="miner" then notice=Maps.get(self.mapId).name.." — 좌클릭 할퀴기 · SPACE/우클릭 잠복" end
+    game:setNotice(notice, "food")
     if self.job == "fire" then self:startSmoking(game) end
 end
 
@@ -306,6 +316,7 @@ function ClearcutMode:update(dt, game)
     require("src.biome_life").update(game.world,dt)
     self.elapsed = self.elapsed + dt
     self:updateHeldAxe(dt, game)
+    self:updateThrownTrees(dt, game)
     self:updateSupplementSkills(dt, game)
     self:updateRegrowth(dt, game)
     self:updateRootHazards(dt, game)
@@ -336,7 +347,11 @@ function ClearcutMode:update(dt, game)
     self.regrowFlash = math.max(0, self.regrowFlash - dt)
     self.rootedTimer = math.max(0, self.rootedTimer - dt)
     self.invulnTimer = math.max(0, self.invulnTimer - dt)
-    game.player.speed = self.baseSpeed * (self.rootedTimer > 0 and .18 or 1)
+    local burrowSpeed=(self.minerBurrow and self.minerBurrow.state=="tunnel") and 1.48 or 1
+    game.player.speed = self.baseSpeed * (self.rootedTimer > 0 and .18 or burrowSpeed)
+    if self.permanentTraits.hpRegen and self.permanentTraits.hpRegen > 0 then
+        self.hp = math.min(self.maxHp, self.hp + self.permanentTraits.hpRegen * dt)
+    end
 end
 
 function ClearcutMode:updateRegrowth(dt, game)
@@ -443,6 +458,7 @@ end
 
 function ClearcutMode:damagePlayer(amount, game)
     if self.dead or self.invulnTimer > 0 or amount <= 0 then return end
+    if self.minerBurrow and (self.minerBurrow.state=="enter" or self.minerBurrow.state=="tunnel") then return end
     amount = amount * (self.dmgTakenMul or 1)
     if self:levelOf("berserker") >= 6 and self.streak >= 10 then
         self.dodges = self.dodges + 1
@@ -456,8 +472,16 @@ function ClearcutMode:damagePlayer(amount, game)
     if game.camera then game.camera.trauma = math.min(1, game.camera.trauma + .3) end
     for _ = 1, 8 do game.world:addParticle(game.player.x, game.player.y - 30, {1, .22, .16}, true, false) end
     if self.hp <= 0 then
-        self.dead = true
-        self:finish(game, false)
+        if (self.reviveCharges or 0) > 0 then
+            self.reviveCharges = self.reviveCharges - 1
+            self.hp = math.floor(self.maxHp * .5)
+            self.invulnTimer = 1.2
+            game:setNotice("퇴직 위로금 정산 — 한 번은 봐준다", "food")
+            for _ = 1, 16 do game.world:addParticle(game.player.x, game.player.y - 20, {1, .9, .5}, true, false) end
+        else
+            self.dead = true
+            self:finish(game, false)
+        end
     end
 end
 
@@ -1032,6 +1056,147 @@ function ClearcutMode:updateEnemies(dt, game)
     if self.remainingTrees <= 0 and not self.worldTreeSpawned then self:spawnWorldTree(game) end
 end
 
+-- 담배꽁초가 나무에 처음 옮겨붙을 때 쓰는 불씨 궤적(emberTransfers/emberArrivals)과 똑같은
+-- 그리기 함수를 그대로 재사용해, 나무에서 나무로 불이 번질 때도 같은 궤적 이펙트를 띄운다.
+-- 게임 로직(점화 판정 등)은 그대로 두고 시각 효과만 얹는 별도 배열이라 기존 흐름을 건드리지 않는다.
+function ClearcutMode:spawnFireSpark(sx, sy, tx, ty)
+    local dist = math.sqrt((tx - sx) ^ 2 + (ty - sy) ^ 2)
+    local duration = math.max(.28, math.min(.75, dist / 480))
+    local now = self.smokerGroundTime
+    self.treeSparks[#self.treeSparks + 1] = {x = sx, y = sy, tx = tx, ty = ty, startAt = now, duration = duration, arrivesAt = now + duration}
+end
+
+-- 마른 건초더미: 플레이어 주변에 실제로 놓이는 지면 오브젝트. 근처에서 나무가 타고 있으면
+-- 판정 없이 즉시 옮겨붙고(=따로 확률을 굴리지 않음), 다른 나무로 불씨를 옮기는 게 아니라
+-- 그 자리에서 한동안 계속 타오르며 위에 있는 적에게 지속 피해를 주는 화염 구역이 된다.
+function ClearcutMode:updateStrawBales(dt, game)
+    local now = self.smokerGroundTime
+    for i = #self.strawBales, 1, -1 do
+        local bale = self.strawBales[i]
+        if bale.ignited then
+            bale.tickTimer = (bale.tickTimer or 0) - dt
+            if bale.tickTimer <= 0 then
+                bale.tickTimer = .4
+                self:damageEnemiesInRadius(bale.x, bale.y, 60, 4, game)
+            end
+            if now - bale.ignitedAt >= 6 then table.remove(self.strawBales, i) end
+        else
+            bale.age = bale.age + dt
+            local caught = false
+            if not self.rainSuppressFire then
+                for _, node in ipairs(game.world.nodes) do
+                    if node.rushTree and node.active and node.burning then
+                        local dx, dy = node.x - bale.x, node.y - bale.y
+                        if dx * dx + dy * dy <= 130 * 130 then caught = true; break end
+                    end
+                end
+            end
+            if caught then
+                bale.ignited, bale.ignitedAt, bale.tickTimer = true, now, 0
+                game.world:igniteFx(bale.x, bale.y, false)
+            elseif bale.age >= 22 then
+                table.remove(self.strawBales, i)
+            end
+        end
+    end
+    local level = self:levelOf("straw_bale")
+    if level <= 0 then return end
+    self.strawTimer = self.strawTimer - dt
+    if self.strawTimer <= 0 then
+        self.strawTimer = math.max(5, 12 - self:power("straw_bale") * 1.4)
+        local a = love.math.random() * math.pi * 2
+        local r = 70 + love.math.random() * 170
+        self.strawBales[#self.strawBales + 1] = {x = game.player.x + math.cos(a) * r, y = game.player.y + math.sin(a) * r, age = 0, ignited = false}
+    end
+end
+
+-- 융합 "불바다 출근길"(oil_drum+straw_bale 만렙): 이동하는 동안 지나온 자리에 기름 자국을
+-- 남긴다. 담배꽁초가 그 위에 떨어지면 그 지점부터 이어진 자국을 따라(불이 옮겨붙듯 연쇄로)
+-- 화염대가 켜지고, 유지되는 동안 닿는 적에게 지속 피해를 준다.
+function ClearcutMode:updateOilTrail(dt, game)
+    if not self.evolutions.oilRoad then return end
+    local now = self.smokerGroundTime
+    self.oilTrailTimer = self.oilTrailTimer - dt
+    if game.player.isMoving and self.oilTrailTimer <= 0 then
+        self.oilTrailTimer = .16
+        self.oilTrail[#self.oilTrail + 1] = {x = game.player.x, y = game.player.y, spawnedAt = now, ignited = false}
+        if #self.oilTrail > 90 then table.remove(self.oilTrail, 1) end
+    end
+    if not self.rainSuppressFire then
+        for _, butt in ipairs(self.cigaretteButts) do
+            for _, spot in ipairs(self.oilTrail) do
+                if not spot.ignited then
+                    local dx, dy = spot.x - butt.x, spot.y - butt.y
+                    if dx * dx + dy * dy <= 70 * 70 then self:igniteOilTrail(spot, game) end
+                end
+            end
+        end
+    end
+    for i = #self.oilTrail, 1, -1 do
+        local spot = self.oilTrail[i]
+        if spot.ignited then
+            spot.tickTimer = (spot.tickTimer or 0) - dt
+            if spot.tickTimer <= 0 then
+                spot.tickTimer = .4
+                self:damageEnemiesInRadius(spot.x, spot.y, 55, 4, game)
+            end
+            if now - spot.ignitedAt >= 5 then table.remove(self.oilTrail, i) end
+        elseif now - spot.spawnedAt >= 6 then
+            table.remove(self.oilTrail, i)
+        end
+    end
+end
+
+function ClearcutMode:igniteOilTrail(spot, game)
+    if spot.ignited then return end
+    local now = self.smokerGroundTime
+    spot.ignited, spot.ignitedAt = true, now
+    game.world:igniteFx(spot.x, spot.y, false)
+    local frontier, total = {spot}, 1
+    while #frontier > 0 and total < 40 do
+        local current = table.remove(frontier)
+        for _, other in ipairs(self.oilTrail) do
+            if not other.ignited and total < 40 then
+                local dx, dy = other.x - current.x, other.y - current.y
+                if dx * dx + dy * dy <= 55 * 55 then
+                    other.ignited, other.ignitedAt = true, now
+                    game.world:igniteFx(other.x, other.y, false)
+                    frontier[#frontier + 1] = other
+                    total = total + 1
+                end
+            end
+        end
+    end
+end
+
+function ClearcutMode:drawOilTrail()
+    -- cigaretteIgnitedAt은 smokerGroundTime 기준으로 찍히므로, 그리기도 같은 시계를 써야 한다
+    -- (love.timer.getTime() 등 다른 시계를 섞으면 화염 성장 애니메이션 타이밍이 어긋난다).
+    local t = self.smokerGroundTime
+    for _, spot in ipairs(self.oilTrail) do
+        if spot.ignited then
+            CigaretteButtArt.drawTreeFire({x = spot.x, y = spot.y, cigaretteIgnitedAt = spot.ignitedAt}, t)
+        else
+            love.graphics.setColor(.08, .07, .05, .5)
+            love.graphics.ellipse("fill", spot.x, spot.y + 4, 13, 5)
+        end
+    end
+end
+
+function ClearcutMode:updateTreeSparks()
+    local now = self.smokerGroundTime
+    for i = #self.treeSparks, 1, -1 do
+        local spark = self.treeSparks[i]
+        if now >= spark.arrivesAt then
+            self.treeSparkArrivals[#self.treeSparkArrivals + 1] = {x = spark.tx, y = spark.ty - 6, startAt = now}
+            table.remove(self.treeSparks, i)
+        end
+    end
+    for i = #self.treeSparkArrivals, 1, -1 do
+        if now - self.treeSparkArrivals[i].startAt >= .65 then table.remove(self.treeSparkArrivals, i) end
+    end
+end
+
 function ClearcutMode:igniteNear(source, game, radius, count, depth)
     if self.rainSuppressFire then return end
     local candidates = {}
@@ -1046,6 +1211,7 @@ function ClearcutMode:igniteNear(source, game, radius, count, depth)
     for i = 1, math.min(count, #candidates) do
         candidates[i].burning, candidates[i].burnTimer, candidates[i].spreadDepth, candidates[i].fireTickTimer = true, 0, depth, 0
         game.world:igniteFx(candidates[i].x, candidates[i].y, false)
+        self:spawnFireSpark(source.x, source.y, candidates[i].x, candidates[i].y)
     end
 end
 
@@ -1104,6 +1270,7 @@ end
 
 function ClearcutMode:updateMolotovs(dt, game)
     CigaretteButts.update(self,dt,game)
+    self:updateTreeSparks()
 end
 
 function ClearcutMode:onTreeBurnedDown(node, game)
@@ -1129,6 +1296,7 @@ function ClearcutMode:onTreeBurnedDown(node, game)
             target.burning, target.burnTimer, target.emberChained = true, 0, true
             target.spreadDepth, target.fireTickTimer = (node.spreadDepth or 0) + 1, 0
             game.world:igniteFx(target.x, target.y, false)
+            self:spawnFireSpark(node.x, node.y, target.x, target.y)
             if emberLevel >= 6 then self:igniteNear(target, game, 90, 2, target.spreadDepth) end
         end
     end
@@ -1160,6 +1328,8 @@ function ClearcutMode:updateFire(dt, game)
         spreadChancePerSec=spreadChancePerSec*1.5
     end
     local burnDuration = math.max(2.2, (3.6 - dryPower * .35) / self.permanentTraits.burnSpeed)
+    self:updateStrawBales(dt, game)
+    self:updateOilTrail(dt, game)
     if dryLevel >= 6 then
         self.wildburstTimer = self.wildburstTimer - dt
         if self.wildburstTimer <= 0 then
@@ -3306,45 +3476,43 @@ local cigaretteButtPalette = {
     O={.16,.11,.08,1}, W={.93,.91,.85,1}, Y={.82,.68,.32,1}, F={.78,.55,.28,1}, f={.55,.36,.18,1}
 }
 
--- 재장전(다음 꽁초를 던질 수 있을 때까지의 대기시간) 바. 캡슐 오른쪽 끝을
--- 고정하고 그 안을 빗금 텍스처로 채워, 대기시간이 줄어들수록 빗금 채움이
--- 오른쪽에서 왼쪽으로 자라나 왼쪽 끝에 닿는 순간(=가득 참) 던질 수 있다.
+-- 재장전(다음 꽁초를 던질 수 있을 때까지의 대기시간) 바. `[------------------]`
+-- 형태의 얇은 픽셀 대시 트랙 가운데를 막대 하나가 왼쪽(방금 던짐)에서 오른쪽
+-- (=가득 참)으로 이동한다. 좌표를 math.floor로 정수에 고정해 안티에일리어싱 없이
+-- 각진 픽셀 그대로 보이게 그린다. 장전이 다 되면(ready) 바 자체를 그리지 않고 사라진다.
 function ClearcutMode:drawSmokerReloadBar(game)
     local smoking = self.smoking
-    if not smoking then return end
-    local ready = smoking.phase ~= "reload"
-    local charge = ready and 1 or math.min(1, smoking.t / smoking.dur)
-    local w, h = 108, 26
-    local x, y = game.player.x - w / 2, game.player.y - 96
-    local r = h / 2
-    love.graphics.setColor(.05, .05, .06, .85)
-    love.graphics.rectangle("fill", x, y, w, h, r, r)
-    if charge > 0 then
-        local fillW = w * charge
-        local fx = x + w - fillW
-        local fillColor = ready and {.5, 1, .6, 1} or {1, .66, .28, 1}
-        love.graphics.setColor(fillColor)
-        love.graphics.rectangle("fill", fx, y, fillW, h, r, r)
-        -- The rounded-rect call above rounds BOTH ends of the fill piece; square the
-        -- left one back off (a growing wedge, not the capsule's actual end) unless the
-        -- fill has reached the full width, where it should match the left cap exactly.
-        if fillW < w - .5 then love.graphics.rectangle("fill", fx, y, math.min(r, fillW), h) end
-        love.graphics.setLineWidth(3)
-        love.graphics.setColor(0, 0, 0, .3)
-        -- No stencil/scissor in this headless-testable draw path, so each hatch line
-        -- is clipped to the fill rect by hand via its line-parameter range.
-        for lx = fx - h, x + w, 9 do
-            local tmin = math.max(0, (fx - lx) / h)
-            local tmax = math.min(1, (fx + fillW - lx) / h)
-            if tmin < tmax then
-                love.graphics.line(lx + tmin * h, y + h - tmin * h, lx + tmax * h, y + h - tmax * h)
-            end
-        end
+    if not smoking or smoking.phase ~= "reload" then return end
+    local charge = math.min(1, smoking.t / smoking.dur)
+    local w, h, px = 96, 2, 2
+    local x = math.floor(game.player.x - w / 2)
+    local y = math.floor(game.player.y - 120)
+    local capH = 8
+
+    love.graphics.setColor(0, 0, 0, .4)
+    love.graphics.rectangle("fill", x - px - 2, y - capH / 2 - 2, w + px * 2 + 4, capH + 4)
+
+    -- 대괄호 [ ]
+    love.graphics.setColor(1, 1, 1, .6)
+    love.graphics.rectangle("fill", x - px, y - capH / 2, px, capH)
+    love.graphics.rectangle("fill", x + w, y - capH / 2, px, capH)
+
+    -- 대시 트랙
+    love.graphics.setColor(1, 1, 1, .32)
+    local dash, gap = px * 2, px * 2
+    local dx = x
+    while dx < x + w - .5 do
+        love.graphics.rectangle("fill", dx, y - px / 2, math.min(dash, x + w - dx), px)
+        dx = dx + dash + gap
     end
-    love.graphics.setLineWidth(2)
-    love.graphics.setColor(1, 1, 1, .55)
-    love.graphics.rectangle("line", x, y, w, h, r, r)
-    love.graphics.setLineWidth(1)
+
+    -- 움직이는 막대
+    local barW = px * 3
+    local barX = math.floor(x + charge * (w - barW))
+    love.graphics.setColor(0, 0, 0, 1)
+    love.graphics.rectangle("fill", barX - px, y - capH / 2 - px, barW + px * 2, capH + px * 2)
+    love.graphics.setColor(1, .68, .26, 1)
+    love.graphics.rectangle("fill", barX, y - capH / 2, barW, capH)
 end
 
 function ClearcutMode:drawSmokerCigarette(game)
@@ -3365,6 +3533,16 @@ function ClearcutMode:drawCigaretteProjectiles(t)
     for _,flight in ipairs(self.molotovs) do CigaretteButtArt.drawFlight(flight,self.smokerGroundTime) end
     return #self.molotovs
 end
+
+local strawBaleRows = {
+    "..OOOO..",
+    ".OHYYHO.",
+    "OYYBBYYO",
+    "OYYBBYYO",
+    ".OYYYYO.",
+    "..OOOO..",
+}
+local strawBalePalette = {O={.28,.18,.08,1}, H={1,.92,.6,1}, Y={.86,.68,.28,1}, B={.42,.28,.12,1}}
 
 local leafIconRows = {
     "...OO...",
@@ -3731,6 +3909,22 @@ function ClearcutMode:drawCigaretteGroundEffects()
     for _,butt in ipairs(self.cigaretteButts) do CigaretteButtArt.drawSmolder(butt,t) end
     for _,transfer in ipairs(self.emberTransfers) do CigaretteButtArt.drawTransfer(transfer,t) end
     for _,arrival in ipairs(self.emberArrivals) do CigaretteButtArt.drawArrival(arrival,t) end
+    -- 나무→나무 확산도 담배꽁초 확산과 동일한 궤적/도착 이펙트를 재사용한다.
+    for _,spark in ipairs(self.treeSparks) do CigaretteButtArt.drawTransfer(spark,t) end
+    for _,arrival in ipairs(self.treeSparkArrivals) do CigaretteButtArt.drawArrival(arrival,t) end
+end
+
+function ClearcutMode:drawStrawBales()
+    local t = self.smokerGroundTime
+    for _, bale in ipairs(self.strawBales) do
+        if bale.ignited then
+            CigaretteButtArt.drawTreeFire({x = bale.x, y = bale.y, cigaretteIgnitedAt = bale.ignitedAt}, t)
+        else
+            love.graphics.setColor(0, 0, 0, .28)
+            love.graphics.ellipse("fill", bale.x, bale.y + 7, 16, 5)
+            drawPixelGrid(strawBaleRows, strawBalePalette, bale.x, bale.y, 3)
+        end
+    end
 end
 
 function ClearcutMode:drawDeveloperMachinery(game, t)
@@ -4017,6 +4211,8 @@ function ClearcutMode:drawWorldOverlay(game)
     end
     self:drawCigaretteProjectiles(t)
     self:drawCigaretteGroundEffects()
+    self:drawStrawBales()
+    self:drawOilTrail()
     for _, tel in ipairs(self.bossTelegraphs) do
         if tel.kind == "line" then
             if tel.phase == "warn" then

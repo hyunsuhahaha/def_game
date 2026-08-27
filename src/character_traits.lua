@@ -272,6 +272,29 @@ expand("philosopher",{
     {id="philosopher_liberation",name="모든 것을 해방시킨다",short="최종 해방",desc="침 범위 +42",effect="area",value=42,requires={{"philosopher_movement",1}},icon="capstone",color={.65,1,.15},max=1,capstone=true,costs={190}}
 })
 
+-- 공용 특성: 특정 직업 트리가 아니라 총무팀 복지처럼 어떤 직업을 고르든 항상 함께 적용되는
+-- 범용 스탯 트리. 서바이버류 장르에서 흔히 쓰이는 메타 진행 축(체력, 이동속도, 재화 획득량,
+-- 자원 획득 반경=자석, 체력 자연 회복, 부활)을 이 게임의 블랙코미디 톤에 맞춰 구성했다.
+jobs.universal = {
+    currencyName="성과 포인트",
+    tagline="복지는 직무를 가리지 않는다.",
+    doctrine="어떤 현장에 배치되든 몸과 통장은 공통으로 챙긴다 — 선택한 직업과 무관하게 항상 적용된다.",
+    palette={.62,.70,.78},
+    nodes={
+        {id="universal_shuttle", name="통근버스 신설", short="출근 단축", desc="이동 속도 +6%", max=3, costs={18,32,50}, effect="moveSpeed", value=.06, x=.10,y=.50, icon="road", color={.55,.68,.78}},
+        {id="universal_checkup", name="정기 건강검진", short="이상 무", desc="최대 체력 +12", max=3, costs={22,38,58}, effect="maxHp", value=12, requires={{"universal_shuttle",1}}, x=.32,y=.28, icon="helmet", color={.62,.72,.60}},
+        {id="universal_incentive", name="분기 인센티브 신설", short="약간의 성의", desc="런 종료 성과 포인트 +8%", max=3, costs={22,38,58}, effect="reward", value=.08, requires={{"universal_shuttle",1}}, x=.32,y=.72, icon="coins", color={.82,.68,.30}},
+        {id="universal_locker", name="개인 사물함 확장", short="더 담긴다", desc="자원 획득 반경 +40", max=3, costs={28,46,68}, effect="pickupRadius", value=40, requires={{"universal_checkup",1}}, x=.56,y=.20, icon="basket", color={.66,.70,.50}},
+        {id="universal_snackbar", name="탕비실 간식 무제한", short="상시 비치", desc="초당 체력 자연 회복 +0.4", max=3, costs={28,46,68}, effect="hpRegen", value=.4, requires={{"universal_incentive",1}}, x=.56,y=.80, icon="lunch", color={.72,.58,.40}},
+        {id="universal_insurance", name="단체 상해보험 특약", short="다치면 보험", desc="최대 체력 +14", max=2, costs={42,72}, effect="maxHp", value=14, requires={{"universal_locker",2}}, x=.68,y=.08, icon="document", color={.60,.70,.62}},
+        {id="universal_bike", name="사내 자전거 대여", short="따릉이 지원", desc="이동 속도 +5%", max=3, costs={34,54,78}, effect="moveSpeed", value=.05, requires={{"universal_locker",1}}, x=.70,y=.30, icon="road", color={.58,.70,.80}},
+        {id="universal_profitshare", name="성과공유제 시범 도입", short="나눠 갖기", desc="런 종료 성과 포인트 +10%", max=3, costs={34,54,78}, effect="reward", value=.10, requires={{"universal_snackbar",1}}, x=.70,y=.70, icon="donation", color={.84,.70,.32}},
+        {id="universal_cart", name="물류용 카트 지급", short="손 안 대도 된다", desc="자원 획득 반경 +30", max=3, costs={34,54,78}, effect="pickupRadius", value=30, requires={{"universal_snackbar",1}}, x=.68,y=.92, icon="basket", color={.68,.72,.52}},
+        {id="universal_severance", name="퇴직 위로금 사전 적립", short="한 번은 봐준다", desc="쓰러졌을 때 1회 부활 (체력 50% 회복)", max=1, costs={110}, effect="reviveCharges", value=1, requires={{"universal_bike",1},{"universal_profitshare",1}}, x=.78,y=.50, icon="heartleaf", color={.85,.45,.55}},
+        {id="universal_finalwelfare", name="총무팀의 마지막 배려", short="최종 복지", desc="쓰러졌을 때 부활 횟수 +1", max=1, costs={190}, effect="reviveCharges", value=1, requires={{"universal_severance",1}}, x=.94,y=.50, icon="capstone", color={1,.55,.65}, capstone=true}
+    }
+}
+
 local byId = {}
 for job, group in pairs(jobs) do
     for _, node in ipairs(group.nodes) do node.job = job; byId[node.id] = node end
@@ -280,9 +303,14 @@ local orderedIds = {}
 for id in pairs(byId) do orderedIds[#orderedIds+1] = id end
 table.sort(orderedIds)
 
+-- 도입부 스토리를 강제로 본 적 있는지 캐릭터(직업)별로 저장한다. "universal"은
+-- 실제로 고를 수 있는 캐릭터가 아니라서 목록에서 뺀다.
+local storyJobs = {"physical", "fire", "toxic", "developer", "miner", "philosopher"}
+
 local function defaults()
-    local data = {currency=0, levels={}}
+    local data = {currency=0, levels={}, storySeen={}}
     for id in pairs(byId) do data.levels[id] = 0 end
+    for _, job in ipairs(storyJobs) do data.storySeen[job] = false end
     return data
 end
 
@@ -291,7 +319,11 @@ function CharacterTraits.decode(text)
     for key, value in (text or ""):gmatch("([%w_]+)=([%d]+)") do
         local number = math.max(0, math.floor(tonumber(value) or 0))
         if key == "currency" then data.currency = number
-        elseif byId[key] then data.levels[key] = math.min(number, byId[key].max) end
+        elseif byId[key] then data.levels[key] = math.min(number, byId[key].max)
+        elseif key:match("^story_") then
+            local job = key:sub(7)
+            if data.storySeen[job] ~= nil then data.storySeen[job] = number > 0 end
+        end
     end
     return data
 end
@@ -301,6 +333,9 @@ function CharacterTraits.encode(data)
     for _, id in ipairs(orderedIds) do
         local node = byId[id]
         lines[#lines+1] = id .. "=" .. math.min(node.max, math.floor(data.levels[id] or 0))
+    end
+    for _, job in ipairs(storyJobs) do
+        lines[#lines+1] = "story_" .. job .. "=" .. ((data.storySeen or {})[job] and 1 or 0)
     end
     return table.concat(lines, "\n") .. "\n"
 end
@@ -365,20 +400,37 @@ function CharacterTraits:addCurrency(amount)
     return amount
 end
 
+function CharacterTraits:hasSeenStory(jobId)
+    return self.data.storySeen[jobId] == true
+end
+
+function CharacterTraits:markStorySeen(jobId)
+    if self.data.storySeen[jobId] == nil then return end
+    self.data.storySeen[jobId] = true
+    self:save()
+end
+
+local multiplicativeEffects = {attackSpeed=true, reward=true, burnSpeed=true, dashSpeed=true, moveSpeed=true}
+
+-- 직업 전용 트리 + 공용(universal) 트리를 합산한다: 어떤 직업을 골라도 공용 특성은 항상 적용된다.
 function CharacterTraits:effects(job)
     local effects = {
         attackSpeed=1, range=0, area=0, maxHp=0, reward=1,
         extraTargets=0, treeDamage=0, healOnFell=0, executeChance=0,
         burnSpeed=1, extraFires=0, spreadChance=0,
         biteDamage=0, plagueDuration=0,
-        dashSpeed=1, sterileChance=0, aftershockRadius=0, cooldownRefund=0
+        dashSpeed=1, sterileChance=0, aftershockRadius=0, cooldownRefund=0,
+        moveSpeed=1, pickupRadius=0, hpRegen=0, reviveCharges=0
     }
-    for _, node in ipairs(self:getNodes(job)) do
-        local amount = self:getLevel(node.id) * node.value
-        if node.effect == "attackSpeed" or node.effect == "reward" or node.effect == "burnSpeed" or node.effect == "dashSpeed" then
-            effects[node.effect] = effects[node.effect] + amount
-        else effects[node.effect] = (effects[node.effect] or 0) + amount end
+    local function accumulate(nodes)
+        for _, node in ipairs(nodes) do
+            local amount = self:getLevel(node.id) * node.value
+            if multiplicativeEffects[node.effect] then effects[node.effect] = effects[node.effect] + amount
+            else effects[node.effect] = (effects[node.effect] or 0) + amount end
+        end
     end
+    accumulate(self:getNodes(job))
+    accumulate(self:getNodes("universal"))
     return effects
 end
 

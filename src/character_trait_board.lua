@@ -3,8 +3,8 @@ local UI = require("src.ui")
 local CharacterTraitBoard = {}
 CharacterTraitBoard.__index = CharacterTraitBoard
 
-local jobOrder = {"physical", "fire", "toxic", "developer", "miner", "philosopher"}
-local jobNames = {physical="생계형 나무꾼", fire="흡연자", toxic="비건 단체 회장", developer="부동산 개발업자", miner="코인 채굴꾼", philosopher="차라투스트라는 이렇게 말했다"}
+local jobOrder = {"physical", "fire", "toxic", "developer", "miner", "philosopher", "universal"}
+local jobNames = {physical="생계형 나무꾼", fire="흡연자", toxic="비건 단체 회장", developer="부동산 개발업자", miner="코인 채굴꾼", philosopher="차라투스트라는 이렇게 말했다", universal="공용 복지"}
 local jobTabNames = {philosopher="차라투스트라"}
 
 local function inside(box, x, y)
@@ -277,7 +277,9 @@ function CharacterTraitBoard:drawCharacterDossier(x,y,w,h,job,focusNode)
     love.graphics.printf(group.tagline,x+20,y+46,w-40,"left")
     love.graphics.setFont(fonts.small); love.graphics.setColor(.65,.72,.64)
     love.graphics.printf(group.doctrine,x+20,y+76,w-40,"left")
-    local sprite=self.sprites[job] or self.sprites.physical
+    -- 공용 특성 탭은 특정 캐릭터가 아니므로 초상화를 아예 생략한다. 전용 스프라이트가
+    -- 있는 직업은 해당 고정 모델을 사용하고, 아직 없는 직업만 physical로 폴백한다.
+    local sprite = job ~= "universal" and (self.sprites[job] or self.sprites.physical) or nil
     if sprite then
         local fw,fh=sprite.image:getWidth()/6,sprite.image:getHeight()/2
         local frame=math.floor(self.time*4)%6
@@ -285,7 +287,7 @@ function CharacterTraitBoard:drawCharacterDossier(x,y,w,h,job,focusNode)
         local scale=math.min((w-44)/fw,(h*.42)/fh)
         love.graphics.setColor(0,0,0,.28); love.graphics.ellipse("fill",x+w/2,y+h*.56,w*.26,12)
         love.graphics.setColor(1,1,1,1)
-        love.graphics.draw(sprite.image,quad,x+w/2,y+h*.58,0,scale,scale,fw/2,506)
+        love.graphics.draw(sprite.image,quad,x+w/2,y+h*.58,0,scale,scale,fw/2,(sprite.walkFeet or {})[frame+1] or 190)
     end
     local detailY=y+h-150
     love.graphics.setColor(.04,.075,.052,.94); love.graphics.rectangle("fill",x+12,detailY,w-24,136,8,8)

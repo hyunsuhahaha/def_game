@@ -11,6 +11,7 @@ local RushMode = require("src.rush_mode")
 local ClearcutMode = require("src.clearcut_mode")
 local CharacterTraits = require("src.character_traits")
 local CharacterTraitBoard = require("src.character_trait_board")
+local CharacterStory = require("src.character_story")
 local Buildings = require("src.buildings")
 local Cigarette = require("src.cigarette_sprite")
 local resourceLabels = {wood = "목재", stone = "돌", ore = "광석", food = "식량"}
@@ -34,7 +35,8 @@ local function loadClearcutSprites()
         physical = {file="logger-atlas-pixel-v2.png", walkFeet={190,190,190,190,190,190}, actionFeet={190,190,190,190,190,190}, scale=.61},
         fire = {file="smoker-atlas-pixel-v2.png", walkFeet={190,190,190,190,190,190}, actionFeet={190,190,190,190,190,190}, scale=.61},
         toxic = {file="vegan-atlas-pixel-v2.png", walkFeet={190,190,190,190,190,190}, actionFeet={190,190,190,190,190,190}, scale=.61},
-        developer = {file="developer-atlas-pixel-v2.png", walkFeet={190,190,190,190,190,190}, actionFeet={190,190,190,190,190,190}, scale=.61}
+        developer = {file="developer-atlas-pixel-v2.png", walkFeet={190,190,190,190,190,190}, actionFeet={190,190,190,190,190,190}, scale=.61},
+        miner = {file="coin-miner-mole-atlas-pixel-v3.png", walkFeet={190,190,190,190,190,190}, actionFeet={190,190,190,190,190,190}, scale=.74}
     }
     -- The source smoker sheet turns left during the first four action poses.
     -- Normalize those cells at draw time; keep the original atlas untouched.
@@ -71,6 +73,7 @@ function Game.new()
     self.traitTree = TraitTree.new(self.progression, self.fonts, self.world.images, self.world.buildingIcons)
     self.characterTraitBoard = CharacterTraitBoard.new(self.characterTraits, self.fonts, self.clearcutSprites)
     self.mode, self.notice, self.noticeKind, self.noticeTime = "lobby", "", "core", 0
+    self.storyJob, self.storyPage, self.storyForced = nil, 1, false
     self:resetRun(); self.mode = "lobby"
     return self
 end
@@ -184,7 +187,11 @@ function Game:depositCargo(message)
 end
 
 function Game:addRunXP(amount)
-    if self.runType=="rush" or self.runType=="clearcut" then return end
+    if self.runType=="clearcut" then
+        if self.clearcut and key=="space" then self.clearcut:activateMinerBurrow(self) end
+        return
+    end
+    if self.runType=="rush" then return end
     amount = math.max(0, amount or 0)
     self.runXP = self.runXP + amount
     if amount > 0 then self.runXPPulse, self.lastXPGain = 1, amount end
@@ -229,7 +236,7 @@ end
 function Game:update(dt)
     if self.mode == "lobby" then self.lobby:update(dt); return end
     if self.mode == "settings" then self.lobby:update(dt); return end
-    if self.mode == "clearcut_select" or self.mode == "clearcut_map_select" then return end
+    if self.mode == "clearcut_select" or self.mode == "clearcut_map_select" or self.mode == "character_story" or self.mode == "character_codex" then return end
     if self.mode == "character_traits" then self.characterTraitBoard:update(dt); return end
     if self.mode == "test_options" then self.testResetTime=math.max(0,(self.testResetTime or 0)-dt); if self.testResetTime<=0 then self.testResetArmed=false end; return end
     if self.mode == "meta" then self.traitTree:update(dt); return end
@@ -272,7 +279,13 @@ function Game:keypressed(key)
         elseif action=="character_traits" then
             self.characterTraitReturnMode="lobby"
             self.mode="character_traits"
+        elseif action=="character_codex" then
+            self.mode="character_codex"
         end
+        return
+    end
+    if self.mode == "character_codex" then
+        if key=="escape" then self.mode="lobby" end
         return
     end
     if self.mode == "clearcut_map_select" then
@@ -284,6 +297,12 @@ function Game:keypressed(key)
         if key=="t" then self.characterTraitReturnMode="clearcut_select"; self.mode="character_traits"
         elseif key=="1" or key=="2" or key=="3" or key=="4" or key=="5" or key=="6" then self:chooseClearcutCharacter(tonumber(key))
         elseif key=="escape" then self.mode="lobby" end
+        return
+    end
+    if self.mode == "character_story" then
+        if key=="right" or key=="return" or key=="kpenter" or key=="space" then self:advanceStory()
+        elseif key=="left" then self:regressStory()
+        elseif key=="escape" and not self.storyForced then self:finishCharacterStory() end
         return
     end
     if self.mode == "character_traits" then
@@ -371,13 +390,37 @@ function Game:mousepressed(x, y, button)
         local action = self.lobby:mousepressed(x, y, button)
         if action == "clearcut" then self.mode = "clearcut_select"
         elseif action == "character_traits" then self.characterTraitReturnMode="lobby"; self.mode = "character_traits"
+        elseif action == "character_codex" then self.mode = "character_codex"
         elseif action == "settings" then self.mode = "settings" end
+        return
+    end
+    if self.mode == "character_codex" then
+        if button==1 then
+            if self.codexBackBox and x>=self.codexBackBox.x and x<=self.codexBackBox.x+self.codexBackBox.w and y>=self.codexBackBox.y and y<=self.codexBackBox.y+self.codexBackBox.h then self.mode="lobby"; return end
+            for _, box in ipairs(self.codexCharBoxes or {}) do
+                local sb = box.storyBox
+                if x>=sb.x and x<=sb.x+sb.w and y>=sb.y and y<=sb.y+sb.h then self:openCharacterStory(box.jobId, false, "character_codex"); return end
+            end
+        end
         return
     end
     if self.mode == "clearcut_select" then
         if button==1 then
             if self.clearcutTraitBox and x>=self.clearcutTraitBox.x and x<=self.clearcutTraitBox.x+self.clearcutTraitBox.w and y>=self.clearcutTraitBox.y and y<=self.clearcutTraitBox.y+self.clearcutTraitBox.h then self.characterTraitReturnMode="clearcut_select"; self.mode="character_traits"; return end
+            for _, box in ipairs(self.clearcutCharBoxes or {}) do
+                local rw = box.rewatch
+                if rw and x>=rw.x and x<=rw.x+rw.w and y>=rw.y and y<=rw.y+rw.h then self:openCharacterStory(box.jobId, false, "clearcut_select"); return end
+            end
             local index=self:clearcutCharAt(x,y); if index then self:chooseClearcutCharacter(index) end
+        end
+        return
+    end
+    if self.mode == "character_story" then
+        if button==1 then
+            if self.storyBackBox and not self.storyForced and x>=self.storyBackBox.x and x<=self.storyBackBox.x+self.storyBackBox.w and y>=self.storyBackBox.y and y<=self.storyBackBox.y+self.storyBackBox.h then
+                self:finishCharacterStory(); return
+            end
+            self:advanceStory()
         end
         return
     end
@@ -454,6 +497,7 @@ function Game:mousepressed(x, y, button)
     if self.runType=="rush" or self.runType=="clearcut" then
         -- 벌목 러시/숲 전멸 모드는 개별 나무를 클릭하지 않는다. 버튼을 누르는 동안
         -- 해당 모드가 플레이어 주변의 나무를 자동 포착한다.
+        if self.runType=="clearcut" and button==2 and self.clearcut then self.clearcut:activateMinerBurrow(self) end
         return
     end
     if self.placingBuilding then
@@ -757,7 +801,7 @@ function Game:drawClearcutSelect()
     self.clearcutCharBoxes = {}
     for i, c in ipairs(characters) do
         local x, y = startX + (i - 1) * (cardW + gap), cardY
-        self.clearcutCharBoxes[i] = {x = x, y = y, w = cardW, h = cardH}
+        self.clearcutCharBoxes[i] = {x = x, y = y, w = cardW, h = cardH, jobId = c.id}
         local hovered = self:clearcutCharAt(love.mouse.getPosition()) == i
         love.graphics.setLineStyle("rough")
         UI.panel(x, y, cardW, cardH, {c.color[1], c.color[2], c.color[3], 1}, hovered and .99 or .94)
@@ -774,6 +818,11 @@ function Game:drawClearcutSelect()
         love.graphics.setFont(f.heading); love.graphics.printf(c.name, x + 16, y + 190, cardW - 32, "center")
         love.graphics.setFont(f.body); love.graphics.setColor(.72, .82, .77); love.graphics.printf(c.tagline, x + 24, y + 232, cardW - 48, "center")
         love.graphics.setFont(f.small); love.graphics.setColor(.58, .68, .64); love.graphics.printf(c.detail, x + 24, y + 300, cardW - 48, "center")
+        if self.characterTraits:hasSeenStory(c.id) then
+            local rw = {x = x + 16, y = y + cardH - 34, w = cardW - 32, h = 26}
+            self.clearcutCharBoxes[i].rewatch = rw
+            UI.button(rw.x, rw.y, rw.w, rw.h, "스토리 다시보기", true, f.small)
+        end
     end
     local numHint = {}
     for i = 1, count do numHint[i] = tostring(i) end
@@ -784,11 +833,107 @@ function Game:clearcutCharAt(x, y)
     for i, box in ipairs(self.clearcutCharBoxes or {}) do if x >= box.x and x <= box.x + box.w and y >= box.y and y <= box.y + box.h then return i end end
 end
 
+function Game:drawCharacterStory()
+    local w, h, f = love.graphics.getWidth(), love.graphics.getHeight(), self.fonts
+    love.graphics.setColor(.01, .015, .02, .97); love.graphics.rectangle("fill", 0, 0, w, h)
+    local pages = CharacterStory.pagesFor(self.storyJob)
+    local page = pages[math.min(self.storyPage, #pages)] or {text = ""}
+    local boxW = math.min(760, w - 80)
+    local boxX, boxY, boxH = (w - boxW) / 2, h * .22, h * .5
+    UI.panel(boxX, boxY, boxW, boxH, {.9, .78, .4, 1}, .96)
+    love.graphics.setFont(f.heading); love.graphics.setColor(1, .88, .5)
+    love.graphics.printf(CharacterStory.titleFor(self.storyJob), boxX + 28, boxY + 24, boxW - 56, "center")
+    love.graphics.setFont(f.body); love.graphics.setColor(.92, .93, .88)
+    love.graphics.printf(page.text or "", boxX + 32, boxY + 76, boxW - 64, "left")
+    love.graphics.setFont(f.small); love.graphics.setColor(.68, .74, .68)
+    love.graphics.printf(self.storyPage .. " / " .. #pages, boxX, boxY + boxH - 34, boxW - 20, "right")
+    local isLast = self.storyPage >= #pages
+    local nextLabel = isLast and (self.storyForced and "시작하기" or "닫기") or "다음  →"
+    local nextBox = {x = boxX + boxW - 190, y = boxY + boxH + 18, w = 170, h = 42}
+    UI.button(nextBox.x, nextBox.y, nextBox.w, nextBox.h, nextLabel, true, f.body)
+    if not self.storyForced then
+        self.storyBackBox = {x = boxX + 20, y = boxY + boxH + 18, w = 130, h = 42}
+        UI.button(self.storyBackBox.x, self.storyBackBox.y, self.storyBackBox.w, self.storyBackBox.h, "← 나가기", true, f.body)
+    else
+        self.storyBackBox = nil
+    end
+    love.graphics.setFont(f.small); love.graphics.setColor(.6, .66, .62)
+    local hint = self.storyForced and "스페이스/엔터로 진행" or "스페이스/엔터로 진행 · ESC로 나가기"
+    love.graphics.printf(hint, boxX, boxY + boxH + 70, boxW, "center")
+end
+
+-- 로비의 캐릭터 도감: 캐릭터 선택 화면(clearcut_select)의 진행 로직과는 완전히 분리된
+-- 열람 전용 화면이다. 여기서 스토리를 미리 봐도 storySeen은 갱신되지 않는다.
+function Game:drawCharacterCodex()
+    local w, h, f = love.graphics.getWidth(), love.graphics.getHeight(), self.fonts
+    love.graphics.setColor(.015, .035, .025, .92); love.graphics.rectangle("fill", 0, 0, w, h)
+    love.graphics.setFont(f.title); love.graphics.setColor(1, .82, .3); love.graphics.printf("캐릭터 도감", 0, 50, w, "center")
+    love.graphics.setFont(f.small); love.graphics.setColor(.72, .88, .76); love.graphics.printf("각 캐릭터의 도입부 스토리를 확인할 수 있습니다", 0, 92, w, "center")
+    self.codexBackBox = {x = 30, y = 26, w = 110, h = 38}
+    UI.button(self.codexBackBox.x, self.codexBackBox.y, self.codexBackBox.w, self.codexBackBox.h, "← 로비로", true, f.small)
+
+    local characters = ClearcutMode.characters
+    local count = #characters
+    local gap = 20
+    local cardW, cardH = math.min(300, (w - 64 - gap * (count - 1)) / count), 360
+    local startX, cardY = w / 2 - (cardW * count + gap * (count - 1)) / 2, 140
+    self.codexCharBoxes = {}
+    for i, c in ipairs(characters) do
+        local x, y = startX + (i - 1) * (cardW + gap), cardY
+        UI.panel(x, y, cardW, cardH, {c.color[1], c.color[2], c.color[3], 1}, .92)
+        local sprite = self.clearcutSprites[c.id] or self.clearcutSprites.physical
+        if sprite then
+            local fw, fh = sprite.image:getWidth() / 6, sprite.image:getHeight() / 2
+            local quad = love.graphics.newQuad(0, 0, fw, fh, sprite.image:getDimensions())
+            local previewScale = math.min(130 / fw, 145 / fh)
+            love.graphics.setColor(1, 1, 1, 1)
+            love.graphics.draw(sprite.image, quad, x + cardW / 2, y + 150, 0, previewScale, previewScale, fw / 2, sprite.walkFeet[1])
+        end
+        love.graphics.setFont(f.heading); love.graphics.setColor(1, 1, 1, 1); love.graphics.printf(c.name, x + 14, y + 168, cardW - 28, "center")
+        love.graphics.setFont(f.small); love.graphics.setColor(.72, .82, .77); love.graphics.printf(c.tagline, x + 20, y + 204, cardW - 40, "center")
+        local storyBox = {x = x + 16, y = y + cardH - 46, w = cardW - 32, h = 30}
+        self.codexCharBoxes[i] = {jobId = c.id, storyBox = storyBox}
+        UI.button(storyBox.x, storyBox.y, storyBox.w, storyBox.h, "스토리 보기", true, f.small)
+    end
+end
+
 function Game:chooseClearcutCharacter(index)
     local c = ClearcutMode.characters[index]
     if not c then return end
     self.pendingClearcutCharacter=c.id
-    self.mode="clearcut_map_select"
+    if not self.characterTraits:hasSeenStory(c.id) then
+        self:openCharacterStory(c.id, true)
+    else
+        self.mode="clearcut_map_select"
+    end
+end
+
+-- forced=true: 캐릭터를 처음 고른 직후 강제로 띄우는 도입부(끝까지 봐야 진행되고, 이때만
+-- "이미 봤음"으로 기록된다). forced=false: 도감/다시보기처럼 그냥 열람하는 경우 — 아무 때나
+-- 나갈 수 있고, 시청 기록에도 영향을 주지 않는다(아직 강제 노출 전인 캐릭터를 도감에서
+-- 미리 봐도 나중에 실제로 고를 때 강제 노출이 그대로 뜬다).
+-- returnMode: forced=false일 때 닫으면 돌아갈 화면(기본 "clearcut_select").
+function Game:openCharacterStory(jobId, forced, returnMode)
+    self.storyJob, self.storyPage, self.storyForced = jobId, 1, forced
+    self.storyReturnMode = returnMode or "clearcut_select"
+    self.mode = "character_story"
+end
+
+function Game:finishCharacterStory()
+    local forced, job = self.storyForced, self.storyJob
+    if job and forced then self.characterTraits:markStorySeen(job) end
+    self.mode = forced and "clearcut_map_select" or (self.storyReturnMode or "clearcut_select")
+    self.storyJob, self.storyForced, self.storyReturnMode = nil, false, nil
+end
+
+function Game:advanceStory()
+    local pages = CharacterStory.pagesFor(self.storyJob)
+    if self.storyPage < #pages then self.storyPage = self.storyPage + 1
+    else self:finishCharacterStory() end
+end
+
+function Game:regressStory()
+    if self.storyPage > 1 then self.storyPage = self.storyPage - 1 end
 end
 
 function Game:chooseClearcutMap(index)
@@ -801,6 +946,8 @@ function Game:draw()
     if self.mode=="test_options" then self:drawTestOptions(); return end
     if self.mode == "lobby" then self.lobby:draw(); return end
     if self.mode == "clearcut_select" then self:drawClearcutSelect(); return end
+    if self.mode == "character_codex" then self:drawCharacterCodex(); return end
+    if self.mode == "character_story" then self:drawCharacterStory(); return end
     if self.mode == "clearcut_map_select" then require("src.clearcut_map_select").draw(self); return end
     if self.mode == "character_traits" then
         local w,h=love.graphics.getDimensions(); self.lobby:drawBackground(w,h); self.characterTraitBoard:draw(); return

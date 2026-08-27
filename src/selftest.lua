@@ -293,6 +293,13 @@ function SelfTest.run(game)
     assert(game.clearcut.smoking and #game.clearcut.molotovs == 0, "흡연 도중 조기 투척 방지 실패")
     local remaining = game.clearcut.smoking.dur - game.clearcut.smoking.t
     game.clearcut:updateFireAttack(remaining + .02, game, true)
+    assert(game.clearcut.smoking.phase == "loaded", "흡연 완료 후 대기 상태 진입 실패")
+    -- "loaded" 단계는 새로 눌리는 입력(press edge)에서만 투척으로 넘어간다: 계속 누르고
+    -- 있던 상태가 아니라 뗐다가(false) 다시 누르는(true) 순간을 시뮬레이션해야 한다.
+    game.clearcut:updateFireAttack(.01, game, false)
+    game.clearcut:updateFireAttack(.01, game, true)
+    assert(game.clearcut.smoking.phase == "flick", "마우스 재입력 시 투척 동작 진입 실패")
+    game.clearcut:updateFireAttack(10, game, true)
     assert(#game.clearcut.molotovs >= 1, "흡연 완료 후 담배꽁초 투척 실패")
     assert(game.clearcut.smoking and game.clearcut.smoking.t < game.clearcut.smoking.dur, "투척 즉시 다음 담배로 재장전 실패")
     game.clearcut.molotovs = {}
@@ -302,7 +309,57 @@ function SelfTest.run(game)
     local cardDrawOk, cardDrawErr = pcall(game.draw, game)
     assert(cardDrawOk, "업그레이드 카드 프레임 렌더 실패: " .. tostring(cardDrawErr))
     game.mode = "playing"
+
+    local ct = game.characterTraits
+    ct.data.currency = 999
+    local beforeMoveSpeed = ct:effects("physical").moveSpeed
+    assert(ct:buy("universal_shuttle"), "공용 특성 구매 실패")
+    assert(ct:effects("physical").moveSpeed > beforeMoveSpeed, "공용 특성이 직업 효과에 반영되지 않음")
+    assert(ct:effects("fire").moveSpeed == ct:effects("physical").moveSpeed, "공용 특성이 직업별로 다르게 적용됨")
+    ct:reset()
+
+    game.mode = "clearcut_select"
+    assert(not game.characterTraits:hasSeenStory("physical"), "초기 상태에서 스토리를 이미 본 것으로 표시됨")
+    game:chooseClearcutCharacter(1)
+    assert(game.mode == "character_story" and game.storyForced == true, "캐릭터 최초 선택 시 스토리 강제 노출 실패")
+    game:advanceStory()
+    assert(game.mode == "clearcut_map_select", "스토리 완료 후 맵 선택으로 진행 실패")
+    assert(game.characterTraits:hasSeenStory("physical"), "스토리 시청 기록 저장 실패")
+    game.mode = "clearcut_select"
+    game:chooseClearcutCharacter(1)
+    assert(game.mode == "clearcut_map_select", "이미 본 스토리는 다시 강제 노출되면 안 됨")
+    game.mode = "clearcut_select"
+    game:openCharacterStory("physical", false)
+    assert(game.mode == "character_story" and game.storyForced == false, "다시보기 진입 실패")
+    game:advanceStory()
+    assert(game.mode == "clearcut_select", "다시보기 종료 후 캐릭터 선택 화면 복귀 실패")
+
+    -- 로비 캐릭터 도감: 캐릭터 선택 화면의 강제 노출 로직과 완전히 분리되어야 한다.
+    assert(not game.characterTraits:hasSeenStory("toxic"), "초기 상태에서 toxic 스토리를 이미 본 것으로 표시됨")
+    game.mode = "character_codex"
+    local codexDrawOk, codexDrawErr = pcall(game.draw, game)
+    assert(codexDrawOk, "캐릭터 도감 렌더 실패: " .. tostring(codexDrawErr))
+    game:openCharacterStory("toxic", false, "character_codex")
+    assert(game.mode == "character_story" and game.storyForced == false, "도감에서 스토리 열람 진입 실패")
+    game:advanceStory()
+    assert(game.mode == "character_codex", "도감에서 스토리 종료 후 도감 화면 복귀 실패")
+    assert(not game.characterTraits:hasSeenStory("toxic"), "도감 열람이 강제 노출 시청 기록에 영향을 줌")
+    game.mode = "clearcut_select"
+    game:chooseClearcutCharacter(3)
+    assert(game.mode == "character_story" and game.storyForced == true, "도감에서 미리 본 캐릭터가 실제 최초 선택 시 강제 노출을 건너뜀")
+    game:advanceStory()
+    ct:reset()
+
     game:startClearcut("physical")
+    game.clearcut.reviveCharges = 1
+    game.clearcut.hp, game.clearcut.maxHp, game.clearcut.invulnTimer, game.clearcut.dead = 10, 100, 0, false
+    game.clearcut:damagePlayer(999, game)
+    assert(not game.clearcut.dead and game.clearcut.reviveCharges == 0 and game.clearcut.hp > 0, "공용 특성 부활 실패")
+    game.clearcut.invulnTimer = 0
+    game.clearcut:damagePlayer(999, game)
+    assert(game.clearcut.dead, "부활 소진 후에는 사망해야 함")
+    game.clearcut.dead, game.clearcut.hp, game.clearcut.maxHp = false, 100, 100
+
     game.clearcut.elapsed = 0
     assert(math.abs(game.clearcut:curseLevel() - 1) < .001, "초기 저주 레벨 실패")
     local baseEnemy = game.clearcut:spawnEnemy("squirrel", game.player.x, game.player.y)
@@ -467,7 +524,7 @@ function SelfTest.run(game)
     assert(game.clearcut.banishArmed == false, "배니시 이후 무장 해제 실패")
     for _, def in ipairs(game.clearcut:upgradePool()) do assert(def.id ~= banishTarget.id, "배니시된 카드가 풀에 남아있음") end
 
-    game.clearcut.choices[1] = {id="berserker", name="test", desc="test"}
+    game.clearcut.choices[1] = game.clearcut:getUpgradeDefinition("berserker")
     game.clearcut.banishArmed = true
     assert(game.clearcut:choose(1, game) == false, "전직 카드 배니시 방지 실패")
     assert(not game.clearcut.banished["berserker"], "전직 카드가 잘못 배니시됨")
@@ -560,7 +617,7 @@ function SelfTest.run(game)
     assert(drawOk, "오프스크린 인디케이터/신규 이펙트 렌더 실패: " .. tostring(drawErr))
     game.clearcut.enemies = {}
 
-    print("SELF_TEST_OK: LOBBY_DUAL_MODE RUSH_3MIN RUSH_FOREST RUSH_HOLD_TO_CHOP RUSH_MULTI_HIT RUSH_CHAIN_FELL RUSH_AUTO_PICKUP RUSH_THREE_CHOICES RUSH_AUTO_FRONT RUSH_RESULTS LOBBY_AUX_NAV SETTINGS BIG_TREE_SINGLE TREE_PER_HIT_DROP TREE_PROXIMITY_PICKUP QUARRY_GROUNDED QUARRY_PER_HIT_DROP QUARRY_ORE_RATIO QUARRY_PROXIMITY_PICKUP FARM TREE QUARRY_INFINITE TOOL_SPEED IMPACT_SYNC HARVEST_FEEDBACK VISIBLE_TURRET VISIBLE_DRONE VISIBLE_REPAIR_STATION MINING_DRILL_VFX RUN_LEVELUP THREE_CHOICES AUTOMATION EVOLUTION WALL_UPGRADE WALL_BLOCK HAMMER_REPAIR CRIT_CHANCE PRESTIGE_RUN MOVE_WHILE_FARM TURRET_SLOT_BASE TURRET_SLOT_TRAIT TURRET_SLOT_OCCUPIED TURRET_NEARBY TURRET_F_INTERACT TURRET_UPGRADE TURRET_AIM VISIBLE_BULLET MUZZLE_FLASH CHAIN_COIL_VFX EXPLOSIVE_SHELL_VFX META_SAVE TRAIT_TREE TRAIT_APPLY RUN_REWARD TEST_CURRENCY TEST_RESOURCES TEST_LEVELS TEST_RESET CIGARETTE_SMOKE_WINDUP CLEARCUT_CARD_FRAME CURSE_SCALING SWARM_SCALING TIME_SPAWNER ELITE_SPAWN REAPER_SPAWN REAPER_DASH_AI ELITE_THORN_FIRE STAGE_PROGRESSION WORLDTREE_ATTACKS WORLDTREE_ENRAGE SHADED_SPRITES BERSERK_ROUND BERSERK_TREE_FX CARD_REROLL CARD_BANISH ARCANA_STAGE SPECIAL_CARD VINE_PLANT NATURAL_DISASTER OFFSCREEN_INDICATOR")
+    print("SELF_TEST_OK: LOBBY_DUAL_MODE RUSH_3MIN RUSH_FOREST RUSH_HOLD_TO_CHOP RUSH_MULTI_HIT RUSH_CHAIN_FELL RUSH_AUTO_PICKUP RUSH_THREE_CHOICES RUSH_AUTO_FRONT RUSH_RESULTS LOBBY_AUX_NAV SETTINGS BIG_TREE_SINGLE TREE_PER_HIT_DROP TREE_PROXIMITY_PICKUP QUARRY_GROUNDED QUARRY_PER_HIT_DROP QUARRY_ORE_RATIO QUARRY_PROXIMITY_PICKUP FARM TREE QUARRY_INFINITE TOOL_SPEED IMPACT_SYNC HARVEST_FEEDBACK VISIBLE_TURRET VISIBLE_DRONE VISIBLE_REPAIR_STATION MINING_DRILL_VFX RUN_LEVELUP THREE_CHOICES AUTOMATION EVOLUTION WALL_UPGRADE WALL_BLOCK HAMMER_REPAIR CRIT_CHANCE PRESTIGE_RUN MOVE_WHILE_FARM TURRET_SLOT_BASE TURRET_SLOT_TRAIT TURRET_SLOT_OCCUPIED TURRET_NEARBY TURRET_F_INTERACT TURRET_UPGRADE TURRET_AIM VISIBLE_BULLET MUZZLE_FLASH CHAIN_COIL_VFX EXPLOSIVE_SHELL_VFX META_SAVE TRAIT_TREE TRAIT_APPLY RUN_REWARD TEST_CURRENCY TEST_RESOURCES TEST_LEVELS TEST_RESET CIGARETTE_SMOKE_WINDUP CLEARCUT_CARD_FRAME CURSE_SCALING SWARM_SCALING TIME_SPAWNER ELITE_SPAWN REAPER_SPAWN REAPER_DASH_AI ELITE_THORN_FIRE STAGE_PROGRESSION WORLDTREE_ATTACKS WORLDTREE_ENRAGE SHADED_SPRITES BERSERK_ROUND BERSERK_TREE_FX CARD_REROLL CARD_BANISH ARCANA_STAGE SPECIAL_CARD VINE_PLANT NATURAL_DISASTER OFFSCREEN_INDICATOR CHARACTER_STORY_FLOW CHARACTER_CODEX")
 end
 
 return SelfTest
