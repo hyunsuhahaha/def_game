@@ -33,12 +33,13 @@ def make_atlas():
             cell=Image.new("RGBA",(CW,CH)); d=ImageDraw.Draw(cell)
             reveal=(frame+1)/FRAMES
             for n in range(claw_count):
-                # Four thin rising crescents: close at the paw, fanned at the tip.
-                shift=n*11
-                p0=(42+shift,111-n)
-                p1=(36+shift,80-n*2)
-                p2=(61+shift+tier*2,40-n*3)
-                p3=(111+shift+tier*7,19-n*2)
+                # Authored along +X. Runtime rotation can therefore use the exact
+                # mole->target angle without a mysterious extra offset.
+                off=-18+n*12
+                p0=(35,82+off)
+                p1=(58,48+off)
+                p2=(112+tier*2,38+off)
+                p3=(158+tier*6,58+off)
                 pts=bezier(p0,p1,p2,p3,reveal)
                 pixel_curve(d,pts,4,dark)
                 pixel_curve(d,pts,2,mid)

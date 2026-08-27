@@ -42,7 +42,6 @@ local definitions = {
     {id="molotov", track="spread", name="꽁초 투척", desc="사거리와 꽁초의 불씨 전이 범위가 늘어나고, 주기적으로 하나 더 튕깁니다. 바닥의 꽁초는 7초간 남아 주변 나무에 기본 42%(최대 75%) 확률로 불을 옮깁니다.", max=6, color={1,.35,.12}, job="fire"},
     {id="dry_forest", track="spread", name="건조주의보 무시", desc="꽁초의 착화 확률이 레벨당 +6%p 높아지고(최대 75%), 붙은 불이 주변 나무로 더 빠르고 넓게 번집니다.", max=6, color={1,.5,.15}, job="fire"},
     {id="oil_drum", track="spread", name="라이터 기름 유출", desc="나무가 다 타버리면 레벨당 폭발 확률이 크게 올라(1렙 7.5%→5렙 63%), 6렙에서는 100% 확정 발동합니다.", max=6, color={1,.62,.1}, job="fire"},
-    {id="embers", track="spread", name="바람 부는 날 흡연", desc="다 타버린 나무에서 불씨가 튀어 멀리 있는 나무에도 옮겨붙습니다.", max=6, color={1,.75,.25}, job="fire"},
     {id="straw_bale", track="spread", name="마른 건초더미 생성", desc="주기적으로 주변에 마른 건초더미를 둡니다. 그 위에 담배꽁초를 던지면 0.5초 뒤 불이 붙어 주변 적에게 지속 피해를 줍니다. 불은 다른 대상으로 번지지 않습니다.", max=6, color={.85,.72,.25}, job="fire"},
     -- 억제력 (suppress) — 자연이 얼마나 다시 못 자라게 하느냐 [비건 단체 회장 전용 + 공용]
     {id="herbicide", track="suppress", name="제초제", desc="벤 자리가 죽은 땅이 될 확률이 레벨당 크게 올라(1렙 11%→5렙 92%), 6렙에서는 사실상 100% 확정됩니다.", max=6, color={.62,.4,.85}},
@@ -1274,7 +1273,9 @@ function ClearcutMode:igniteNear(source, game, radius, count, depth)
     end
 end
 
-function ClearcutMode:throwMolotov(game)
+-- wildfire=true: 산불 융합 전용 자동 투척. 그냥 투척 한 번 더가 아니라 두 개비를 한꺼번에
+-- 부채꼴로 던지고, 비행 중 불타는 꼬리를 남겨 눈에 띄게 다르게 보이도록 flight.wildfire로 표시한다.
+function ClearcutMode:throwMolotov(game, wildfire)
     local candidates = {}
     for _, node in ipairs(game.world.nodes) do
         if node.rushTree and node.active and not node.burning and not node.igniting then
@@ -1283,15 +1284,19 @@ function ClearcutMode:throwMolotov(game)
         end
     end
     if #candidates == 0 then return end
-    local target = candidates[love.math.random(#candidates)]
-    target.igniting = true
-    local dist = math.sqrt((target.x-game.player.x)^2 + (target.y-game.player.y)^2)
-    local _,mouthY,_,tipX=self:smokerMouthPose(game)
-    self.molotovs[#self.molotovs+1] = {
-        x0=tipX, y0=mouthY, x1=target.x+28, y1=target.y+22,
-        t=0, dur=math.max(.34, dist/850), target=target,
-        radius=90+self:power("molotov")*20+self.permanentTraits.area, landingAngle=.18+math.sin(target.x*.013)*.6
-    }
+    local throws = wildfire and math.min(2, #candidates) or 1
+    for i = 1, throws do
+        local pick = love.math.random(#candidates)
+        local target = table.remove(candidates, pick)
+        target.igniting = true
+        local dist = math.sqrt((target.x-game.player.x)^2 + (target.y-game.player.y)^2)
+        local _,mouthY,_,tipX=self:smokerMouthPose(game)
+        self.molotovs[#self.molotovs+1] = {
+            x0=tipX, y0=mouthY, x1=target.x+28, y1=target.y+22,
+            t=0, dur=math.max(.34, dist/850), target=target, wildfire=wildfire,
+            radius=90+self:power("molotov")*20+self.permanentTraits.area, landingAngle=.18+math.sin(target.x*.013)*.6
+        }
+    end
     self:trackMolotovBarrage(game)
     for _ = 1, math.floor(self.permanentTraits.extraFires) do
         if #candidates > 0 then self:hurlMolotovAt(candidates[love.math.random(#candidates)].x, candidates[love.math.random(#candidates)].y, game, true) end
@@ -1339,26 +1344,6 @@ function ClearcutMode:onTreeBurnedDown(node, game)
         self:igniteNear(node, game, 90 + self:power("oil_drum") * 30, 99)
         game.world:igniteFx(node.x, node.y, true)
     end
-    local emberLevel = self:levelOf("embers")
-    if emberLevel > 0 and not node.emberChained and not self.rainSuppressFire then
-        local far = {}
-        for _, other in ipairs(game.world.nodes) do
-            if other.rushTree and other.active and not other.burning then
-                local dx, dy = other.x - node.x, other.y - node.y
-                local d2 = dx*dx + dy*dy
-                if d2 <= 620*620 then far[#far+1] = {node=other, d2=d2} end
-            end
-        end
-        table.sort(far, function(a, b) return a.d2 > b.d2 end)
-        for i = 1, math.min(self:powerCount("embers"), #far) do
-            local target = far[i].node
-            target.burning, target.burnTimer, target.emberChained = true, 0, true
-            target.spreadDepth, target.fireTickTimer = (node.spreadDepth or 0) + 1, 0
-            game.world:igniteFx(target.x, target.y, false)
-            self:spawnFireSpark(node.x, node.y, target.x, target.y)
-            if emberLevel >= 6 then self:igniteNear(target, game, 90, 2, target.spreadDepth) end
-        end
-    end
 end
 
 function ClearcutMode:updateFire(dt, game)
@@ -1375,7 +1360,7 @@ function ClearcutMode:updateFire(dt, game)
         self.wildfireTimer = self.wildfireTimer + dt
         if self.wildfireTimer >= 3 then
             self.wildfireTimer = 0
-            self:throwMolotov(game)
+            self:throwMolotov(game, true)
         end
     end
     local dryLevel = self:levelOf("dry_forest")
@@ -1420,8 +1405,7 @@ function ClearcutMode:updateFire(dt, game)
             end
         end
     end
-    local emberLevel = self:levelOf("embers")
-    local enemyBurnDamage = 5 + self:power("molotov") * 3 + self:power("embers") * 2
+    local enemyBurnDamage = 5 + self:power("molotov") * 3
     for _, e in ipairs(self.enemies) do
         if e.burning then
             e.burnTimer = e.burnTimer + dt
@@ -1433,12 +1417,7 @@ function ClearcutMode:updateFire(dt, game)
                 e.visualHit = .14
                 for _ = 1, 3 do game.world:addParticle(e.x, e.y - 12, {1, .35, .18}, true, false) end
             end
-            if e.burnTimer >= burnDuration then
-                e.burning = false
-                if emberLevel > 0 and e.hp > 0 then
-                    self:igniteEnemiesInRadius(e.x, e.y, 90 + self:power("embers") * 30, game, (e.spreadDepth or 0) + 1)
-                end
-            end
+            if e.burnTimer >= burnDuration then e.burning = false end
         end
     end
 end
@@ -1817,6 +1796,9 @@ function ClearcutMode:applyClawSwipe(tx, ty, game)
     local angle
     if math.atan2 then angle=math.atan2(ny,nx)
     else angle=math.atan(ny/nx)+(nx<0 and math.pi or 0) end
+    -- Preserve the accepted left-facing curve. Right-facing swipes use its
+    -- exact mirror image rather than a 180-degree rotation with wrong chirality.
+    local curveFlip=(game.player.facing or 1)>0 and -1 or 1
     local candidates = {}
     for _, node in ipairs(game.world.nodes) do
         if node.rushTree and node.active then
@@ -1832,7 +1814,7 @@ function ClearcutMode:applyClawSwipe(tx, ty, game)
     local marked=false
     for index=1,math.min(limit,#candidates) do
         local node = candidates[index].node
-        MoleClawArt.spawn(self,node.x,node.y-54,angle+.35,clawLevel)
+        MoleClawArt.spawn(self,node.x,node.y-54,angle,clawLevel,curveFlip)
         marked=true
         node.rushHp = (node.rushHp or node.rushMaxHp) - damage
         game.world:impactNode(node, game, true)
@@ -1843,7 +1825,7 @@ function ClearcutMode:applyClawSwipe(tx, ty, game)
         local rx, ry = enemy.x-px, enemy.y-py
         local along, side = rx*nx+ry*ny, math.abs(rx*ny-ry*nx)
         if along >= 0 and along <= range and side <= halfWidth then
-            MoleClawArt.spawn(self,enemy.x,enemy.y-12,angle+.35,clawLevel)
+            MoleClawArt.spawn(self,enemy.x,enemy.y-12,angle,clawLevel,curveFlip)
             marked=true
             enemy.hp, enemy.visualHit = enemy.hp - damage*2.2, .14
             SupplementArt.impact(self,"axe",enemy.x,enemy.y,26)
@@ -1851,7 +1833,7 @@ function ClearcutMode:applyClawSwipe(tx, ty, game)
     end
     if not marked then
         local contact=math.min(range,distance)
-        MoleClawArt.spawn(self,px+nx*contact,py+ny*contact,angle+.35,clawLevel)
+        MoleClawArt.spawn(self,px+nx*contact,py+ny*contact,angle,clawLevel,curveFlip)
     end
     self.traitFx:emit("axe",px+nx*range*.58,py+ny*range*.58,{radius=halfWidth,power=.8,angle=math.atan2 and math.atan2(ny,nx) or 0})
     if game.camera then game.camera.trauma=math.min(1,game.camera.trauma+.09) end
@@ -4083,19 +4065,6 @@ local heavyMachineryRows = {
 }
 local heavyMachineryPalette = {O={.22,.16,.02,1}, H={1,.9,.55,1}, W={.85,.62,.15,1}, T={.6,.42,.08,1}, D={.28,.19,.03,1}}
 
-local embersRows = {
-    "O........",
-    ".........",
-    "....O....",
-    ".........",
-    "..O......",
-    ".........",
-    "......O..",
-    ".........",
-    "O....O...",
-}
-local embersPalette = {O={1,.7,.25,.95}}
-
 ClearcutMode.icons = {
     axe = {rows = axeIconRows, palette = axeIconPalette},
     cigarette = {rows = cigaretteIconRows, palette = cigaretteIconPalette},
@@ -4107,7 +4076,6 @@ ClearcutMode.icons = {
     domino = {rows = dominoRows, palette = dominoPalette},
     dry_forest = {rows = diamondRows, palette = dryForestPalette},
     oil_drum = {rows = boxRows, palette = oilDrumPalette},
-    embers = {rows = embersRows, palette = embersPalette},
     herbicide = {rows = stickRows, palette = herbicidePalette},
     root_cutting = {rows = rootCuttingRows, palette = rootCuttingPalette},
     toxic_rain = {rows = blobRows, palette = toxicRainPalette},

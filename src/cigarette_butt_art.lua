@@ -53,6 +53,7 @@ function Art.drawSmolder(butt,time)
     local pulse=math.max(0,1-(time-(butt.lastAttemptAt or -10))/.32)
     fx(2,tipX,tipY,40,82,time,.75+.25*(1-age/Butts.lifetime))
     fx(0,tipX,tipY+13,26,26,time,1+pulse*.7)
+    if butt.wildfire then fx(1,tipX,tipY+8,32,50,time,.5) end
     -- Small local flecks on attempts, never a fake link to an unlit tree.
     if pulse>0 then
         for i=1,3 do
@@ -97,7 +98,16 @@ function Art.drawFlight(flight,time)
     local angle=(flight.landingAngle or .25)-(1-p)*math.pi*4
     body(x,y,angle,0,1,time)
     local tipX,tipY=x+math.cos(angle)*15.4,y+math.sin(angle)*15.4
-    fx(0,tipX,tipY+9,18,18,time,1.5)
+    fx(0,tipX,tipY+9,18,18,time,flight.wildfire and 2.2 or 1.5)
+    -- 산불 융합 전용 투척: 그냥 담뱃불이 아니라 궤적 뒤로 불타는 꼬리를 남긴다.
+    if flight.wildfire then
+        for i=1,4 do
+            local q=math.max(0,p-i*.05)
+            local tx=flight.x0+(flight.x1-flight.x0)*q
+            local ty=flight.y0+(flight.y1-flight.y0)*q-math.sin(q*math.pi)*120
+            fx(1,tx,ty+8,26-i*3,40-i*5,time+i*.13,.85-i*.14)
+        end
+    end
 end
 
 return Art

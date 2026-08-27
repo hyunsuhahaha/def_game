@@ -15,11 +15,11 @@ end
 
 local function tierFor(level) return level>=5 and 3 or (level>=3 and 2 or 1) end
 
-function Art.spawn(mode,x,y,angle,level)
+function Art.spawn(mode,x,y,angle,level,curveFlip)
     mode.minerClawFx=mode.minerClawFx or {}
     mode.minerClawMarks=mode.minerClawMarks or {}
-    mode.minerClawFx[#mode.minerClawFx+1]={x=x,y=y,angle=angle,level=level,life=.22,maxLife=.22}
-    mode.minerClawMarks[#mode.minerClawMarks+1]={x=x,y=y,angle=angle,level=level,life=6,maxLife=6}
+    mode.minerClawFx[#mode.minerClawFx+1]={x=x,y=y,angle=angle,level=level,curveFlip=curveFlip or 1,life=.22,maxLife=.22}
+    mode.minerClawMarks[#mode.minerClawMarks+1]={x=x,y=y,angle=angle,level=level,curveFlip=curveFlip or 1,life=6,maxLife=6}
     if #mode.minerClawMarks>90 then table.remove(mode.minerClawMarks,1) end
 end
 
@@ -42,7 +42,7 @@ function Art.draw(mode,game,t)
         local alpha=math.min(.86,mark.life/.8*.86)
         local scale=.61+(tier-1)*.07
         love.graphics.setColor(.34,.25,.18,alpha*.82)
-        love.graphics.draw(image,quads[tier][5],math.floor(mark.x+.5),math.floor(mark.y+.5),mark.angle,scale,scale,96,64)
+        love.graphics.draw(image,quads[tier][5],math.floor(mark.x+.5),math.floor(mark.y+.5),mark.angle,scale,scale*(mark.curveFlip or 1),96,64)
     end
     -- A very short contact animation reveals the same scratches at that point.
     for _,fx in ipairs(mode.minerClawFx or {}) do
@@ -51,7 +51,7 @@ function Art.draw(mode,game,t)
         local tier=tierFor(fx.level)
         local scale=(.66+(tier-1)*.08)*(1+math.sin(p*math.pi)*.05)
         love.graphics.setColor(1,1,1,math.min(1,fx.life/.05))
-        love.graphics.draw(image,quads[tier][frame],math.floor(fx.x+.5),math.floor(fx.y+.5),fx.angle,scale,scale,96,64)
+        love.graphics.draw(image,quads[tier][frame],math.floor(fx.x+.5),math.floor(fx.y+.5),fx.angle,scale,scale*(fx.curveFlip or 1),96,64)
     end
     love.graphics.setColor(unpack(previous))
 end

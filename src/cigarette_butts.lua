@@ -26,7 +26,7 @@ local function land(mode,flight,at)
     if flight.target then flight.target.igniting=nil end
     local butt={x=flight.x1,y=flight.y1,bornAt=at,expiresAt=at+Butts.lifetime,
         nextAttemptAt=at+Butts.firstAttempt,radius=flight.radius or (90+mode:levelOf("molotov")*20),
-        angle=flight.landingAngle or .25,phase="smolder",attempts=0}
+        angle=flight.landingAngle or .25,phase="smolder",attempts=0,wildfire=flight.wildfire}
     mode.cigaretteButts[#mode.cigaretteButts+1]=butt
     return butt
 end
@@ -66,7 +66,7 @@ local function arrive(mode,transfer,at)
     if not owned or mode.rainSuppressFire or not node.active or node.burning then return end
     if (node.x-transfer.butt.x)^2+(node.y-transfer.butt.y)^2>transfer.butt.radius^2 then return end
     node.burning,node.burnTimer,node.fireTickTimer=true,0,0
-    node.spreadDepth,node.emberChained=0,nil
+    node.spreadDepth=0
     node.cigaretteIgnitedAt=at
     mode.emberArrivals[#mode.emberArrivals+1]={x=node.x,y=node.y,startAt=at,expiresAt=at+.65}
 end
