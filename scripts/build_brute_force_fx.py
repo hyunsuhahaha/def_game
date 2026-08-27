@@ -32,11 +32,9 @@ def build():
     DEST.parent.mkdir(parents=True,exist_ok=True);atlas.save(DEST)
     ground=Image.open(GROUND).convert("RGB").resize((960,440),Image.Resampling.BICUBIC).convert("RGBA")
     for i in range(6):
-        sprite=atlas.crop((i*128,0,(i+1)*128,160)).resize((96,120),Image.Resampling.NEAREST)
-        ground.alpha_composite(sprite,(65+i*145,230-112))
+        sprite=atlas.crop((i*128,0,(i+1)*128,160)).resize((96,120),Image.Resampling.NEAREST);ground.alpha_composite(sprite,(65+i*145,230-112))
     for i in range(6):
-        sprite=atlas.crop((i*128,160,(i+1)*128,320)).resize((76,95),Image.Resampling.NEAREST)
-        ground.alpha_composite(sprite,(95+i*142,380-90))
+        sprite=atlas.crop((i*128,160,(i+1)*128,320)).resize((76,95),Image.Resampling.NEAREST);ground.alpha_composite(sprite,(95+i*142,380-90))
     ground.save(PREVIEW);print(f"saved={DEST} size={atlas.size} cells=12")
 
 if __name__=="__main__":build()

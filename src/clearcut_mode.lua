@@ -6,6 +6,7 @@ local CigaretteButtArt = require("src.cigarette_butt_art")
 local OilTrailArt = require("src.oil_trail_art")
 local StrawBaleArt = require("src.straw_bale_art")
 local MoleBurrowArt = require("src.mole_burrow_art")
+local BruteForceArt = require("src.brute_force_art")
 local ForestArt = require("src.forest_arcade_art")
 local ForestScenery = require("src.forest_scenery")
 local Fusions = require("src.clearcut_fusions")
@@ -264,6 +265,21 @@ function ClearcutMode:setup(game)
     if self.job == "fire" then self:startSmoking(game) end
 end
 
+-- 나무 종류(스프라이트 variant)별 기초 체력. 예전엔 전부 3으로 고정이라 종류와 상관없이
+-- 도끼 몇 번(스킬 몇 개만 찍어도 한 방)이면 쓰러졌다 — 굵고 단단해 보이는 나무는 실제로도
+-- 더 오래 버티도록 종류별로 나눴다. 순서는 world.lua/clearcut_maps.lua의 variant 그림 순서와 맞춘다.
+local treeHpByMapVariant = {
+    forest = {4, 3, 2, 5},      -- 활엽수, 소나무, 자작나무, 단풍나무
+    beginner = {4, 3, 2, 5},    -- 초심자의 숲도 같은 4종
+    mangrove = {5, 4, 2},       -- 맹그로브, 아비케니아, 니파야자
+    madagascar = {8, 4, 2},     -- 바오밥(굵은 몸통), 타마린드, 코미포라
+    island = {3, 4, 4},         -- 야자, 씨아몬드, 판다누스
+}
+local function treeHpFor(mapId, variant)
+    local list = treeHpByMapVariant[mapId] or treeHpByMapVariant.forest
+    return list[variant or 1] or list[1] or 3
+end
+
 -- 나무 배치 로직: 최초 진입(setup)과 스테이지 전환(advanceStage)에서 공용으로 쓴다
 function ClearcutMode:generateForest(game, target)
     local Maps=require("src.clearcut_maps")
@@ -300,7 +316,8 @@ function ClearcutMode:generateForest(game, target)
             local variantCount = math.max(1, #(game.world.images.treeVariants or {}))
             local treeVariant = Maps.treeVariant(game.world,x,y,#game.world.nodes+1)
                 or ForestScenery.treeVariant(x,y,w,h,self.stage,#game.world.nodes+1,variantCount)
-            game.world.nodes[#game.world.nodes+1] = {kind="tree",x=x,y=y,work=0,workTime=1,active=true,respawn=0,rushTree=true,rushHp=3,rushMaxHp=3,beehive=beehive,treeVariant=treeVariant}
+            local hp = treeHpFor(game.world.clearcutMap, treeVariant)
+            game.world.nodes[#game.world.nodes+1] = {kind="tree",x=x,y=y,work=0,workTime=1,active=true,respawn=0,rushTree=true,rushHp=hp,rushMaxHp=hp,beehive=beehive,treeVariant=treeVariant}
             if beehive then self.beehiveTotal = self.beehiveTotal + 1 end
         end
     end
@@ -2400,16 +2417,35 @@ function ClearcutMode:updateSporeCloud(dt, game)
     end
 end
 
--- 코인 채굴꾼 전용: 무작위 숫자 조합을 사방으로 흩뿌려 하드월렛 비밀번호를 브루트포스한다.
+-- 코인 채굴꾼 전용: 지상에서 비트코인 하드월렛 암호를 무식하게 전수조사한다.
+-- 전방의 지갑으로 숫자 레이저를 두두둑 입력한 뒤, 잠금이 열리는 순간 사방으로 발사된다.
 function ClearcutMode:updateBruteForce(dt, game)
     self.digits = self.digits or {}
+    self.bruteCastFx=self.bruteCastFx or {}
+    self.bruteImpactFx=self.bruteImpactFx or {}
+    for i=#self.bruteCastFx,1,-1 do local fx=self.bruteCastFx[i];fx.life=fx.life-dt;if fx.life<=0 then table.remove(self.bruteCastFx,i) end end
+    for i=#self.bruteImpactFx,1,-1 do local fx=self.bruteImpactFx[i];fx.life=fx.life-dt;if fx.life<=0 then table.remove(self.bruteImpactFx,i) end end
     for i = #self.digits, 1, -1 do
         local d = self.digits[i]
-        d.x, d.y = d.x + d.vx * dt, d.y + d.vy * dt
-        d.life = d.life - dt
-        if d.life <= 0 then
-            table.remove(self.digits, i)
-        else
+        d.age=(d.age or 0)+dt
+        if d.state=="charge" then
+            if d.age<d.inputStart then
+                d.x,d.y=d.startX,d.startY
+            elseif d.age<d.arriveAt then
+                local p=(d.age-d.inputStart)/(d.arriveAt-d.inputStart)
+                local step=math.floor(p*8)/8
+                d.x=d.startX+(d.walletX-d.startX)*step
+                d.y=d.startY+(d.walletY-d.startY)*step+math.sin((d.index or 0)*2.3)*3
+            else
+                local orbit=(d.index or 0)/12*math.pi*2
+                d.x=d.walletX+math.cos(orbit)*8
+                d.y=d.walletY+math.sin(orbit)*5
+            end
+            if d.age>=d.launchAt then d.state="fly";d.x,d.y=d.walletX,d.walletY;d.life=.9 end
+        elseif d.state=="fly" then
+            d.x,d.y=d.x+d.vx*dt,d.y+d.vy*dt
+            d.life=d.life-dt
+            if d.life<=0 then table.remove(self.digits,i) else
             for _, node in ipairs(game.world.nodes) do
                 if node.rushTree and node.active and not d.hitSet[node] then
                     local dx, dy = node.x - d.x, node.y - d.y
@@ -2417,6 +2453,7 @@ function ClearcutMode:updateBruteForce(dt, game)
                         d.hitSet[node] = true
                         node.rushHp = (node.rushHp or node.rushMaxHp) - d.dmg
                         game.world:impactNode(node, game, false)
+                        self.bruteImpactFx[#self.bruteImpactFx+1]={x=node.x,y=node.y,life=.34,maxLife=.34,glyph=d.glyph}
                         if node.rushHp <= 0 then self:fellTree(node, game) end
                     end
                 end
@@ -2428,8 +2465,10 @@ function ClearcutMode:updateBruteForce(dt, game)
                         d.hitSet[e] = true
                         e.hp = e.hp - d.dmg
                         e.visualHit = .14
+                        self.bruteImpactFx[#self.bruteImpactFx+1]={x=e.x,y=e.y,life=.34,maxLife=.34,glyph=d.glyph}
                     end
                 end
+            end
             end
         end
     end
@@ -2439,19 +2478,27 @@ function ClearcutMode:updateBruteForce(dt, game)
     local power = self:power("brute_force")
     self.bruteTimer = (self.bruteTimer or 0) - dt
     if self.bruteTimer > 0 then return end
+    if self.minerBurrow then return end
     self.bruteTimer = math.max(.9, 2.2 - power * .4)
-    local count = 5 + self:powerCount("brute_force") * 3
-    local dmg = 2 + power
-    local speed = 340
-    for _ = 1, count do
-        local a = love.math.random() * math.pi * 2
+    local oldCount=5+self:powerCount("brute_force")*3
+    local count=22+self:powerCount("brute_force")*4
+    local dmg=oldCount*(2+power)/count
+    local speed=350+power*12
+    local facing=game.player.facing or 1
+    local startX,startY=game.player.x+facing*24,game.player.y-38
+    local walletX,walletY=game.player.x+facing*112,game.player.y-22
+    for index=1,count do
+        local a=(index/count)*math.pi*2+love.math.random()*.16
+        local inputStart=(index-1)*.008
         self.digits[#self.digits+1] = {
-            x=game.player.x, y=game.player.y,
+            x=startX,y=startY,startX=startX,startY=startY,walletX=walletX,walletY=walletY,
             vx=math.cos(a) * speed, vy=math.sin(a) * speed,
-            life=.9, dmg=dmg, hitSet={}, glyph=tostring(love.math.random(0, 9))
+            state="charge",age=0,visibleAt=inputStart,inputStart=inputStart,arriveAt=inputStart+.16,launchAt=.43+(index-1)*.0015,
+            life=.9,dmg=dmg,hitSet={},glyph=tostring(love.math.random(0,9)),index=index
         }
     end
-    game:setNotice("브루트포스 어택 — 숫자 조합 흩뿌리기!", "food")
+    self.bruteCastFx[#self.bruteCastFx+1]={x=walletX,y=walletY,life=.58,maxLife=.58,startX=startX,startY=startY,facing=facing}
+    game:setNotice("브루트포스 어택 — 비트코인 지갑 암호 대입 중...", "food")
 end
 
 function ClearcutMode:updateDdosAttack(dt, game)
@@ -3979,10 +4026,6 @@ local salivaGlandPalette = {O={.1,.15,.03,1}, H={.78,.92,.42,1}, W={.55,.72,.25,
 local boomerangAxePalette = {O={.14,.09,.05,1}, M={.75,.77,.8,1}, H={.55,.55,.6,1}}
 local sporeCloudPalette = {O={.2,.14,.24,1}, H={.85,.72,.95,1}, W={.62,.45,.72,1}}
 local bruteForcePalette = {O={.05,.2,.08,1}, H={.55,1,.6,1}, W={.25,.85,.35,1}}
-local ddosPalette = {O={.28,.08,.02,1}, H={1,.7,.4,1}, W={1,.4,.2,1}, D={.6,.2,.08,1}}
-local ransomwarePalette = {O={.18,.03,.04,1}, H={.85,.35,.4,1}, W={.55,.1,.14,1}}
-local zerodayPalette = {O={.28,.24,.02,1}, H={1,1,.75,1}, W={1,.9,.3,1}}
-local portScanPalette = {O={.03,.2,.22,1}, H={.7,.98,1,1}, W={.3,.8,.88,1}}
 
 local dominoRows = {
     ".OOOOOOO.",
@@ -4076,10 +4119,6 @@ ClearcutMode.icons = {
     chain_lightning = {rows = lightningIconRows, palette = lightningIconPalette},
     spore_cloud = {rows = blobRows, palette = sporeCloudPalette},
     brute_force = {rows = boxRows, palette = bruteForcePalette},
-    ddos_attack = {rows = boxRows, palette = ddosPalette},
-    ransomware = {rows = blobRows, palette = ransomwarePalette},
-    zeroday_exploit = {rows = diamondRows, palette = zerodayPalette},
-    port_scan = {rows = boxRows, palette = portScanPalette},
 }
 ClearcutMode.drawPixelGrid = drawPixelGrid
 
@@ -4202,62 +4241,7 @@ end
 
 function ClearcutMode:drawSupplementSkills(game, t)
     SupplementArt.draw(self,game,t)
-    if self.digits and #self.digits > 0 and game.fonts then
-        love.graphics.setFont(game.fonts.small)
-        for _, d in ipairs(self.digits) do
-            local a = math.max(0, d.life / .9)
-            love.graphics.setColor(.1, .35, .12, a * .5)
-            love.graphics.print(d.glyph, math.floor(d.x + 1.5), math.floor(d.y + 1.5))
-            love.graphics.setColor(.4, 1, .5, a)
-            love.graphics.print(d.glyph, math.floor(d.x - 5), math.floor(d.y - 8))
-        end
-    end
-    if self.packets then
-        for _, p in ipairs(self.packets) do
-            love.graphics.push()
-            love.graphics.translate(p.x, p.y)
-            love.graphics.rotate(math.atan2 and math.atan2(p.vy, p.vx) or math.atan(p.vy, p.vx))
-            love.graphics.setColor(1, .45, .2, .9)
-            love.graphics.rectangle("fill", -6, -3, 12, 6)
-            love.graphics.setColor(1, .85, .5, .9)
-            love.graphics.rectangle("fill", -2, -1.5, 6, 3)
-            love.graphics.pop()
-        end
-    end
-    if self.infections then
-        for _, inf in ipairs(self.infections) do
-            local node = inf.node
-            if node.rushTree and node.active then
-                local pulse = .5 + math.sin(t * 6) * .5
-                love.graphics.setColor(.75, .15, .2, .3 + pulse * .25)
-                love.graphics.circle("fill", node.x, node.y - 20, 26 + pulse * 6)
-                love.graphics.setLineWidth(2)
-                love.graphics.setColor(1, .3, .3, .8)
-                love.graphics.circle("line", node.x, node.y - 20, 26)
-                love.graphics.setLineWidth(1)
-            end
-        end
-    end
-    if self.zerodayFx then
-        for _, fx in ipairs(self.zerodayFx) do
-            local p = 1 - fx.life / fx.maxLife
-            love.graphics.setLineWidth(4 * (1 - p) + 1)
-            love.graphics.setColor(1, .95, .4, (1 - p) * .95)
-            love.graphics.circle("line", fx.x, fx.y, 12 + p * 90)
-            love.graphics.setColor(1, 1, .8, (1 - p) * .5)
-            love.graphics.circle("fill", fx.x, fx.y, 30 * (1 - p))
-            love.graphics.setLineWidth(1)
-        end
-    end
-    if self.portScanFx then
-        for _, fx in ipairs(self.portScanFx) do
-            local p = 1 - fx.life / fx.maxLife
-            love.graphics.setLineWidth(2)
-            love.graphics.setColor(.4, .95, 1, (1 - p) * .9)
-            love.graphics.circle("line", fx.x, fx.y, 8 + p * 44)
-            love.graphics.setLineWidth(1)
-        end
-    end
+    BruteForceArt.draw(self,game,t)
 end
 
 function ClearcutMode:drawThrownTrees(game)
