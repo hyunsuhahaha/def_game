@@ -84,9 +84,10 @@ function Player:clearcutPose()
         or (self.isMoving and (math.floor(self.walkClock) % 6 + 1) or 1)
     local sprite = self.clearcutSprite
     local directions = sprite[row .. "Facing"]
-    local flip = (self.facing or 1) * (directions and directions[frame] or 1)
+    local flip = (self.facing or 1) * (sprite.nativeFacing or 1) * (directions and directions[frame] or 1)
+    local poseScale = (sprite[row .. "Scale"] and sprite[row .. "Scale"][frame]) or 1
     local bob = not action and self.isMoving and math.abs(math.sin(self.walkClock * math.pi)) or 0
-    return row, frame, flip, sprite[row .. "Feet"][frame], bob
+    return row, frame, flip, sprite[row .. "Feet"][frame], bob, poseScale
 end
 
 function Player:update(dt, world, game)
@@ -156,10 +157,10 @@ function Player:draw()
     love.graphics.setColor(0, 0, 0, .42); love.graphics.ellipse("fill", self.x + 3, self.y + 3, 22 - math.abs(pulse) * 2, 7)
     love.graphics.setColor(1, 1, 1)
     if self.clearcutSprite then
-        local row, frame, flip, foot, bob = self:clearcutPose()
+        local row, frame, flip, foot, bob, poseScale = self:clearcutPose()
         local scale = self.clearcutSprite.scale or .23
         love.graphics.draw(self.clearcutSprite.image, self.clearcutFrames[row][frame],
-            self.x, self.y - bob, 0, scale * flip, scale,
+            self.x, self.y - bob, 0, scale * flip * poseScale, scale * poseScale,
             self.clearcutFrameWidth / 2, foot)
         return
     end

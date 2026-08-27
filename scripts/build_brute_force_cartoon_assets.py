@@ -65,9 +65,9 @@ def build():
     wallet.save(WALLET)
     ground=Image.open(GROUND).convert("RGB").resize((960,440),Image.Resampling.BICUBIC).convert("RGBA")
     mole_sheet=Image.open(ROOT/"assets/characters/ingame/coin-miner-mole-atlas-pixel-v3.png").convert("RGBA")
-    mole=mole_sheet.crop((0,0,192,384)).resize((96,192),Image.Resampling.NEAREST);ground.alpha_composite(mole,(210,155))
-    wallet_x,wallet_y=500,190;ground.alpha_composite(wallet_frame(1),(wallet_x,wallet_y))
-    beam=ImageDraw.Draw(ground);start=(302,258);target=(wallet_x+38,wallet_y+48)
+    mole=mole_sheet.crop((0,0,192,384)).resize((96,192),Image.Resampling.NEAREST);ground.alpha_composite(mole,(88,155))
+    wallet_x,wallet_y=540,190;ground.alpha_composite(wallet_frame(1),(wallet_x,wallet_y))
+    beam=ImageDraw.Draw(ground);start=(180,258);target=(wallet_x+38,wallet_y+48)
     beam.line((start,target),fill=(7,44,16,210),width=9);beam.line((start,target),fill=(55,239,77,245),width=3)
     for i in range(18):
         p=(i+1)/19;x=start[0]+(target[0]-start[0])*p;y=start[1]+(target[1]-start[1])*p+math.sin(i*2.1)*5

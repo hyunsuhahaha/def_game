@@ -10,6 +10,7 @@ love = {
 local ClearcutMode=require("src.clearcut_mode")
 local mode=ClearcutMode.new()
 mode.job="miner"
+mode.levels.detector=1
 mode.permanentTraits={attackSpeed=1,range=0,area=0,extraTargets=0,treeDamage=0,moveSpeed=1}
 local notices={}
 local particles=0
@@ -35,7 +36,12 @@ mode:updateMinerAttack(.2,game,true)
 assert(treeA.rushHp==3,"claw damage happened before the contact frame")
 mode:updateMinerAttack(.25,game,true)
 assert(treeA.rushHp<3,"claw contact frame did not damage the forward tree")
+assert(#mode.minerClawFx==1,"claw contact did not create its directional pixel effect")
+assert(mode.minerClawFx[1].x==treeA.x and mode.minerClawFx[1].x~=player.x,"claw effect must originate at the struck point, never the mole")
+assert(#mode.minerClawMarks==1 and mode.minerClawMarks[1].life==6,"claw gouge was not left on the struck surface")
+assert(mode:getUpgradeDefinition("detector").name:find("손톱 강화",1,true),"miner claw upgrade is not identified as a job skill")
 mode:updateMinerAttack(.3,game,false)
+assert(#mode.minerClawFx==0 and #mode.minerClawMarks==1,"contact flash should end while the scratch mark remains")
 
 assert(mode:activateMinerBurrow(game)==true)
 assert(mode.minerBurrow and mode.minerBurrow.state=="enter")

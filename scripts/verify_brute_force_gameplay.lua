@@ -16,7 +16,7 @@ assert(#mode.digits>=26,"not enough rapid password guesses were created")
 assert(game.notice:find("비트코인",1,true),"bitcoin wallet concept missing from notice")
 for _,d in ipairs(mode.digits) do assert(d.state=="charge" and d.visibleAt<d.launchAt and d.glyph:match("^%d$")) end
 
-mode:updateBruteForce(.2,game)
+mode:updateBruteForce(.32,game)
 fixture.reset();mode:drawSupplementSkills(game,.2)
 local numbers=0
 local walletDraws=0
@@ -28,8 +28,9 @@ assert(numbers>=20,"password numbers do not pop rapidly during charge")
 assert(walletDraws==1,"encrypted bitcoin wallet is missing")
 local first=mode.digits[1]
 assert(first.walletX>game.player.x and first.startX<first.walletX,"number input beam does not travel from mole to forward wallet")
+assert(first.walletX-game.player.x>=190,"wallet is still too close to read the input effect")
 
-mode:updateBruteForce(.35,game)
+mode:updateBruteForce(.45,game)
 local quadrants={false,false,false,false}
 for _,d in ipairs(mode.digits) do
     assert(d.state=="fly","numbers did not launch after password crack")

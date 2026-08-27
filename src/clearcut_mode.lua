@@ -7,6 +7,7 @@ local OilTrailArt = require("src.oil_trail_art")
 local StrawBaleArt = require("src.straw_bale_art")
 local MoleBurrowArt = require("src.mole_burrow_art")
 local BruteForceArt = require("src.brute_force_art")
+local MoleClawArt = require("src.mole_claw_art")
 local ForestArt = require("src.forest_arcade_art")
 local ForestScenery = require("src.forest_scenery")
 local Fusions = require("src.clearcut_fusions")
@@ -54,7 +55,7 @@ local definitions = {
     {id="demolition", track="develop", name="철거 폭파", desc="돌진이 끝나는 지점에서 폭발이 일어나 주변 나무에도 피해를 줍니다.", max=6, color={1,.45,.15}, job="developer"},
     {id="site_clearance", track="develop", name="부지 정지 작업", desc="돌진이 지나간 자리는 다시는 나무가 자라지 않는 부지가 됩니다.", max=6, color={.55,.5,.55}, job="developer"},
     -- 굴착력 (dig) — 발톱 할퀴기와 지하 돌진으로 얼마나 거칠게 밀어내느냐 [코인 채굴꾼 전용]
-    {id="detector", track="dig", name="복리로 자란 발톱", desc="기본 할퀴기의 범위와 피해가 늘어납니다. 채굴 장비보다 유지비가 싸다는 결론입니다.", max=6, color={.85,.68,.22}, job="miner"},
+    {id="detector", track="dig", name="손톱 강화 — 복리 발톱", desc="기본 할퀴기의 범위와 피해가 늘어납니다. 강화할수록 손톱 궤적이 길고 굵어지며, 3단계와 5단계에서 카툰 픽셀 잔상도 강해집니다.", max=6, color={.85,.68,.22}, job="miner"},
     {id="burrow_uproot", track="dig", name="지하 강제집행", desc="SPACE 또는 우클릭 잠복의 재사용 시간이 줄고, 이동 경로에서 자동으로 옆으로 튕겨 나가는 나무의 피해와 관통 횟수가 늘어납니다.", max=6, color={.58,.42,.24}, job="miner"},
     {id="deep_scan", track="dig", name="정밀 탐사", desc="탐지 반경이 넓어지고 판정 속도가 빨라집니다.", max=6, color={.95,.82,.35}, job="miner"},
     {id="backhoe", track="dig", name="굴착기 대여", desc="굴착 한 방의 범위와 위력이 커집니다. 렌탈비는... 나중에 생각하자.", max=6, color={.75,.55,.2}, job="miner"},
@@ -142,7 +143,7 @@ function ClearcutMode.new()
         treeSparks={}, treeSparkArrivals={}, strawTimer=0, strawBales={}, strawBaleSequence=0,
         oilTrail={}, oilTrailTimer=0, oilTrailLastX=nil, oilTrailLastY=nil, oilTrailSequence=0,
         job=nil, attackCooldown=0, dashing=nil, dashTrail={}, smoking=nil,
-        minerClawAction=nil, minerBurrow=nil, minerBurrowCooldown=0, thrownTrees={}, burrowTracks={}, burrowTrackSequence=0,
+        minerClawAction=nil, minerClawFx={}, minerClawMarks={}, minerBurrow=nil, minerBurrowCooldown=0, thrownTrees={}, burrowTracks={}, burrowTrackSequence=0,
         smokerHeldLast=false, physicalAction=nil, veganAction=nil, developerAction=nil,
         actionAudit={physicalImpact=0,cigaretteFlick=0,veganBite=0,developerRemote=0},
         hp=100, maxHp=100, invulnTimer=0, dead=false,
@@ -1755,6 +1756,7 @@ function ClearcutMode:applyVeganBite(tx, ty, game)
 end
 
 function ClearcutMode:updateMinerAttack(dt, game, heldOverride)
+    MoleClawArt.update(self,dt)
     if self.minerBurrow then
         self:updateMinerBurrow(dt, game)
         return false
@@ -1811,6 +1813,10 @@ function ClearcutMode:applyClawSwipe(tx, ty, game)
     local range = 112 + self:power("detector") * 16 + self.permanentTraits.range
     local halfWidth = 34 + self:power("detector") * 5 + self:power("deep_scan") * 7 + self.permanentTraits.area * .35
     local damage = 2 + self:power("detector") * .65 + self.permanentTraits.treeDamage
+    local clawLevel = self:levelOf("detector")
+    local angle
+    if math.atan2 then angle=math.atan2(ny,nx)
+    else angle=math.atan(ny/nx)+(nx<0 and math.pi or 0) end
     local candidates = {}
     for _, node in ipairs(game.world.nodes) do
         if node.rushTree and node.active then
@@ -1823,8 +1829,11 @@ function ClearcutMode:applyClawSwipe(tx, ty, game)
     end
     table.sort(candidates, function(a,b) return a.along < b.along end)
     local limit = 1 + math.floor(self.permanentTraits.extraTargets or 0) + math.floor(self:power("deep_scan") * .45)
+    local marked=false
     for index=1,math.min(limit,#candidates) do
         local node = candidates[index].node
+        MoleClawArt.spawn(self,node.x,node.y-54,angle+.35,clawLevel)
+        marked=true
         node.rushHp = (node.rushHp or node.rushMaxHp) - damage
         game.world:impactNode(node, game, true)
         SupplementArt.impact(self,"axe",node.x,node.y,30)
@@ -1834,9 +1843,15 @@ function ClearcutMode:applyClawSwipe(tx, ty, game)
         local rx, ry = enemy.x-px, enemy.y-py
         local along, side = rx*nx+ry*ny, math.abs(rx*ny-ry*nx)
         if along >= 0 and along <= range and side <= halfWidth then
+            MoleClawArt.spawn(self,enemy.x,enemy.y-12,angle+.35,clawLevel)
+            marked=true
             enemy.hp, enemy.visualHit = enemy.hp - damage*2.2, .14
             SupplementArt.impact(self,"axe",enemy.x,enemy.y,26)
         end
+    end
+    if not marked then
+        local contact=math.min(range,distance)
+        MoleClawArt.spawn(self,px+nx*contact,py+ny*contact,angle+.35,clawLevel)
     end
     self.traitFx:emit("axe",px+nx*range*.58,py+ny*range*.58,{radius=halfWidth,power=.8,angle=math.atan2 and math.atan2(ny,nx) or 0})
     if game.camera then game.camera.trauma=math.min(1,game.camera.trauma+.09) end
@@ -2486,18 +2501,20 @@ function ClearcutMode:updateBruteForce(dt, game)
     local speed=350+power*12
     local facing=game.player.facing or 1
     local startX,startY=game.player.x+facing*24,game.player.y-38
-    local walletX,walletY=game.player.x+facing*112,game.player.y-22
+    -- Keep the encrypted target clear of the mole so the rapid number input
+    -- reads as a deliberate hack beam instead of a body attachment.
+    local walletX,walletY=game.player.x+facing*205,game.player.y-22
     for index=1,count do
         local a=(index/count)*math.pi*2+love.math.random()*.16
         local inputStart=(index-1)*.008
         self.digits[#self.digits+1] = {
             x=startX,y=startY,startX=startX,startY=startY,walletX=walletX,walletY=walletY,
             vx=math.cos(a) * speed, vy=math.sin(a) * speed,
-            state="charge",age=0,visibleAt=inputStart,inputStart=inputStart,arriveAt=inputStart+.16,launchAt=.43+(index-1)*.0015,
+            state="charge",age=0,visibleAt=inputStart,inputStart=inputStart,arriveAt=inputStart+.30,launchAt=.67+(index-1)*.0015,
             life=.9,dmg=dmg,hitSet={},glyph=tostring(love.math.random(0,9)),index=index
         }
     end
-    self.bruteCastFx[#self.bruteCastFx+1]={x=walletX,y=walletY,life=.58,maxLife=.58,startX=startX,startY=startY,facing=facing}
+    self.bruteCastFx[#self.bruteCastFx+1]={x=walletX,y=walletY,life=.82,maxLife=.82,startX=startX,startY=startY,facing=facing}
     game:setNotice("브루트포스 어택 — 비트코인 지갑 암호 대입 중...", "food")
 end
 
@@ -4241,6 +4258,7 @@ end
 
 function ClearcutMode:drawSupplementSkills(game, t)
     SupplementArt.draw(self,game,t)
+    MoleClawArt.draw(self,game,t)
     BruteForceArt.draw(self,game,t)
 end
 

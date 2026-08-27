@@ -36,7 +36,11 @@ local function loadClearcutSprites()
         fire = {file="smoker-atlas-pixel-v2.png", walkFeet={190,190,190,190,190,190}, actionFeet={190,190,190,190,190,190}, scale=.61},
         toxic = {file="vegan-atlas-pixel-v2.png", walkFeet={190,190,190,190,190,190}, actionFeet={190,190,190,190,190,190}, scale=.61},
         developer = {file="developer-atlas-pixel-v2.png", walkFeet={190,190,190,190,190,190}, actionFeet={190,190,190,190,190,190}, scale=.61},
-        miner = {file="coin-miner-mole-atlas-pixel-v3.png", walkFeet={380,380,380,380,380,380}, actionFeet={380,380,380,380,380,380}, scale=.48}
+        -- The mole source faces left. Keep that authored orientation explicit so
+        -- the shared renderer mirrors it toward movement/aim correctly.
+        -- Its first claw poses crouch heavily; these factors keep body mass stable.
+        miner = {file="coin-miner-mole-atlas-pixel-v3.png", walkFeet={380,380,380,380,380,380}, actionFeet={380,380,380,380,380,380}, scale=.48,
+            nativeFacing=-1, actionFacing={1,-1,-1,1,1,1}, actionScale={1.28,1.48,1.52,1,1,1}}
     }
     -- The source smoker sheet turns left during the first four action poses.
     -- Normalize those cells at draw time; keep the original atlas untouched.
@@ -944,9 +948,14 @@ function Game:drawSandboxPanel()
     local w, h, f = love.graphics.getWidth(), love.graphics.getHeight(), self.fonts
     local skills = self.clearcut:sandboxSkillList()
     local fusions = self.clearcut:sandboxFusionList()
-    local panelW, rowH = 300, 25
+    local jobSkills, sharedSkills = {}, {}
+    for _, def in ipairs(skills) do
+        if def.job then jobSkills[#jobSkills + 1] = def else sharedSkills[#sharedSkills + 1] = def end
+    end
+    local panelW, rowH, headerH = 300, 25, 20
     local fusionBlockH = #fusions > 0 and (22 + #fusions * rowH) or 0
-    local panelH = math.min(h - 32, 96 + #skills * rowH + fusionBlockH + 74)
+    local skillBlockH = (#jobSkills > 0 and (headerH + #jobSkills * rowH) or 0) + (#sharedSkills > 0 and (headerH + #sharedSkills * rowH) or 0)
+    local panelH = math.min(h - 32, 96 + skillBlockH + fusionBlockH + 74)
     local x, y = w - panelW - 16, 16
     UI.panel(x, y, panelW, panelH, {.3, .82, .5, 1}, .94)
     love.graphics.setFont(f.small); love.graphics.setColor(1, .92, .55)
@@ -956,17 +965,25 @@ function Game:drawSandboxPanel()
 
     self.sandboxSkillBoxes = {}
     local rowY = y + 50
-    for _, def in ipairs(skills) do
-        local level = self.clearcut:levelOf(def.id)
-        love.graphics.setColor(1, 1, 1, .9)
-        love.graphics.printf(def.name .. "  " .. level .. "/" .. def.max, x + 14, rowY + 3, panelW - 90, "left")
-        local minusBox = {x = x + panelW - 64, y = rowY, w = 22, h = 20}
-        local plusBox = {x = x + panelW - 36, y = rowY, w = 22, h = 20}
-        UI.button(minusBox.x, minusBox.y, minusBox.w, minusBox.h, "-", true, f.small)
-        UI.button(plusBox.x, plusBox.y, plusBox.w, plusBox.h, "+", true, f.small)
-        self.sandboxSkillBoxes[#self.sandboxSkillBoxes + 1] = {id = def.id, minus = minusBox, plus = plusBox}
-        rowY = rowY + rowH
+    local function drawSkillGroup(label, list)
+        if #list == 0 then return end
+        love.graphics.setFont(f.small); love.graphics.setColor(1, .85, .5)
+        love.graphics.print(label, x + 14, rowY + 2)
+        rowY = rowY + headerH
+        for _, def in ipairs(list) do
+            local level = self.clearcut:levelOf(def.id)
+            love.graphics.setColor(1, 1, 1, .9)
+            love.graphics.printf(def.name .. "  " .. level .. "/" .. def.max, x + 14, rowY + 3, panelW - 90, "left")
+            local minusBox = {x = x + panelW - 64, y = rowY, w = 22, h = 20}
+            local plusBox = {x = x + panelW - 36, y = rowY, w = 22, h = 20}
+            UI.button(minusBox.x, minusBox.y, minusBox.w, minusBox.h, "-", true, f.small)
+            UI.button(plusBox.x, plusBox.y, plusBox.w, plusBox.h, "+", true, f.small)
+            self.sandboxSkillBoxes[#self.sandboxSkillBoxes + 1] = {id = def.id, minus = minusBox, plus = plusBox}
+            rowY = rowY + rowH
+        end
     end
+    drawSkillGroup("직업 전용", jobSkills)
+    drawSkillGroup("공용", sharedSkills)
 
     self.sandboxFusionBoxes = {}
     if #fusions > 0 then
