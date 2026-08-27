@@ -1420,8 +1420,33 @@ function ClearcutMode:hurlMolotovAt(tx, ty, game, isBarrage)
 end
 
 function ClearcutMode:updateMolotovs(dt, game)
+    self:updateMolotovImpacts(dt, game)
     CigaretteButts.update(self,dt,game)
     self:updateTreeSparks()
+end
+
+-- 날아가는 꽁초가 몬스터를 스치면 그 자리에서 직접 피해를 준다. 착지(불씨 전이) 쪽은
+-- 건드리지 않는다 — "착지는 흔적만 남기고 즉시 피해·점화 없음"은 cigarette_butts.lua의
+-- 별도 계약이라 그대로 둔다. 이건 순전히 비행 중 직격 판정.
+function ClearcutMode:updateMolotovImpacts(dt, game)
+    if #self.enemies == 0 then return end
+    local dmg = 6 + self:power("molotov") * 4
+    for _, flight in ipairs(self.molotovs) do
+        local progress = math.min(1, (flight.t + dt) / flight.dur)
+        local x = flight.x0 + (flight.x1 - flight.x0) * progress
+        local y = flight.y0 + (flight.y1 - flight.y0) * progress
+        flight.hitSet = flight.hitSet or {}
+        for _, e in ipairs(self.enemies) do
+            if not flight.hitSet[e] then
+                local dx, dy = e.x - x, e.y - y
+                if dx*dx + dy*dy <= ((e.def and e.def.radius or 20) + 24)^2 then
+                    flight.hitSet[e] = true
+                    e.hp = e.hp - dmg
+                    e.visualHit = .14
+                end
+            end
+        end
+    end
 end
 
 function ClearcutMode:onTreeBurnedDown(node, game)
