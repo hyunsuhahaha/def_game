@@ -26,6 +26,12 @@
 
 # 프로젝트 작업 규칙
 
+## 모든 완료 작업은 Git 원격 저장소에 반영
+
+**모든 에이전트는 작업을 완료할 때 관련 검증을 실행하고, 변경 파일을 커밋한 뒤 현재 추적 브랜치의 원격 저장소까지 푸시한다.** 로컬 커밋만 만든 상태를 최종 완료로 보고하지 않는다. 푸시 결과와 커밋 해시를 최종 보고에 포함한다. 검증 실패, 충돌, 인증 오류로 안전하게 푸시할 수 없으면 실패 상태를 숨기지 말고 정확한 차단 원인을 보고한다.
+
+**ALL COMPLETED WORK: Verify, commit, and push the completed changes to the tracked remote branch. Report the commit hash and push result. Never claim completion when the work exists only in the local working tree.**
+
 ## 플레이어 캐릭터 픽셀 애니메이션
 
 플레이어 캐릭터와 이후 추가되는 주요 인게임 캐릭터는 반드시 [`docs/PIXEL_ART_PIPELINE.md`](docs/PIXEL_ART_PIPELINE.md)의 제작 규격을 따른다.
