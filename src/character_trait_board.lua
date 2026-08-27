@@ -21,6 +21,16 @@ local function nodeColor(node, alpha)
     return color[1], color[2], color[3], alpha or 1
 end
 
+local function vivid(color, alpha)
+    local maxc=math.max(color[1],color[2],color[3])
+    local boost=maxc>0 and math.min(1.35,.96/maxc) or 1
+    return math.min(1,color[1]*boost+.04),math.min(1,color[2]*boost+.04),math.min(1,color[3]*boost+.04),alpha or 1
+end
+
+local function drawDiamond(cx,cy,r,mode)
+    love.graphics.polygon(mode,cx,cy-r,cx+r,cy,cx,cy+r,cx-r,cy)
+end
+
 local function requirementsMet(store, node)
     for _, requirement in ipairs(store:getRequirements(node)) do
         if store:getLevel(requirement[1]) < requirement[2] then return false end
@@ -98,7 +108,7 @@ function CharacterTraitBoard.new(store, fonts, sprites)
         tabBoxes={}, nodeBoxes={}, nodeHover={}, particles={}, time=0,
         message="", messageTime=0, messageKind="ok", unlockFx=nil,
         selectedNodeId="physical_quota", blockedNode=nil, blockedTime=0, tabPulse=0,
-        canvasW=3300,canvasH=1900,panX=820,panY=950,zoom=.86,drag=nil,viewport=nil,
+        canvasW=3300,canvasH=1900,panX=820,panY=950,zoom=.62,panVX=0,panVY=0,drag=nil,viewport=nil,
         minimapBox=nil,resetViewBox=nil
     }, CharacterTraitBoard)
 end
@@ -107,7 +117,7 @@ function CharacterTraitBoard:selectJob(job)
     if self.selectedJob == job then return end
     self.selectedJob, self.selectedNodeId = job, self.store:getNodes(job)[1].id
     self.tabPulse, self.messageTime, self.blockedTime = 1, 0, 0
-    self.panX,self.panY,self.zoom=820,950,.86
+    self.panX,self.panY,self.zoom,self.panVX,self.panVY=820,950,.62,0,0
 end
 
 function CharacterTraitBoard:clampCamera()
@@ -139,16 +149,26 @@ function CharacterTraitBoard:update(dt)
     self.tabPulse = math.max(0, self.tabPulse-dt*2.5)
     if self.drag then
         local mx,my=love.mouse.getPosition()
-        if love.mouse.isDown(1) then
+        if love.mouse.isDown(self.drag.button or 1) then
             local dx,dy=mx-self.drag.x,my-self.drag.y
-            if dx*dx+dy*dy>20 then self.drag.moved=true end
-            self.panX=self.drag.panX-dx/self.zoom
-            self.panY=self.drag.panY-dy/self.zoom
+            if dx*dx+dy*dy>9 then self.drag.moved=true end
+            self.panX=self.drag.panX-dx/self.zoom*1.16
+            self.panY=self.drag.panY-dy/self.zoom*1.16
+            local frameDx,frameDy=mx-(self.drag.lastX or mx),my-(self.drag.lastY or my)
+            self.panVX=-frameDx/self.zoom/math.max(dt,.001)*1.16
+            self.panVY=-frameDy/self.zoom/math.max(dt,.001)*1.16
+            self.drag.lastX,self.drag.lastY=mx,my
             self:clampCamera()
         else
-            if not self.drag.moved then self:buyAt(mx,my) end
+            if not self.drag.moved and (self.drag.button or 1)==1 then self:buyAt(mx,my) end
             self.drag=nil
         end
+    else
+        self.panX=self.panX+self.panVX*dt; self.panY=self.panY+self.panVY*dt
+        local damping=math.exp(-dt*7); self.panVX,self.panVY=self.panVX*damping,self.panVY*damping
+        if math.abs(self.panVX)<1 then self.panVX=0 end
+        if math.abs(self.panVY)<1 then self.panVY=0 end
+        self:clampCamera()
     end
     if self.unlockFx then
         self.unlockFx.life = self.unlockFx.life-dt
@@ -179,22 +199,24 @@ function CharacterTraitBoard:burst(box, node)
 end
 
 function CharacterTraitBoard:mousepressed(x, y, button)
-    if button ~= 1 then return end
+    if button ~= 1 and button ~= 2 then return end
     if inside(self.backBox, x, y) then return "back" end
     for i, box in ipairs(self.tabBoxes) do
         if inside(box, x, y) then self:selectJob(jobOrder[i]); return "selected" end
     end
     if inside(self.resetViewBox,x,y) then
-        self.panX,self.panY,self.zoom=820,950,.86
+        self.panX,self.panY,self.zoom,self.panVX,self.panVY=820,950,.62,0,0
         return "reset_view"
     end
     if inside(self.minimapBox,x,y) then
         self.panX=(x-self.minimapBox.x)/self.minimapBox.w*self.canvasW
         self.panY=(y-self.minimapBox.y)/self.minimapBox.h*self.canvasH
+        self.panVX,self.panVY=0,0
         self:clampCamera(); return "minimap"
     end
     if inside(self.viewport,x,y) then
-        self.drag={x=x,y=y,panX=self.panX,panY=self.panY,moved=false}
+        self.panVX,self.panVY=0,0
+        self.drag={x=x,y=y,lastX=x,lastY=y,panX=self.panX,panY=self.panY,moved=false,button=button}
         return "dragging"
     end
 end
@@ -205,7 +227,8 @@ function CharacterTraitBoard:wheelmoved(_,delta)
     if not inside(self.viewport,mx,my) then return end
     local beforeX=self.panX+(mx-(self.viewport.x+self.viewport.w/2))/self.zoom
     local beforeY=self.panY+(my-(self.viewport.y+self.viewport.h/2))/self.zoom
-    self.zoom=clamp(self.zoom*(delta>0 and 1.12 or 1/1.12),.48,1.28)
+    self.zoom=clamp(self.zoom*(delta>0 and 1.22 or 1/1.22),.36,1.60)
+    self.panVX,self.panVY=0,0
     self.panX=beforeX-(mx-(self.viewport.x+self.viewport.w/2))/self.zoom
     self.panY=beforeY-(my-(self.viewport.y+self.viewport.h/2))/self.zoom
     self:clampCamera()
@@ -227,43 +250,48 @@ end
 function CharacterTraitBoard:drawConnection(bounds, from, to, active, available, color)
     local x1,y1=self:nodePosition(bounds,from)
     local x2,y2=self:nodePosition(bounds,to)
-    love.graphics.setLineWidth(active and 8 or 5)
-    love.graphics.setColor(color[1],color[2],color[3],active and .10 or .035)
+    local rr,gg,bb=vivid(color)
+    local locked=not active and not available
+    love.graphics.setLineWidth(active and 10 or 7)
+    if locked then love.graphics.setColor(.92,.04,.30,.10) else love.graphics.setColor(rr,gg,bb,active and .22 or .11) end
     love.graphics.line(x1,y1,x2,y2)
-    love.graphics.setLineWidth(active and 2.5 or 1.25)
-    love.graphics.setColor(color[1],color[2],color[3],active and .92 or (available and .38 or .12))
+    love.graphics.setLineWidth(active and 3.5 or 2.25)
+    if locked then love.graphics.setColor(.98,.08,.36,.62) else love.graphics.setColor(rr,gg,bb,active and 1 or .78) end
     love.graphics.line(x1,y1,x2,y2)
+    love.graphics.setLineWidth(1); love.graphics.setColor(1,1,1,active and .30 or .12)
+    love.graphics.line(x1,y1-1,x2,y2-1)
     if active then
-        local travel=(self.time*.55 + to.x*.7 + to.y*.3)%1
-        love.graphics.setColor(1,.96,.78,.92)
-        love.graphics.circle("fill",x1+(x2-x1)*travel,y1+(y2-y1)*travel,3.2)
+        local travel=(self.time*.72 + (to.x or 0)*.7 + (to.y or 0)*.3)%1
+        love.graphics.setColor(.78,1,1,.96)
+        love.graphics.circle("fill",x1+(x2-x1)*travel,y1+(y2-y1)*travel,4)
     end
     love.graphics.setLineWidth(1)
 end
 
 function CharacterTraitBoard:drawNode(box, node, level, statusOk, requirementReady, hovered)
-    local cx,cy,r=box.cx,box.cy,(node.capstone and 25 or 20)*(box.scale or 1)
-    local rr,gg,bb=nodeColor(node)
+    local cx,cy,r=box.cx,box.cy,(node.capstone and 31 or 26)*(box.scale or 1)
+    local rr,gg,bb=vivid(node.color or {.75,.68,.42})
     local unlocked=level>0
     local pulse=.5+math.sin(self.time*3+cx*.01)*.5
     if requirementReady and level<node.max then
-        love.graphics.setColor(rr,gg,bb,(statusOk and .10 or .045)+pulse*.035)
-        love.graphics.circle("fill",cx,cy,r+12+(hovered and 3 or 0))
+        love.graphics.setColor(rr,gg,bb,(statusOk and .18 or .08)+pulse*.07)
+        drawDiamond(cx,cy,r+17+(hovered and 4 or 0),"fill")
     end
-    love.graphics.setColor(.004,.012,.009,.72); love.graphics.circle("fill",cx+2,cy+5,r+5)
-    love.graphics.setColor(rr,gg,bb,unlocked and .24 or .075)
-    if node.capstone then drawHex(cx,cy,r+5,"fill") else love.graphics.circle("fill",cx,cy,r+5) end
-    love.graphics.setColor(unlocked and .10 or .025,unlocked and .12 or .04,unlocked and .10 or .035,.98)
-    if node.capstone then drawHex(cx,cy,r,"fill") else love.graphics.circle("fill",cx,cy,r) end
-    love.graphics.setLineWidth(hovered and 3 or 1.7)
-    love.graphics.setColor(rr,gg,bb,unlocked and 1 or (requirementReady and .62 or .24))
-    if node.capstone then drawHex(cx,cy,r+1,"line") else love.graphics.circle("line",cx,cy,r+1) end
+    love.graphics.setColor(0,0,0,.58); drawDiamond(cx+3,cy+6,r+9,"fill")
+    love.graphics.setColor(rr,gg,bb,unlocked and .34 or (requirementReady and .16 or .07)); drawDiamond(cx,cy,r+8,"fill")
+    love.graphics.setColor(.008,.014,.026,.99); drawDiamond(cx,cy,r+2,"fill")
+    love.graphics.setLineWidth(hovered and 4 or (unlocked and 3 or 2))
+    love.graphics.setColor(rr,gg,bb,unlocked and 1 or (requirementReady and .88 or .42)); drawDiamond(cx,cy,r+5,"line")
+    love.graphics.setLineWidth(1); love.graphics.setColor(.82,1,1,unlocked and .48 or .16); drawDiamond(cx,cy-1,r,"line")
     if level>0 then
-        love.graphics.setLineWidth(3); love.graphics.setColor(rr,gg,bb,.95)
-        drawRing(cx,cy,r+7,-math.pi/2,-math.pi/2+math.pi*2*(level/node.max),math.max(8,node.max*8))
+        love.graphics.setLineWidth(3); love.graphics.setColor(rr,gg,bb,1)
+        drawRing(cx,cy,r+12,-math.pi/2,-math.pi/2+math.pi*2*(level/node.max),math.max(8,node.max*8))
     end
-    love.graphics.setColor(unlocked and {1,.96,.82,1} or {rr,gg,bb,requirementReady and .72 or .28})
-    drawGlyph(node.icon,cx,cy,r*.72)
+    love.graphics.setColor(unlocked and {1,1,.88,1} or {rr,gg,bb,requirementReady and .92 or .45})
+    drawGlyph(node.icon,cx,cy,r*.82)
+    if statusOk and not unlocked then
+        love.graphics.setColor(.58,1,.52,.95); love.graphics.rectangle("fill",cx+r*.42,cy-r*.78,9,3); love.graphics.rectangle("fill",cx+r*.42+3,cy-r*.78-3,3,9)
+    end
     love.graphics.setLineWidth(1)
 end
 
@@ -271,15 +299,16 @@ function CharacterTraitBoard:drawCharacterDossier(x,y,w,h,job,focusNode)
     local fonts=self.fonts
     local group=self.store:getJobs()[job]
     local palette=group.palette
-    love.graphics.setColor(.012,.03,.022,.88); love.graphics.rectangle("fill",x,y,w,h,14,14)
+    love.graphics.setColor(.008,.012,.045,.96); love.graphics.rectangle("fill",x,y,w,h,10,10)
     love.graphics.setColor(palette[1],palette[2],palette[3],.7); love.graphics.rectangle("fill",x,y,4,h,3,3)
-    love.graphics.setColor(1,1,1,.09); love.graphics.rectangle("line",x+.5,y+.5,w-1,h-1,14,14)
+    love.graphics.setColor(palette[1],palette[2],palette[3],.36); love.graphics.rectangle("line",x+.5,y+.5,w-1,h-1,10,10)
     love.graphics.setFont(fonts.small); love.graphics.setColor(palette[1],palette[2],palette[3],.9)
     love.graphics.print("연구 대상  /  "..jobNames[job],x+20,y+18)
-    love.graphics.setFont(fonts.body); love.graphics.setColor(.96,.94,.82)
+    local compact=h<430
+    love.graphics.setFont(compact and fonts.small or fonts.body); love.graphics.setColor(.96,.94,.82)
     love.graphics.printf(group.tagline,x+20,y+46,w-40,"left")
     love.graphics.setFont(fonts.small); love.graphics.setColor(.65,.72,.64)
-    love.graphics.printf(group.doctrine,x+20,y+76,w-40,"left")
+    love.graphics.printf(group.doctrine,x+20,y+(compact and 72 or 76),w-40,"left")
     -- 공용 특성 탭은 특정 캐릭터가 아니므로 초상화를 아예 생략한다. 전용 스프라이트가
     -- 있는 직업은 해당 고정 모델을 사용하고, 아직 없는 직업만 physical로 폴백한다.
     local sprite = job ~= "universal" and (self.sprites[job] or self.sprites.physical) or nil
@@ -287,13 +316,13 @@ function CharacterTraitBoard:drawCharacterDossier(x,y,w,h,job,focusNode)
         local fw,fh=sprite.image:getWidth()/6,sprite.image:getHeight()/2
         local frame=math.floor(self.time*4)%6
         local quad=love.graphics.newQuad(frame*fw,0,fw,fh,sprite.image:getDimensions())
-        local scale=math.min((w-44)/fw,(h*.42)/fh)
+        local scale=math.min((w-44)/fw,(h*(compact and .25 or .42))/fh)
         love.graphics.setColor(0,0,0,.28); love.graphics.ellipse("fill",x+w/2,y+h*.56,w*.26,12)
         love.graphics.setColor(1,1,1,1)
         love.graphics.draw(sprite.image,quad,x+w/2,y+h*.58,0,scale,scale,fw/2,(sprite.walkFeet or {})[frame+1] or 190)
     end
     local detailY=y+h-150
-    love.graphics.setColor(.04,.075,.052,.94); love.graphics.rectangle("fill",x+12,detailY,w-24,136,8,8)
+    love.graphics.setColor(.025,.035,.085,.98); love.graphics.rectangle("fill",x+12,detailY,w-24,136,6,6)
     love.graphics.setColor(focusNode.color[1],focusNode.color[2],focusNode.color[3],.8); love.graphics.rectangle("fill",x+12,detailY,3,136,2,2)
     local level=self.store:getLevel(focusNode.id)
     local ok,reason,cost=self.store:status(focusNode.id)
@@ -331,6 +360,7 @@ function CharacterTraitBoard:draw()
     local group=self.store:getJobs()[self.selectedJob]
     local palette=group.palette
     Frontend.backdrop(w,h,palette,.76)
+    love.graphics.setColor(.008,.006,.075,.82); love.graphics.rectangle("fill",0,0,w,h)
     for i=0,14 do
         love.graphics.setColor(palette[1],palette[2],palette[3],.018*(1-i/15))
         love.graphics.circle("fill",w*.68,h*.54,120+i*36)
@@ -354,11 +384,12 @@ function CharacterTraitBoard:draw()
         self.tabBoxes[i]=box
         local selected=job==self.selectedJob
         local jobPalette=self.store:getJobs()[job].palette
-        love.graphics.setColor(.015,.038,.027,selected and .97 or .76); love.graphics.rectangle("fill",box.x,box.y,box.w,box.h,6,6)
-        love.graphics.setColor(jobPalette[1],jobPalette[2],jobPalette[3],selected and 1 or .24)
+        love.graphics.setColor(.008,.012,.052,selected and .99 or .88); love.graphics.rectangle("fill",box.x,box.y,box.w,box.h,4,4)
+        local vr,vg,vb=vivid(jobPalette)
+        love.graphics.setColor(vr,vg,vb,selected and 1 or .48)
         love.graphics.rectangle("fill",box.x,box.y,selected and 4 or 2,box.h,2,2)
         if selected then love.graphics.rectangle("fill",box.x+10,box.y+box.h-2,box.w-20,2) end
-        love.graphics.setFont(fonts.body); love.graphics.setColor(selected and {1,.96,.84,1} or {.63,.69,.61,1})
+        love.graphics.setFont(fonts.body); love.graphics.setColor(selected and {1,1,.90,1} or {.72,.78,.82,1})
         love.graphics.printf(i.."  "..(jobTabNames[job] or jobNames[job]),box.x,box.y+12,box.w,"center")
     end
 
@@ -366,7 +397,7 @@ function CharacterTraitBoard:draw()
     local graph={x=dossier.x+dossier.w+20,y=150,w=w-dossier.x-dossier.w-50,h=h-176}
     self.viewport=graph
     self:clampCamera()
-    love.graphics.setColor(.004,.014,.009,.91); love.graphics.rectangle("fill",graph.x,graph.y,graph.w,graph.h,12,12)
+    love.graphics.setColor(.004,.006,.055,.96); love.graphics.rectangle("fill",graph.x,graph.y,graph.w,graph.h,10,10)
     love.graphics.setScissor(graph.x,graph.y,graph.w,graph.h)
 
     -- 카메라와 함께 움직이는 월드 격자: 현재 화면이 큰 연구 공간의 일부라는 감각을 준다.
@@ -377,12 +408,12 @@ function CharacterTraitBoard:draw()
     local bottom=self.panY+graph.h/(2*self.zoom)
     for wx=math.floor(left/grid)*grid,right,grid do
         local sx=graph.x+graph.w/2+(wx-self.panX)*self.zoom
-        love.graphics.setColor(palette[1],palette[2],palette[3],wx%480==0 and .055 or .022)
+        love.graphics.setColor(.14,.52,.78,wx%480==0 and .11 or .045)
         love.graphics.line(sx,graph.y,sx,graph.y+graph.h)
     end
     for wy=math.floor(top/grid)*grid,bottom,grid do
         local sy=graph.y+graph.h/2+(wy-self.panY)*self.zoom
-        love.graphics.setColor(palette[1],palette[2],palette[3],wy%480==0 and .055 or .022)
+        love.graphics.setColor(.38,.18,.68,wy%480==0 and .10 or .04)
         love.graphics.line(graph.x,sy,graph.x+graph.w,sy)
     end
 
@@ -402,11 +433,11 @@ function CharacterTraitBoard:draw()
     local mx,my=love.mouse.getPosition()
     self.nodeBoxes={}
     local hoveredNode=nil
-    local nodeScale=clamp(self.zoom,.72,1.04)
+    local nodeScale=clamp(self.zoom,.68,1.18)
     for _,node in ipairs(nodes) do
         local cx,cy=self:nodePosition(graph,node)
         if cx>=graph.x-80 and cx<=graph.x+graph.w+80 and cy>=graph.y-80 and cy<=graph.y+graph.h+80 then
-            local radius=(node.capstone and 31 or 27)*nodeScale
+            local radius=(node.capstone and 42 or 37)*nodeScale
             local box={id=node.id,node=node,cx=cx,cy=cy,x=cx-radius,y=cy-radius,w=radius*2,h=radius*2,scale=nodeScale}
             self.nodeBoxes[#self.nodeBoxes+1]=box
             local hovered=inside(box,mx,my) and not self.drag
@@ -418,22 +449,24 @@ function CharacterTraitBoard:draw()
             if self.blockedNode==node.id and self.blockedTime>0 then shake=math.sin(self.blockedTime*95)*4*self.blockedTime/.34 end
             box.cx=box.cx+shake
             self:drawNode(box,node,self.store:getLevel(node.id),ok,requirementsMet(self.store,node),hovered)
-            if self.zoom>=.58 then
-                love.graphics.setFont(fonts.small); love.graphics.setColor(hovered and {1,.94,.78,1} or {.70,.75,.67,.72})
-                love.graphics.printf(self:nodeLabel(node),box.cx-88,box.cy+31*nodeScale,176,"center")
+            if self.zoom>=.50 then
+                local labelY=box.cy+39*nodeScale
+                if hovered or node.id==self.selectedNodeId then love.graphics.setColor(.004,.006,.035,.88); love.graphics.rectangle("fill",box.cx-92,labelY-2,184,22,4,4) end
+                love.graphics.setFont(fonts.small); love.graphics.setColor(hovered and {1,1,.82,1} or {.82,.88,.92,.90})
+                love.graphics.printf(self:nodeLabel(node),box.cx-88,labelY+2,176,"center")
             end
         end
     end
     self:drawUnlockFx()
     love.graphics.setScissor()
-    love.graphics.setColor(1,1,1,.065); love.graphics.rectangle("line",graph.x+.5,graph.y+.5,graph.w-1,graph.h-1,12,12)
+    love.graphics.setColor(.24,.82,1,.34); love.graphics.rectangle("line",graph.x+.5,graph.y+.5,graph.w-1,graph.h-1,10,10)
 
     -- 고정 HUD: 탐색 조작, 초기 위치, 미니맵을 월드 위에 겹쳐 둔다.
-    love.graphics.setColor(.006,.018,.012,.93); love.graphics.rectangle("fill",graph.x+10,graph.y+10,graph.w-20,38,7,7)
+    love.graphics.setColor(.004,.008,.035,.96); love.graphics.rectangle("fill",graph.x+10,graph.y+10,graph.w-20,38,5,5)
     love.graphics.setFont(fonts.small); love.graphics.setColor(palette[1],palette[2],palette[3],.88)
     love.graphics.print("대형 영구 연구망  ·  "..#nodes.."개 노드",graph.x+24,graph.y+22)
-    love.graphics.setColor(.62,.70,.62,.78)
-    love.graphics.printf("빈 공간 드래그 이동  ·  휠 확대/축소  ·  노드 클릭 해금",graph.x+220,graph.y+22,graph.w-244,"right")
+    love.graphics.setColor(.72,.80,.86,.88)
+    love.graphics.printf("좌/우 드래그 이동  ·  휠 확대/축소  ·  클릭 해금",graph.x+220,graph.y+22,graph.w-244,"right")
     self.resetViewBox={x=graph.x+16,y=graph.y+58,w=94,h=28}
     love.graphics.setColor(.04,.09,.06,.92); love.graphics.rectangle("fill",self.resetViewBox.x,self.resetViewBox.y,self.resetViewBox.w,self.resetViewBox.h,5,5)
     love.graphics.setColor(.72,.80,.69,.72); love.graphics.rectangle("line",self.resetViewBox.x+.5,self.resetViewBox.y+.5,self.resetViewBox.w-1,self.resetViewBox.h-1,5,5)

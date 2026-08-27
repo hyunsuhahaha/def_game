@@ -1169,8 +1169,11 @@ function ClearcutMode:updateEnemies(dt, game)
         end
         if def.plantInterval then
             e.plantTimer = (e.plantTimer or def.plantInterval) - dt
+            e.planterCasting = e.plantTimer <= 1.5
+            if e.planterCasting then e.visualAttack = math.max(e.visualAttack,.24) end
             if e.plantTimer <= 0 then
                 e.plantTimer = def.plantInterval
+                e.planterCasting = false
                 self:plantTreesNear(e, game)
             end
         end
@@ -4432,6 +4435,19 @@ local function drawEnemyThreat(e, t)
             local r1, r2 = def.radius * .3, def.radius * (.75 + pulse * .25)
             love.graphics.setLineWidth(2 + pulse); love.graphics.setColor(1, .25, .1, .6 + pulse * .3)
             love.graphics.line(e.x + math.cos(a) * r1, e.y - bob + math.sin(a) * r1 * .6, e.x + math.cos(a) * r2, e.y - bob + math.sin(a) * r2 * .6)
+        end
+    elseif e.kind == "planter" then
+        local left=math.max(0,e.plantTimer or def.plantInterval or 7)
+        local charge=left<=1.5 and (1-left/1.5) or 0
+        local pulse=.5+math.sin(t*8+seed)*.5
+        love.graphics.setColor(.32,1,.48,.10+charge*.22); love.graphics.circle("fill",e.x,e.y,def.plantRadius*(.12+charge*.18))
+        love.graphics.setLineWidth(1.5+charge*2); love.graphics.setColor(.58,1,.36,.42+charge*.5)
+        love.graphics.circle("line",e.x,e.y,def.radius*(1.2+pulse*.15+charge*.4))
+        for i=1,4 do
+            local a=t*(1.2+charge*1.5)+i*math.pi*.5+seed
+            local r=def.radius*(1.25+charge*.75)
+            love.graphics.setColor(.65,1,.42,.45+charge*.45)
+            love.graphics.polygon("fill",e.x+math.cos(a)*r,e.y-28+math.sin(a)*r*.45-4,e.x+math.cos(a)*r+4,e.y-28+math.sin(a)*r*.45,e.x+math.cos(a)*r,e.y-28+math.sin(a)*r*.45+4,e.x+math.cos(a)*r-3,e.y-28+math.sin(a)*r*.45)
         end
     end
     ForestArt.drawHealth(e,t)

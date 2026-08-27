@@ -1,0 +1,11 @@
+{
+  "id": "planter",
+  "source": "assets\\enemies\\concepts\\regrowth-spirit-model-v1.png",
+  "file": "assets\\enemies\\arcade\\planter-atlas-v1.png",
+  "cell": 160,
+  "foot": 152,
+  "bodyWidth": 85,
+  "height": 144,
+  "colors": 122,
+  "frames": 12
+}

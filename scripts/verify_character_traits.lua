@@ -73,11 +73,13 @@ assert(board.unlockFx and #board.particles>=30, "graph unlock effect did not spa
 local oldPan=board.panX
 mouseX,mouseY,mouseDown=board.viewport.x+board.viewport.w/2,board.viewport.y+board.viewport.h/2,true
 board:mousepressed(mouseX,mouseY,1)
-mouseX=mouseX+100; board:update(.016)
+mouseX=mouseX-100; board:update(.016)
 assert(board.panX~=oldPan,"dragging did not pan the research canvas")
 mouseDown=false; board:update(.016)
+assert(math.abs(board.panVX)>0,"released research canvas has no inertial velocity")
 local oldZoom=board.zoom
 board:wheelmoved(0,1)
 assert(board.zoom>oldZoom,"mouse wheel did not zoom the research canvas")
+assert(board.zoom>=.36 and board.zoom<=1.60,"research canvas zoom escaped its supported range")
 
 print("CHARACTER_TRAITS_OK")

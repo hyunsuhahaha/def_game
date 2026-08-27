@@ -4,8 +4,7 @@ return {
     boar={file="assets/enemies/arcade/boar-atlas-v3.png",cell=128,foot=120,width=64,bodyWidth=111,height=112,motion=1,facing=1},
     turret={file="assets/enemies/arcade/turret-atlas-v3.png",cell=128,foot=120,width=56,bodyWidth=116,height=112,motion=2,facing=1},
     vineSprout={file="assets/enemies/arcade/vineSprout-atlas-v3.png",cell=160,foot=152,width=74,bodyWidth=94,height=144,motion=2,facing=1},
-    -- Placeholder art: reuses the vineSprout atlas until this gets its own sprite.
-    planter={file="assets/enemies/arcade/vineSprout-atlas-v3.png",cell=160,foot=152,width=68,bodyWidth=94,height=144,motion=2,facing=1},
+    planter={file="assets/enemies/arcade/planter-atlas-v1.png",cell=160,foot=152,width=68,bodyWidth=85,height=144,motion=2,facing=1},
     ent={file="assets/enemies/arcade/ent-atlas-v3.png",cell=256,foot=248,width=140,bodyWidth=238,height=240,motion=2,facing=1},
     worldtree={file="assets/enemies/arcade/worldtree-atlas-v3.png",cell=320,foot=312,width=263,bodyWidth=276,height=304,motion=2,facing=1},
     reaper={file="assets/enemies/arcade/reaper-atlas-v3.png",cell=160,foot=152,width=75,bodyWidth=119,height=144,motion=2,facing=1},

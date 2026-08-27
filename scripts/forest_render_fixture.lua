@@ -18,7 +18,7 @@ local function emit(value)
         a[1],a[2]=transform.x+a[1]*transform.sx,transform.y+a[2]*transform.sy
         local sx,sy=a[4] or 1,a[5] or a[4] or 1
         a[3],a[4],a[5]=a[3] or 0,sx*transform.sx,sy*transform.sy
-    elseif value.op=="line" then
+    elseif value.op=="line" or value.op=="polygon" then
         for i=1,#a,2 do a[i],a[i+1]=transform.x+a[i]*transform.sx,transform.y+a[i+1]*transform.sy end
     end
     if value.op=="rectangle" or value.op=="ellipse" or value.op=="text" then
@@ -69,6 +69,7 @@ local graphics={
     rectangle=function(mode,x,y,w,h,radius) emit({op="rectangle",mode=mode,args={x,y,w,h},radius=radius}) end,
     ellipse=function(mode,x,y,rx,ry) emit({op="ellipse",mode=mode,args={x,y,rx,ry}}) end,
     circle=function(mode,x,y,r) emit({op="ellipse",mode=mode,args={x,y,r,r}}) end,
+    polygon=function(mode,...) emit({op="polygon",mode=mode,args={...}}) end,
     line=function(...) emit({op="line",args={...}}) end,
 }
 love={graphics=graphics,math={random=math.random},timer={getTime=function() return Fixture.time or 0 end}}

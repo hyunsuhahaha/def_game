@@ -34,7 +34,7 @@ for i=1,30 do local name,value=debug.getupvalue(Game.new,i); if name=="loadClear
 assert(loader)
 player:setClearcutSprite(loader().fire,"fire"); player.isMoving=true; player.walkClock=.2
 mode.job="fire"; mode.smoking={phase="loaded",t=1,dur=1}
-local kinds={"squirrel","boar","turret","vineSprout","ent","worldtree","reaper"}
+local kinds={"squirrel","boar","turret","vineSprout","planter","ent","worldtree","reaper"}
 for i,kind in ipairs(kinds) do
     local e=mode:spawnEnemy(kind,400+(i%3)*118,245+math.floor((i-1)/3)*230)
     e.moving=true; e.facing=-1; e.seed=i*.3
@@ -69,7 +69,7 @@ movement:updateEnemies(.1,{player={x=100,y=10}})
 assert(stationary.visualAttack>0 and #movement.projectiles==1,"firing recoil not connected")
 local queue={}
 mode:queueWorldActors(queue,.3)
-assert(#queue==7)
+assert(#queue==8)
 for i,e in ipairs(mode.enemies) do assert(queue[i].y==Art.footY(e),"enemy depth differs from feet") end
 -- Capture actual production World depth queue + overlay, not a hand-composed picture.
 for frame=0,(FOREST_RENDER_CAPTURE and 5 or 0) do
@@ -81,7 +81,7 @@ for frame=0,(FOREST_RENDER_CAPTURE and 5 or 0) do
     for _,draw in ipairs(fixture.commands) do
         if draw.op=="draw" and draw.file:find("assets/enemies/arcade/",1,true) then bodies[#bodies+1]=draw end
     end
-    assert(#bodies==7,"world failed to queue every enemy exactly once")
+    assert(#bodies==8,"world failed to queue every enemy exactly once")
     for bodyIndex,body in ipairs(fixture.commands) do
         if body.op=="draw" and body.file:find("assets/enemies/arcade/",1,true) then
             local enemy
@@ -100,4 +100,5 @@ for frame=0,(FOREST_RENDER_CAPTURE and 5 or 0) do
     assert(#bodies==before,"overlay redrew enemy bodies over trees")
     if FOREST_RENDER_CAPTURE then fixture.save("docs/previews/forest-arcade-draws-"..frame..".json") end
 end
-print("FOREST_ARCADE_RUNTIME_OK species=7 trees=4 facing=both depth=shared shader=restored")
+assert(catalog.planter.file:find("planter%-atlas%-v1%.png"),"regrowth spirit still uses placeholder art")
+print("FOREST_ARCADE_RUNTIME_OK species=8 trees=4 facing=both depth=shared shader=restored")

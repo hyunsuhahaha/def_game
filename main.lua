@@ -288,6 +288,8 @@ function love.load()
         game.clearcut.bees[#game.clearcut.bees+1] = {x=game.player.x+90,y=game.player.y-30,speed=150,life=7}
         game.clearcut.beeSlow = true
         game.clearcut.rootHazards[#game.clearcut.rootHazards+1] = {x=game.player.x-70,y=game.player.y+40,phase="warn",timer=.4,radius=95}
+        local planter=game.clearcut:spawnEnemy("planter",game.player.x+155,game.player.y-95)
+        if planter then planter.plantTimer=.7 end
         game.camera.x,game.camera.y = game.player.x,game.player.y
     end
     if os.getenv("LAST_HAUL_CAPTURE_CLEARCUT_UPGRADE") then

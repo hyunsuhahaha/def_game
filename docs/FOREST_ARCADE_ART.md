@@ -25,6 +25,7 @@
 | 단풍 | `assets/trees/maple-tree-cartoon-v3.png`, 170×226 | 배율 1, 발선 약 206 |
 | 다람쥐 / 멧돼지 / 버섯 | `assets/enemies/arcade/`, 128×128 | 몸체 너비 33 / 49 / 43 월드 단위 |
 | 덩굴괴수 / 사신 | 같은 폴더, 160×160 | 너비 57 / 58 |
+| 재생의 정령 | `assets/enemies/arcade/planter-atlas-v1.png`, 160×160 | 너비 68, 시전 시 씨앗 광원·녹색 맥동 |
 | 엘더 트렌트 | 같은 폴더, 256×256 | 너비 108 |
 | 세계수 | 같은 폴더, 320×320 | 너비 202 |
 
@@ -45,6 +46,7 @@
 
 - 나무 고정 원화: `assets/trees/concepts/forest-cartoon-models-v3.png`. 승인 시안에서 2×2 나무 보드를 만들고, 별도 배경 추출 요청으로 실제 RGBA를 받았다. 최초 보드의 가짜 체크무늬는 최종본에 사용하지 않았다.
 - 몬스터 고정 원화: `assets/enemies/concepts/forest-arcade-models-v3.png`. 단색 마젠타 배경을 명시했고 제작용 GLSL에서 키잉한다. 이 원화를 게임에서 직접 그리지 않는다.
+- 재생의 정령 고정 원화: `assets/enemies/concepts/regrowth-spirit-model-v1.png`. 새싹 두 잎, 에메랄드 씨앗 꼬투리 몸체, 발광 씨앗을 감싼 뿌리손, 뿌리발을 역할 실루엣으로 고정했다. `scripts/build_regrowth_spirit_asset.py`가 160×160 셀의 6+6 프레임을 GPU로 굽는다. 최종 아틀라스는 122색, 이진 알파이며 기존 작은 몬스터와 동일한 발선·nearest 계약을 쓴다.
 - 최종 프롬프트 세트: [FOREST_ARCADE_PROMPTS.md](FOREST_ARCADE_PROMPTS.md).
 - 제작: `scripts/build_forest_arcade_assets.py` + `assets/shaders/forest-arcade-bake.glsl`. 원화의 형태를 고정하고 최종 픽셀 그리드, 재질 팔레트, 윤곽 명암, 발 접점과 동작을 결정적으로 굽는다.
 - 런타임 재질: `assets/shaders/forest-arcade-light.glsl`. 피격/정예/독 상태를 기존 색 위에서 처리하고 이전 셰이더를 복구한다.
@@ -52,12 +54,13 @@
 
 ## 검증
 
-**게임 창을 실행하지 않았다.** 아래는 실제 Lua 그리기 명령을 기록해 AMD Radeon OpenGL에서 재생한 자산 검증이다. 전체 LÖVE 엔진 캡처가 아니며 HUD·카메라 흔들림·오디오·벌집 FX·실시간 입력은 포함하지 않는다.
+**사용자에게 보이는 게임 창은 실행하지 않았다.** 자산 검사는 오프스크린 GPU에서 수행했고, 최종 연결은 숨김 LÖVE 창으로 실제 런타임 캡처했다.
 
 - [기본 줌 .72 미리보기](previews/forest-arcade-v3-camera072.png), [원생 크기](previews/forest-arcade-v3-runtime.png), [확대](previews/forest-arcade-v3-zoom.png), [6프레임 동작](previews/forest-arcade-v3-motion.gif), [자산 보드](previews/forest-arcade-v3-assets.png).
-- `verify_boss_sprites.lua`: 7종 실물 파일·nearest·발선·셰이더 복구·이동 방향/정지·접촉/발사 반동·실제 World 앞뒤 순서·overlay 중복 그리기 방지 통과. 숲 배치는 실제 `generateForest`를 사용한다.
+- 재생의 정령: [12칸 아틀라스](previews/regrowth-spirit-atlas-v1.png), [실제 필드와 시전 표시](previews/regrowth-spirit-runtime-v1.png), [제작 수치](previews/regrowth-spirit-v1-build.json).
+- `verify_boss_sprites.lua`: 8종 실물 파일·nearest·발선·셰이더 복구·이동 방향/정지·접촉/발사 반동·실제 World 앞뒤 순서·overlay 중복 그리기 방지 통과. 숲 배치는 실제 `generateForest`를 사용한다.
+- `verify_regrowth_spirit_asset.py`: 960×320, 대기 6프레임과 순환 시전 동작, 122색, 이진 알파, 전용 카탈로그 연결과 시전 피드백 경로를 검사한다.
 - `verify_forest_arcade_assets.py`: 11개 파일, 이진 알파, 키색 잔여물, 서로 다른 걷기 6프레임, 모든 걷기 발선 검사 통과. 실제 런타임 재질/담배 불씨/연기 셰이더 3종 컴파일·렌더 통과.
-- 기존 Python 자산 검사 3종 통과. 전체 Lua 12종 중 10종 통과.
-- 남은 기존 실패 2종: `verify_clearcut_actions.lua`의 `playAutoAxeSwing` 모형 누락, `verify_trait_gameplay.lua`의 나무꾼 다중 대상/피해 기대값. 둘 다 `HEAD`의 기존 `clearcut_mode.lua`로 바꿔도 동일하게 실패함을 확인했다. 이번 그래픽 작업에서 게임 규칙이나 해당 테스트를 바꾸지 않았다. [기록](previews/forest-arcade-v3-tests.json).
+- 2026-08-28 기준 `scripts/headless_lua.py`의 Lua 검사 26종 전체 통과. 재생의 정령 전용 Python 자산 검사도 별도로 통과했다.
 
 재검증은 LÖVE 창 대신 Python(Pillow/numpy/moderngl)으로 `scripts/verify_forest_arcade_assets.py`를 실행한다. Lua DLL 기본 경로는 Windows LÖVE 설치 폴더이며 `LOVE_LUA_DLL`로 변경할 수 있다.
