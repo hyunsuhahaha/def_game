@@ -53,9 +53,6 @@ local definitions = {
     -- 굴착력 (dig) — 발톱 할퀴기와 지하 돌진으로 얼마나 거칠게 밀어내느냐 [코인 채굴꾼 전용]
     {id="detector", track="dig", name="손톱 강화 — 복리 발톱", desc="기본 할퀴기의 범위와 피해가 늘어납니다. 강화할수록 손톱 궤적이 길고 굵어지며, 3단계와 5단계에서 카툰 픽셀 잔상도 강해집니다.", max=6, color={.85,.68,.22}, job="miner"},
     {id="burrow_uproot", track="dig", name="지하 강제집행", desc="SPACE 또는 우클릭 잠복의 재사용 시간이 줄고, 이동 경로에서 자동으로 옆으로 튕겨 나가는 나무의 피해와 관통 횟수가 늘어납니다.", max=6, color={.58,.42,.24}, job="miner"},
-    {id="deep_scan", track="dig", name="정밀 탐사", desc="탐지 반경이 넓어지고 판정 속도가 빨라집니다.", max=6, color={.95,.82,.35}, job="miner"},
-    {id="backhoe", track="dig", name="굴착기 대여", desc="굴착 한 방의 범위와 위력이 커집니다. 렌탈비는... 나중에 생각하자.", max=6, color={.75,.55,.2}, job="miner"},
-    {id="jackpot", track="dig", name="이번엔 진짜 있을 것 같다", desc="가끔 '발견!' 판정이 터져 훨씬 넓은 범위가 한 번에 무너지고 목재를 왕창 얻습니다.", max=6, color={1,.84,.3}, job="miner"},
     {id="brute_force", track="dig", name="브루트포스 어택", desc="지상에서 수많은 숫자 조합을 빠르게 생성한 뒤 사방으로 발사합니다. 날아간 숫자는 닿는 나무와 적에게 피해를 줍니다.", max=6, color={.3,.9,.4}, job="miner"},
     -- 독설력 (venom) — 말을 오래 붙잡을수록 사거리와 독성이 강해진다 [차라투스트라는 이렇게 말했다 전용]
     {id="monologue", track="venom", name="아무 말 대잔치", desc="기본 공격이 장광설로 바뀝니다. 마우스 방향으로 계속 침을 튀기며, 말이 길어질수록 사거리와 피해가 늘어납니다.", max=6, color={.75,.85,.3}, job="philosopher"},
@@ -362,7 +359,6 @@ function ClearcutMode:update(dt, game)
     self:updateRegrowth(dt, game)
     self:updateFire(dt, game)
     self:updateMolotovs(dt, game)
-    self:updateMining(dt, game)
     self:updateToxicRain(dt, game)
     -- 연습장(sandbox)에서는 이 함수들이 자기 안에서 바로 return 하므로(각 함수 상단의
     -- sandbox 가드 참고) 자동 위협/스폰이 전부 꺼지고 "몹 소환" 버튼으로만 적이 생긴다.
@@ -1708,7 +1704,7 @@ function ClearcutMode:updateMinerAttack(dt, game, heldOverride)
     local maxRange = 112 + self:power("detector") * 16 + self.permanentTraits.range
     local tx, ty = self:aimPoint(game, maxRange)
     self.aimX, self.aimY = tx, ty
-    self.aimRadius = 34 + self:power("detector") * 5 + self:power("deep_scan") * 7 + self.permanentTraits.area * .35
+    self.aimRadius = 34 + self:power("detector") * 5 + self.permanentTraits.area * .35
     if self.minerClawAction then
         local action = self.minerClawAction
         action.t = math.min(action.dur, action.t + dt)
@@ -1730,7 +1726,7 @@ function ClearcutMode:updateMinerAttack(dt, game, heldOverride)
     end
     self.attackCooldown = math.max(0, self.attackCooldown - dt)
     if not held or self.attackCooldown > 0 then return false end
-    local speed = (game.tools.axe.speed or 1) * game.player.gather * (1 + self:power("deep_scan") * .12) * self.permanentTraits.attackSpeed
+    local speed = (game.tools.axe.speed or 1) * game.player.gather * self.permanentTraits.attackSpeed
     self.minerClawAction = {t=0, dur=math.max(.34, .62/speed), tx=tx, ty=ty, struck=false}
     game.player.facing = tx < game.player.x and -1 or 1
     if game.player.setClearcutAction then game.player:setClearcutAction(0) end
@@ -1753,7 +1749,7 @@ function ClearcutMode:applyClawSwipe(tx, ty, game)
     if distance < 1 then dx, dy, distance = game.player.facing or 1, 0, 1 end
     local nx, ny = dx / distance, dy / distance
     local range = 112 + self:power("detector") * 16 + self.permanentTraits.range
-    local halfWidth = 34 + self:power("detector") * 5 + self:power("deep_scan") * 7 + self.permanentTraits.area * .35
+    local halfWidth = 34 + self:power("detector") * 5 + self.permanentTraits.area * .35
     local damage = 2 + self:power("detector") * .65 + self.permanentTraits.treeDamage
     local clawLevel = self:levelOf("detector")
     local angle
@@ -1773,7 +1769,7 @@ function ClearcutMode:applyClawSwipe(tx, ty, game)
         end
     end
     table.sort(candidates, function(a,b) return a.along < b.along end)
-    local limit = 1 + math.floor(self.permanentTraits.extraTargets or 0) + math.floor(self:power("deep_scan") * .45)
+    local limit = 1 + math.floor(self.permanentTraits.extraTargets or 0)
     local marked=false
     for index=1,math.min(limit,#candidates) do
         local node = candidates[index].node
@@ -1954,55 +1950,6 @@ function ClearcutMode:updateThrownTrees(dt, game)
             self.traitFx:emit("construction_blast",tree.x,tree.y,{radius=68,particles=18,power=.85,color={.45,.28,.12}})
             table.remove(self.thrownTrees,index)
         end
-    end
-end
-
-function ClearcutMode:applyDig(tx, ty, game, isBonus)
-    local backhoePower = self:power("backhoe")
-    -- Legacy jackpot/gold-rush excavation keeps its own radius; the claw HUD
-    -- reticle is intentionally much narrower and must not shrink this skill.
-    local digRadius = 70 + self:power("detector") * 12 + self:power("deep_scan") * 22 + self.permanentTraits.area
-    local radius = digRadius * (isBonus and 2.2 or 1) + backhoePower * 14
-    local dmg = 4 + self:power("detector") * 2 + backhoePower * 2.5 + self.permanentTraits.treeDamage
-    for _, node in ipairs(game.world.nodes) do
-        if node.rushTree and node.active then
-            local dx, dy = node.x - tx, node.y - ty
-            if dx*dx + dy*dy <= radius*radius then
-                node.rushHp = 0
-                game.world:impactNode(node, game, true)
-                self:fellTree(node, game)
-            end
-        end
-    end
-    self:damageEnemiesInRadius(tx, ty, radius, dmg, game)
-    self.traitFx:emit("construction_blast", tx, ty, {radius=radius, particles=isBonus and 40 or 20, power=isBonus and 1.4 or .95})
-    if game.camera then game.camera.trauma = math.min(1, game.camera.trauma + (isBonus and .38 or .16)) end
-    local jackpotLevel = self:levelOf("jackpot")
-    local jackpotPower = self:power("jackpot")
-    local jackpotChance = (jackpotLevel > 0 and (.06 + jackpotPower * .07) or 0) + (self.evolutions.goldrush and .1 or 0) + self.permanentTraits.executeChance
-    if not isBonus and jackpotChance > 0 and love.math.random() < jackpotChance then
-        game:setNotice("발견?! — 대박 굴착 발생!", "food")
-        self:applyDig(tx, ty, game, true)
-        self:onWood(30 + jackpotPower * 20, game)
-    end
-    if not isBonus then
-        for _ = 1, math.floor(self.permanentTraits.extraTargets) do
-            local a = love.math.random() * math.pi * 2
-            local r = radius * .7
-            self:applyDig(tx + math.cos(a) * r, ty + math.sin(a) * r, game, true)
-        end
-    end
-end
-
-function ClearcutMode:updateMining(dt, game)
-    if not self.evolutions.goldrush then return end
-    self.goldrushTimer = (self.goldrushTimer or 4) - dt
-    if self.goldrushTimer <= 0 then
-        self.goldrushTimer = 4
-        local a = love.math.random() * math.pi * 2
-        local r = 80 + love.math.random() * 220
-        game:setNotice("골드러시 — 자동 굴착 발생!", "food")
-        self:applyDig(game.player.x + math.cos(a) * r, game.player.y + math.sin(a) * r, game)
     end
 end
 
@@ -3937,9 +3884,6 @@ local siteClearancePalette = {O={.15,.15,.16,1}, H={.85,.85,.85,1}, W={.55,.5,.5
 local forcedGrowthPalette = {O={.16,.22,.05,1}, H={.85,.95,.6,1}, T={.4,.72,.22,1}}
 local pileDrivingPalette = {O={.2,.14,.06,1}, H={.92,.85,.7,1}, T={.55,.4,.2,1}}
 local toxicRainPalette = {O={.14,.24,.1,1}, H={.9,.98,.85,1}, W={.6,.85,.5,1}}
-local deepScanPalette = {O={.25,.2,.05,1}, H={.98,.9,.55,1}, W={.95,.82,.35,1}}
-local backhoePalette = {O={.2,.14,.05,1}, H={.9,.72,.35,1}, W={.75,.55,.2,1}, D={.45,.32,.1,1}}
-local jackpotPalette = {O={.3,.22,.02,1}, H={1,.95,.7,1}, W={1,.84,.3,1}}
 local footnotePalette = {O={.16,.22,.04,1}, H={.9,.98,.6,1}, W={.85,.9,.4,1}}
 local loudVoicePalette = {O={.1,.16,.04,1}, H={.82,.95,.5,1}, W={.65,.8,.3,1}}
 local salivaGlandPalette = {O={.1,.15,.03,1}, H={.78,.92,.42,1}, W={.55,.72,.25,1}}
@@ -3991,9 +3935,6 @@ ClearcutMode.icons = {
     pickaxe = {rows = pickaxeIconRows, palette = pickaxeIconPalette},
     detector = {rows = rootCuttingRows, palette = rootCuttingPalette},
     burrow_uproot = {rows = rootCuttingRows, palette = rootCuttingPalette},
-    deep_scan = {rows = diamondRows, palette = deepScanPalette},
-    backhoe = {rows = boxRows, palette = backhoePalette},
-    jackpot = {rows = blobRows, palette = jackpotPalette},
     speech = {rows = speechIconRows, palette = speechIconPalette},
     monologue = {rows = speechIconRows, palette = speechIconPalette},
     footnote = {rows = stickRows, palette = footnotePalette},
