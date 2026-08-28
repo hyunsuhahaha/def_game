@@ -100,5 +100,5 @@ for frame=0,(FOREST_RENDER_CAPTURE and 5 or 0) do
     assert(#bodies==before,"overlay redrew enemy bodies over trees")
     if FOREST_RENDER_CAPTURE then fixture.save("docs/previews/forest-arcade-draws-"..frame..".json") end
 end
-assert(catalog.planter.file:find("planter%-atlas%-v1%.png"),"regrowth spirit still uses placeholder art")
+assert(catalog.planter.file:find("planter%-atlas%-v2%.png") and catalog.planter.cell==256,"regrowth sanctum v2 is not wired")
 print("FOREST_ARCADE_RUNTIME_OK species=8 trees=4 facing=both depth=shared shader=restored")

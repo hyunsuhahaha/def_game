@@ -1,0 +1,12 @@
+{
+  "id": "planter",
+  "source": "assets\\enemies\\concepts\\regrowth-sanctum-model-v2.png",
+  "file": "assets\\enemies\\arcade\\planter-atlas-v2.png",
+  "cell": 256,
+  "foot": 248,
+  "bodyWidth": 233,
+  "height": 243,
+  "worldWidth": 90,
+  "colors": 120,
+  "frames": 12
+}

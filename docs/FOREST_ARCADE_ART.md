@@ -25,7 +25,7 @@
 | 단풍 | `assets/trees/maple-tree-cartoon-v3.png`, 170×226 | 배율 1, 발선 약 206 |
 | 다람쥐 / 멧돼지 / 버섯 | `assets/enemies/arcade/`, 128×128 | 몸체 너비 33 / 49 / 43 월드 단위 |
 | 덩굴괴수 / 사신 | 같은 폴더, 160×160 | 너비 57 / 58 |
-| 재생의 정령 | `assets/enemies/arcade/planter-atlas-v1.png`, 160×160 | 너비 68, 시전 시 씨앗 광원·녹색 맥동 |
+| 숲의 재생 성소 | `assets/enemies/arcade/planter-atlas-v2.png`, 256×256 | 너비 90, 고정 뿌리 기단·부유 수관·회전 목재 고리·중앙 씨앗 |
 | 엘더 트렌트 | 같은 폴더, 256×256 | 너비 108 |
 | 세계수 | 같은 폴더, 320×320 | 너비 202 |
 
@@ -46,7 +46,7 @@
 
 - 나무 고정 원화: `assets/trees/concepts/forest-cartoon-models-v3.png`. 승인 시안에서 2×2 나무 보드를 만들고, 별도 배경 추출 요청으로 실제 RGBA를 받았다. 최초 보드의 가짜 체크무늬는 최종본에 사용하지 않았다.
 - 몬스터 고정 원화: `assets/enemies/concepts/forest-arcade-models-v3.png`. 단색 마젠타 배경을 명시했고 제작용 GLSL에서 키잉한다. 이 원화를 게임에서 직접 그리지 않는다.
-- 재생의 정령 고정 원화: `assets/enemies/concepts/regrowth-spirit-model-v1.png`. 새싹 두 잎, 에메랄드 씨앗 꼬투리 몸체, 발광 씨앗을 감싼 뿌리손, 뿌리발을 역할 실루엣으로 고정했다. `scripts/build_regrowth_spirit_asset.py`가 160×160 셀의 6+6 본체 프레임을 GPU로 굽는다. 시전 효과는 `regrowth-cast-fx-source-v2.png`를 `build_signature_fx_v2.py`가 192×192 셀 6프레임의 뿌리·씨앗·발아 아틀라스로 굽고, 런타임 원·선·폴리곤을 사용하지 않는다.
+- 숲의 재생 성소 v2 고정 원화: `assets/enemies/concepts/regrowth-sanctum-model-v2.png`. 생명체형 얼굴·손·발을 전부 제거하고, 고정 뿌리 기단과 세 개의 뿌리 아치, 공중에 뜬 수관·씨앗·목재 고리로 고대 숲 구조물의 신비감을 만든다. `scripts/build_regrowth_sanctum_asset.py`가 256×256 셀의 6+6 프레임을 GPU로 굽는다. 시전 효과는 `scripts/build_regrowth_cast_v3.py`가 별도 256×256 셀 6프레임의 회전 고리·꽃가루·뿌리빛을 만들며, 구조물 본체의 씨앗을 중복해서 그리지 않는다. 기존 v1 정령 원화·아틀라스·시전 FX는 삭제하지 않고 미연결 상태로 보존한다.
 - 최종 프롬프트 세트: [FOREST_ARCADE_PROMPTS.md](FOREST_ARCADE_PROMPTS.md).
 - 제작: `scripts/build_forest_arcade_assets.py` + `assets/shaders/forest-arcade-bake.glsl`. 원화의 형태를 고정하고 최종 픽셀 그리드, 재질 팔레트, 윤곽 명암, 발 접점과 동작을 결정적으로 굽는다.
 - 런타임 재질: `assets/shaders/forest-arcade-light.glsl`. 피격/정예/독 상태를 기존 색 위에서 처리하고 이전 셰이더를 복구한다.
@@ -57,9 +57,9 @@
 **사용자에게 보이는 게임 창은 실행하지 않았다.** 자산 검사는 오프스크린 GPU에서 수행했고, 최종 연결은 숨김 LÖVE 창으로 실제 런타임 캡처했다.
 
 - [기본 줌 .72 미리보기](previews/forest-arcade-v3-camera072.png), [원생 크기](previews/forest-arcade-v3-runtime.png), [확대](previews/forest-arcade-v3-zoom.png), [6프레임 동작](previews/forest-arcade-v3-motion.gif), [자산 보드](previews/forest-arcade-v3-assets.png).
-- 재생의 정령: [12칸 본체 아틀라스](previews/regrowth-spirit-atlas-v1.png), [기존 필드 배치](previews/regrowth-spirit-runtime-v1.png), [본체 제작 수치](previews/regrowth-spirit-v1-build.json), [v2 시전·포크 FX 아틀라스](previews/signature-fx-v2-atlases.png), [실제 표시 크기](previews/signature-fx-v2-display-scale.png), [시전 동작](previews/regrowth-cast-v2-motion.gif).
+- 숲의 재생 성소: [실제 표시 배율·확대 검수](previews/regrowth-sanctum-v2-display-scale.png), [12칸 본체 아틀라스](previews/regrowth-sanctum-atlas-v2.png), [본체 제작 수치](previews/regrowth-sanctum-v2-build.json). v1 생명체형 정령 미리보기는 교체 전 기록으로만 남긴다.
 - `verify_boss_sprites.lua`: 8종 실물 파일·nearest·발선·셰이더 복구·이동 방향/정지·접촉/발사 반동·실제 World 앞뒤 순서·overlay 중복 그리기 방지 통과. 숲 배치는 실제 `generateForest`를 사용한다.
-- `verify_regrowth_spirit_asset.py`: 960×320 본체와 1152×192 시전 FX, 서로 다른 6프레임, 이진 알파, 제한 팔레트, 전용 카탈로그와 픽셀 아틀라스 시전 경로를 검사한다.
+- `verify_regrowth_spirit_asset.py`: 1536×512 본체와 1536×256 시전 FX, 서로 다른 6프레임, 제한 팔레트·알파, 구조물형 실루엣, 전용 카탈로그와 픽셀 아틀라스 시전 경로를 검사한다.
 - `verify_forest_arcade_assets.py`: 11개 파일, 이진 알파, 키색 잔여물, 서로 다른 걷기 6프레임, 모든 걷기 발선 검사 통과. 실제 런타임 재질/담배 불씨/연기 셰이더 3종 컴파일·렌더 통과.
 - 2026-08-28 기준 `scripts/headless_lua.py`의 Lua 검사 26종 전체 통과. 재생의 정령 전용 Python 자산 검사도 별도로 통과했다.
 
@@ -81,7 +81,7 @@
 ## 숲 재생과 구역 제압 (v1)
 
 - 한 스테이지의 숲을 3×2, 최대 6개 구역으로 나눈다. 경계선을 화면에 크게 칠하지 않고 상단의 작은 구역 현황표로만 상태를 전달한다.
-- 나무가 있는 각 구역에는 기존 `planter-atlas-v1.png` 재생의 정령을 재생핵으로 배치한다. 별도 임시 도형이나 새 저해상도 몸체를 만들지 않는다.
+- 나무가 있는 각 구역에는 `planter-atlas-v2.png` 숲의 재생 성소를 재생핵으로 배치한다. 얼굴·팔다리가 있는 생명체가 아니라 땅에 고정된 구조물이며, 별도 임시 도형이나 저해상도 몸체를 만들지 않는다.
 - 살아 있는 재생핵은 자기 구역의 베어진 나무만 복구한다. 전역 재생 펄스도 살아 있는 재생핵의 구역 하나를 골라 최대 3그루까지만 복구한다.
 - 재생핵을 파괴하면 해당 구역의 재생은 즉시 멈춘다. 이후 남은 나무를 모두 제거하면 `확보` 상태가 되며 그 스테이지 동안 영구적으로 다시 자라지 않는다.
 - 현황표의 숫자는 살아 있는 나무 수, `정리`는 재생핵 파괴 후 잔존 나무 제거 중, `확보`는 영구 제압 완료를 뜻한다.

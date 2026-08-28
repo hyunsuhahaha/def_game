@@ -129,7 +129,7 @@ local enemyDefs = {
     vineSprout = {name="식충 덩굴괴수", hp=42, speed=0, damage=6, radius=27, color={.35,.65,.25}, ranged=true, thornAttack=true, range=360, fireInterval=1.55, reward=7, hitCooldown=1},
     -- 직접 공격은 없지만, 주기적으로 주변에 쓰러진 나무를 되살린다 — 방치하면
     -- 애써 벤 자리가 다시 채워지니 먼저 처치하는 편이 이득인 "우선 처치" 유형.
-    planter = {name="재생의 정령", hp=55, speed=0, damage=0, radius=24, color={.4,.78,.35}, hitCooldown=1, reward=9, plantInterval=7, plantRadius=190}
+    planter = {name="숲의 재생 성소", hp=55, speed=0, damage=0, radius=24, color={.4,.78,.35}, hitCooldown=1, reward=9, plantInterval=7, plantRadius=190}
 }
 
 for kind,def in pairs(BiomeEnemies.definitions) do enemyDefs[kind]=def end
@@ -509,7 +509,7 @@ function ClearcutMode:regrowPulse(game)
     end
 end
 
--- "재생의 정령" 전용: regrowPulse와 같은 원리(쓰러진 나무를 되살림)지만 숲
+-- "숲의 재생 성소" 전용: regrowPulse와 같은 원리(쓰러진 나무를 되살림)지만 숲
 -- 전체가 아니라 이 몹 주변에만 국한된다. 살려두면 계속 되풀이되니 먼저 잡는
 -- 편이 이득이라는 신호를 그대로 준다.
 function ClearcutMode:plantTreesNear(e, game)

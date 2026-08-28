@@ -10,6 +10,7 @@ import moderngl
 from PIL import Image
 from headless_lua import run
 from build_cigarette_pixel_sprite import love_fragment
+from build_forest_arcade_assets import TREES, ENEMIES
 
 ROOT=Path(__file__).resolve().parents[1]
 VERTEX='''#version 330
@@ -97,7 +98,18 @@ def replay(capture_paths,size=(1280,900)):
 
 def main():
     run(ROOT/'scripts/verify_boss_sprites.lua','FOREST_RENDER_CAPTURE=true')
-    report=json.loads((ROOT/'docs/previews/forest-arcade-v3-build.json').read_text())
+    report_path=ROOT/'docs/previews/forest-arcade-v3-build.json'
+    if report_path.exists():
+        report=json.loads(report_path.read_text())
+    else:
+        # Preview reports are intentionally ignored in some checkouts. Rebuild
+        # the verification inventory from the tracked builder contract without
+        # rewriting any approved runtime asset or catalog.
+        report=[]
+        for name,size,_ in TREES:
+            report.append({'file':f'assets/trees/{name}-tree-cartoon-v3.png','size':list(size),'frames':1,'foot':round(size[1]*.91)})
+        for name,_,_,cell,_,_,_ in ENEMIES:
+            report.append({'file':f'assets/enemies/arcade/{name}-atlas-v3.png','size':[cell*6,cell*2],'frames':12,'foot':cell-8})
     for entry in report:
         im=Image.open(ROOT/entry['file']).convert('RGBA'); a=np.asarray(im)
         assert im.size==tuple(entry['size'])

@@ -23,3 +23,9 @@
 > Create one fixed-model concept sprite for a tree-planting enemy called the Regrowth Spirit, matching the attached approved Forest Arcade v3 asset references. It is a small squat woodland creature with a compact emerald seed-pod body, a bright lime two-leaf sprout growing from its head, two cyan glowing eyes, short root feet, and root-like hands cupping one luminous mint seed at chest height. The held seed and the two-leaf crown must make its tree-regrowth role readable at actual gameplay size. Preserve the game's cartoony Vampire-Survivors-like silhouette with richer authored pixel material: dark colored outline, stepped emerald and bark shading, small deliberate dithering, crisp highlights, and no soft blur. Saturated greens and mint light must separate it from the olive forest floor. One full body specimen centered with generous transparent margin, no ground, no cast shadow, no scenery, no text, no extra equipment, no armor, no flowers, no photorealism. High-density RGBA pixel art suitable as a fixed source model for a deterministic 6x2 GPU-baked animation atlas.
 
 보존한 결과: `assets/enemies/concepts/regrowth-spirit-model-v1.png`. 게임용 파일은 `scripts/build_regrowth_spirit_asset.py`와 `forest-arcade-bake.glsl`로 만든 `assets/enemies/arcade/planter-atlas-v1.png`다.
+
+## 숲의 재생 성소 v2 — 구조물형 재설계
+
+v1의 얼굴·손·발·형광 씨앗을 제거하고, 고정 뿌리 기단 위에 세 뿌리 아치가 원형 성소를 이루며 중앙 씨앗과 두 목재 고리, 수관이 공중에 떠 있는 고대 숲 구조물로 재설계했다. 신비감은 네온 보석이 아니라 불가능한 부유 구조, 제한된 청록 내부광, 느린 꽃가루로 표현한다. 얼굴·눈·입·팔다리·동물 해부·일반 나무집·SF 기계는 금지한다.
+
+최종 고정 원화는 `assets/enemies/concepts/regrowth-sanctum-model-v2.png`, 런타임 본체는 `assets/enemies/arcade/planter-atlas-v2.png`, 시전 FX는 `assets/fx/regrowth-cast-atlas-v3.png`다. ImageGen은 고정 원화에만 사용하고 12프레임 본체와 6프레임 시전은 같은 그리드에서 결정적으로 제작한다.
