@@ -135,17 +135,18 @@ fire.enemies={{x=cloud.x,y=cloud.y,hp=100},{x=cloud.x+330,y=cloud.y,hp=100}}
 fire:updateSecondhandSmoke(.25,fg)
 assert(fire.enemies[1].hp<100 and fire.enemies[2].hp==100,"mist ellipse DOT footprint is wrong")
 fixture.reset();require("src.secondhand_smoke_art").draw(fire)
-local smokeDraws=0
+local smokeDraws,smokeQuads=0,{}
 for _,op in ipairs(fixture.commands) do
     if op.op=="draw" and (op.file or ""):find("secondhand%-smoke%-mist%-atlas%-pixel%-v2") then
         smokeDraws=smokeDraws+1
+        smokeQuads[#smokeQuads+1]=op.quad[1]..":"..op.quad[2]
         assert(op.filter=="nearest","secondhand smoke atlas is blurred")
         assert(op.quad[5]==6144 and op.quad[6]==2560,"secondhand smoke did not load the high-resolution 3x2 atlas")
         assert(math.abs(op.args[4]*2048-640)<.01 and math.abs(op.args[5]*1280-400)<.01,"visible mist and DOT footprint disagree")
     end
     assert(not (op.op=="ellipse"),"secondhand smoke regressed to runtime circles")
 end
-assert(smokeDraws==1,"secondhand smoke atlas was not rendered exactly once")
+assert(smokeDraws==2 and smokeQuads[1]~=smokeQuads[2],"smoke frames are still hard-swapped instead of crossfaded")
 
 -- Eternal Return is a persistent field: it keeps ticking and catches late entrants.
 local pTree,pLate=tree(0,30),tree(260,30)

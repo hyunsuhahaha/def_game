@@ -47,6 +47,8 @@
 - [헤드리스 회귀 검사](../scripts/verify_clearcut_fusions.lua): 8종 마지막 재료 선택부터 획득까지, 조기/타직업/중복 획득 방지, 대기 레벨업, 상자 보상, 빈 풀, 실제 전투 효과, 스테이지 유지, 클릭·키보드, HUD, 최소 창의 선택 좌표.
 - [간접흡연 구역 획득 화면](previews/fusion-secondhand_smoke.png), [최소 창](previews/fusion-secondhand_smoke-small.png), [조합 진행표](previews/fusion-progress.png).
 - [간접흡연 구역 실제 표시 크기·픽셀 격자 검수](previews/secondhand-smoke-fusion-pixel-v2.png). 2048×1280 고정 셀 6프레임을 3×2 아틀라스에 담아 최종 640×400 크기로 nearest 표시한다. 축당 3.2 텍셀/월드 단위이며 런타임 원 도형을 쓰지 않는다.
+- 프레임은 순간 교체하지 않고 인접한 두 픽셀 프레임을 smoothstep 진행률과 equal-power 알파로 교차 합성한다. 마지막 프레임과 첫 프레임도 같은 경로로 연결되어 반복 경계가 튀지 않는다.
+- [24fps 교차 합성 오프스크린 검수](previews/secondhand-smoke-crossfade-v2.gif). 게임 창 캡처가 아니라 실제 아틀라스·표시 배율·런타임과 같은 보간식을 사용한 검수 GIF다.
 - 비겁한 와다다다: [실제 표시 크기](previews/mole-fusion-v1-display-scale.png), [3배 픽셀 검수](previews/mole-fusion-v1-3x.png). 실제 Lua 잠복 흔적·손톱 그리기 명령의 오프스크린 재생이며 게임 창을 실행하지 않는다.
 - 차라투스트라 융합: [영원회귀·부흥회 실제 표시 배율 검수](previews/philosopher-fusions-v1-display-scale.png). 영원회귀는 체액 표현 없이 청록 파문·문장 조각으로, 부흥회는 신도→목표 이동체와 도착 충격으로 구분한다.
 
