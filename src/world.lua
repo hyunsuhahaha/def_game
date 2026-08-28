@@ -1521,7 +1521,7 @@ function World:draw(player, actorSource)
     end} end
     for _, e in ipairs(self.enemies) do local enemy = e; queue[#queue + 1] = {y = enemy.y, draw = function() shadow(enemy.x, enemy.y, 20, 9, .5); love.graphics.setColor(.65, .12, .15); love.graphics.circle("fill", enemy.x, enemy.y - 22, 24); love.graphics.setColor(1, .35, .25); love.graphics.circle("line", enemy.x, enemy.y - 22, 24) end} end
     if actorSource then actorSource:queueWorldActors(queue, love.timer.getTime()) end
-    queue[#queue + 1] = {y = player.y, draw = function() player:draw() end}
+    if not player.introHidden then queue[#queue + 1] = {y = player.y, draw = function() player:draw() end} end
     table.sort(queue, function(a, b) return a.y < b.y end); for _, item in ipairs(queue) do item.draw() end
     love.graphics.setBlendMode("alpha")
     for _, explosion in ipairs(self.explosions) do

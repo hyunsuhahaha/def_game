@@ -10,6 +10,7 @@ local Feedback = require("src.feedback")
 local RunUpgrades = require("src.run_upgrades")
 local RushMode = require("src.rush_mode")
 local ClearcutMode = require("src.clearcut_mode")
+local ClearcutIntro = require("src.clearcut_intro")
 local CharacterTraits = require("src.character_traits")
 local CharacterTraitBoard = require("src.character_trait_board")
 local CharacterStory = require("src.character_story")
@@ -155,6 +156,7 @@ function Game:startClearcut(characterId, mapId)
     self.player:setClearcutSprite(self.clearcutSprites[characterId] or self.clearcutSprites.physical, characterId)
     self.clearcut:setup(self)
     self.mode="playing"
+    ClearcutIntro.begin(self)
 end
 function Game:setNotice(text, kind) self.notice, self.noticeKind, self.noticeTime = text, kind or "core", 2.2 end
 
@@ -262,6 +264,7 @@ function Game:update(dt)
     self.runXPPulse = math.max(0, self.runXPPulse - dt * 1.35)
     if self.mode == "upgrade" or self.mode == "rush_upgrade" or self.mode == "clearcut_upgrade" then return end
     if self.mode == "turret_upgrade" then return end
+    if ClearcutIntro.update(self,dt) then return end
     self.noticeTime = math.max(0, self.noticeTime - dt)
     local wx, wy = self.camera:screenToWorld(love.mouse.getPosition())
     self.hoverNode, self.hoverWall, self.hoverBuilding = self.world:findNodeAt(wx, wy), self.world:isWallAt(wx, wy), self.world:buildingAt(wx, wy)
@@ -374,6 +377,10 @@ function Game:keypressed(key)
         elseif key == "return" or key == "escape" then self.mode = "lobby" end
         return
     end
+    if ClearcutIntro.active(self) then
+        if key=="space" or key=="return" or key=="kpenter" or key=="escape" then ClearcutIntro.skip(self) end
+        return
+    end
     if key == "escape" and self.placingBuilding then self.placingBuilding = nil; self:setNotice("건설을 취소했습니다", "core"); return end
     if key == "escape" and self.mode == "playing" then self.paused = true; return end
     if key == "escape" then self.mode = "lobby"; return end
@@ -398,6 +405,7 @@ function Game:keypressed(key)
 end
 
 function Game:keyreleased(key)
+    if ClearcutIntro.active(self) then return end
     if key=="space" and self.runType=="clearcut" and self.clearcut then
         self.clearcut:releaseSmokeRingCharge(self)
     end
@@ -454,6 +462,7 @@ function Game:mousepressed(x, y, button)
         elseif action == "settings" then self.mode = "settings" end
         return
     end
+    if ClearcutIntro.active(self) then if button==1 then ClearcutIntro.skip(self) end;return end
     if self.mode == "achievements" then
         if self.achievementBoard:mousepressed(x,y,button)=="back" then self.mode="lobby" end
         return
@@ -1170,7 +1179,8 @@ function Game:draw()
     if self.mode == "settings" then self:drawSettings(); return end
     if self.mode == "meta" then self.traitTree:draw(); return end
     if self.mode == "build_select" then self:drawBuildSelect(); return end
-    love.graphics.clear(.08, .11, .12); self.camera:attach(); self.world:draw(self.player, self.clearcut)
+    local introActive=ClearcutIntro.active(self);local worldActors=self.clearcut;if introActive then worldActors=nil end
+    love.graphics.clear(.08, .11, .12); self.camera:attach(); self.world:draw(self.player, worldActors)
     local left, top, right, bottom = self.camera:visibleBounds()
     if self.runType ~= "rush" and not self.clearcut then
         love.graphics.setBlendMode("screen", "alphamultiply"); love.graphics.setColor(.25, .34, .22, .13); love.graphics.rectangle("fill", left, top, right - left, bottom - top)
@@ -1213,8 +1223,9 @@ function Game:draw()
             love.graphics.draw(icon, previewX, previewY + 12, 0, scale, scale, icon:getWidth() / 2, icon:getHeight() * .91)
         end
     end
-    if self.clearcut then self.clearcut:drawWorldOverlay(self) end
-    self.camera:detach(); self:drawUI()
+    if self.clearcut and not introActive then self.clearcut:drawWorldOverlay(self) end
+    if introActive then ClearcutIntro.drawWorld(self) end
+    self.camera:detach(); if introActive then ClearcutIntro.drawScreen(self) else self:drawUI() end
     if self.clearcut and self.clearcut.sandbox then self:drawSandboxPanel() end
     if self.mode == "upgrade" then self.upgrades:drawSelection(self, self.fonts) end
     if self.mode == "rush_upgrade" then self.rush:drawSelection(self,self.fonts) end
@@ -1257,6 +1268,7 @@ function Game:mousereleased(x,y,button)
 end
 
 function Game:drawAchievementOverlay()
+    if ClearcutIntro.active(self) then return end
     self.achievementBoard:drawPopup()
 end
 

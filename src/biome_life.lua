@@ -71,7 +71,14 @@ function Life.update(world,dt)
     data.time=data.time+dt
     for _,p in ipairs(data.items) do
         local t=data.time
-        if p.kind=="parrot" then
+        if p.startle and p.startle>0 then
+            p.startle=p.startle-dt;p.x=p.x+(p.startleVX or 0)*dt;p.y=p.y+(p.startleVY or 0)*dt
+            p.startleVX=(p.startleVX or 0)*math.exp(-dt*(p.air and .3 or 1.4))
+            if p.air then p.startleVY=(p.startleVY or 0)-18*dt
+            else p.startleVY=(p.startleVY or 0)*math.exp(-dt*1.4);p.x,p.y=Maps.constrain(world,p.x,p.y,12)end
+            p.facing=(p.startleVX or 0)>=0 and 1 or -1
+            if p.startle<=0 then p.homeX,p.homeY,p.startle=p.x,p.y,nil end
+        elseif p.kind=="parrot" then
             local a=t*.35+p.phase
             p.x=p.homeX+math.sin(a)*125;p.y=p.homeY+math.cos(a*.8)*42
             p.facing=math.cos(a)>=0 and 1 or -1
@@ -83,6 +90,20 @@ function Life.update(world,dt)
             p.facing=math.cos(a)>=0 and 1 or -1
         end
     end
+end
+function Life.startle(world,x,y,radius)
+    local data=world.biomeLife;if not data then return 0 end
+    local count=0;radius=radius or 520
+    for _,p in ipairs(data.items)do if not Life.catalog[p.kind].plant then
+        local dx,dy=p.x-x,p.y-y;local distance=math.sqrt(dx*dx+dy*dy)
+        if distance<radius then
+            if distance<1 then dx,dy,distance=(p.phase or 0)>.5 and 1 or -1,-.4,1 end
+            local speed=p.air and 310 or (p.kind=="lemur" and 230 or 150)
+            p.startle=1.9+(p.phase%1)*.7;p.startleVX=dx/distance*speed;p.startleVY=(p.air and -180 or dy/distance*speed*.48)
+            count=count+1
+        end
+    end end
+    return count
 end
 local function draw(p,time,player)
     local def=Life.catalog[p.kind];local sprite=image(p.kind)

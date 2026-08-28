@@ -22,7 +22,7 @@ local loader
 for i=1,30 do local name,value=debug.getupvalue(Game.new,i);if name=="loadClearcutSprites" then loader=value;break end end
 local sprites=assert(loader)()
 local fonts={}
-for name,size in pairs({small=14,body=17,heading=21,big=28,title=36}) do fonts[name]=love.graphics.newFont("assets/font-korean-regular.ttf",size) end
+for name,size in pairs({micro=12,small=14,body=17,heading=21,big=28,title=36,display=48}) do fonts[name]=love.graphics.newFont("assets/font-korean-regular.ttf",size) end
 local function newGame()
     local g=setmetatable({characterTraits=traits,clearcutSprites=sprites,fonts=fonts,tools={axe={speed=.8}},wood=0},Game)
     function g:resetRun()
@@ -313,4 +313,32 @@ for _,size in ipairs({{960,540},{1280,720},{1920,1080}}) do
         fixture.save("docs/previews/map-select-"..width.."-draws.json")
     end
 end
+-- Stage entry is a frozen cinematic: no combat clock or enemy simulation runs
+-- while the quiet clearing, worker arrival and wildlife scatter are playing.
+local Intro=require("src.clearcut_intro")
+for _,def in ipairs(Maps.catalog)do
+    local g=newGame();g:startClearcut("physical",def.id)
+    local intro=g.clearcut.intro;assert(intro and g.player.introHidden and #intro.birds==10,def.id.." intro missing")
+    local elapsed,time=g.clearcut.elapsed,g.time;local enemy=g.clearcut.enemies[1];local ex,ey=enemy and enemy.x,enemy and enemy.y
+    Intro.update(g,.8);assert(g.clearcut.elapsed==elapsed and g.time==time and g.player.introHidden,"intro advanced gameplay")
+    Intro.update(g,.9);assert(g.clearcut.intro and not g.player.introHidden and g.player.isMoving,"worker did not enter")
+    local flying=0;for _,bird in ipairs(g.clearcut.intro.birds)do if bird.flying then flying=flying+1 end end
+    assert(flying>=4,"birds did not scatter")
+    if def.id~="forest" and def.id~="beginner" then
+        local startled=0;for _,p in ipairs(g.world.biomeLife.items)do if p.startle then startled=startled+1 end end
+        assert(startled>0,def.id.." wildlife ignored arrival")
+    end
+    if enemy then assert(enemy.x==ex and enemy.y==ey,"enemy moved during intro")end
+    fixture.reset();Intro.drawWorld(g);Intro.drawScreen(g)
+    local birdDraw=false;for _,cmd in ipairs(fixture.commands)do if cmd.file=="assets/fx/stage-intro/stage-intro-birds-atlas-pixel-v1.png" then birdDraw=true end end
+    assert(birdDraw,"intro bird atlas not rendered")
+    while Intro.active(g)do Intro.update(g,.25)end
+    assert(not g.player.introHidden and not g.player.isMoving and g.clearcut.elapsed==0,"intro completion state invalid")
+    g.clearcut:update(.1,g);assert(g.clearcut.elapsed>.09,"gameplay did not start after intro")
+end
+local skipGame=newGame();skipGame:startClearcut("physical","forest");Game.keypressed(skipGame,"space")
+assert(not Intro.active(skipGame) and skipGame.clearcut.elapsed==0,"intro skip started combat early")
+local clickGame=newGame();clickGame:startClearcut("physical","forest");Game.mousepressed(clickGame,10,10,1)
+assert(not Intro.active(clickGame) and clickGame.clearcut.elapsed==0,"mouse intro skip started combat early")
+print("CLEARCUT_INTRO_OK maps=5 quiet=frozen worker=walk_in birds=10x4 wildlife=startled skip=space/click")
 print("CLEARCUT_MAPS_OK maps="..#Maps.catalog.." first_stage_trees="..totalTrees.." stages=1..5 pacing=opening_locked jobs="..#Mode.characters.." sea=bounded camera=all_sides retry=kept keyboard=ok mouse=ok")
