@@ -55,8 +55,13 @@ function Globe.wheelmoved(game,x,y,delta,w,h)
 end
 
 function Globe.project(game,latDeg,lonDeg,w,h)
-    local s=stateFor(game);local l=Globe.layout(w,h);local lat,lon=rad(latDeg),rad(lonDeg);local zr=s.zoom or 1
+    local lat,lon=rad(latDeg),rad(lonDeg)
     local x=math.cos(lat)*math.sin(lon);local y=math.sin(lat);local z=math.cos(lat)*math.cos(lon)
+    return Globe.projectVector(game,x,y,z,w,h)
+end
+
+function Globe.projectVector(game,x,y,z,w,h)
+    local s=stateFor(game);local l=Globe.layout(w,h);local zr=s.zoom or 1
     local cy,sy=math.cos(s.yaw),math.sin(s.yaw)
     local x1=cy*x-sy*z;local z1=sy*x+cy*z
     local cp,sp=math.cos(s.pitch),math.sin(s.pitch)
@@ -65,12 +70,47 @@ function Globe.project(game,latDeg,lonDeg,w,h)
 end
 
 function Globe.markers(game,w,h)
-    local out={}
+    local out={};local uiScale=clamp(Globe.layout(w,h).r/245,1,1.38)
     for i,def in ipairs(Maps.catalog)do
         local x,y,z=Globe.project(game,def.globeLat,def.globeLon,w,h)
-        out[i]={x=x,y=y,z=z,r=17,index=i,def=def,visible=z>.045}
+        out[i]={x=x,y=y,z=z,r=23*uiScale,uiScale=uiScale,index=i,def=def,visible=z>.045}
     end
     return out
+end
+
+local routeOrder={5,1,2,3,4}
+function Globe.routes(game,w,h)
+    local legs={}
+    for leg=1,#routeOrder-1 do
+        local a,b=Maps.catalog[routeOrder[leg]],Maps.catalog[routeOrder[leg+1]]
+        local alat,alon,blat,blon=rad(a.globeLat),rad(a.globeLon),rad(b.globeLat),rad(b.globeLon)
+        local ax,ay,az=math.cos(alat)*math.sin(alon),math.sin(alat),math.cos(alat)*math.cos(alon)
+        local bx,by,bz=math.cos(blat)*math.sin(blon),math.sin(blat),math.cos(blat)*math.cos(blon)
+        local points={}
+        for step=1,20 do
+            local q=(step-1)/19;local x=ax+(bx-ax)*q;local y=ay+(by-ay)*q;local z=az+(bz-az)*q
+            local n=math.sqrt(x*x+y*y+z*z);x,y,z=x/n,y/n,z/n
+            local sx,sy,front=Globe.projectVector(game,x,y,z,w,h)
+            points[#points+1]={x=sx,y=sy,z=front,visible=front>.035}
+        end
+        legs[#legs+1]={from=routeOrder[leg],to=routeOrder[leg+1],points=points}
+    end
+    return legs
+end
+
+local function drawRoutes(game,w,h,time)
+    local focus=game.clearcutMapFocus or 1;local uiScale=clamp(Globe.layout(w,h).r/245,1,1.4)
+    for _,leg in ipairs(Globe.routes(game,w,h))do
+        local active=leg.from==focus or leg.to==focus
+        for i,p in ipairs(leg.points)do if p.visible and i%2==1 then
+            local pulse=active and (.80+.16*math.sin(time*4+i*.7)) or .58
+            local size=math.floor((active and 5 or 3)*uiScale+.5)
+            love.graphics.setColor(0,0,0,pulse*.62);love.graphics.rectangle("fill",math.floor(p.x-size/2)+1,math.floor(p.y-size/2)+2,size+2,size+2)
+            love.graphics.setColor(active and .98 or .69,active and .63 or .88,active and .20 or .72,pulse)
+            love.graphics.rectangle("fill",math.floor(p.x-size/2),math.floor(p.y-size/2),size,size)
+            if active then love.graphics.setColor(1,.87,.52,pulse*.72);love.graphics.rectangle("fill",math.floor(p.x-size/2),math.floor(p.y-size/2),math.max(1,size-2),1)end
+        end end
+    end
 end
 
 function Globe.at(game,x,y,w,h)
@@ -125,6 +165,7 @@ function Globe.draw(game,w,h,time)
     love.graphics.setLineWidth(2);love.graphics.setColor(.34,.83,.72,.72);love.graphics.circle("line",l.cx,l.cy,r+1)
     love.graphics.setLineWidth(1);love.graphics.setColor(1,1,1,.15);love.graphics.circle("line",l.cx-3,l.cy-4,r-8)
     love.graphics.setColor(.95,.62,.18,.24);love.graphics.line(l.cx-r-18,l.cy,l.cx-r+12,l.cy);love.graphics.line(l.cx+r-12,l.cy,l.cx+r+18,l.cy)
+    drawRoutes(game,w,h,time or 0)
     return Globe.markers(game,w,h)
 end
 

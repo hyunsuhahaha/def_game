@@ -17,6 +17,8 @@ def menu(path,size):
   elif op['op']=='draw':
    image=Image.open(ROOT/op['file']).convert('RGBA');x,y,angle,sx,sy,ox,oy=args
    assert angle==0 and not op.get('shader')
+   qx,qy,qw,qh,_,_=op.get('quad',(0,0,image.width,image.height,image.width,image.height))
+   image=image.crop((round(qx),round(qy),round(qx+qw),round(qy+qh)))
    image=image.resize((round(image.width*sx),round(image.height*sy)),Image.Resampling.NEAREST)
    layer.paste(image,(round(x-ox*sx),round(y-oy*sy)),image)
   elif op['op']=='text':

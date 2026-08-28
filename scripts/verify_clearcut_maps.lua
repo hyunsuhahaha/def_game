@@ -288,7 +288,10 @@ for _,size in ipairs({{960,540},{1280,720},{1920,1080}}) do
     end
     Select.focus(g,3,true);local hidden=0
     local globe=require("src.stage_select_globe")
+    local routes=globe.routes(g,width,height);assert(#routes==4,"globe route count mismatch")
+    for _,leg in ipairs(routes)do assert(#leg.points==20 and leg.from~=leg.to,"globe dotted route malformed")end
     for _,m in ipairs(globe.markers(g,width,height))do
+        assert(m.r>=23,"landmark hit area regressed")
         if not m.visible then hidden=hidden+1;assert(Select.at(m.x,m.y,g)~=m.index,"back-side globe marker accepted input")end
     end
     assert(hidden>=1,"globe test did not place any marker on back hemisphere")

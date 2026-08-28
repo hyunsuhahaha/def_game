@@ -55,6 +55,8 @@
 - `docs/previews/frontend-v2-map.png`
 - `docs/previews/globe-map-select-v1-1280.png`
 - `docs/previews/globe-map-select-v1-960.png`, `docs/previews/globe-map-select-v1-1920.png`
+- 지구본 안의 작전 지점은 공통 원형 핀이 아니라 `assets/ui/globe-stage-landmarks-pixel-v1.png`의 전용 64px 픽셀 랜드마크로 표시한다. 온대 침엽수, 맹그로브 지주뿌리, 바오밥, 야자 무인도, 초심자 표지판이 축소 화면에서도 서로 다른 실루엣으로 읽혀야 한다.
+- 작전 진행 순서 `초심자 → 온대 → 맹그로브 → 마다가스카르 → 무인도`는 지구 곡면에 투영되는 점선 항로로 연결한다. 뒷면 항로는 숨기고 선택 지점에 닿는 구간만 황금색 펄스로 강조한다.
 - `docs/previews/frontend-v2-briefing.png`
 - `docs/previews/frontend-v2-settings.png`
 - `docs/previews/frontend-v2-traits.png`

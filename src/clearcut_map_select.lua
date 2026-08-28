@@ -2,12 +2,19 @@ local Maps=require("src.clearcut_maps")
 local Bosses=require("src.biome_bosses")
 local Globe=require("src.stage_select_globe")
 local F=require("src.frontend_ui")
-local Select={};local previews={}
+local Select={};local previews={};local landmarkAtlas,landmarkQuads
 
 local function imageFor(def)
     local key=def.preview or def.id
     if not previews[key]then previews[key]=love.graphics.newImage("assets/maps/"..key.."-preview-v1.png");previews[key]:setFilter("nearest","nearest")end
     return previews[key]
+end
+
+
+local function loadLandmarks()
+    if landmarkAtlas then return end
+    landmarkAtlas=love.graphics.newImage("assets/ui/globe-stage-landmarks-pixel-v1.png");landmarkAtlas:setFilter("nearest","nearest")
+    landmarkQuads={};for i=1,#Maps.catalog do landmarkQuads[i]=love.graphics.newQuad((i-1)*64,0,64,64,landmarkAtlas:getDimensions())end
 end
 
 function Select.update(game,dt)Globe.update(game,dt)end
@@ -28,19 +35,18 @@ function Select.wheelmoved(game,x,y,delta)return Globe.wheelmoved(game,x,y,delta
 
 local function drawMarker(m,selected,hovered,cleared,t,font)
     if not m.visible then return end
-    local c=m.def.color;local pulse=1+math.sin(t*4+m.index)*.10;local r=(hovered and 14 or 11)*pulse
-    love.graphics.setColor(0,0,0,.60);love.graphics.circle("fill",m.x+2,m.y+4,r+6)
-    love.graphics.setColor(c[1],c[2],c[3],hovered and .30 or .16);love.graphics.circle("fill",m.x,m.y,r+10)
-    love.graphics.setLineWidth(selected and 3 or 2);love.graphics.setColor(c[1],c[2],c[3],m.z*.35+.65);love.graphics.circle("line",m.x,m.y,r+4)
-    love.graphics.polygon("fill",m.x,m.y-r,m.x+r,m.y,m.x,m.y+r,m.x-r,m.y)
-    love.graphics.setColor(.035,.055,.045,1);love.graphics.circle("fill",m.x,m.y,3)
+    loadLandmarks();local c=m.def.color;local pulse=1+math.sin(t*4+m.index)*.045;local uiScale=m.uiScale or 1;local size=(hovered and 48 or selected and 44 or 38)*pulse*uiScale;local r=size*.48
+    love.graphics.setColor(0,0,0,.62);love.graphics.circle("fill",m.x+3,m.y+5,r+6)
+    love.graphics.setColor(c[1],c[2],c[3],hovered and .25 or .12);love.graphics.circle("fill",m.x,m.y,r+9)
+    if selected then love.graphics.setLineWidth(2);love.graphics.setColor(1,.67,.25,.78+.18*math.sin(t*5));love.graphics.circle("line",m.x,m.y,r+6)end
+    love.graphics.setColor(1,1,1,m.z*.26+.74);love.graphics.draw(landmarkAtlas,landmarkQuads[m.index],math.floor(m.x-size/2),math.floor(m.y-size/2),0,size/64,size/64)
     if cleared then
-        love.graphics.setLineWidth(2);love.graphics.setColor(.38,1,.62,.95);love.graphics.circle("line",m.x,m.y,r+9)
-        local bx,by=m.x+r+7,m.y-r-7;love.graphics.setColor(.025,.11,.07,1);love.graphics.circle("fill",bx,by,9)
-        love.graphics.setColor(.45,1,.67,1);love.graphics.circle("line",bx,by,8);love.graphics.setLineWidth(2.5);love.graphics.line(bx-4,by,bx-1,by+3,bx+5,by-4)
+        love.graphics.setLineWidth(2);love.graphics.setColor(.38,1,.62,.95);love.graphics.circle("line",m.x,m.y,r+5)
+        local badge=9*uiScale;local bx,by=m.x+r+5,m.y-r-4;love.graphics.setColor(.025,.11,.07,1);love.graphics.circle("fill",bx,by,badge)
+        love.graphics.setColor(.45,1,.67,1);love.graphics.circle("line",bx,by,badge-1);love.graphics.setLineWidth(2.5*uiScale);love.graphics.line(bx-badge*.45,by,bx-badge*.12,by+badge*.34,bx+badge*.56,by-badge*.45)
     end
     if hovered then
-        local label=m.def.name..(cleared and " · 완료" or "");local tw=math.max(116,font:getWidth(label)+24);local tx=m.x-tw/2;local ty=m.y-r-39
+        local label=m.def.name..(cleared and " · 완료" or "");local tw=math.max(116,font:getWidth(label)+24);local tx=m.x-tw/2;local ty=m.y-r-42
         love.graphics.setColor(.012,.025,.021,.96);love.graphics.rectangle("fill",tx,ty,tw,27,3,3)
         love.graphics.setColor(c);love.graphics.rectangle("line",tx+.5,ty+.5,tw-1,26,3,3)
         love.graphics.setFont(font);love.graphics.printf(label,tx,ty+6,tw,"center")
