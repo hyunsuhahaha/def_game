@@ -70,10 +70,8 @@ function World.new()
         turretBase = image("assets/turret-base-v1.png"), turretHead = image("assets/turret-head-v2.png"),
         muzzleFlash = image("assets/muzzle-flash-v1.png")
     }
-    self.images.treeDamage = image("assets/fx/tree-damage-atlas-v1.png")
-    self.images.treeDamage:setFilter("nearest","nearest")
-    self.treeDamageQuads={}
-    for i=0,3 do self.treeDamageQuads[i+1]=love.graphics.newQuad(i*160,0,160,160,self.images.treeDamage:getDimensions()) end
+    self.images.treeBreakBurst = image("assets/fx/tree-break-burst-v1.png")
+    self.images.treeBreakBurst:setFilter("nearest","nearest")
     self.images.treeVariants = {
         image("assets/trees/broadleaf-tree-pixel-v2.png"),
         image("assets/trees/pine-tree-pixel-v2.png"),
@@ -1118,7 +1116,10 @@ local function groundedRotated(img, x, y, scale, angle) love.graphics.setColor(1
 
 local function treeRenderSpec(world, node)
     local index = math.max(1, math.min(#world.images.treeVariants, node.treeVariant or 1))
-    return world.images.treeVariants[index], world.treeVisual.variantScale[index] or 1, world.treeVisual.variantShadow[index] or 1
+    local stage=math.max(0,math.min(3,node.damageStage or 0))
+    local damaged=world.images.treeDamageVariants and world.images.treeDamageVariants[index]
+    local sprite=stage>0 and damaged and damaged[stage] or world.images.treeVariants[index]
+    return sprite, world.treeVisual.variantScale[index] or 1, world.treeVisual.variantShadow[index] or 1
 end
 
 function World:useArcadeForest()
@@ -1129,6 +1130,15 @@ function World:useArcadeForest()
             local sprite = love.graphics.newImage("assets/trees/" .. name .. "-tree-cartoon-v3.png")
             sprite:setFilter("nearest", "nearest")
             self.images.treeVariants[#self.images.treeVariants+1] = sprite
+        end
+        self.images.treeDamageVariants={}
+        for _,name in ipairs({"broadleaf","pine","birch","maple"}) do
+            local stages={}
+            for stage=1,3 do
+                local sprite=love.graphics.newImage(string.format("assets/trees/damage/%s-damage%d-v1.png",name,stage))
+                sprite:setFilter("nearest","nearest");stages[stage]=sprite
+            end
+            self.images.treeDamageVariants[#self.images.treeDamageVariants+1]=stages
         end
     end
     self.treeVisual.frontBias = 0 -- authored roots are at the .91-height anchor
@@ -1454,12 +1464,6 @@ function World:draw(player, actorSource)
                         end
                     end
                     groundedRotated(treeImage, node.x + ox, node.y + oy, visual.scale * variantScale * bump, node.swayAngle or 0)
-                    if (node.damageStage or 0)>0 then
-                        local q=self.treeDamageQuads[math.min(3,node.damageStage)]
-                        local ds=.18*(visual.scale/.28)
-                        love.graphics.setColor(1,1,1,.96)
-                        love.graphics.draw(self.images.treeDamage,q,node.x+ox,node.y+oy,0,ds,ds,80,154)
-                    end
                     if node.burning then
                         if actorSource and actorSource.drawCigaretteTreeFire then
                             actorSource:drawCigaretteTreeFire(node)
@@ -1577,7 +1581,7 @@ function World:draw(player, actorSource)
         local a=math.max(0,fx.life/fx.maxLife)
         local scale=fx.scale*(1+(1-a)*.16)
         love.graphics.setColor(1,1,1,a)
-        love.graphics.draw(self.images.treeDamage,self.treeDamageQuads[4],fx.x,fx.y,0,scale,scale,80,80)
+        love.graphics.draw(self.images.treeBreakBurst,fx.x,fx.y,0,scale,scale,80,80)
     end
     love.graphics.setBlendMode("alpha")
     for _, p in ipairs(self.particles) do
