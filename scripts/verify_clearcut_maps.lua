@@ -116,10 +116,10 @@ for _,def in ipairs(Maps.catalog) do
     elseif def.id=="madagascar" then assert(seen.angryLemur)
     elseif def.id=="island" then assert(seen.shoreCrab) end
     m.enemies={};m.elapsed=30;m.timeSpawnTimer=0;m:updateTimeSpawner(.01,g)
-    assert(#m.enemies==1 and m.timeSpawnTimer==9,"opening spawn pressure regressed")
+    assert(#m.enemies==1 and m.timeSpawnTimer==24,"opening time-attack spawn pacing regressed")
     for _,e in ipairs(m.enemies) do assert(e.kind==BiomeEnemies.resolve(def.id,e.kind)) end
     m.enemies={};m.elapsed=100;m.timeSpawnTimer=0;m:updateTimeSpawner(.01,g)
-    assert(#m.enemies>=1 and #m.enemies<=2 and m.timeSpawnTimer==7,"mid-opening spawn pressure regressed")
+    assert(#m.enemies==1 and m.timeSpawnTimer==20,"mid-opening time-attack spawn pacing regressed")
     local disasterTimer=m.disasterTimer;m.stage=1;m:updateDisasters(20,g)
     assert(m.disasterState=="idle" and m.disasterTimer==disasterTimer,"stage 1 disaster was not locked")
     m.enemies={};m.eliteTimer=0;m:updateEliteTimer(.01,g)

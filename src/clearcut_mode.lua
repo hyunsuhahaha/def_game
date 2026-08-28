@@ -114,11 +114,11 @@ local arcanaDefs = {
 }
 
 local milestones = {
-    {pct=10, text="\"숲이 당신의 존재를 알아챈 것 같다...\"", wave={squirrel=4}},
-    {pct=30, text="다람쥐들이 사방으로 도망치기 시작한다.", wave={squirrel=4, boar=2, planter=1}},
-    {pct=50, text="숲의 절반이 사라졌다.", wave={squirrel=3, planter=1}, boss="ent"},
-    {pct=70, text="숲이... 이상할 정도로 조용해졌다.", wave={boar=4, turret=3, planter=2}},
-    {pct=90, text="거의 다 왔다. 마지막 나무들이 보인다.", wave={squirrel=6, boar=3, turret=2, planter=2}}
+    {pct=10, text="\"숲이 당신의 존재를 알아챈 것 같다...\"", wave={squirrel=2}},
+    {pct=30, text="다람쥐들이 사방으로 도망치기 시작한다.", wave={squirrel=2, boar=1}},
+    {pct=50, text="숲의 절반이 사라졌다.", wave={squirrel=1}, boss="ent"},
+    {pct=70, text="숲이... 이상할 정도로 조용해졌다.", wave={boar=2, turret=1}},
+    {pct=90, text="거의 다 왔다. 마지막 나무들이 보인다.", wave={squirrel=2, boar=1, turret=1}}
 }
 
 local enemyDefs = {
@@ -144,6 +144,9 @@ local function formatTime(value)
     value = math.max(0, math.floor(value))
     return string.format("%02d:%02d", math.floor(value / 60), value % 60)
 end
+
+local stageTimeLimits = {360, 420, 480, 600}
+local function stageTimeLimit(stage) return stageTimeLimits[math.min(math.max(1,stage or 1),#stageTimeLimits)] end
 
 function ClearcutMode.new()
     return setmetatable({
@@ -171,7 +174,7 @@ function ClearcutMode.new()
         enemies={}, projectiles={}, bossTelegraphs={}, resinPuddles={}, waveFired={}, worldTreeSpawned=false, readyToFinish=false, activeBoss=nil,operationFinalBoss=false,operationBossName=nil,kills=0,
         chests={}, chestPending=false, molotovShots=0, wildburstTimer=10, plagued={}, dodges=0,
         timeSpawnTimer=35, eliteTimer=200, reaperSpawned=false,
-        stage=1, stageBossHpMul=1,
+        stage=1, stageBossHpMul=1, stageElapsed=0, stageTimeLimit=stageTimeLimit(1), failureReason=nil,
         berserkState="idle", berserkTimer=170, berserkCycleCount=0, berserkTreeTimer=0, berserkKillsStart=0, berserkFlashNodes={},
         banished={}, rerollCount=0, banishArmed=false, selectionKind="upgrade", arcanaChoices={}, arcanaPicked={},
         dmgTakenMul=1, woodGainMul=1, curseBoostMul=1, eliteIntervalMul=1, reaperDelayMul=1, regrowSuppressed=false,
@@ -252,9 +255,24 @@ function ClearcutMode:destructionPct() return self.initialTrees > 0 and math.min
 function ClearcutMode:curseLevel() return 1 + (self.elapsed / 60) ^ 1.25 * .16 * (self.curseBoostMul or 1) end
 -- 광폭화 라운드 중 스폰/물량 배율: 경고 단계부터 서서히 조여오다 광란 단계에서 폭증한다
 function ClearcutMode:berserkMultiplier()
-    if self.berserkState == "active" then return 2.4 + self.berserkCycleCount * .25 end
-    if self.berserkState == "warn" then return 1.3 end
+    if self.berserkState == "active" then return 1.45 + self.berserkCycleCount * .1 end
+    if self.berserkState == "warn" then return 1.15 end
     return 1
+end
+
+function ClearcutMode:stageTimeRemaining()
+    return math.max(0,(self.stageTimeLimit or stageTimeLimit(self.stage))-(self.stageElapsed or 0))
+end
+
+function ClearcutMode:updateStageClock(dt,game)
+    if self.sandbox or self.dead then return false end
+    self.stageElapsed=(self.stageElapsed or 0)+dt
+    if self:stageTimeRemaining()>0 then return false end
+    self.failureReason="timeout"
+    self.dead=true
+    game:setNotice("제한 시간 초과 — 다음 구역 진입에 실패했습니다.","ore")
+    self:finish(game,false)
+    return true
 end
 
 function ClearcutMode:setup(game)
@@ -271,6 +289,7 @@ function ClearcutMode:setup(game)
     if game.world.useArcadeForest then game.world:useArcadeForest() end
     local Maps=require("src.clearcut_maps")
     self.mapId=Maps.get(self.mapId).id
+    self.stageElapsed,self.stageTimeLimit,self.failureReason=0,stageTimeLimit(self.stage),nil
     Maps.configure(game.world,self.mapId)
     self.mapWorld=game.world
     self.mapPlayer=game.player
@@ -399,6 +418,8 @@ function ClearcutMode:advanceStage(game)
     CigaretteButts.reset(self)
     self.supplementImpacts, self.crowFx, self.whipFx, self.lightningFx = {}, {}, {}, {}
     self.stage = self.stage + 1
+    self.stageElapsed,self.stageTimeLimit=0,stageTimeLimit(self.stage)
+    self.timeSpawnTimer,self.eliteTimer=18,240
     require("src.clearcut_maps").configureStage(game.world,self.stage)
     game.camera.zoom=game.world.stageZoom or game.camera.zoom
     self.regrowInterval=self.stage==1 and 12 or (self.stage==2 and 9 or 7)
@@ -433,6 +454,7 @@ function ClearcutMode:update(dt, game)
     if self.dead then return end
     require("src.biome_life").update(game.world,dt)
     self.elapsed = self.elapsed + dt
+    if self:updateStageClock(dt,game) then return end
     self:updateHeldAxe(dt, game)
     self:updateThrownTrees(dt, game)
     self:updateBurrowTracks(dt)
@@ -686,7 +708,7 @@ end
 
 function ClearcutMode:spawnWave(counts, game)
     local swarmMul = (1 + (self:curseLevel() - 1) * .6) * self:berserkMultiplier()
-    local stageMul = self.stage==1 and .5 or (self.stage==2 and .78 or 1)
+    local stageMul = self.stage==1 and .38 or (self.stage==2 and .52 or .65)
     for kind, count in pairs(counts) do
         local scaledCount = math.max(1,math.floor(count*swarmMul*stageMul+.5))
         for _ = 1, scaledCount do
@@ -698,16 +720,15 @@ function ClearcutMode:spawnWave(counts, game)
     game:setNotice("적이 몰려온다!", "ore")
 end
 
--- 뱀서라이크식 "시간이 지나면 화면이 적으로 가득 찬다" 압박: 파괴율과 무관하게 계속 스폰
+-- 타임어택의 동선을 가끔 방해하는 소수 스폰. 시간 압박이 주 난이도이므로 대군을 만들지 않는다.
 function ClearcutMode:updateTimeSpawner(dt, game)
     if self.sandbox then return end
     self.timeSpawnTimer = self.timeSpawnTimer - dt
     if self.timeSpawnTimer > 0 then return end
     local curse = self:curseLevel()
-    local berserkMul = self:berserkMultiplier()
     local opening=self.elapsed<90 and 1 or (self.elapsed<180 and 2 or nil)
-    self.timeSpawnTimer = opening==1 and 9 or (opening==2 and 7 or math.max(.5,(6.5-curse*1.1)/berserkMul))
-    local count = opening and (opening==1 and 1 or (love.math.random()<.5 and 1 or 2)) or math.floor((1+curse*1.4)*berserkMul)
+    self.timeSpawnTimer = opening==1 and 24 or (opening==2 and 20 or math.max(12,20-curse*1.2))
+    local count = (not opening and curse>=2.6 and love.math.random()<.35) and 2 or 1
     local pool = {"squirrel", "squirrel", "boar"}
     if self.elapsed>=75 then pool[#pool+1]="thornHunter";pool[#pool+1]="seedPod" end
     if self.elapsed>=150 then pool[#pool+1]="hammerBloom";pool[#pool+1]="bambooCannon";pool[#pool+1]="resinSprayer" end
@@ -724,7 +745,7 @@ function ClearcutMode:updateEliteTimer(dt, game)
     if self.sandbox then return end
     self.eliteTimer = self.eliteTimer - dt
     if self.eliteTimer > 0 then return end
-    self.eliteTimer = 200 * (self.eliteIntervalMul or 1)
+    self.eliteTimer = 240 * (self.eliteIntervalMul or 1)
     local kind = love.math.random() < .5 and "boar" or "squirrel"
     local a = love.math.random() * math.pi * 2
     local e = self:spawnEnemy(kind, game.player.x + math.cos(a) * 520, game.player.y + math.sin(a) * 520, {hpMul = 6, speedMul = 1.15, dmgMul = 1.8, elite = true})
@@ -734,13 +755,8 @@ end
 
 -- 뱀서라이크식 "사신" — 농성 방지용 무한 추격자, 오래 버틸수록 등장
 function ClearcutMode:updateReaper(dt, game)
-    if self.sandbox then return end
-    if self.reaperSpawned or self.elapsed < 600 * (self.reaperDelayMul or 1) then return end
-    self.reaperSpawned = true
-    local a = love.math.random() * math.pi * 2
-    self:spawnEnemy("reaper", game.player.x + math.cos(a) * 700, game.player.y + math.sin(a) * 700)
-    game:setNotice("숲의 사신이 깨어났다 — 멈추면 죽는다.", "ore")
-    if game.camera then game.camera.trauma = math.min(1, game.camera.trauma + .35) end
+    -- 농성 방지는 스테이지 제한 시간이 담당한다. 무한 추격자는 타임어택 동선을 과도하게 막으므로 비활성화한다.
+    return
 end
 
 -- 광폭화 라운드: 주기적으로 찾아오는 하드코어 서지 이벤트. 경고 → 광란 → 냉각 3단계로 돌며,
@@ -1254,7 +1270,7 @@ function ClearcutMode:updateEnemies(dt, game)
             e.summonTimer = e.summonTimer - dt
             if e.summonTimer <= 0 then
                 e.summonTimer = def.summonInterval
-                self:spawnWave({squirrel = 2, boar = 1}, game)
+                self:spawnWave({squirrel = 1}, game)
             end
         end
         if def.plantInterval and not airborneThisFrame then
@@ -3936,7 +3952,7 @@ function ClearcutMode:finish(game, victory)
     local traitReward = math.max(1, math.floor(baseReward * (self.permanentTraits.reward or 1) + .5))
     if game.characterTraits then game.characterTraits:addCurrency(traitReward) end
     local zonesSecured,zonesTotal=ForestZones.status(self)
-    game.result={elapsed=math.floor(self.elapsed),wood=self.totalWood,trees=self.treesFelled,total=self.initialTrees,maxMulti=self.maxMulti,maxChain=self.maxChain,level=self.level,stage=self.stage,regrowPulses=self.regrowPulses,treesRevived=self.treesRevived,rootedCount=self.rootedCount,beeSwarms=self.beeSwarmsTriggered,victory=victory,kills=self.kills,zonesSecured=zonesSecured,zonesTotal=zonesTotal,traitEarned=traitReward,traitCurrency=game.characterTraits and game.characterTraits.data.currency or traitReward,mapId=self.mapId,operationName=BiomeBosses.operationName(self.mapId),bossName=self.operationBossName}
+    game.result={elapsed=math.floor(self.elapsed),wood=self.totalWood,trees=self.treesFelled,total=self.initialTrees,maxMulti=self.maxMulti,maxChain=self.maxChain,level=self.level,stage=self.stage,regrowPulses=self.regrowPulses,treesRevived=self.treesRevived,rootedCount=self.rootedCount,beeSwarms=self.beeSwarmsTriggered,victory=victory,kills=self.kills,zonesSecured=zonesSecured,zonesTotal=zonesTotal,traitEarned=traitReward,traitCurrency=game.characterTraits and game.characterTraits.data.currency or traitReward,mapId=self.mapId,operationName=BiomeBosses.operationName(self.mapId),bossName=self.operationBossName,failureReason=self.failureReason}
     if game.achievements then game.achievements:recordRun(game.result) end
     game.mode="clearcut_results"
 end
@@ -5480,8 +5496,9 @@ function ClearcutMode:drawHUD(game,fonts)
     drawBerserkOverlay(self.berserkState, w, h, t)
     drawDisasterOverlay(self, w, h, t)
     drawOffscreenIndicators(self, game, fonts, w, h, t)
-    love.graphics.setFont(fonts.big);love.graphics.setColor(1,.96,.82);love.graphics.print(formatTime(self.elapsed),18,16)
-    love.graphics.setFont(fonts.micro or fonts.small);love.graphics.setColor(.82,.84,.76);love.graphics.print("구역 "..self.stage.." · "..(jobNames[self.job]or"벌목꾼"),20,51)
+    local remaining=self:stageTimeRemaining();local urgent=remaining<=60
+    love.graphics.setFont(fonts.big);love.graphics.setColor(urgent and {1,.30,.18} or {1,.96,.82});love.graphics.print(formatTime(remaining),18,16)
+    love.graphics.setFont(fonts.micro or fonts.small);love.graphics.setColor(urgent and {1,.55,.30} or {.82,.84,.76});love.graphics.print("제한 시간 · 구역 "..self.stage.." · "..(jobNames[self.job]or"벌목꾼"),20,51)
     love.graphics.setColor(.92,.90,.72);love.graphics.print(string.format("목재 %d   벌목 %d/%d",self.totalWood,self.treesFelled,self.initialTrees),20,71)
     local statusColor = (self.rootedTimer > 0 or self.beeSlow) and {1,.6,.35} or {.6,.72,.66}
     love.graphics.setColor(statusColor)
@@ -6164,7 +6181,7 @@ function ClearcutMode:drawResults(game,fonts)
     love.graphics.setFont(fonts.title);love.graphics.setColor(victory and{1,.87,.40}or{1,.37,.24})
     love.graphics.printf(victory and((r.operationName or"벌목 작전").." 완료")or"작업 중단",x,top,contentW,"center")
     love.graphics.setFont(fonts.micro or fonts.small);love.graphics.setColor(.72,.76,.68)
-    love.graphics.printf(victory and((r.bossName or"지역 보스").." 격파")or"회수 기록",x,top+48*scale,contentW,"center")
+    love.graphics.printf(victory and((r.bossName or"지역 보스").." 격파")or(r.failureReason=="timeout" and "제한 시간 초과 · 다음 구역 진입 실패" or "회수 기록"),x,top+48*scale,contentW,"center")
     local ratio=(r.total or 0)>0 and(r.trees or 0)/(r.total or 1)or 0;local rank=victory and(ratio>=.95 and"S"or ratio>=.75 and"A"or"B")or(ratio>=.5 and"C"or"D")
     love.graphics.setColor(.35,.40,.34,.75);love.graphics.rectangle("fill",x,top+83*scale,contentW,2)
     love.graphics.setFont(fonts.big);love.graphics.setColor(victory and{1,.70,.18}or{1,.35,.24});love.graphics.printf(rank,x+contentW-70,top,70,"right")

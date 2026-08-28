@@ -489,15 +489,11 @@ function SelfTest.run(game)
     game.clearcut.enemies = {}
     game.clearcut.reaperSpawned, game.clearcut.elapsed = false, 300
     game.clearcut:updateReaper(.01, game)
-    assert(not game.clearcut.reaperSpawned, "사신 조기 등장 방지 실패")
+    assert(not game.clearcut.reaperSpawned, "타임어택 사신 비활성화 실패")
     game.clearcut.elapsed = 650
     game.clearcut:updateReaper(.01, game)
-    assert(game.clearcut.reaperSpawned, "사신 등장 실패")
-    local reaperFound = false
-    for _, e in ipairs(game.clearcut.enemies) do if e.kind == "reaper" then reaperFound = true end end
-    assert(reaperFound, "사신 개체 실제 스폰 실패")
-    local reaper
-    for _, e in ipairs(game.clearcut.enemies) do if e.kind == "reaper" then reaper = e end end
+    assert(not game.clearcut.reaperSpawned and #game.clearcut.enemies==0, "제한시간 대신 사신이 다시 등장함")
+    local reaper=game.clearcut:spawnEnemy("reaper",game.player.x+50,game.player.y)
     reaper.x, reaper.y = game.player.x + 50, game.player.y
     reaper.reaperTimer = 0
     game.clearcut:updateReaperAI(reaper, .01, game)
