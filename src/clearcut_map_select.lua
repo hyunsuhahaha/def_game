@@ -24,8 +24,9 @@ end
 function Select.mousepressed(game,x,y,button)return Globe.mousepressed(game,x,y,button,love.graphics.getWidth(),love.graphics.getHeight())end
 function Select.mousemoved(game,x,y,dx,dy)return Globe.mousemoved(game,x,y,dx,dy,love.graphics.getWidth(),love.graphics.getHeight())end
 function Select.mousereleased(game,x,y,button)return Globe.mousereleased(game,x,y,button,love.graphics.getWidth(),love.graphics.getHeight())end
+function Select.wheelmoved(game,x,y,delta)return Globe.wheelmoved(game,x,y,delta,love.graphics.getWidth(),love.graphics.getHeight())end
 
-local function drawMarker(m,selected,hovered,t,font)
+local function drawMarker(m,selected,hovered,cleared,t,font)
     if not m.visible then return end
     local c=m.def.color;local pulse=1+math.sin(t*4+m.index)*.10;local r=(hovered and 14 or 11)*pulse
     love.graphics.setColor(0,0,0,.60);love.graphics.circle("fill",m.x+2,m.y+4,r+6)
@@ -33,11 +34,16 @@ local function drawMarker(m,selected,hovered,t,font)
     love.graphics.setLineWidth(selected and 3 or 2);love.graphics.setColor(c[1],c[2],c[3],m.z*.35+.65);love.graphics.circle("line",m.x,m.y,r+4)
     love.graphics.polygon("fill",m.x,m.y-r,m.x+r,m.y,m.x,m.y+r,m.x-r,m.y)
     love.graphics.setColor(.035,.055,.045,1);love.graphics.circle("fill",m.x,m.y,3)
+    if cleared then
+        love.graphics.setLineWidth(2);love.graphics.setColor(.38,1,.62,.95);love.graphics.circle("line",m.x,m.y,r+9)
+        local bx,by=m.x+r+7,m.y-r-7;love.graphics.setColor(.025,.11,.07,1);love.graphics.circle("fill",bx,by,9)
+        love.graphics.setColor(.45,1,.67,1);love.graphics.circle("line",bx,by,8);love.graphics.setLineWidth(2.5);love.graphics.line(bx-4,by,bx-1,by+3,bx+5,by-4)
+    end
     if hovered then
-        local tw=math.max(116,font:getWidth(m.def.name)+24);local tx=m.x-tw/2;local ty=m.y-r-39
+        local label=m.def.name..(cleared and " · 완료" or "");local tw=math.max(116,font:getWidth(label)+24);local tx=m.x-tw/2;local ty=m.y-r-39
         love.graphics.setColor(.012,.025,.021,.96);love.graphics.rectangle("fill",tx,ty,tw,27,3,3)
         love.graphics.setColor(c);love.graphics.rectangle("line",tx+.5,ty+.5,tw-1,26,3,3)
-        love.graphics.setFont(font);love.graphics.printf(m.def.name,tx,ty+6,tw,"center")
+        love.graphics.setFont(font);love.graphics.printf(label,tx,ty+6,tw,"center")
     end
     love.graphics.setLineWidth(1)
 end
@@ -51,7 +57,7 @@ function Select.draw(game)
     love.graphics.setFont(f.small);love.graphics.setColor(.53,.62,.56);love.graphics.print("지구본을 드래그해 회전하고 지역 표식을 선택합니다.",34,95)
 
     local markers=Globe.draw(game,w,h,t);local hover=Globe.at(game,mx,my,w,h);Globe.stateFor(game).hover=hover
-    for _,m in ipairs(markers)do drawMarker(m,m.index==game.clearcutMapFocus,m.index==hover,t,f.small)end
+    for _,m in ipairs(markers)do local cleared=game.achievements and game.achievements:isMapCleared(m.def.id);drawMarker(m,m.index==game.clearcutMapFocus,m.index==hover,cleared,t,f.small)end
 
     local displayIndex=hover or game.clearcutMapFocus;local def=Maps.catalog[displayIndex];local accent=def.color
     local gl=Globe.layout(w,h);local rx=math.max(gl.cx+gl.r+38,w*.57);local ry=124;local rw=w-rx-34;local rh=h-202
@@ -76,11 +82,11 @@ function Select.draw(game)
     local stats={{"초기 수목",def.trees.."그루"},{"작전 단계",cap.."단계"},{"현장 상태",cleared and "철수로 확보" or "미완료"}}
     for i,s in ipairs(stats)do local sx=rx+20+(i-1)*(rw-40)/3;love.graphics.setFont(f.micro);love.graphics.setColor(.46,.55,.49);love.graphics.print(s[1],sx,sy);love.graphics.setFont(f.small);love.graphics.setColor(i==1 and accent or F.colors.ivory);love.graphics.print(s[2],sx,sy+23)end
 
-    love.graphics.setFont(f.micro);love.graphics.setColor(.42,.52,.47);love.graphics.print("DRAG  360° ROTATE",gl.cx-gl.r,gl.cy+gl.r+18)
+    love.graphics.setFont(f.micro);love.graphics.setColor(.42,.52,.47);love.graphics.print("DRAG  360° ROTATE  ·  WHEEL  "..math.floor(Globe.stateFor(game).zoom*100+.5).."%",gl.cx-gl.r,gl.cy+gl.r+18)
     love.graphics.setColor(.63,.72,.65);love.graphics.printf("표식 클릭: 즉시 선택  ·  숫자키: 해당 지역으로 회전",gl.cx-gl.r,gl.cy+gl.r+36,gl.r*2,"center")
     game.clearcutMapBackBox={x=w-180,y=30,w=146,h=38};game.clearcutMapConfirmBox={x=w-330,y=h-88,w=296,h=47}
     F.button(game.clearcutMapBackBox,"← 작업자",f.small,{accent=F.colors.teal});F.button(game.clearcutMapConfirmBox,"선택 지역으로 이동",f.body,{primary=true,key="ENT",align="left",accent=focus.color})
-    F.footer(w,h,"마우스 드래그  지구본 회전    ·    표식 클릭  지역 선택    ·    1–5  지역 바로 찾기    ·    ESC  작업자",f.small)
+    F.footer(w,h,"마우스 드래그  회전    ·    휠  확대/축소    ·    표식 클릭  지역 선택    ·    1–5  지역 찾기    ·    ESC  작업자",f.small)
 end
 
 return Select

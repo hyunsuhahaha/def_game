@@ -287,12 +287,17 @@ for _,size in ipairs({{960,540},{1280,720},{1920,1080}}) do
         assert(Select.at(found.x+found.w/2,found.y+found.h/2,g)==i,"globe marker hit mismatch")
     end
     Select.focus(g,3,true);local hidden=0
-    for _,m in ipairs(require("src.stage_select_globe").markers(g,width,height))do
+    local globe=require("src.stage_select_globe")
+    for _,m in ipairs(globe.markers(g,width,height))do
         if not m.visible then hidden=hidden+1;assert(Select.at(m.x,m.y,g)~=m.index,"back-side globe marker accepted input")end
     end
     assert(hidden>=1,"globe test did not place any marker on back hemisphere")
+    local l=globe.layout(width,height);local z=globe.stateFor(g).zoom
+    assert(globe.wheelmoved(g,l.cx,l.cy,1,width,height),"wheel over globe was ignored")
+    globe.update(g,.25);assert(globe.stateFor(g).zoom>z and globe.stateFor(g).zoom<=1.15,"globe zoom-in failed")
+    assert(not globe.wheelmoved(g,width-2,height-2,1,width,height),"wheel outside globe changed zoom")
     -- A drag can cross a complete longitude without selecting a marker.
-    Select.focus(g,1,true);local globe=require("src.stage_select_globe");local l=globe.layout(width,height);local before=globe.stateFor(g).yaw
+    Select.focus(g,1,true);l=globe.layout(width,height);local before=globe.stateFor(g).yaw
     Game.mousepressed(g,l.cx,l.cy,1);Game.mousemoved(g,l.cx+l.r*4.06,l.cy,l.r*4.06,0);Game.mousereleased(g,l.cx+l.r*4.06,l.cy,1)
     assert(g.mode=="clearcut_map_select" and math.abs(math.cos(globe.stateFor(g).yaw-before))>.99,"360 globe drag failed or selected accidentally")
     -- A stationary click on a visible stage marker selects it immediately.

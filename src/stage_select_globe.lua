@@ -18,7 +18,7 @@ end
 local function stateFor(game)
     if game.globeSelectState then return game.globeSelectState end
     local def=Maps.catalog[game.clearcutMapFocus or 1] or Maps.catalog[1]
-    local s={yaw=rad(def.globeLon),pitch=rad(def.globeLat)*.62,targetYaw=nil,targetPitch=nil,
+    local s={yaw=rad(def.globeLon),pitch=rad(def.globeLat)*.62,targetYaw=nil,targetPitch=nil,zoom=1,targetZoom=1,
         dragging=false,moved=false,velocity=0,pitchVelocity=0,hover=nil}
     game.globeSelectState=s;return s
 end
@@ -35,6 +35,7 @@ end
 
 function Globe.update(game,dt)
     local s=stateFor(game)
+    s.zoom=s.zoom+((s.targetZoom or 1)-s.zoom)*(1-math.exp(-dt*10))
     if s.dragging then return end
     if s.targetYaw then
         local d=wrap(s.targetYaw-s.yaw);local k=1-math.exp(-dt*8)
@@ -46,14 +47,21 @@ function Globe.update(game,dt)
     end
 end
 
+function Globe.wheelmoved(game,x,y,delta,w,h)
+    if delta==0 or not Globe.inside(game,x,y,w,h)then return false end
+    local s=stateFor(game);local factor=delta>0 and 1.12 or 1/1.12
+    s.targetZoom=clamp((s.targetZoom or s.zoom or 1)*factor,.70,1.15)
+    return true
+end
+
 function Globe.project(game,latDeg,lonDeg,w,h)
-    local s=stateFor(game);local l=Globe.layout(w,h);local lat,lon=rad(latDeg),rad(lonDeg)
+    local s=stateFor(game);local l=Globe.layout(w,h);local lat,lon=rad(latDeg),rad(lonDeg);local zr=s.zoom or 1
     local x=math.cos(lat)*math.sin(lon);local y=math.sin(lat);local z=math.cos(lat)*math.cos(lon)
     local cy,sy=math.cos(s.yaw),math.sin(s.yaw)
     local x1=cy*x-sy*z;local z1=sy*x+cy*z
     local cp,sp=math.cos(s.pitch),math.sin(s.pitch)
     local y2=cp*y-sp*z1;local z2=sp*y+cp*z1
-    return l.cx+x1*l.r,l.cy-y2*l.r,z2
+    return l.cx+x1*l.r*zr,l.cy-y2*l.r*zr,z2
 end
 
 function Globe.markers(game,w,h)
@@ -75,7 +83,7 @@ function Globe.at(game,x,y,w,h)
 end
 
 function Globe.inside(game,x,y,w,h)
-    local l=Globe.layout(w,h);local dx,dy=x-l.cx,y-l.cy;return dx*dx+dy*dy<=l.r*l.r
+    local l=Globe.layout(w,h);local s=stateFor(game);local r=l.r*(s.zoom or 1);local dx,dy=x-l.cx,y-l.cy;return dx*dx+dy*dy<=r*r
 end
 
 function Globe.mousepressed(game,x,y,button,w,h)
@@ -108,15 +116,15 @@ local function load()
 end
 
 function Globe.draw(game,w,h,time)
-    load();local s=stateFor(game);local l=Globe.layout(w,h);local previous=love.graphics.getShader and love.graphics.getShader() or nil
-    love.graphics.setColor(0,0,0,.42);love.graphics.circle("fill",l.cx+12,l.cy+18,l.r+7)
-    love.graphics.setColor(.08,.40,.38,.13);love.graphics.circle("fill",l.cx,l.cy,l.r+18)
+    load();local s=stateFor(game);local l=Globe.layout(w,h);local r=l.r*(s.zoom or 1);local previous=love.graphics.getShader and love.graphics.getShader() or nil
+    love.graphics.setColor(0,0,0,.42);love.graphics.circle("fill",l.cx+12,l.cy+18,r+7)
+    love.graphics.setColor(.08,.40,.38,.13);love.graphics.circle("fill",l.cx,l.cy,r+18)
     if shader then shader:send("globeYaw",s.yaw);shader:send("globePitch",s.pitch);love.graphics.setShader(shader)end
-    love.graphics.setColor(1,1,1,1);love.graphics.draw(mapImage,l.x,l.y,0,l.w/mapImage:getWidth(),l.h/mapImage:getHeight())
+    love.graphics.setColor(1,1,1,1);love.graphics.draw(mapImage,l.cx-r,l.cy-r,0,r*2/mapImage:getWidth(),r*2/mapImage:getHeight())
     if shader then love.graphics.setShader(previous)end
-    love.graphics.setLineWidth(2);love.graphics.setColor(.34,.83,.72,.72);love.graphics.circle("line",l.cx,l.cy,l.r+1)
-    love.graphics.setLineWidth(1);love.graphics.setColor(1,1,1,.15);love.graphics.circle("line",l.cx-3,l.cy-4,l.r-8)
-    love.graphics.setColor(.95,.62,.18,.24);love.graphics.line(l.cx-l.r-18,l.cy,l.cx-l.r+12,l.cy);love.graphics.line(l.cx+l.r-12,l.cy,l.cx+l.r+18,l.cy)
+    love.graphics.setLineWidth(2);love.graphics.setColor(.34,.83,.72,.72);love.graphics.circle("line",l.cx,l.cy,r+1)
+    love.graphics.setLineWidth(1);love.graphics.setColor(1,1,1,.15);love.graphics.circle("line",l.cx-3,l.cy-4,r-8)
+    love.graphics.setColor(.95,.62,.18,.24);love.graphics.line(l.cx-r-18,l.cy,l.cx-r+12,l.cy);love.graphics.line(l.cx+r-12,l.cy,l.cx+r+18,l.cy)
     return Globe.markers(game,w,h)
 end
 

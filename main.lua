@@ -329,7 +329,7 @@ function love.load()
         game.mode = "clearcut_select"
     end
     if os.getenv("LAST_HAUL_CAPTURE_SETTINGS") then game.mode="settings" end
-    if os.getenv("LAST_HAUL_CAPTURE_CLEARCUT_MAP_SELECT") then game.pendingClearcutCharacter="fire"; game.clearcutMapFocus=3; game.mode="clearcut_map_select" end
+    if os.getenv("LAST_HAUL_CAPTURE_CLEARCUT_MAP_SELECT") then game.pendingClearcutCharacter="fire"; game.clearcutMapFocus=3;game.achievements.data.clears.madagascar=true;game.mode="clearcut_map_select" end
     if os.getenv("LAST_HAUL_CAPTURE_CLEARCUT_BRIEFING") then game.pendingClearcutCharacter="fire"; game.selectedClearcutMap="madagascar"; game.mode="clearcut_briefing" end
     if os.getenv("LAST_HAUL_CAPTURE_CHARACTER_TRAITS") then game.characterTraitReturnMode="lobby"; game.mode="character_traits" end
     if os.getenv("LAST_HAUL_CAPTURE_ACHIEVEMENTS") then
@@ -345,7 +345,7 @@ function love.load()
     end
     local uiCaptureMode=os.getenv("LAST_HAUL_UI_CAPTURE_MODE")
     if uiCaptureMode=="settings" then game.mode="settings"
-    elseif uiCaptureMode=="map" then game.pendingClearcutCharacter="fire"; game.clearcutMapFocus=3; game.mode="clearcut_map_select"
+    elseif uiCaptureMode=="map" then game.pendingClearcutCharacter="fire";game.clearcutMapFocus=3;game.achievements.data.clears.madagascar=true;game.mode="clearcut_map_select"
     elseif uiCaptureMode=="briefing" then game.pendingClearcutCharacter="fire"; game.selectedClearcutMap="madagascar"; game.mode="clearcut_briefing"
     elseif uiCaptureMode=="traits" then game.characterTraitReturnMode="lobby"; game.mode="character_traits" end
     if os.getenv("LAST_HAUL_CAPTURE_TURRET_PLACEMENT") then

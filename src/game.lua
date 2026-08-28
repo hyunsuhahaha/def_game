@@ -627,6 +627,7 @@ end
 function Game:wheelmoved(x, y)
     if self.mode=="character_traits" then self.characterTraitBoard:wheelmoved(x,y); return end
     if self.mode=="achievements" then self.achievementBoard:wheelmoved(x,y); return end
+    if self.mode=="clearcut_map_select" then local mx,my=love.mouse.getPosition();require("src.clearcut_map_select").wheelmoved(self,mx,my,y);return end
     if self.mode ~= "playing" or y == 0 then return end
     if self.world.overviewBounds then return end -- keep every coastline visible
     if not (love.keyboard.isDown("lctrl") or love.keyboard.isDown("rctrl")) then return end
