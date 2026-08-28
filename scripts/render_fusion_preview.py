@@ -24,6 +24,13 @@ def render(path):
             x, y, w, h = op['args']
             options = {'fill': color} if op['mode'] == 'fill' else {'outline': color, 'width': max(1, round(op['lineWidth']))}
             draw.rounded_rectangle((x, y, x+w, y+h), radius=op.get('radius', 0), **options)
+        elif op['op'] == 'ellipse':
+            x, y, rx, ry = op['args']
+            options = {'fill': color} if op['mode'] == 'fill' else {'outline': color, 'width': max(1, round(op['lineWidth']))}
+            draw.ellipse((x-rx, y-ry, x+rx, y+ry), **options)
+        elif op['op'] == 'line':
+            points = list(zip(op['args'][0::2], op['args'][1::2]))
+            draw.line(points, fill=color, width=max(1, round(op['lineWidth'])), joint='curve')
         elif op['op'] == 'text':
             font = ImageFont.truetype(str(ROOT / op['file']), round(op['size']))
             x, y, width = op['args']

@@ -13,7 +13,11 @@ function Art.start(mode,game)
     end
 end
 function Art.update(mode,dt)
-    if mode.revivalCrowd then mode.revivalCrowd.age=mode.revivalCrowd.age+dt;if (mode.revivalTimer or 0)<=0 then mode.revivalCrowd=nil end end
+    if mode.revivalCrowd then
+        mode.revivalCrowd.age=mode.revivalCrowd.age+dt
+        for _,person in ipairs(mode.revivalCrowd.people) do person.chorusTimer=math.max(0,(person.chorusTimer or 0)-dt) end
+        if (mode.revivalTimer or 0)<=0 then mode.revivalCrowd=nil end
+    end
 end
 function Art.queue(mode,queue)
     Art.load();local crowd=mode.revivalCrowd;if not crowd then return end
@@ -21,7 +25,7 @@ function Art.queue(mode,queue)
     for _,p in ipairs(crowd.people) do
         local person=p;queue[#queue+1]={y=person.y,draw=function()
             local frame=crowd.age<.22 and 1 or (math.floor(crowd.age*8+person.seed)%5+2)
-            local centerX=mode.revivalCenterX or person.x;local flip=person.x<centerX and 1 or -1
+            local centerX=(person.chorusTimer or 0)>0 and person.chorusTargetX or (mode.revivalCenterX or person.x);local flip=person.x<centerX and 1 or -1
             love.graphics.setColor(1,1,1,alpha);love.graphics.draw(Art.image,Art.quads[person.variant][frame],math.floor(person.x+.5),math.floor(person.y+.5),0,.47*flip,.47,48,157);love.graphics.setColor(1,1,1,1)
         end}
     end

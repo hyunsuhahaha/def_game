@@ -2,8 +2,8 @@
 local UI = require("src.ui")
 local Fusions = {}
 Fusions.definitions = {
-    {id="wildfire",job="fire",name="산불",needs={"molotov","oil_drum"},color={1,.5,.18},
-        desc="3초마다 꽁초를 추가 투척합니다. 붙은 불의 확산 반경이 35%, 확산 확률이 50% 증가합니다. 꽁초의 잔류·불씨 전이 과정은 유지됩니다."},
+    {id="wildfire",job="fire",name="산불",needs={"molotov","dry_forest"},color={1,.5,.18},
+        desc="3초마다 불붙은 꽁초를 추가 투척합니다. 바싹 마른 숲에서는 붙은 불의 확산 반경이 35%, 확산 확률이 50% 증가합니다. 기름 없이 숲 자체를 태우는 두 번째 빌드입니다."},
     {id="oilRoad",job="fire",name="기름을 실수로 붓다",needs={"oil_drum","straw_bale"},color={1,.55,.15},
         desc="이동하는 동안 밟고 지나간 자리에 기름 자국이 남습니다. 그 위에 담배꽁초가 떨어지면 그대로 옮겨붙어, 이어진 기름 자국을 따라 벽처럼 길게 늘어선 화염대가 잠시 유지되며 닿는 적에게 지속 피해를 줍니다."},
     {id="frenzy",job="physical",name="무한 야근",needs={"berserker","shockwave"},color={1,.76,.3},
@@ -15,7 +15,9 @@ Fusions.definitions = {
     {id="coward_barrage",job="miner",name="비겁한 와다다다",needs={"detector","burrow_uproot"},color={.72,.58,.38},
         desc="잠복 중에는 이동 여부와 관계없이 지상의 주변 나무와 적을 땅속에서 빠르게 연속으로 할큅니다. 손톱자국과 피해는 두더지 몸이 아니라 실제 공격 지점에 남습니다."},
     {id="eternal_return",job="philosopher",name="영원회귀",needs={"footnote","saliva_gland"},color={.75,.9,.35},
-        desc="말을 최고조로 끌고 가다 마우스에서 손을 떼면, 마지막 지점에 큰 침 웅덩이가 남아 반경 안 모두를 오래 중독시킵니다."},
+        desc="말을 최고조로 끌고 가다 마우스에서 손을 떼면, 마지막 지점에 맑은 말의 잔향이 7초간 남습니다. 새로 들어온 대상까지 반복해서 피해를 받고 중독됩니다."},
+    {id="revival_chorus",job="philosopher",name="모두가 이해한 척했다",needs={"monologue","revival_meeting"},color={.93,.67,.26},
+        desc="부흥회 동안 신도들이 3개 지점을 골라 설교를 복창합니다. 음성 덩어리가 실제 목표까지 날아가 도착 프레임에 범위 피해를 줍니다."},
 }
 
 function Fusions.forJob(mode)

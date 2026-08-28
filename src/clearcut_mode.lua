@@ -17,6 +17,7 @@ local AttackPlants = require("src.attack_plants")
 local SupplementArt = require("src.supplement_art")
 local PhilosopherArt = require("src.philosopher_art")
 local RevivalCrowdArt = require("src.revival_crowd_art")
+local PhilosopherFusionArt = require("src.philosopher_fusion_art")
 local SmokeRingArt = require("src.smoke_ring_art")
 local BeeArt = require("src.bee_art")
 local VeganForkArt = require("src.vegan_fork_art")
@@ -157,7 +158,8 @@ function ClearcutMode.new()
         minerClawAction=nil, minerClawFx={}, minerClawMarks={}, minerBurrow=nil, minerBurrowCooldown=0, thrownTrees={}, burrowTracks={}, burrowTrackSequence=0,
         smokeRing=nil, smokeRingCooldown=0, smokeRingCharge=nil, smokeRingChargeDuration=1.5,
         salivaGauge=100, salivaGaugeMax=100, salivaDrainRate=30, salivaRegenRate=25, salivaExhausted=false,
-        revivalTimer=0, revivalCooldown=0,
+        revivalTimer=0, revivalCooldown=0, eternalFields={},
+        revivalChorusTimer=0, revivalChorusSequence=0, revivalChorusShots={}, revivalChorusImpacts={},
         smokerHeldLast=false, physicalAction=nil, veganAction=nil, veganForkImpacts={}, veganConsumeFx={}, veganHaste=0, developerAction=nil,
         actionAudit={physicalImpact=0,cigaretteFlick=0,veganFork=0,veganConsume=0,developerRemote=0},
         hp=100, maxHp=100, invulnTimer=0, dead=false,
@@ -399,6 +401,7 @@ function ClearcutMode:advanceStage(game)
     game.world.nodes, game.world.drops = {}, {}
     self.enemies, self.projectiles, self.bossTelegraphs, self.resinPuddles = {}, {}, {}, {}
     self.rootHazards, self.bees, self.molotovs, self.chests, self.plagued = {}, {}, {}, {}, {}
+    self.eternalFields,self.revivalChorusShots,self.revivalChorusImpacts={},{},{}
     self.veganForkImpacts,self.veganConsumeFx,self.veganHaste={},{},0
     self.milestoneFired, self.worldTreeSpawned, self.worldTree, self.activeBoss = {}, false, nil, nil
     self.regrowTimer = 0
@@ -1734,6 +1737,20 @@ function ClearcutMode:updatePlague(dt, game)
             table.remove(self.plagued, i)
         end
     end
+end
+
+function ClearcutMode:markPhilosopherPlague(kind,ref,duration,damage)
+    if ref.plagueMarked then
+        for _,plague in ipairs(self.plagued) do
+            if plague.ref==ref then
+                plague.timer=math.max(plague.timer or 0,duration)
+                plague.dmg=math.max(plague.dmg or 0,damage or 1)
+                return
+            end
+        end
+    end
+    ref.plagueMarked=true
+    self.plagued[#self.plagued+1]={kind=kind,ref=ref,timer=duration,tickTimer=0,dmg=damage}
 end
 
 function ClearcutMode:closestTreeInAxeRange(game)
@@ -3087,14 +3104,8 @@ function ClearcutMode:activateRevival(game)
     self.revivalTimer = 6 + power
     self.revivalCenterX,self.revivalCenterY=game.player.x,game.player.y
     RevivalCrowdArt.start(self,game)
-    game.world.particles[#game.world.particles+1] = {
-        x=game.player.x, y=game.player.y, life=.4, maxLife=.4, size=70, color={.75,.9,.35}, ring=true
-    }
-    for i = 1, 10 do
-        local a = (i / 10) * math.pi * 2
-        local r = 30 + love.math.random() * 40
-        game.world:addParticle(game.player.x + math.cos(a) * r, game.player.y + math.sin(a) * r * .6, {.75, .9, .35}, true, false)
-    end
+    self.revivalChorusTimer=0
+    self.revivalChorusImpacts[#self.revivalChorusImpacts+1]={x=game.player.x,y=game.player.y,radius=72,age=0,life=.52,opening=true}
     game:setNotice("부흥회 개최 — 광신도들이 응답한다", "food")
     return true
 end
@@ -3104,6 +3115,117 @@ function ClearcutMode:updateRevival(dt, game)
     self.revivalTimer = math.max(0, self.revivalTimer - dt)
     PhilosopherArt.update(self,dt)
     RevivalCrowdArt.update(self,dt)
+    self:updateEternalFields(dt,game)
+    self:updateRevivalChorus(dt,game)
+end
+
+function ClearcutMode:spawnEternalField(x,y,game)
+    local radius=(self.aimRadius or 60)*1.8
+    self.eternalFields[#self.eternalFields+1]={x=x,y=y,radius=radius,age=0,life=7+self.permanentTraits.plagueDuration,tickTimer=0,
+        damage=.7+self:power("monologue")*.22+self.permanentTraits.biteDamage*.16}
+    if #self.eternalFields>3 then table.remove(self.eternalFields,1) end
+    if game.camera then game.camera.trauma=math.min(1,game.camera.trauma+.22) end
+end
+
+function ClearcutMode:tickEternalField(field,game)
+    local radius2=field.radius*field.radius
+    local poisonDuration=math.max(1.4,2.2+self.permanentTraits.plagueDuration)
+    for _,node in ipairs(game.world.nodes) do
+        if node.rushTree and node.active then
+            local dx,dy=node.x-field.x,node.y-field.y
+            if dx*dx+dy*dy<=radius2 then
+                node.rushHp=(node.rushHp or node.rushMaxHp)-field.damage
+                self:markPhilosopherPlague("tree",node,poisonDuration,1)
+                if node.rushHp<=0 then self:fellTree(node,game) end
+            end
+        end
+    end
+    for _,enemy in ipairs(self.enemies) do
+        if enemy.hp>0 then
+            local dx,dy=enemy.x-field.x,enemy.y-field.y
+            if dx*dx+dy*dy<=radius2 then
+                self:markPhilosopherPlague("enemy",enemy,poisonDuration,2)
+            end
+        end
+    end
+    self:damageEnemiesInRadius(field.x,field.y,field.radius,field.damage*2.2,game)
+end
+
+function ClearcutMode:updateEternalFields(dt,game)
+    for i=#self.eternalFields,1,-1 do
+        local field=self.eternalFields[i]
+        field.age=field.age+dt;field.life=field.life-dt;field.tickTimer=field.tickTimer-dt
+        if field.tickTimer<=0 then field.tickTimer=math.max(.34, .5-self:power("footnote")*.025);self:tickEternalField(field,game) end
+        if field.life<=0 then table.remove(self.eternalFields,i) end
+    end
+end
+
+function ClearcutMode:spawnRevivalChorus(game)
+    local crowd=self.revivalCrowd
+    if not crowd or not crowd.people or #crowd.people==0 then return end
+    local candidates={}
+    local px,py=game.player.x,game.player.y
+    for _,node in ipairs(game.world.nodes) do
+        if node.rushTree and node.active then
+            local d=(node.x-px)^2+(node.y-py)^2
+            if d<=760*760 then candidates[#candidates+1]={kind="tree",ref=node,x=node.x,y=node.y,d=d} end
+        end
+    end
+    for _,enemy in ipairs(self.enemies) do
+        if enemy.hp>0 then
+            local d=(enemy.x-px)^2+(enemy.y-py)^2
+            if d<=760*760 then candidates[#candidates+1]={kind="enemy",ref=enemy,x=enemy.x,y=enemy.y,d=d} end
+        end
+    end
+    table.sort(candidates,function(a,b)return a.d<b.d end)
+    local count=math.min(3,#candidates)
+    for i=1,count do
+        self.revivalChorusSequence=self.revivalChorusSequence+1
+        local person=crowd.people[(self.revivalChorusSequence-1)%#crowd.people+1]
+        local target=candidates[i]
+        local sx,sy=person.x,person.y-54
+        local distance=math.sqrt((target.x-sx)^2+(target.y-sy)^2)
+        local duration=math.max(.28,math.min(.72,distance/720))
+        person.chorusTimer=duration+.18;person.chorusTargetX=target.x
+        self.revivalChorusShots[#self.revivalChorusShots+1]={sx=sx,sy=sy,tx=target.x,ty=target.y,t=0,dur=duration,radius=56}
+    end
+end
+
+function ClearcutMode:resolveRevivalChorus(shot,game)
+    local damage=2.5+self:power("monologue")*.65+self:power("revival_meeting")*.45
+    local r2=shot.radius*shot.radius
+    for _,node in ipairs(game.world.nodes) do
+        if node.rushTree and node.active then
+            local dx,dy=node.x-shot.tx,node.y-shot.ty
+            if dx*dx+dy*dy<=r2 then
+                node.rushHp=(node.rushHp or node.rushMaxHp)-damage
+                game.world:impactNode(node,game,true)
+                if node.rushHp<=0 then self:fellTree(node,game) end
+            end
+        end
+    end
+    self:damageEnemiesInRadius(shot.tx,shot.ty,shot.radius,damage*2.3,game)
+    self.revivalChorusImpacts[#self.revivalChorusImpacts+1]={x=shot.tx,y=shot.ty,radius=shot.radius,age=0,life=.48}
+end
+
+function ClearcutMode:updateRevivalChorus(dt,game)
+    -- Age already-visible impacts first. Impacts created by shots below must survive
+    -- at least one rendered frame even when a long frame exceeds their whole lifetime.
+    for i=#self.revivalChorusImpacts,1,-1 do
+        local impact=self.revivalChorusImpacts[i];impact.age=impact.age+dt
+        if impact.age>=impact.life then table.remove(self.revivalChorusImpacts,i) end
+    end
+    if self.evolutions.revival_chorus and self.revivalTimer>0 then
+        self.revivalChorusTimer=self.revivalChorusTimer-dt
+        if self.revivalChorusTimer<=0 then
+            self.revivalChorusTimer=math.max(.48,.86-self:power("revival_meeting")*.055)
+            self:spawnRevivalChorus(game)
+        end
+    end
+    for i=#self.revivalChorusShots,1,-1 do
+        local shot=self.revivalChorusShots[i];shot.t=shot.t+dt
+        if shot.t>=shot.dur then self:resolveRevivalChorus(shot,game);table.remove(self.revivalChorusShots,i) end
+    end
 end
 
 -- 기본공격 "끝없는 설교": 누르고 있는 동안 침을 계속 쏘지만, 침 게이지가 계속 줄어든다.
@@ -3135,7 +3257,7 @@ function ClearcutMode:updatePhilosopherAttack(dt, game, heldOverride)
     if not firing then
         self.salivaGauge = math.min(self.salivaGaugeMax, self.salivaGauge + self.salivaRegenRate * dt)
         if wasHeld and verbosity >= .999 and self.evolutions.eternal_return then
-            self:applySpit(self.aimX, self.aimY, 1, game, true)
+            self:spawnEternalField(self.aimX, self.aimY, game)
         end
         if game.player.clearClearcutAction then game.player:clearClearcutAction() end
         return false
@@ -4595,6 +4717,7 @@ end
 ClearcutMode.drawEnemy = ForestArt.drawBody
 function ClearcutMode:queueWorldActors(queue,t)
     local groundTime=self.smokerGroundTime
+    PhilosopherFusionArt.queue(self,queue)
     RevivalCrowdArt.queue(self,queue)
     for _,value in ipairs(self.burrowTracks) do
         local mark=value
@@ -4678,6 +4801,7 @@ function ClearcutMode:drawSupplementSkills(game, t)
     MoleClawArt.draw(self,game,t)
     BruteForceArt.draw(self,game,t)
     PhilosopherArt.draw(self)
+    PhilosopherFusionArt.draw(self)
 end
 
 function ClearcutMode:drawThrownTrees(game)

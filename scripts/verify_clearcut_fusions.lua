@@ -68,12 +68,11 @@ assert(small:choiceAt(smallBox.x+smallBox.w/2,smallBox.y+smallBox.h/2)==1,"scale
 if FUSION_CAPTURE then fixture.save("docs/previews/fusion-wildfire-small-draws.json") end
 love.graphics.getDimensions=function() return 1280,720 end
 
--- One last oil-drum level unlocks TWO current recipes. Both are queued and guaranteed.
+-- Independently completed recipes are queued and guaranteed without consuming XP.
 local m,g=setup("fire")
-local oilMax=m:getUpgradeDefinition("oil_drum").max
-m.levels={molotov=m:getUpgradeDefinition("molotov").max,straw_bale=m:getUpgradeDefinition("straw_bale").max,oil_drum=oilMax-1};m.pending=3
-m.choices={m:getUpgradeDefinition("oil_drum")};g.mode="clearcut_upgrade"
-assert(m:choose(1,g) and m.fusionChoice.id=="wildfire" and m.pending==2)
+m.levels={molotov=m:getUpgradeDefinition("molotov").max,dry_forest=m:getUpgradeDefinition("dry_forest").max,
+    straw_bale=m:getUpgradeDefinition("straw_bale").max,oil_drum=m:getUpgradeDefinition("oil_drum").max};m.pending=2
+assert(m:checkEvolutions(g) and m.fusionChoice.id=="wildfire")
 assert(m:choose(1,g) and m.fusionChoice.id=="oilRoad" and m.pending==2)
 assert(m:choose(1,g) and m.selectionKind=="upgrade" and m.pending==2 and #m.choices>0)
 assert(m.evolutions.wildfire and m.evolutions.oilRoad)
@@ -84,15 +83,15 @@ fixture.reset();Fusions.drawProgress(m,fonts)
 if FUSION_CAPTURE then fixture.save("docs/previews/fusion-progress-draws.json") end
 
 -- Chest reward is separate from pending XP. Banish cannot sneak through a chest.
-local chest,cg=setup("fire");chest.pending=2;chest.levels={molotov=chest:getUpgradeDefinition("molotov").max,oil_drum=chest:getUpgradeDefinition("oil_drum").max-1}
+local chest,cg=setup("fire");chest.pending=2;chest.levels={molotov=chest:getUpgradeDefinition("molotov").max,dry_forest=chest:getUpgradeDefinition("dry_forest").max-1}
 chest.banishArmed=true;chest:openChest(cg)
 assert(not chest.banishArmed and chest.chestPending)
-chest.choices={chest:getUpgradeDefinition("oil_drum")}
+chest.choices={chest:getUpgradeDefinition("dry_forest")}
 assert(chest:choose(1,cg) and chest.selectionKind=="fusion" and chest.pending==2)
 assert(chest:choose(1,cg) and chest.pending==2 and chest.selectionKind=="upgrade")
 -- A ready fusion cannot consume a newly collected chest or overwrite another modal.
-local deferred,dfg=setup("fire");local moloMax,oilMax=deferred:getUpgradeDefinition("molotov").max,deferred:getUpgradeDefinition("oil_drum").max
-deferred.levels={molotov=moloMax,oil_drum=oilMax}
+local deferred,dfg=setup("fire");local moloMax,dryMax=deferred:getUpgradeDefinition("molotov").max,deferred:getUpgradeDefinition("dry_forest").max
+deferred.levels={molotov=moloMax,dry_forest=dryMax}
 deferred:openChest(dfg);assert(deferred.selectionKind=="fusion")
 assert(deferred:choose(1,dfg) and deferred.chestPending and #deferred.choices>0)
 local nearby,ng=setup("fire");ng.player.x=0
@@ -113,14 +112,15 @@ assert(banned:choose(1,bg) and banned.choices[1].recovery,"empty banish pool dea
 
 -- Requirement levels come from upgrade definitions, not a second hardcoded max.
 local dynamic,dyg=setup("fire");maxIngredients(dynamic,Fusions.definitions[1])
-local ingredient=dynamic:getUpgradeDefinition("oil_drum");local oldMax=ingredient.max
-ingredient.max=4;dynamic.levels.oil_drum=3
+local secondId=Fusions.definitions[1].needs[2]
+local ingredient=dynamic:getUpgradeDefinition(secondId);local oldMax=ingredient.max
+ingredient.max=4;dynamic.levels[secondId]=3
 assert(not Fusions.ready(dynamic,Fusions.definitions[1]))
-dynamic.levels.oil_drum=4;assert(Fusions.ready(dynamic,Fusions.definitions[1]));ingredient.max=oldMax
+dynamic.levels[secondId]=4;assert(Fusions.ready(dynamic,Fusions.definitions[1]));ingredient.max=oldMax
 
 -- Real effects: wildfire keeps ground landing, strengthens spreading only after fire.
 local fire,fg=setup("fire",{tree(0),tree(180)})
-fire.levels={molotov=3,oil_drum=3};fire.evolutions.wildfire=true;fire.molotovTimer=-100
+fire.levels={molotov=3,dry_forest=3};fire.evolutions.wildfire=true;fire.molotovTimer=-100
 fire:updateFire(3,fg);assert(#fire.molotovs==1,"wildfire extra projectile missing")
 fire:updateMolotovs(2,fg);assert(#fire.cigaretteButts==1 and not fg.world.nodes[1].burning,"fusion bypassed smolder stage")
 local function spread(fused)
@@ -132,6 +132,33 @@ local function spread(fused)
     return b.burning
 end
 assert(not spread(false) and spread(true),"wildfire spread range unchanged")
+
+-- Eternal Return is a persistent field: it keeps ticking and catches late entrants.
+local pTree,pLate=tree(0,30),tree(260,30)
+local philosopher,pg=setup("philosopher",{pTree,pLate});philosopher.evolutions.eternal_return=true
+philosopher.levels={footnote=philosopher:getUpgradeDefinition("footnote").max,saliva_gland=philosopher:getUpgradeDefinition("saliva_gland").max}
+philosopher.aimRadius=70;philosopher:spawnEternalField(0,0,pg)
+assert(#philosopher.eternalFields==1 and pTree.rushHp==30,"eternal field did not persist before its tick")
+philosopher:updateEternalFields(.01,pg)
+assert(pTree.rushHp<30 and pTree.plagueMarked and pLate.rushHp==30,"eternal field first tick/radius wrong")
+pLate.x=40;philosopher:updateEternalFields(.6,pg)
+assert(pLate.rushHp<30 and pLate.plagueMarked,"late entrant ignored by eternal field")
+
+-- Revival fusion launches three authored chorus packets and damages only on arrival.
+local r1,r2,r3=tree(0,40),tree(70,40),tree(140,40)
+local revival,rg=setup("philosopher",{r1,r2,r3});revival.evolutions.revival_chorus=true
+revival.levels={monologue=revival:getUpgradeDefinition("monologue").max,revival_meeting=revival:getUpgradeDefinition("revival_meeting").max}
+assert(revival:activateRevival(rg));revival:updateRevival(.01,rg)
+assert(#revival.revivalChorusShots==3 and r1.rushHp==40,"revival chorus skipped its travel phase")
+revival:updateRevival(1,rg)
+assert(#revival.revivalChorusShots==0 and #revival.revivalChorusImpacts>=3 and r1.rushHp<40,"revival chorus arrival did not hit")
+
+-- Both fusion effects render from authored nearest-filter atlases, not runtime circles.
+local FusionArt=require("src.philosopher_fusion_art")
+fixture.reset();local queue={};FusionArt.queue(philosopher,queue);for _,item in ipairs(queue) do item.draw() end
+revival.revivalChorusShots={{sx=0,sy=0,tx=100,ty=0,t=.2,dur=.5,radius=56}};FusionArt.draw(revival)
+local artFiles="";for _,op in ipairs(fixture.commands) do artFiles=artFiles..(op.file or "") end
+assert(artFiles:find("eternal%-return%-field%-atlas") and artFiles:find("revival%-chorus%-atlas"),"philosopher fusion atlases not rendered")
 
 local function frenzy(streak,enabled)
     local p,q=tree(0,10),tree(130,10)
@@ -172,4 +199,4 @@ for _,job in ipairs({"physical","fire","toxic","developer"}) do
     ui.selectionKind="arcana";ui:rollArcanaChoices();ui:drawSelection(ug,fonts)
     assert(#ui.choiceBoxes==3 and not ui.rerollBox,"arcana inherited stale upgrade controls")
 end
-print("CLEARCUT_FUSIONS_OK recipes="..#Fusions.definitions.." acquisition=guaranteed multi=queued chest=separate effects=verified")
+print("CLEARCUT_FUSIONS_OK recipes="..#Fusions.definitions.." acquisition=guaranteed multi=queued chest=separate persistent=verified chorus=verified")
