@@ -8,6 +8,8 @@ love = {
 }
 
 local ClearcutMode=require("src.clearcut_mode")
+local Game=require("src.game")
+local ForestArt=require("src.forest_arcade_art")
 local mode=ClearcutMode.new()
 mode.job="miner"
 mode.levels.detector=1
@@ -99,6 +101,38 @@ local thrown=mode.thrownTrees[1]
 assert(math.abs(thrown.vy)>math.abs(thrown.vx),"tree was not launched to the side of travel")
 assert(thrown.variant==2,"tree visual variant was not preserved")
 assert(mode.thrownTrees[1].vy*mode.thrownTrees[2].vy<0,"successive trees should fan out to alternating sides")
+
+-- SPACE while already tunnelling is a deliberate eruption: it damages every
+-- monster over the exit point, launches their real sprites, and cannot fire a
+-- second time during the exit animation.
+local enemyDef={radius=16,speed=0,boss=true,hitCooldown=1,damage=0}
+local nearA={kind="squirrel",def=enemyDef,x=220,y=100,hp=100,maxHp=100,hitTimer=0}
+local nearB={kind="squirrel",def=enemyDef,x=120,y=130,hp=100,maxHp=100,hitTimer=0}
+local outside={kind="squirrel",def=enemyDef,x=520,y=100,hp=100,maxHp=100,hitTimer=0}
+mode.enemies={nearA,nearB,outside}
+game.mode,game.runType,game.clearcut="playing","clearcut",mode
+local untouchedTreeHp=treeD.rushHp
+Game.keypressed(game,"space")
+assert(mode.minerBurrow and mode.minerBurrow.state=="exit" and mode.minerBurrow.erupted,"second SPACE did not force the mole to surface")
+assert(player.pose==.72,"eruption did not start on the authored underground emergence frame")
+assert(nearA.hp<100 and nearB.hp<100 and outside.hp==100,"eruption did not hit every monster in its visible radius")
+assert(nearA.airborneT==0 and nearB.airborneT==0 and not outside.airborneT,"eruption damage did not attach airborne state")
+assert(mode.burrowTracks[#mode.burrowTracks].kind=="burst","surface point omitted the authored burrow burst frame")
+assert(treeD.rushHp==untouchedTreeHp,"monster eruption unexpectedly damaged a tree")
+local hpAfterEruption=nearA.hp
+Game.keypressed(game,"space")
+assert(nearA.hp==hpAfterEruption,"exit-state key repeat applied eruption damage twice")
+mode:updateEnemies(.2,game)
+assert(nearA.hopHeight>0 and nearB.hopHeight>0,"airborne monsters never rose above the ground")
+local airbornePose=ForestArt.pose(nearA,0)
+assert(airbornePose.y<airbornePose.footY,"real enemy sprite did not follow airborne height")
+mode:updateEnemies(1,game)
+assert(nearA.hopHeight==0 and not nearA.airborneT and nearB.hopHeight==0,"airborne monsters did not land cleanly")
+mode:updateMinerBurrow(.1,game)
+assert(player.pose==.58,"eruption did not reverse through the authored half-surfaced frame")
+mode:updateMinerBurrow(.11,game)
+assert(not mode.minerBurrow and mode.minerBurrowCooldown>0,"manual eruption skipped the normal burrow cooldown")
+assert(player.pose==nil,"eruption did not return the mole to its standing pose")
 
 -- Reposition a live tree into the projectile path and verify collision damage.
 treeB.x,treeB.y=thrown.x,thrown.y+45

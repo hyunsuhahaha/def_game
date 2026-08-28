@@ -67,7 +67,7 @@ local definitions = {
     {id="site_clearance", track="develop", name="부지 정지 작업", desc="돌진이 지나간 자리는 다시는 나무가 자라지 않는 부지가 됩니다.", max=6, color={.55,.5,.55}, job="developer"},
     -- 굴착력 (dig) — 발톱 할퀴기와 지하 돌진으로 얼마나 거칠게 밀어내느냐 [코인 채굴꾼 전용]
     {id="detector", track="dig", name="손톱 강화 — 복리 발톱", desc="보이는 발톱 궤적 전체의 나무와 적을 모두 할퀴며 범위와 피해가 강화됩니다. 휘두르는 동안 이동해도 시작 방향의 판정이 두더지를 따라오고, 6레벨에는 양손으로 동시에 할퀴지만 대상별 피해는 한 번만 적용됩니다.", max=6, color={.85,.68,.22}, job="miner"},
-    {id="burrow_uproot", track="dig", name="지하 강제집행", desc="SPACE 또는 우클릭 잠복의 재사용 시간이 줄고, 이동 경로에서 자동으로 옆으로 튕겨 나가는 나무의 피해와 관통 횟수가 늘어납니다.", max=6, color={.58,.42,.24}, job="miner"},
+    {id="burrow_uproot", track="dig", name="지하 강제집행", desc="SPACE 또는 우클릭 잠복의 재사용 시간이 줄고, 이동 경로에서 나무를 옆으로 튕깁니다. 잠복 중 다시 누르면 지상으로 돌파해 주변 몬스터에게 피해를 주고 공중에 띄웁니다.", max=6, color={.58,.42,.24}, job="miner"},
     {id="brute_force", track="dig", name="브루트포스 어택", desc="지상에서 수많은 숫자 조합을 빠르게 생성한 뒤 사방으로 발사합니다. 날아간 숫자는 닿는 나무와 적에게 피해를 줍니다.", max=6, color={.3,.9,.4}, job="miner"},
     -- 독설력 (venom) — 말을 오래 붙잡을수록 사거리와 독성이 강해진다 [차라투스트라는 이렇게 말했다 전용]
     {id="monologue", track="venom", name="끝없는 설교", desc="기본 공격이 장광설로 바뀝니다. 공격 버튼을 누르고 있는 동안 침방울을 연속으로 쏘며, 그동안 침 게이지가 계속 줄어듭니다. 게이지가 바닥나면 강제로 멈추고 25% 이상 회복해야 다시 쏠 수 있습니다. 말이 길어질수록 사거리와 피해가 늘어납니다.", max=6, color={.75,.85,.3}, job="philosopher"},
@@ -1153,7 +1153,22 @@ function ClearcutMode:updateEnemies(dt, game)
         e.visualHit = math.max(0, (e.visualHit or 0) - dt)
         e.visualAttack = math.max(0, (e.visualAttack or 0) - dt)
         e.hitTimer = math.max(0, e.hitTimer - dt)
-        if (e.knockTimer or 0) > 0 then
+        local airborneThisFrame=false
+        if e.airborneT then
+            airborneThisFrame=true
+            local airborneStep=math.min(dt,e.airborneDuration-e.airborneT)
+            e.airborneT=math.min(e.airborneDuration,e.airborneT+airborneStep)
+            local p=e.airborneT/e.airborneDuration
+            e.hopHeight=math.sin(p*math.pi)*e.airbornePeak
+            e.x,e.y=e.x+e.airborneVX*airborneStep,e.y+e.airborneVY*airborneStep
+            local drag=math.exp(-3.2*airborneStep)
+            e.airborneVX,e.airborneVY=e.airborneVX*drag,e.airborneVY*drag
+            e.moving=true
+            if p>=1 then
+                e.airborneT,e.airborneDuration,e.airbornePeak=nil,nil,nil
+                e.airborneVX,e.airborneVY,e.hopHeight=nil,nil,0
+            end
+        elseif (e.knockTimer or 0) > 0 then
             e.knockTimer = e.knockTimer - dt
             e.x, e.y = e.x + e.knockVX * dt, e.y + e.knockVY * dt
             e.knockVX, e.knockVY = e.knockVX * .86, e.knockVY * .86
@@ -1192,29 +1207,29 @@ function ClearcutMode:updateEnemies(dt, game)
         local movedX, movedY = e.x-previousX, e.y-previousY
         if math.abs(movedX) > .001 then e.facing = movedX < 0 and -1 or 1 end
         e.moving = movedX*movedX + movedY*movedY > .000001
-        if e.elite then
+        if e.elite and not airborneThisFrame then
             e.eliteFireTimer = (e.eliteFireTimer or 2.4) - dt
             if e.eliteFireTimer <= 0 then
                 e.eliteFireTimer = 2.6
                 self:spawnThornProjectile(e, game)
             end
         end
-        if e.kind == "worldtree" then self:updateWorldTreeAI(e, dt, game) end
-        if def.slamInterval then
+        if e.kind == "worldtree" and not airborneThisFrame then self:updateWorldTreeAI(e, dt, game) end
+        if def.slamInterval and not airborneThisFrame then
             e.slamTimer = e.slamTimer - dt
             if e.slamTimer <= 0 then
                 e.slamTimer = def.slamInterval
                 self:bossSlam(e, game)
             end
         end
-        if def.summonInterval then
+        if def.summonInterval and not airborneThisFrame then
             e.summonTimer = e.summonTimer - dt
             if e.summonTimer <= 0 then
                 e.summonTimer = def.summonInterval
                 self:spawnWave({squirrel = 2, boar = 1}, game)
             end
         end
-        if def.plantInterval then
+        if def.plantInterval and not airborneThisFrame then
             e.plantTimer = (e.plantTimer or def.plantInterval) - dt
             e.planterCasting = e.plantTimer <= 1.5
             if e.planterCasting then e.visualAttack = math.max(e.visualAttack,.24) end
@@ -2193,8 +2208,48 @@ function ClearcutMode:applyClawSwipe(tx, ty, game)
     if game.camera then game.camera.trauma=math.min(1,game.camera.trauma+.09) end
 end
 
+function ClearcutMode:eruptMinerBurrow(game)
+    local burrow=self.minerBurrow
+    if not burrow or burrow.state~="tunnel" then return false end
+    local power=self:power("burrow_uproot")
+    local radius=150+power*10+self.permanentTraits.area*.35
+    local damage=10+power*2+self.permanentTraits.treeDamage
+    local hit=0
+    for _,enemy in ipairs(self.enemies) do
+        if enemy.hp>0 then
+            local dx,dy=enemy.x-game.player.x,enemy.y-game.player.y
+            local distance=math.sqrt(dx*dx+dy*dy)
+            if distance<=radius+(enemy.def.radius or 0) then
+                if distance<1 then dx,dy,distance=game.player.facing or 1,0,1 end
+                local kick=120+power*15
+                enemy.hp=enemy.hp-damage
+                enemy.visualHit=.16
+                enemy.knockTimer=0
+                enemy.airborneT=0
+                enemy.airborneDuration=.72+power*.02
+                enemy.airbornePeak=92+power*9
+                enemy.airborneVX,enemy.airborneVY=dx/distance*kick,dy/distance*kick
+                hit=hit+1
+            end
+        end
+    end
+    burrow.state,burrow.t,burrow.erupted="exit",0,true
+    self:addBurrowTrack(game.player.x,game.player.y,0,"burst")
+    -- Reuse the authored underground/action cells in reverse: mound, half body,
+    -- then normal standing pose. This reads as a surface burst instead of
+    -- replaying the dive pose forward.
+    if game.player.setClearcutAction then game.player:setClearcutAction(.72) end
+    self.traitFx:emit("construction_blast",game.player.x,game.player.y,{radius=radius,particles=30,power=1.1,color={.55,.38,.2}})
+    if game.camera then game.camera.trauma=math.min(1,game.camera.trauma+.3) end
+    game:setNotice(string.format("지상 돌파 — 몬스터 %d마리 에어본!",hit),"ore")
+    return true
+end
+
 function ClearcutMode:activateMinerBurrow(game)
-    if self.job ~= "miner" or self.dead or self.minerBurrow then return false end
+    if self.job ~= "miner" or self.dead then return false end
+    if self.minerBurrow then
+        return self:eruptMinerBurrow(game)
+    end
     if self.minerBurrowCooldown > 0 then
         game:setNotice(string.format("잠복 재사용 %.1f초",self.minerBurrowCooldown),"ore")
         return false
@@ -2363,7 +2418,10 @@ function ClearcutMode:updateMinerBurrow(dt, game)
         end
         return
     end
-    if game.player.setClearcutAction then game.player:setClearcutAction(.62) end
+    if game.player.setClearcutAction then
+        local exitPose=burrow.t<.055 and .72 or (burrow.t<.135 and .58 or .04)
+        game.player:setClearcutAction(exitPose)
+    end
     if burrow.t>=.2 then
         self.minerBurrow=nil
         self.minerBurrowCooldown=math.max(3.4,7-self:power("burrow_uproot")*.55)
@@ -5515,7 +5573,7 @@ function ClearcutMode:drawHUD(game,fonts)
     love.graphics.printf(math.floor(self.xp).." / "..self.xpNext,0,xpby-18,w-12,"right")
     if self.job=="miner" then
         local ready=(self.minerBurrowCooldown or 0)<=0 and not self.minerBurrow
-        local text=self.minerBurrow and "잠복 중 — 나무 밑으로 이동" or ready and "SPACE / 우클릭  잠복 준비" or string.format("잠복 재사용 %.1f초",self.minerBurrowCooldown)
+        local text=self.minerBurrow and (self.minerBurrow.state=="tunnel" and "SPACE / 우클릭  지상 돌파 · 주변 몬스터 에어본" or "잠복 전환 중") or ready and "SPACE / 우클릭  잠복 준비" or string.format("잠복 재사용 %.1f초",self.minerBurrowCooldown)
         love.graphics.setFont(fonts.small)
         love.graphics.setColor(.035,.045,.035,.9); love.graphics.rectangle("fill",w/2-150,h-52,300,30,7,7)
         love.graphics.setColor(ready and {.94,.76,.28,1} or {.72,.65,.52,1})
@@ -5837,7 +5895,7 @@ local selectionDescriptions={
     straw_bale="큰 건초더미를 설치합니다. 꽁초가 닿으면 0.5초 뒤 넓은 화염 지대가 생겨 나무와 적에게 지속 피해를 줍니다.",
     smoke_ring="SPACE 도넛 연기의 재사용 시간·피해·넉백·크기를 강화합니다. 6레벨 완충 시 초농축 도넛을 발사합니다.",
     detector="보이는 발톱 궤적 전체를 공격합니다. 범위와 피해가 증가하며, 6레벨에는 양손으로 할퀵니다.",
-    burrow_uproot="잠복 재사용 시간이 줄고, 이동 경로에서 뽑혀 나가는 나무의 피해와 관통 수가 증가합니다.",
+    burrow_uproot="잠복 재사용 시간이 줄고 나무 투척이 강해집니다. 잠복 중 다시 입력하면 주변 몬스터를 공격해 공중에 띄웁니다.",
     monologue="공격이 장광설로 바뀝니다. 누르는 동안 침을 연속 발사하며, 오래 말할수록 사거리와 피해가 증가합니다. 게이지가 바닥나면 25% 회복 후 다시 발사합니다.",
     revival_meeting="SPACE 부흥회의 재사용 시간이 줄고 지속시간과 침 피해 배율이 증가합니다.",
     bat_swarm="박쥐가 주변 대상을 골라 급강하합니다. 사거리 안에서는 몬스터를 나무보다 먼저 노립니다.",

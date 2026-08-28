@@ -107,7 +107,7 @@ end
 function Art.drawHealth(e,t)
     local pose=Art.pose(e,t)
     local w=math.max(e.def.radius*2.2,pose.spec.width*.85)
-    local x,y=math.floor(e.x-w/2),math.floor(pose.footY-pose.height-9)
+    local x,y=math.floor(e.x-w/2),math.floor(pose.footY-(e.hopHeight or 0)-pose.height-9)
     local pct=math.max(0,math.min(1,e.hp/e.maxHp))
     love.graphics.setColor(.14,.10,.07,.95); love.graphics.rectangle("fill",x-1,y-1,w+2,6)
     love.graphics.setColor(.9,.3,.19,1); love.graphics.rectangle("fill",x,y,math.floor(w*pct),4)

@@ -7,6 +7,14 @@
 - `scripts/build_coin_miner_mole.py`가 원화의 체크 배경 제거, 발선 정렬, 공용 팔레트 양자화와 아틀라스 패킹만 담당한다.
 - 거부된 조립식 v1은 `coin-miner-mole-rejected-concept-v1.png`로 보존하며 런타임에 연결하지 않는다.
 
+## 잠복 재입력 — 지상 돌파
+
+- 잠복 중 `SPACE` 또는 우클릭을 다시 누르면 즉시 출구 상태로 전환한다.
+- 출구 중심의 모든 몬스터에게 한 번씩 피해를 주고, 실제 몬스터 스프라이트를 지면 그림자 위로 들어 올린 뒤 착지시킨다.
+- 시각 중심은 기존 고밀도 땅굴 아틀라스의 `burst` 프레임이다. 별도의 런타임 원·선 도형으로 돌파를 대체하지 않는다.
+- [실제 표시 크기](previews/mole-eruption-v1-display-scale.png) / [3배 픽셀 검수](previews/mole-eruption-v1-3x.png)
+- `python scripts/render_mole_eruption_preview.py`는 창을 열지 않고 실제 Lua 그리기 명령을 재생한다.
+
 ## ImageGen 프롬프트
 
 ### 걷기 원화 — built-in `game-asset-production`
