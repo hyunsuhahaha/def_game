@@ -54,7 +54,7 @@ assert(not game:find("CameraDepthArt",1,true),"screen-space foreground layer ret
 assert(not projection:find("backdrop",1,true),"separate backdrop image returned")
 assert(projection:find("canvas",1,true) and projection:find("mesh",1,true),"terrain and actors do not share one projection")
 assert(projection:find("love.graphics.scale(uniform,uniform)",1,true),"billboard sprite aspect ratio is not uniform")
-assert(game:find("WorldProjection.finish()",1,true)<game:find("WorldProjection.drawBillboards",1,true),"billboards are drawn before projected ground")
+assert(game:find("WorldProjection.finish(self.camera)",1,true)<game:find("WorldProjection.drawBillboards",1,true),"billboards are drawn before projected ground")
 local world=assert(io.open("src/world.lua","rb")):read("*a")
 assert(world:find("self.billboardQueue",1,true) and world:find("item.ground",1,true),"ground and billboard passes are not separated")
 assert(game:find("self.camera.userZoom=userZoom",1,true) and game:find("self.camera.renderZoom=self.camera.zoom",1,true),"Ctrl+wheel 2.5D zoom missing")

@@ -100,6 +100,11 @@ function love.load()
     if os.getenv("LAST_HAUL_CAPTURE_CLEARCUT") then
         game:startClearcut(nil,os.getenv("LAST_HAUL_CLEARCUT_MAP"))
         if game.clearcut and game.clearcut.intro then require("src.clearcut_intro").finish(game) end
+        if os.getenv("LAST_HAUL_CAPTURE_SKYVIEW") then
+            game.camera:setMode("skyview",.6)
+            if os.getenv("LAST_HAUL_CAPTURE_SKYVIEW_TRANSITION") then captureFrames=14
+            else game.camera.skyviewBlend,game.camera.skyviewFrom,game.camera.skyviewTarget=1,1,1 end
+        end
         game.clearcut.levels.wide_blade,game.clearcut.levels.shockwave,game.clearcut.levels.berserker=2,2,1
         local target,best=game.world.nodes[1],math.huge
         for _,node in ipairs(game.world.nodes) do

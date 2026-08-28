@@ -12,6 +12,7 @@ local RushMode = require("src.rush_mode")
 local ClearcutMode = require("src.clearcut_mode")
 local ClearcutIntro = require("src.clearcut_intro")
 local WorldProjection = require("src.world_projection")
+local SkyView = require("src.skyview")
 local CharacterTraits = require("src.character_traits")
 local CharacterTraitBoard = require("src.character_trait_board")
 local CharacterStory = require("src.character_story")
@@ -80,7 +81,7 @@ function Game.new()
         hammer = {name = "나무 수리 망치", speed = 1, type = "방벽 수리"}
     }
     self.wallCosts = {{wood = 0, stone = 0}, {wood = 12, stone = 8}, {wood = 22, stone = 16}, {wood = 36, stone = 28}}
-    local temporaryProfile = os.getenv("LAST_HAUL_SELF_TEST") or os.getenv("LAST_HAUL_CAPTURE_META") or os.getenv("LAST_HAUL_CAPTURE_RESULTS") or os.getenv("LAST_HAUL_CAPTURE_TEST_OPTIONS") or os.getenv("LAST_HAUL_CAPTURE_TURRET_PROMPT") or os.getenv("LAST_HAUL_CAPTURE_TURRET_PLACEMENT") or os.getenv("LAST_HAUL_CAPTURE_BOSS_ENTRANCE") or os.getenv("LAST_HAUL_CAPTURE_ACHIEVEMENTS") or os.getenv("LAST_HAUL_CAPTURE_ACHIEVEMENT_POPUP")
+    local temporaryProfile = os.getenv("LAST_HAUL_SELF_TEST") or os.getenv("LAST_HAUL_CAPTURE_META") or os.getenv("LAST_HAUL_CAPTURE_RESULTS") or os.getenv("LAST_HAUL_CAPTURE_TEST_OPTIONS") or os.getenv("LAST_HAUL_CAPTURE_TURRET_PROMPT") or os.getenv("LAST_HAUL_CAPTURE_TURRET_PLACEMENT") or os.getenv("LAST_HAUL_CAPTURE_BOSS_ENTRANCE") or os.getenv("LAST_HAUL_CAPTURE_ACHIEVEMENTS") or os.getenv("LAST_HAUL_CAPTURE_ACHIEVEMENT_POPUP") or os.getenv("LAST_HAUL_CAPTURE_SKYVIEW")
     self.progression = Progression.new(temporaryProfile ~= nil)
     self.characterTraits = CharacterTraits.new(temporaryProfile ~= nil)
     self.achievements = Achievements.new(temporaryProfile ~= nil)
@@ -276,6 +277,9 @@ function Game:update(dt)
     self.achievements:update(dt)
     self.achievementBoard:update(dt)
     if self.paused then return end
+    -- Camera presentation modes keep lerping even while an intro, boss reveal,
+    -- or skill cut-in temporarily freezes ordinary world/camera tracking.
+    self.camera:updateMode(dt)
     if self.mode == "lobby" then self.lobby:update(dt); return end
     if self.mode == "settings" then self.lobby:update(dt); return end
     if self.mode == "clearcut_map_select" then require("src.clearcut_map_select").update(self,dt);return end
@@ -1108,6 +1112,10 @@ function Game:drawSandboxPanel()
     love.graphics.print("스킬 연습장", x + 14, y + 10)
     love.graphics.setColor(.78, .87, .8)
     love.graphics.print(self:sandboxCharacterName(self.clearcut.job), x + 14, y + 28)
+    self.sandboxSkyviewBox={x=x+132,y=y+23,w=panelW-146,h=24}
+    local skyOn=(self.camera.skyviewTarget or 0)>.5
+    UI.button(self.sandboxSkyviewBox.x,self.sandboxSkyviewBox.y,self.sandboxSkyviewBox.w,self.sandboxSkyviewBox.h,
+        skyOn and "SKYVIEW 끄기" or "SKYVIEW 보기",true,f.small)
 
     self.sandboxSkillBoxes = {}
     local rowY = y + 50
@@ -1152,6 +1160,10 @@ function Game:drawSandboxPanel()
 end
 
 function Game:sandboxPanelClick(x, y)
+    if self.sandboxSkyviewBox and x>=self.sandboxSkyviewBox.x and x<=self.sandboxSkyviewBox.x+self.sandboxSkyviewBox.w and y>=self.sandboxSkyviewBox.y and y<=self.sandboxSkyviewBox.y+self.sandboxSkyviewBox.h then
+        self.camera:setMode((self.camera.skyviewTarget or 0)>.5 and "default" or "skyview",.6)
+        return true
+    end
     if self.sandboxMobBox and x>=self.sandboxMobBox.x and x<=self.sandboxMobBox.x+self.sandboxMobBox.w and y>=self.sandboxMobBox.y and y<=self.sandboxMobBox.y+self.sandboxMobBox.h then
         self.clearcut:spawnWave({squirrel=3, boar=2}, self); return true
     end
@@ -1254,6 +1266,7 @@ function Game:draw()
     local introActive=ClearcutIntro.active(self);local worldActors=self.clearcut;if introActive then worldActors=nil end
     love.graphics.clear(.08, .11, .12)
     local projected=self.clearcut and self.camera.perspective
+    if projected then SkyView.draw(self.camera) end
     local renderW,renderH
     if projected then renderW,renderH=WorldProjection.begin(self.camera) end
     self.world.deferBillboards=projected
@@ -1306,7 +1319,7 @@ function Game:draw()
     if introActive then ClearcutIntro.drawWorldFront(self) end
     self.camera:detach()
     if projected then
-        WorldProjection.finish()
+        WorldProjection.finish(self.camera)
         WorldProjection.drawBillboards(self.world.billboardQueue,self.camera)
         self.world.billboardQueue=nil
     end

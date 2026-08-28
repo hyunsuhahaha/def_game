@@ -1,6 +1,7 @@
 local WorldProjection=require("src.world_projection")
 local Camera = {}
 Camera.__index = Camera
+local function clamp(v,a,b) return math.max(a,math.min(b,v)) end
 
 function Camera.new(x, y)
     return setmetatable({
@@ -9,16 +10,39 @@ function Camera.new(x, y)
         inertiaX=0,inertiaY=0,inertiaVX=0,inertiaVY=0,
         rollVelocity=0,zoomKick=0,lastTargetX=x,lastTargetY=y,
         cinematic=nil,perspective=false,userZoom=1,
+        mode="default",skyviewBlend=0,skyviewFrom=0,skyviewTarget=0,
+        skyviewTime=0,skyviewDuration=.6,
     }, Camera)
 end
 
-local function clamp(v,a,b) return math.max(a,math.min(b,v)) end
+function Camera:setMode(mode,duration)
+    mode=mode=="skyview" and "skyview" or "default"
+    local target=mode=="skyview" and 1 or 0
+    if self.mode==mode and self.skyviewTarget==target then return end
+    self.mode=mode
+    self.skyviewFrom=self.skyviewBlend or 0
+    self.skyviewTarget=target
+    self.skyviewTime=0
+    self.skyviewDuration=clamp(duration or .6,.4,.8)
+end
+
+function Camera:updateMode(dt)
+    local target=self.skyviewTarget or 0
+    if math.abs((self.skyviewBlend or 0)-target)<.0001 then
+        self.skyviewBlend=target
+        return
+    end
+    self.skyviewTime=math.min(self.skyviewDuration,(self.skyviewTime or 0)+dt)
+    local t=self.skyviewTime/math.max(.001,self.skyviewDuration)
+    t=t*t*(3-2*t)
+    self.skyviewBlend=(self.skyviewFrom or 0)+(target-(self.skyviewFrom or 0))*t
+end
 
 local function perspectiveExtents(camera,w,h,zoom)
     local left,top,right,bottom=0,0,0,0
     local angle=-(camera.roll or 0);local c,s=math.cos(angle),math.sin(angle)
     for _,point in ipairs({{0,0},{w*.5,0},{w,0},{0,h*.5},{w,h*.5},{0,h},{w*.5,h},{w,h}}) do
-        local flatX,flatY=WorldProjection.unproject(point[1],point[2],w,h,camera.pitch)
+        local flatX,flatY=WorldProjection.unproject(point[1],point[2],w,h,camera.pitch,camera.skyviewBlend)
         local dx,dy=flatX-w*.5,flatY-h*.5
         local rx,ry=dx*c-dy*s,dx*s+dy*c
         rx,ry=rx/zoom,ry/zoom
@@ -33,14 +57,14 @@ local function retainProjectedTarget(camera,targetX,targetY,cameraX,cameraY,zoom
     local dx,dy=(targetX-cameraX)*zoom,(targetY-cameraY)*zoom
     local flatX=w*.5+dx*c-dy*s
     local flatY=h*.5+dx*s+dy*c
-    local screenX,screenY=WorldProjection.project(flatX,flatY,w,h,camera.pitch)
+    local screenX,screenY=WorldProjection.project(flatX,flatY,w,h,camera.pitch,camera.skyviewBlend)
     -- The foot anchor may reach the lower edge, while the character body needs
     -- more clearance above it. Only edge-clamped views need this correction;
     -- ordinary tracking remains centered on the target.
     local safeX=clamp(screenX,56,w-56)
     local safeY=clamp(screenY,116,h-48)
     if safeX==screenX and safeY==screenY then return cameraX,cameraY end
-    local desiredFlatX,desiredFlatY=WorldProjection.unproject(safeX,safeY,w,h,camera.pitch)
+    local desiredFlatX,desiredFlatY=WorldProjection.unproject(safeX,safeY,w,h,camera.pitch,camera.skyviewBlend)
     local shiftFlatX,shiftFlatY=flatX-desiredFlatX,flatY-desiredFlatY
     return cameraX+(shiftFlatX*c+shiftFlatY*s)/zoom,
         cameraY+(-shiftFlatX*s+shiftFlatY*c)/zoom
@@ -190,7 +214,7 @@ end
 function Camera:screenToWorld(screenX, screenY)
     local w, h = love.graphics.getDimensions()
     local flatX,flatY=screenX,screenY
-    if self.perspective then flatX,flatY=WorldProjection.unproject(screenX,screenY,w,h,self.pitch) end
+    if self.perspective then flatX,flatY=WorldProjection.unproject(screenX,screenY,w,h,self.pitch,self.skyviewBlend) end
     flatX,flatY=flatX-(self.shakeX or 0),flatY-(self.shakeY or 0)
     local z=self.renderZoom or self.zoom;local dx,dy=flatX-w/2,flatY-h/2
     local a=-(self.roll or 0);local c,s=math.cos(a),math.sin(a)
@@ -206,7 +230,7 @@ function Camera:worldToScreen(worldX,worldY)
     local c,s=math.cos(self.roll or 0),math.sin(self.roll or 0)
     local flatX=w*.5+dx*c-dy*s+(self.shakeX or 0)
     local flatY=h*.5+dx*s+dy*c+(self.shakeY or 0)
-    if self.perspective then return WorldProjection.project(flatX,flatY,w,h,self.pitch) end
+    if self.perspective then return WorldProjection.project(flatX,flatY,w,h,self.pitch,self.skyviewBlend) end
     return flatX,h*.5+(flatY-h*.5)*clamp(self.pitch or 1,.72,1),1
 end
 
