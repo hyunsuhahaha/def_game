@@ -1,6 +1,7 @@
 local World = {}
 local ForestScenery = require("src.forest_scenery")
 local ForestUnderstory = require("src.forest_understory")
+local BiomeVines = require("src.biome_vines")
 local ForestFloor = require("src.forest_floor")
 local TreeDestruction = require("src.tree_destruction")
 World.__index = World
@@ -207,6 +208,7 @@ function World:impactNode(node, game, strong)
     if node.rushTree and node.rushMaxHp and node.rushMaxHp>0 then
         node.damageStage=TreeDestruction.damageStage(node.rushHp,node.rushMaxHp)
         ForestUnderstory.cutRadius(self,node.x,node.y,strong and 92 or 64,game)
+        BiomeVines.cutRadius(self,node.x,node.y,strong and 92 or 64,game)
     end
     for _ = 1, strong and 15 or 6 do self:addParticle(x, y, color, strong, false) end
     self.particles[#self.particles + 1] = {x = x, y = y, life = .2, maxLife = .2, size = 12, color = color, ring = true}
@@ -1374,6 +1376,7 @@ function World:draw(player, actorSource)
     if self.arcadeForest and self.theme=="forest" then
         ForestScenery.queue(self,queue,player)
         ForestUnderstory.queue(self,queue,player)
+        BiomeVines.queue(self,queue,player,love.timer.getTime())
     end
     if self.arcadeForest and self.theme=="forest" then require("src.biome_life").queue(self,queue,player) end
     if not self.hideBase then

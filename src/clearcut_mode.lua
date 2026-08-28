@@ -13,6 +13,7 @@ local MoleClawArt = require("src.mole_claw_art")
 local ForestArt = require("src.forest_arcade_art")
 local ForestScenery = require("src.forest_scenery")
 local ForestUnderstory = require("src.forest_understory")
+local BiomeVines = require("src.biome_vines")
 local ForestFloor = require("src.forest_floor")
 local Fusions = require("src.clearcut_fusions")
 local BiomeEnemies = require("src.biome_enemies")
@@ -408,6 +409,7 @@ function ClearcutMode:generateForest(game, target)
     Maps.filterScenery(game.world)
     require("src.biome_life").generate(game.world,self.stage)
     ForestUnderstory.generate(game.world,self.stage)
+    BiomeVines.generate(game.world,self.stage)
 end
 
 function ClearcutMode:initForestZones(game)
@@ -467,6 +469,7 @@ function ClearcutMode:update(dt, game)
     if self.dead then return end
     require("src.biome_life").update(game.world,dt)
     ForestUnderstory.update(game.world,game.player,dt,game)
+    BiomeVines.update(game.world,game.player,dt,game)
     self.elapsed = self.elapsed + dt
     if self:updateStageClock(dt,game) then return end
     self:updateHeldAxe(dt, game)
@@ -673,6 +676,7 @@ end
 
 function ClearcutMode:damageEnemiesInRadius(x, y, radius, damage, game)
     ForestUnderstory.cutRadius(game.world,x,y,radius,game)
+    BiomeVines.cutRadius(game.world,x,y,radius,game)
     for _, e in ipairs(self.enemies) do
         if CombatGeometry.circleOverlapsTarget(x,y,radius,e) then
             e.hp = e.hp - damage

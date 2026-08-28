@@ -1,5 +1,4 @@
 from pathlib import Path
-import re
 
 from PIL import Image
 
@@ -25,21 +24,21 @@ def main():
         signatures[biome] = image.tobytes()
     assert len(set(signatures.values())) == len(BIOMES), "biome canopy reuse"
 
-    source = (ROOT / "src" / "biome_canopy.lua").read_text(encoding="utf-8")
+    # The former screen overlay remains only as source-art provenance. Runtime
+    # vegetation now uses one world-space atlas and actor module.
+    world_atlas = Image.open(ROOT / "assets/scenery/biomes/world-vines-atlas-pixel-v1.png").convert("RGBA")
+    assert world_atlas.size == (960, 224)
+    assert set(world_atlas.getchannel("A").get_flattened_data()) <= {0, 255}
+    assert len({pixel for pixel in world_atlas.get_flattened_data() if pixel[3]}) >= 12
+    source = (ROOT / "src" / "biome_vines.lua").read_text(encoding="utf-8")
     game = (ROOT / "src" / "game.lua").read_text(encoding="utf-8")
-    for biome in BIOMES:
-        assert biome in source
-    for token in ('setFilter("nearest","nearest")', "vines=", "vineAlpha=", "vineScale=", "tuftAlpha=", "sway=", "parallax=", 'love.graphics.push("all")'):
+    world = (ROOT / "src" / "world.lua").read_text(encoding="utf-8")
+    for token in ('setFilter("nearest","nearest")', "attached=", "ground=", "sortBias=.02", "rustle", "cutRadius"):
         assert token in source, token
-    vine_sets = re.findall(r"vines=\{([^}]*)\}", source)
-    assert len(vine_sets) == len(BIOMES)
-    for values in vine_sets:
-        fractions = [float(value) for value in values.split(",") if value.strip()]
-        assert 1 <= len(fractions) <= 2, fractions
-        assert all(value <= .12 or value >= .88 for value in fractions), fractions
-    assert "BiomeCanopy.draw" in game
-    assert game.index("BiomeCanopy.draw") < game.index("self:drawUI()")
-    print("BIOME_CANOPY_VERIFY_OK biomes=5 components=25 layer=foreground hud=above")
+    assert "BiomeCanopy" not in game
+    assert not (ROOT / "src/biome_canopy.lua").exists()
+    assert "BiomeVines.queue" in world
+    print("BIOME_VINES_ASSET_OK atlas=960x224 states=6 layer=world screen_overlay=removed")
 
 
 if __name__ == "__main__":
