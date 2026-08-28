@@ -1,12 +1,12 @@
 local Art={image=nil,quads={}}
 
-local CELL_W,CELL_H,FRAMES,COLS=2048,1280,6,3
+local CELL_W,CELL_H,FRAMES,COLS=3072,1920,6,2
 local WORLD_W,WORLD_H=640,400
 local FRAME_RATE=3.5
 
 function Art.load()
     if Art.image then return Art end
-    Art.image=love.graphics.newImage("assets/fx/secondhand-smoke/secondhand-smoke-mist-atlas-pixel-v2.png")
+    Art.image=love.graphics.newImage("assets/fx/secondhand-smoke/secondhand-smoke-mist-atlas-pixel-v3.png")
     Art.image:setFilter("nearest","nearest")
     for index=0,FRAMES-1 do
         Art.quads[index+1]=love.graphics.newQuad((index%COLS)*CELL_W,math.floor(index/COLS)*CELL_H,CELL_W,CELL_H,Art.image:getDimensions())

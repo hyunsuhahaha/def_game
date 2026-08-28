@@ -11,9 +11,9 @@ from PIL import Image
 
 
 ROOT = Path(__file__).resolve().parents[1]
-CELL_W, CELL_H, FRAMES = 2048, 1280, 6
-ATLAS_COLS, ATLAS_ROWS = 3, 2
-OUT = ROOT / "assets/fx/secondhand-smoke/secondhand-smoke-mist-atlas-pixel-v2.png"
+CELL_W, CELL_H, FRAMES = 3072, 1920, 6
+ATLAS_COLS, ATLAS_ROWS = 2, 3
+OUT = ROOT / "assets/fx/secondhand-smoke/secondhand-smoke-mist-atlas-pixel-v3.png"
 
 
 def _hash(ix, iy, seed):
@@ -34,7 +34,11 @@ def _noise(x, y, scale, seed):
 
 
 def frame(index):
-    yy, xx = np.mgrid[0:CELL_H, 0:CELL_W]
+    yy, xx = np.meshgrid(
+        np.arange(CELL_H, dtype=np.float32),
+        np.arange(CELL_W, dtype=np.float32),
+        indexing="ij",
+    )
     x = (xx + .5) / CELL_W * 2 - 1
     y = (yy + .5) / CELL_H * 2 - 1
     phase = index / FRAMES
@@ -44,7 +48,9 @@ def frame(index):
     n1 = _noise(x + phase * .31, y - phase * .12, 2.8, 11)
     n2 = _noise(x - phase * .18, y + phase * .22, 5.4, 23)
     n3 = _noise(x + phase * .09, y + phase * .08, 10.5, 37)
-    flow = .52 * n1 + .31 * n2 + .17 * n3
+    n4 = _noise(x - phase * .26, y + phase * .13, 21.0, 51)
+    n5 = _noise(x + phase * .34, y - phase * .19, 39.0, 67)
+    flow = .40 * n1 + .27 * n2 + .18 * n3 + .10 * n4 + .05 * n5
 
     center = .07 * np.sin(x * 5.2 + phase * np.pi * 2) + .035 * np.sin(x * 11 - phase * 4)
     thickness = .52 + .09 * np.sin(x * 3.1 - phase * 5) + (n1 - .5) * .14
@@ -56,8 +62,17 @@ def frame(index):
     # translucent; they describe motion rather than becoming white ribbons.
     current_a = np.exp(-((y - center - .12 * np.sin(x * 4.2 + phase * 6.28)) / .10) ** 2)
     current_b = np.exp(-((y - center + .16 * np.sin(x * 3.3 - phase * 5.1)) / .13) ** 2)
-    density = envelope * (.16 + .54 * flow + .10 * current_a + .07 * current_b)
+    density = envelope * (.15 + .52 * flow + .10 * current_a + .07 * current_b)
     density -= envelope * np.clip((.44 - n2) * .42, 0, .16)
+
+    # Thin attached currents create actual screen-scale structure instead of
+    # storing only a few huge smooth blobs in a large PNG. They remain inside
+    # the main bank and move with the surrounding flow.
+    filament_a = np.exp(-((y - center - .20 * np.sin(x * 8.4 + phase * 8.7)) / .030) ** 2)
+    filament_b = np.exp(-((y - center + .27 * np.sin(x * 6.1 - phase * 7.3)) / .038) ** 2)
+    filament_gate = np.clip((n4 - .38) * 2.4, 0, 1)
+    density += envelope * filament_gate * (.10 * filament_a + .085 * filament_b)
+    density += envelope * (n4 - .5) * .11 + envelope * (n5 - .5) * .07
 
     # Sparse tapered wisps at the perimeter. They are connected to the fog
     # field, not independent round particles.
@@ -65,7 +80,10 @@ def frame(index):
     density = np.clip(density + edge_wisps, 0, 1)
 
     bayer = np.array([[0, 8, 2, 10], [12, 4, 14, 6], [3, 11, 1, 9], [15, 7, 13, 5]], dtype=float) / 16
-    dither = bayer[yy % 4, xx % 4] - .5
+    dither = bayer[
+        np.arange(CELL_H, dtype=np.int16)[:, None] % 4,
+        np.arange(CELL_W, dtype=np.int16)[None, :] % 4,
+    ] - .5
     stepped = np.floor(np.clip(density + dither / 22, 0, 1) * 8) / 8
     alpha_levels = np.array([0, 45, 70, 95, 120, 145, 170, 195, 215], dtype=np.uint8)
     alpha = alpha_levels[np.clip(np.rint(stepped * 8).astype(int), 0, 8)]
@@ -89,9 +107,11 @@ def main():
         atlas.alpha_composite(frame(index), ((index % ATLAS_COLS) * CELL_W, (index // ATLAS_COLS) * CELL_H))
     atlas.save(OUT)
     pixels = np.asarray(atlas)
-    colors = len(np.unique(pixels.reshape(-1, 4), axis=0))
+    # The RGB and alpha values come from fixed ramps. Sampling every eighth
+    # source texel verifies their combination without sorting 35M RGBA pixels.
+    colors = len(np.unique(pixels[::8, ::8].reshape(-1, 4), axis=0))
     alphas = np.unique(pixels[:, :, 3]).tolist()
-    assert atlas.size == (6144, 2560)
+    assert atlas.size == (6144, 5760)
     assert 18 <= colors <= 80
     assert len(alphas) >= 6 and max(alphas) <= 220
     print(f"SECONDHAND_SMOKE_BUILD_OK size={atlas.width}x{atlas.height} colors={colors} alpha={alphas}")

@@ -137,12 +137,12 @@ assert(fire.enemies[1].hp<100 and fire.enemies[2].hp==100,"mist ellipse DOT foot
 fixture.reset();require("src.secondhand_smoke_art").draw(fire)
 local smokeDraws,smokeQuads=0,{}
 for _,op in ipairs(fixture.commands) do
-    if op.op=="draw" and (op.file or ""):find("secondhand%-smoke%-mist%-atlas%-pixel%-v2") then
+    if op.op=="draw" and (op.file or ""):find("secondhand%-smoke%-mist%-atlas%-pixel%-v3") then
         smokeDraws=smokeDraws+1
         smokeQuads[#smokeQuads+1]=op.quad[1]..":"..op.quad[2]
         assert(op.filter=="nearest","secondhand smoke atlas is blurred")
-        assert(op.quad[5]==6144 and op.quad[6]==2560,"secondhand smoke did not load the high-resolution 3x2 atlas")
-        assert(math.abs(op.args[4]*2048-640)<.01 and math.abs(op.args[5]*1280-400)<.01,"visible mist and DOT footprint disagree")
+        assert(op.quad[5]==6144 and op.quad[6]==5760,"secondhand smoke did not load the high-resolution 2x3 atlas")
+        assert(math.abs(op.args[4]*3072-640)<.01 and math.abs(op.args[5]*1920-400)<.01,"visible mist and DOT footprint disagree")
     end
     assert(not (op.op=="ellipse"),"secondhand smoke regressed to runtime circles")
 end
