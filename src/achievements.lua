@@ -20,6 +20,8 @@ local definitions={
  {id="vegan_100",name="샐러드바 단골",desc="비건 단체 회장으로 나무 100그루를 먹는다.",stat="vegan_eaten",goal=100,points=4,category="character",icon="fork"},
  {id="miner_300",name="뿌리째 계산",desc="코인 채굴꾼으로 나무 300그루를 처리한다.",stat="job_miner_trees",goal=300,points=4,category="character",icon="claw"},
  {id="all_maps",name="전국 출장",desc="서로 다른 벌목 구역 5곳에서 작업한다.",stat="maps_seen",goal=5,points=6,category="collection",icon="map"},
+ {id="first_operation",name="철수로 확보",desc="지역 최종 작전을 처음 완료한다.",stat="operations_cleared",goal=1,points=5,category="challenge",icon="crown"},
+ {id="all_operations",name="전국 강제집행",desc="서로 다른 지역 최종 작전 5개를 완료한다.",stat="unique_operations",goal=5,points=15,category="collection",icon="map"},
 }
 for _,s in ipairs(species) do definitions[#definitions+1]={id="species_"..s.key,name=s.name.." 전문반",desc=s.name.."를 누적 100그루 쓰러뜨린다.",stat="species_"..s.key,goal=100,points=3,category="species",icon="tree"} end
 
@@ -32,18 +34,18 @@ local rewards={
 local byId,rewardById={},{}
 for _,d in ipairs(definitions) do byId[d.id]=d end
 for _,d in ipairs(rewards) do rewardById[d.id]=d end
-local function defaults() return {points=0,stats={},unlocked={},purchased={},maps={}} end
+local function defaults() return {points=0,stats={},unlocked={},purchased={},maps={},clears={}} end
 local function clampInt(v)return math.max(0,math.floor(tonumber(v) or 0))end
 function Achievements.decode(text)
  local d=defaults()
  for k,v in (text or ""):gmatch("([%w_]+)=([%d]+)") do local n=clampInt(v)
-  if k=="points" then d.points=n elseif k:match("^stat_") then d.stats[k:sub(6)]=n elseif k:match("^unlock_") and byId[k:sub(8)] then d.unlocked[k:sub(8)]=n>0 elseif k:match("^buy_") and rewardById[k:sub(5)] then d.purchased[k:sub(5)]=n>0 elseif k:match("^map_") then d.maps[k:sub(5)]=n>0 end
+  if k=="points" then d.points=n elseif k:match("^stat_") then d.stats[k:sub(6)]=n elseif k:match("^unlock_") and byId[k:sub(8)] then d.unlocked[k:sub(8)]=n>0 elseif k:match("^buy_") and rewardById[k:sub(5)] then d.purchased[k:sub(5)]=n>0 elseif k:match("^map_") then d.maps[k:sub(5)]=n>0 elseif k:match("^clear_") then d.clears[k:sub(7)]=n>0 end
  end return d
 end
 function Achievements.encode(d)
  local out={"version=1","points="..clampInt(d.points)}
  local function sorted(t,prefix,bool) local keys={} for k in pairs(t or {}) do keys[#keys+1]=k end table.sort(keys);for _,k in ipairs(keys) do out[#out+1]=prefix..k.."="..(bool and (t[k] and 1 or 0) or clampInt(t[k])) end end
- sorted(d.stats,"stat_",false);sorted(d.unlocked,"unlock_",true);sorted(d.purchased,"buy_",true);sorted(d.maps,"map_",true)
+ sorted(d.stats,"stat_",false);sorted(d.unlocked,"unlock_",true);sorted(d.purchased,"buy_",true);sorted(d.maps,"map_",true);sorted(d.clears,"clear_",true)
  return table.concat(out,"\n").."\n"
 end
 function Achievements.new(memoryOnly)
@@ -72,6 +74,12 @@ function Achievements:recordTree(mapId,variant,job)
  local g=self:check();if (self.data.stats.total_trees or 0)%10==0 then self:save() end;return g
 end
 function Achievements:recordRun(r)self:setBest("best_run_trees",r.trees or 0);self:setBest("best_chain",r.maxChain or 0);self:setBest("best_stage",r.stage or 0)end
+function Achievements:recordMapClear(mapId)
+ self.data.stats.operations_cleared=(self.data.stats.operations_cleared or 0)+1
+ if not self.data.clears[mapId] then self.data.clears[mapId]=true;local n=0 for _ in pairs(self.data.clears)do n=n+1 end self.data.stats.unique_operations=n end
+ local g=self:check();self:save();return g
+end
+function Achievements:isMapCleared(mapId)return self.data.clears[mapId]==true end
 function Achievements:buy(id)
  local r=rewardById[id];if not r then return false,"존재하지 않는 보상" end
  if self.data.purchased[id] then return false,"이미 진열한 보상" end

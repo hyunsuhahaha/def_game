@@ -24,6 +24,7 @@ local BeeArt = require("src.bee_art")
 local VeganForkArt = require("src.vegan_fork_art")
 local RegrowthCastArt = require("src.regrowth_cast_art")
 local ForestZones = require("src.forest_zones")
+local BiomeBosses = require("src.biome_bosses")
 
 local ClearcutMode = {}
 ClearcutMode.__index = ClearcutMode
@@ -135,6 +136,7 @@ local enemyDefs = {
 
 for kind,def in pairs(BiomeEnemies.definitions) do enemyDefs[kind]=def end
 for kind,def in pairs(AttackPlants.definitions) do enemyDefs[kind]=def end
+for kind,def in pairs(BiomeBosses.definitions) do enemyDefs[kind]=def end
 
 local function formatTime(value)
     value = math.max(0, math.floor(value))
@@ -164,7 +166,7 @@ function ClearcutMode.new()
         smokerHeldLast=false, physicalAction=nil, veganAction=nil, veganForkImpacts={}, veganConsumeFx={}, veganHaste=0, developerAction=nil,
         actionAudit={physicalImpact=0,cigaretteFlick=0,veganFork=0,veganConsume=0,developerRemote=0},
         hp=100, maxHp=100, invulnTimer=0, dead=false,
-        enemies={}, projectiles={}, bossTelegraphs={}, resinPuddles={}, waveFired={}, worldTreeSpawned=false, readyToFinish=false, activeBoss=nil, kills=0,
+        enemies={}, projectiles={}, bossTelegraphs={}, resinPuddles={}, waveFired={}, worldTreeSpawned=false, readyToFinish=false, activeBoss=nil,operationFinalBoss=false,operationBossName=nil,kills=0,
         chests={}, chestPending=false, molotovShots=0, wildburstTimer=10, plagued={}, dodges=0,
         timeSpawnTimer=35, eliteTimer=200, reaperSpawned=false,
         stage=1, stageBossHpMul=1,
@@ -405,7 +407,7 @@ function ClearcutMode:advanceStage(game)
     self.secondhandSmokeClouds={}
     self.eternalFields,self.revivalChorusShots,self.revivalChorusImpacts={},{},{}
     self.veganForkImpacts,self.veganConsumeFx,self.veganHaste={},{},0
-    self.milestoneFired, self.worldTreeSpawned, self.worldTree, self.activeBoss = {}, false, nil, nil
+    self.milestoneFired, self.worldTreeSpawned, self.worldTree, self.activeBoss, self.operationFinalBoss, self.operationBossName = {}, false, nil, nil, false, nil
     self.regrowTimer = 0
     local w, h = game.world.width, game.world.height
     game.player.x, game.player.y = w / 2, h / 2
@@ -911,8 +913,11 @@ end
 function ClearcutMode:spawnWorldTree(game)
     if self.worldTreeSpawned then return end
     self.worldTreeSpawned = true
-    self.worldTree = self:spawnEnemy("worldtree", game.player.x, game.player.y - 280, {hpMul = self.stageBossHpMul, dmgMul = 1 + (self.stage - 1) * .3})
-    game:setNotice("세계수가 깨어났다 — 스테이지 " .. self.stage .. "의 마지막 저항이다!", "ore")
+    local finalStage=self.stage>=BiomeBosses.stageCap(self.mapId)
+    local kind=finalStage and BiomeBosses.forMap(self.mapId) or "worldtree"
+    self.worldTree=self:spawnEnemy(kind,game.player.x,game.player.y-280,{hpMul=finalStage and 1 or self.stageBossHpMul,dmgMul=1+(self.stage-1)*.22})
+    self.operationFinalBoss=finalStage
+    game:setNotice(finalStage and (self.worldTree.def.name.." 등장 — "..BiomeBosses.operationName(self.mapId).."의 마지막 목표다!") or ("세계수가 깨어났다 — 스테이지 "..self.stage.."의 마지막 저항이다!"),"ore")
     if game.camera then game.camera.trauma = math.min(1, game.camera.trauma + .5) end
 end
 
@@ -1095,8 +1100,15 @@ function ClearcutMode:onEnemyDefeated(e, game)
         end
     end
     if e == self.worldTree then
-        game:setNotice("스테이지 " .. self.stage .. " 클리어 — 세계수를 쓰러뜨렸다!", "food")
-        self:advanceStage(game)
+        if self.operationFinalBoss then
+            self.operationBossName=e.def.name
+            game:setNotice(BiomeBosses.operationName(self.mapId).." 완료 — "..e.def.name.." 격파!","food")
+            if game.achievements and game.achievements.recordMapClear then game.achievements:recordMapClear(self.mapId) end
+            self:finish(game,true)
+        else
+            game:setNotice("스테이지 " .. self.stage .. " 클리어 — 세계수를 쓰러뜨렸다!", "food")
+            self:advanceStage(game)
+        end
     end
     if e.def.boss and not e.def.finalBoss then
         self.chests[#self.chests + 1] = {x = e.x, y = e.y, collected = false}
@@ -1173,6 +1185,8 @@ function ClearcutMode:updateEnemies(dt, game)
             e.x, e.y = e.x + e.knockVX * dt, e.y + e.knockVY * dt
             e.knockVX, e.knockVY = e.knockVX * .86, e.knockVY * .86
             e.moving = true
+        elseif BiomeBosses.update(e,dt,self,game) then
+            -- Regional final bosses own their locked telegraph, movement and recovery.
         elseif AttackPlants.update(e,dt,self,game) then
             -- Rooted attack plants own their authored windup, strike and recovery.
         elseif BiomeEnemies.update(e,dt,self,game) then
@@ -3922,7 +3936,7 @@ function ClearcutMode:finish(game, victory)
     local traitReward = math.max(1, math.floor(baseReward * (self.permanentTraits.reward or 1) + .5))
     if game.characterTraits then game.characterTraits:addCurrency(traitReward) end
     local zonesSecured,zonesTotal=ForestZones.status(self)
-    game.result={elapsed=math.floor(self.elapsed),wood=self.totalWood,trees=self.treesFelled,total=self.initialTrees,maxMulti=self.maxMulti,maxChain=self.maxChain,level=self.level,stage=self.stage,regrowPulses=self.regrowPulses,treesRevived=self.treesRevived,rootedCount=self.rootedCount,beeSwarms=self.beeSwarmsTriggered,victory=victory,kills=self.kills,zonesSecured=zonesSecured,zonesTotal=zonesTotal,traitEarned=traitReward,traitCurrency=game.characterTraits and game.characterTraits.data.currency or traitReward}
+    game.result={elapsed=math.floor(self.elapsed),wood=self.totalWood,trees=self.treesFelled,total=self.initialTrees,maxMulti=self.maxMulti,maxChain=self.maxChain,level=self.level,stage=self.stage,regrowPulses=self.regrowPulses,treesRevived=self.treesRevived,rootedCount=self.rootedCount,beeSwarms=self.beeSwarmsTriggered,victory=victory,kills=self.kills,zonesSecured=zonesSecured,zonesTotal=zonesTotal,traitEarned=traitReward,traitCurrency=game.characterTraits and game.characterTraits.data.currency or traitReward,mapId=self.mapId,operationName=BiomeBosses.operationName(self.mapId),bossName=self.operationBossName}
     if game.achievements then game.achievements:recordRun(game.result) end
     game.mode="clearcut_results"
 end
@@ -6152,9 +6166,9 @@ function ClearcutMode:drawResults(game,fonts)
     love.graphics.setColor(0,0,0,.84); love.graphics.rectangle("fill",0,0,w,h)
     UI.panel(w/2-330,h/2-260,660,590,victory and {.35,1,.52,1} or {1,.3,.28,1},.98)
     love.graphics.setFont(fonts.title); love.graphics.setColor(1,1,1)
-    love.graphics.printf(victory and "세계수를 쓰러뜨렸다 — 숲을 완전히 정복했다" or "숲의 반격에 쓰러졌다",w/2-300,h/2-230,600,"center")
+    love.graphics.printf(victory and ((r.operationName or "벌목 작전").." 완료") or "숲의 반격에 쓰러졌다",w/2-300,h/2-230,600,"center")
     love.graphics.setFont(fonts.small); love.graphics.setColor(.7,.85,.76)
-    love.graphics.printf((victory and "숲 파괴율 100%  ·  " or "미완의 정복  ·  ") .. "핵심 재미 검증 보고서",w/2-300,h/2-182,600,"center")
+    love.graphics.printf(victory and ((r.bossName or "지역 보스").." 격파 · 철수로 확보") or "목표 미달 · 장비 회수 실패",w/2-300,h/2-182,600,"center")
     local rows={{"도달 스테이지",r.stage or 1},{"걸린 시간",formatTime(r.elapsed)},{"총 목재",r.wood},{"쓰러뜨린 나무",r.trees.." / "..r.total},{"제압한 구역",(r.zonesSecured or 0).." / "..(r.zonesTotal or 0)},{"처치한 적",r.kills or 0},{"최대 동시 타격",r.maxMulti},{"최대 연쇄 벌목",r.maxChain},{"도달 레벨",r.level},{"숲 재생 펄스 · 되살아난 나무",r.regrowPulses.."회 · "..r.treesRevived.."그루"},{"가시덩굴에 붙잡힌 횟수",r.rootedCount},{"자극한 벌집",r.beeSwarms}}
     for i,row in ipairs(rows) do local y=h/2-140+(i-1)*38; love.graphics.setColor(i%2==0 and {.07,.12,.1,.9} or {.045,.085,.07,.9}); love.graphics.rectangle("fill",w/2-270,y,540,32,4,4); love.graphics.setColor(.72,.82,.76); love.graphics.print(row[1],w/2-250,y+7); love.graphics.setColor(1,.75,.25); love.graphics.printf(tostring(row[2]),w/2+40,y+7,270,"center") end
     UI.button(w/2-250,h/2+270,240,48,"로비로",true,fonts.body); UI.button(w/2+10,h/2+270,240,48,"다시 실험",true,fonts.body)

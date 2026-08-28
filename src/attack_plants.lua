@@ -62,11 +62,20 @@ function Plants.updateWorld(mode,dt,game)
     end
 end
 
-local fx,quads
+local fx,quads,projectileFx,projectileQuads
 local function loadFx()
     if fx then return end
     fx=love.graphics.newImage("assets/fx/nature-counterattack-atlas-v1.png");fx:setFilter("nearest","nearest");quads={}
     for i=0,11 do quads[i+1]=love.graphics.newQuad((i%6)*160,math.floor(i/6)*160,160,160,fx:getDimensions()) end
+end
+local function loadProjectileFx()
+    if projectileFx then return true end
+    -- Logic-only verification stubs intentionally omit the image API.
+    if not (love and love.graphics and love.graphics.newImage) then return false end
+    projectileFx=love.graphics.newImage("assets/fx/attack-plants/attack-plant-projectiles-atlas-v2.png")
+    projectileFx:setFilter("nearest","nearest");projectileQuads={}
+    for row=0,3 do for frame=0,5 do projectileQuads[row*6+frame+1]=love.graphics.newQuad(frame*160,row*160,160,160,projectileFx:getDimensions()) end end
+    return true
 end
 function Plants.drawWarning(e)
     if e.plantState~="windup" then return end
@@ -76,18 +85,19 @@ function Plants.drawWarning(e)
     love.graphics.setColor(c);love.graphics.setLineWidth(2);love.graphics.line(e.x,e.y,x2,y2);love.graphics.setLineWidth(1)
 end
 function Plants.drawProjectile(p)
+    local rows={plantSeed=0,bambooBolt=1,resinBlob=2};local row=rows[p.kind];if row==nil then return end
+    if not loadProjectileFx() then return end;local frame=math.floor((love.timer.getTime()+(p.x+p.y)*.001)*12)%6
+    local scale=p.kind=="plantSeed" and .23 or (p.kind=="bambooBolt" and .34 or .24)
     love.graphics.push();love.graphics.translate(math.floor(p.x+.5),math.floor(p.y+.5));love.graphics.rotate(math.atan2(p.vy,p.vx))
-    if p.kind=="plantSeed" then love.graphics.setColor(.16,.12,.05,1);love.graphics.rectangle("fill",-6,-4,12,8);love.graphics.setColor(.83,.62,.18,1);love.graphics.rectangle("fill",-4,-2,8,4)
-    elseif p.kind=="bambooBolt" then love.graphics.setColor(.14,.25,.08,1);love.graphics.rectangle("fill",-14,-5,28,10);love.graphics.setColor(.55,.78,.25,1);love.graphics.rectangle("fill",-12,-3,24,5);love.graphics.setColor(.92,.76,.28,1);love.graphics.polygon("fill",14,-5,23,0,14,5)
-    elseif p.kind=="resinBlob" then love.graphics.setColor(.34,.18,.04,1);love.graphics.circle("fill",0,0,8);love.graphics.setColor(1,.63,.12,1);love.graphics.circle("fill",-1,-2,5);love.graphics.setColor(1,.9,.38,1);love.graphics.rectangle("fill",-3,-5,3,2) end
-    love.graphics.pop()
+    love.graphics.setColor(1,1,1,1);love.graphics.draw(projectileFx,projectileQuads[row*6+frame+1],0,0,0,scale,scale,80,80);love.graphics.pop()
 end
 function Plants.drawWorld(mode,t)
+    if not loadProjectileFx() then return end
     for _,p in ipairs(mode.resinPuddles) do
-        local a=math.min(1,p.life);love.graphics.setColor(.22,.11,.025,.68*a);love.graphics.ellipse("fill",p.x,p.y,p.radius,p.radius*.42)
-        love.graphics.setColor(1,.58,.09,.76*a)
-        for n=1,7 do local q=n*2.399+t*.15;love.graphics.rectangle("fill",math.floor(p.x+math.cos(q)*p.radius*(.15+(n%3)*.2)),math.floor(p.y+math.sin(q)*p.radius*.28),5,3) end
+        local a=math.min(1,p.life);local frame=math.floor((t+p.x*.003)*8)%6;local scale=p.radius/72
+        love.graphics.setColor(1,1,1,a);love.graphics.draw(projectileFx,projectileQuads[19+frame],math.floor(p.x+.5),math.floor(p.y+.5),0,scale,scale*.72,80,89)
     end
+    love.graphics.setColor(1,1,1,1)
 end
 function Plants.drawTelegraph(tel)
     if not (tel.rootQuake or tel.branchFall or tel.plantKind) then return false end

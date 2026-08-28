@@ -64,11 +64,13 @@
 - 2026-08-28 기준 `scripts/headless_lua.py`의 Lua 검사 26종 전체 통과. 재생의 정령 전용 Python 자산 검사도 별도로 통과했다.
 
 재검증은 LÖVE 창 대신 Python(Pillow/numpy/moderngl)으로 `scripts/verify_forest_arcade_assets.py`를 실행한다. Lua DLL 기본 경로는 Windows LÖVE 설치 폴더이며 `LOVE_LUA_DLL`로 변경할 수 있다.
-# 공격 식물과 자연 반격 (v1)
+# 공격 식물과 자연 반격 (v2)
 
 - 공격 식물 5종은 `assets/enemies/arcade/*-atlas-v1.png`의 160px 6x2 아틀라스를 사용한다.
 - 외형은 실사 재질이 아닌 짧고 굵은 카툰 픽셀 실루엣이며, 둘째 줄은 장식 프레임이 아니라 실제 공격 예비동작/타격/회수다.
 - 가시덩굴 사냥꾼은 연속 뿌리 찌르기, 망치 식인꽃은 지점 내려찍기, 폭발 씨앗 꼬투리는 5발 산탄, 대나무 압축포는 고속 직사, 송진 분사목은 감속 웅덩이를 만든다.
+- 씨앗·대나무탄·송진탄·송진 장판은 더 이상 런타임 사각형·원·타원이 아니다. `assets/fx/attack-plants/attack-plant-projectiles-atlas-v2.png`의 160px 6프레임 행을 사용하며, 꼬투리 껍질·대나무 마디·점성 송진과 지면에 퍼지는 가장자리를 각각 다른 카툰 픽셀 재질로 그린다.
+- 실제 표시 크기는 [공격 식물 FX v2](previews/attack-plant-fx-v2-display-scale.png), 확대 검수는 [2배 보드](previews/attack-plant-fx-v2-2x.png)를 기준으로 한다. `verify_attack_plant_fx_v2.py`가 이진 알파·프레임 차이·런타임 아틀라스 연결을 검사한다.
 - 뿌리 지진과 낙하 가지는 `assets/fx/nature-counterattack-atlas-v1.png`를 사용하며 경고 이후 접촉 판정과 같은 프레임에 타격 그림이 나온다.
 
 ## 나무 파괴 손맛 (v1)

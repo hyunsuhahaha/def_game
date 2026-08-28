@@ -2,6 +2,7 @@
 local catalog = require("src.forest_arcade_catalog")
 for kind,spec in pairs(require("src.biome_enemy_catalog")) do catalog[kind]=spec end
 for kind,spec in pairs(require("src.attack_plant_catalog")) do catalog[kind]=spec end
+for kind,spec in pairs(require("src.biome_boss_catalog")) do catalog[kind]=spec end
 local Art = {}
 local assets, material
 
@@ -39,6 +40,10 @@ function Art.pose(e, t)
         frame=7+math.min(2,math.floor((1-math.max(0,e.biomeTimer)/(e.warnDuration or .65))*3))
     elseif e.biomeState=="lunge" then
         frame=10+math.min(2,math.floor((1-math.max(0,e.biomeTimer)/e.lungeDuration)*3))
+    elseif e.bossState=="warn" then
+        frame=7+math.min(2,math.floor((1-math.max(0,e.bossTimer)/(e.bossWarnDuration or .9))*3))
+    elseif e.bossState=="attack" or e.bossState=="recover" then
+        frame=10+math.min(2,math.floor((e.bossActionFrame or 0)*3))
     end
     if e.reaperState == "charging" then frame=8 end
     local facing = e.facing or spec.facing

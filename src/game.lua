@@ -1122,6 +1122,7 @@ end
 
 function Game:drawClearcutBriefing()
     local Maps=require("src.clearcut_maps"); local def=Maps.get(self.selectedClearcutMap)
+    local Bosses=require("src.biome_bosses");local cap=Bosses.stageCap(def.id)
     local w,h=love.graphics.getDimensions(); local f=self.fonts; local accent=def.color; local compact=h<620
     local character=ClearcutMode.characters[1]
     for _,c in ipairs(ClearcutMode.characters) do if c.id==self.pendingClearcutCharacter then character=c; break end end
@@ -1138,9 +1139,9 @@ function Game:drawClearcutBriefing()
     love.graphics.setScissor(bx,by,bw,bh); love.graphics.setColor(1,1,1,1); love.graphics.draw(img,bx+bw/2,by+bh/2,0,sc,sc,iw/2,ih/2)
     for i=0,15 do local t=i/15; love.graphics.setColor(.008,.02,.016,t*.78); love.graphics.rectangle("fill",bx+bw-150+t*150,by,150/15+1,bh) end
     love.graphics.setScissor(); Frontend.badge("1구역",bx+16,by+16,86,f.small,accent)
-    local rx=x+leftW+18; Frontend.label("벌목 계약서  /  1단계",rx,y+24,f.micro,accent)
+    local rx=x+leftW+18; Frontend.label("벌목 계약서  /  1·"..cap.."단계",rx,y+24,f.micro,accent)
     love.graphics.setFont(f.big); love.graphics.setColor(.98,.96,.86); love.graphics.print(def.name,rx,y+57)
-    love.graphics.setFont(f.body); love.graphics.setColor(.65,.73,.67); love.graphics.printf(def.subtitle.."\n"..def.desc,rx,y+98,pw-leftW-50,"left")
+    love.graphics.setFont(f.body); love.graphics.setColor(.65,.73,.67); love.graphics.printf(def.subtitle.."\n"..def.desc.."\n최종 목표: "..Bosses.definitions[Bosses.forMap(def.id)].name.." 격파",rx,y+98,pw-leftW-50,"left")
     local dividerY=y+(compact and 150 or 176); love.graphics.setColor(1,1,1,.09); love.graphics.line(rx,dividerY,x+pw-24,dividerY)
     love.graphics.setFont(f.small); love.graphics.setColor(.47,.56,.50); love.graphics.print("배정 작업자",rx,dividerY+22); love.graphics.setFont(f.heading); love.graphics.setColor(character.color); love.graphics.print(character.name,rx,dividerY+46)
     love.graphics.setFont(f.small); love.graphics.setColor(.63,.70,.64); love.graphics.print(character.tagline,rx,dividerY+76)
