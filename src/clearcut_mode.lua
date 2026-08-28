@@ -2167,11 +2167,12 @@ function ClearcutMode:activateMinerBurrow(game)
     self.attackCooldown = 0
     self.minerBurrow = {
         state="enter", t=0, duration=3.2+self:power("burrow_uproot")*.22,
-        lastX=game.player.x,lastY=game.player.y,trackX=game.player.x,trackY=game.player.y,side=1,launched=0
+        lastX=game.player.x,lastY=game.player.y,trackX=game.player.x,trackY=game.player.y,side=1,launched=0,
+        cowardTimer=0,cowardSequence=0
     }
     self:addBurrowTrack(game.player.x,game.player.y,0,"entry")
     if game.player.setClearcutAction then game.player:setClearcutAction(.52) end
-    game:setNotice("지하 강제집행 — 나무 밑으로 파고들어라!","ore")
+    game:setNotice(self.evolutions.coward_barrage and "비겁한 와다다다 — 땅속에서 마구 할퀸다!" or "지하 강제집행 — 나무 밑으로 파고들어라!","ore")
     return true
 end
 
@@ -2216,6 +2217,52 @@ function ClearcutMode:launchTreeSideways(node, moveX, moveY, burrow, game)
     return true
 end
 
+-- 융합 "비겁한 와다다다": 잠복 중에는 멈춰 있어도 지상 표적 한 곳을 연속으로 할퀸다.
+-- 두더지에서 표적까지 선을 긋지 않고, 기존 만렙 손톱 아틀라스를 실제 접촉점에만 남긴다.
+function ClearcutMode:burrowCowardBarrage(game,moveX,moveY)
+    local burrow=self.minerBurrow
+    if not self.evolutions.coward_barrage or not burrow or burrow.state~="tunnel" then return false end
+    local px,py=game.player.x,game.player.y
+    local range=205+self.permanentTraits.range*.25
+    local targets={}
+    for _,node in ipairs(game.world.nodes) do
+        if node.rushTree and node.active then
+            local d2=(node.x-px)^2+(node.y-py)^2
+            if d2<=range^2 then targets[#targets+1]={kind="tree",ref=node,x=node.x,y=node.y-58,d2=d2} end
+        end
+    end
+    for _,enemy in ipairs(self.enemies) do
+        if enemy.hp>0 then
+            local d2=(enemy.x-px)^2+(enemy.y-py)^2
+            if d2<=range^2 then targets[#targets+1]={kind="enemy",ref=enemy,x=enemy.x,y=enemy.y-12,d2=d2} end
+        end
+    end
+    if #targets==0 then return false end
+    table.sort(targets,function(a,b)return a.d2<b.d2 end)
+    burrow.cowardSequence=(burrow.cowardSequence or 0)+1
+    local target=targets[(burrow.cowardSequence-1)%math.min(4,#targets)+1]
+    local dx,dy=target.x-px,target.y-py
+    local length=math.sqrt(dx*dx+dy*dy)
+    if length<1 then dx,dy=moveX,moveY;length=math.sqrt(dx*dx+dy*dy) end
+    if length<1 then dx,dy,length=game.player.facing or 1,0,1 end
+    local nx,ny=dx/length,dy/length
+    local angle=math.atan2 and math.atan2(ny,nx) or math.atan(ny/nx)+(nx<0 and math.pi or 0)
+    local hand=burrow.cowardSequence%2+1
+    local halfWidth=27+self.permanentTraits.area*.12
+    MoleClawArt.spawn(self,target.x,target.y,angle,6,nx>=0 and -1 or 1,halfWidth,hand)
+    local damage=2.2+self:power("detector")*.5+self.permanentTraits.treeDamage
+    if target.kind=="tree" then
+        local node=target.ref
+        node.rushHp=(node.rushHp or node.rushMaxHp)-damage
+        game.world:impactNode(node,game,true)
+        if node.rushHp<=0 then self:fellTree(node,game) end
+    else
+        target.ref.hp=target.ref.hp-damage*1.6
+        target.ref.visualHit=.14
+    end
+    return true
+end
+
 function ClearcutMode:updateMinerBurrow(dt, game)
     local burrow=self.minerBurrow
     if not burrow then return end
@@ -2234,6 +2281,13 @@ function ClearcutMode:updateMinerBurrow(dt, game)
         local x0,y0=burrow.lastX,burrow.lastY
         local x1,y1=game.player.x,game.player.y
         local moveX,moveY=x1-x0,y1-y0
+        if self.evolutions.coward_barrage then
+            burrow.cowardTimer=(burrow.cowardTimer or 0)+dt
+            local strikes=math.min(4,math.floor(burrow.cowardTimer/.14))
+            burrow.cowardTimer=burrow.cowardTimer-strikes*.14
+            if strikes==4 and burrow.cowardTimer>=.14 then burrow.cowardTimer=burrow.cowardTimer%.14 end
+            for _=1,strikes do self:burrowCowardBarrage(game,moveX,moveY) end
+        end
         local trackDx,trackDy=x1-burrow.trackX,y1-burrow.trackY
         local trackDistance=math.sqrt(trackDx*trackDx+trackDy*trackDy)
         if trackDistance>=22 then

@@ -16,6 +16,8 @@ docs/previews/*
 !docs/previews/vegan-fork-consume-v2-motion.gif
 !docs/previews/tree-destruction-v1-3x.png
 !docs/previews/tree-destruction-v1-display-scale.png
+!docs/previews/mole-fusion-v1-display-scale.png
+!docs/previews/mole-fusion-v1-3x.png
 __pycache__/
 
 # Unused generation drafts kept only on the original workstation

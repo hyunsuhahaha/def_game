@@ -23,4 +23,17 @@ for line in source:gmatch("[^\r\n]+") do
     end
 end
 assert(checked>=29,"dossier verifier found too few skill definitions")
-print("CHARACTER_DOSSIER_OK skills="..checked.." names/descriptions/max=synced")
+local fusionSource=read("src/clearcut_fusions.lua")
+local fusionChecked=0
+for id,name,needs,desc in fusionSource:gmatch('{id="([^"]+)".-name="([^"]+)".-needs={(.-)}.-\n%s*desc="([^"]*)"') do
+    local dossierLine=dossier:match('[^\r\n]*id:"'..id..'"[^\r\n]*')
+    assert(dossierLine,"character_dossier.html is missing fusion "..id)
+    assert(dossierLine:find('name:"'..name..'"',1,true),"dossier fusion name is stale: "..id)
+    assert(dossierLine:find('desc:"'..desc..'"',1,true),"dossier fusion description is stale: "..id)
+    for ingredient in needs:gmatch('"([^"]+)"') do
+        assert(dossierLine:find('"'..ingredient..'"',1,true),"dossier fusion ingredient is stale: "..id)
+    end
+    fusionChecked=fusionChecked+1
+end
+assert(fusionChecked>=7,"dossier verifier found too few fusion definitions")
+print("CHARACTER_DOSSIER_OK skills="..checked.." fusions="..fusionChecked.." names/descriptions/max=synced")
