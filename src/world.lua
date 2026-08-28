@@ -1,6 +1,7 @@
 local World = {}
 local ForestScenery = require("src.forest_scenery")
 local ForestUnderstory = require("src.forest_understory")
+local ForestFloor = require("src.forest_floor")
 local TreeDestruction = require("src.tree_destruction")
 World.__index = World
 
@@ -1172,15 +1173,17 @@ function World:useArcadeForest()
     self.treeVisual.shadowRx, self.treeVisual.shadowRy = 36, 6
 end
 
-function World:drawForestGround()
+function World:drawForestGround(player,actorSource)
     if self.arcadeForest then
         if require("src.clearcut_maps").drawGround(self) then
+            ForestFloor.drawGround(self,player,actorSource)
             ForestScenery.drawGround(self)
             return
         end
         love.graphics.setColor(.29,.35,.14,1)
         love.graphics.rectangle("fill",0,0,self.width,self.height)
         drawMirroredTiled(self.images.forestGround,0,0,self.width,self.height,768,.14)
+        ForestFloor.drawGround(self,player,actorSource)
         ForestScenery.drawGround(self)
         return
     end
@@ -1354,7 +1357,7 @@ end
 function World:draw(player, actorSource)
     love.graphics.setLineStyle("rough")
     if self.theme == "forest" then
-        self:drawForestGround()
+        self:drawForestGround(player,actorSource)
     else
         drawTiled(self.images.industrial, 0, 0, self.width, 1160, 320)
         drawTiled(self.images.farm, 0, 1160, 1260, 840, 320)

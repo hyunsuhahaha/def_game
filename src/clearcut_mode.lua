@@ -13,6 +13,7 @@ local MoleClawArt = require("src.mole_claw_art")
 local ForestArt = require("src.forest_arcade_art")
 local ForestScenery = require("src.forest_scenery")
 local ForestUnderstory = require("src.forest_understory")
+local ForestFloor = require("src.forest_floor")
 local Fusions = require("src.clearcut_fusions")
 local BiomeEnemies = require("src.biome_enemies")
 local AttackPlants = require("src.attack_plants")
@@ -398,6 +399,7 @@ function ClearcutMode:generateForest(game, target)
         end
     end
     self.initialTrees, self.remainingTrees = #game.world.nodes, #game.world.nodes
+    ForestFloor.generate(game.world,self.stage)
     ForestScenery.generate(game.world,self.stage)
     Maps.filterScenery(game.world)
     require("src.biome_life").generate(game.world,self.stage)
