@@ -39,7 +39,15 @@ for _,def in ipairs(Maps.catalog) do
     local g=newGame();g:startClearcut("fire",def.id)
     local m,w=g.clearcut,g.world
     assert(g.mode=="playing" and w.clearcutMap==def.id and m.mapId==def.id)
-    assert(m.regrowGrace==90 and m.regrowInterval==12 and m.timeSpawnTimer==35)
+    assert(m.regrowGrace==35 and m.regrowInterval==12 and m.timeSpawnTimer==35)
+    local zoneCores=0
+    for _,enemy in ipairs(m.enemies) do
+        if enemy.zoneCoreId then
+            zoneCores=zoneCores+1
+            assert(Maps.canPlant(w,enemy.x,enemy.y),def.id.." zone core spawned outside walkable forest")
+        end
+    end
+    assert(zoneCores>=1 and #m.forestZones==6,def.id.." zone cores missing")
     assert(m.berserkTimer==170 and m.vinePlantTimer==60 and m.disasterTimer==150)
     assert(#w.nodes==def.trees and m.remainingTrees==def.trees,def.id.." target underfilled: "..#w.nodes)
     if def.id~="beginner" then

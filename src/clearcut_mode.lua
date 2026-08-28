@@ -21,6 +21,7 @@ local SmokeRingArt = require("src.smoke_ring_art")
 local BeeArt = require("src.bee_art")
 local VeganForkArt = require("src.vegan_fork_art")
 local RegrowthCastArt = require("src.regrowth_cast_art")
+local ForestZones = require("src.forest_zones")
 
 local ClearcutMode = {}
 ClearcutMode.__index = ClearcutMode
@@ -144,7 +145,8 @@ function ClearcutMode.new()
         levels={}, choices={}, level=1, xp=0, xpNext=10, pending=0,
         totalWood=0, treesFelled=0, elapsed=0, initialTrees=0, remainingTrees=0,
         maxMulti=1, maxChain=0, axeCooldown=0, axeRange=150, milestoneFired={},
-        regrowTimer=0, regrowGrace=90, regrowInterval=12, regrowPulses=0, treesRevived=0, regrowFlash=0,
+        regrowTimer=0, regrowGrace=35, regrowInterval=12, regrowPulses=0, treesRevived=0, regrowFlash=0,
+        forestZones={},zonesSecured=0,
         rootHazards={}, rootedTimer=0, rootedCount=0,
         bees={}, beeSlow=false, beeSwarmsTriggered=0, beehiveTotal=0,
         streak=0, lastHitAt=-10, molotovTimer=0, wildfireTimer=0, evolutions={}, molotovs={},
@@ -284,6 +286,7 @@ function ClearcutMode:setup(game)
     self.hp = self.maxHp
     self.reviveCharges = math.floor(self.permanentTraits.reviveCharges or 0)
     self:generateForest(game, Maps.treeTarget(self.mapId,1))
+    self:initForestZones(game)
     local notice=Maps.get(self.mapId).name.." — 마우스를 누른 채 나무 근처로 이동하세요"
     if self.job=="miner" then notice=Maps.get(self.mapId).name.." — 좌클릭 할퀴기 · SPACE/우클릭 잠복" end
     game:setNotice(notice, "food")
@@ -368,6 +371,22 @@ function ClearcutMode:generateForest(game, target)
     require("src.biome_life").generate(game.world,self.stage)
 end
 
+function ClearcutMode:initForestZones(game)
+    self.forestZones=ForestZones.build(game.world,game.world.nodes);self.zonesSecured=0
+    if self.sandbox then return end
+    for _,zone in ipairs(self.forestZones) do
+        if zone.initial>0 then
+            local coreX,coreY=ForestZones.corePosition(game.world,zone,game.world.nodes,require("src.clearcut_maps").canPlant)
+            local core=self:spawnEnemy("planter",coreX,coreY,{hpMul=1.45+(self.stage-1)*.18})
+            if core then
+                local def={};for k,v in pairs(core.def) do def[k]=v end
+                def.name=zone.name.." 재생핵";def.plantInterval=14;def.plantRadius=235;def.reward=12
+                core.def=def;core.zoneCoreId=zone.id;core.plantTimer=8+zone.id*.7;zone.coreEntity=core
+            end
+        end
+    end
+end
+
 -- 스테이지 클리어: 세계수를 쓰러뜨리면 런을 끝내는 대신 더 큰 숲과 더 강한 저주로 다음 스테이지를 연다
 function ClearcutMode:advanceStage(game)
     CigaretteButts.reset(self)
@@ -387,6 +406,7 @@ function ClearcutMode:advanceStage(game)
     game.player.x, game.player.y = w / 2, h / 2
     game.camera.x, game.camera.y = game.player.x, game.player.y
     self:generateForest(game, require("src.clearcut_maps").treeTarget(self.mapId,self.stage))
+    self:initForestZones(game)
     game:setNotice("스테이지 " .. self.stage .. " — 숲이 더 거세게 반격한다!", "ore")
     if game.camera then game.camera.trauma = math.min(1, game.camera.trauma + .3) end
     self.pending = self.pending + 1
@@ -449,6 +469,7 @@ function ClearcutMode:update(dt, game)
 end
 
 function ClearcutMode:updateRegrowth(dt, game)
+    if self.sandbox then return end
     if self.regrowSuppressed then return end
     if self.elapsed < self.regrowGrace then return end
     self.regrowTimer = self.regrowTimer + dt
@@ -458,40 +479,28 @@ function ClearcutMode:updateRegrowth(dt, game)
 end
 
 function ClearcutMode:regrowPulse(game)
-    local activeTrees = {}
-    for _, node in ipairs(game.world.nodes) do
-        if node.rushTree and node.active then activeTrees[#activeTrees+1] = node end
+    local available={}
+    for _,zone in ipairs(self.forestZones or {}) do
+        if zone.coreAlive and not zone.secured and zone.active<zone.initial then available[#available+1]=zone end
     end
-    if #activeTrees == 0 then return end
-    local minutes = self.elapsed / 60
-    local base = math.min(.16, .02 + minutes * .022)
-    local boost = self:power("forced_growth") * .5
-    local regrowPct = base * (1 + boost)
-    local radius = 230
-    local candidates = {}
-    for _, node in ipairs(game.world.nodes) do
-        if node.rushTree and not node.active and not node.sterile then
-            for _, active in ipairs(activeTrees) do
-                local dx, dy = node.x - active.x, node.y - active.y
-                if dx*dx + dy*dy <= radius*radius then candidates[#candidates+1] = node; break end
-            end
-        end
-    end
+    if #available==0 then return end
+    local zone=available[love.math.random(#available)]
+    local candidates=ForestZones.candidates(self,zone)
     if #candidates == 0 then return end
     for i = #candidates, 2, -1 do local j = love.math.random(i); candidates[i], candidates[j] = candidates[j], candidates[i] end
-    local desired = math.max(1, math.floor(#activeTrees * regrowPct))
-    local count = math.min(desired, #candidates)
+    local count=math.min(#candidates,math.min(3,1+math.floor(self.elapsed/210)))
     for i = 1, count do
         local node = candidates[i]
         node.active, node.rushHp = true, node.rushMaxHp
         node.burning, node.fallT, node.uprooted, node.damageStage = nil, nil, nil, nil
         self.remainingTrees = self.remainingTrees + 1
     end
+    ForestZones.refresh(self,zone.id)
     if count > 0 then
         self.regrowPulses = self.regrowPulses + 1
         self.treesRevived = self.treesRevived + count
         self.regrowFlash = 1.4
-        game:setNotice(string.format("숲이 재생하고 있다 — 나무 %d그루가 되살아났다!", count), "food")
+        game:setNotice(string.format("%s 재생핵 작동 — 나무 %d그루 복구",zone.name,count), "food")
         if game.camera then game.camera.trauma = math.min(1, game.camera.trauma + .25) end
         self:spawnRootBurst(candidates, count, game)
     end
@@ -501,10 +510,11 @@ end
 -- 전체가 아니라 이 몹 주변에만 국한된다. 살려두면 계속 되풀이되니 먼저 잡는
 -- 편이 이득이라는 신호를 그대로 준다.
 function ClearcutMode:plantTreesNear(e, game)
+    if self.regrowSuppressed then return end
     local radius = e.def.plantRadius or 190
     local candidates = {}
     for _, node in ipairs(game.world.nodes) do
-        if node.rushTree and not node.active and not node.sterile then
+        if node.rushTree and not node.active and not node.sterile and ForestZones.canRegrow(self,node) and (not e.zoneCoreId or node.forestZone==e.zoneCoreId) then
             local dx, dy = node.x - e.x, node.y - e.y
             if dx*dx + dy*dy <= radius*radius then candidates[#candidates+1] = node end
         end
@@ -519,6 +529,7 @@ function ClearcutMode:plantTreesNear(e, game)
         self.remainingTrees = self.remainingTrees + 1
     end
     self.treesRevived = self.treesRevived + count
+    if e.zoneCoreId then ForestZones.refresh(self,e.zoneCoreId) end
     game:setNotice(string.format("%s이(가) 나무 %d그루를 심었다!", e.def.name, count), "food")
     self:spawnRootBurst(candidates, count, game)
 end
@@ -1071,6 +1082,13 @@ function ClearcutMode:onEnemyDefeated(e, game)
     self.kills = self.kills + 1
     if e.def.boss and game.achievements then game.achievements:add("bosses",1) end
     if e.def.reward and e.def.reward > 0 then self:onWood(e.def.reward, game) end
+    if e.zoneCoreId then
+        local zone=ForestZones.coreDestroyed(self,e.zoneCoreId)
+        if zone then
+            local text=zone.secured and (zone.name.." 제압 완료") or string.format("%s 재생 정지 — 남은 나무 %d",zone.name,zone.active)
+            game:setNotice(text,"ore")
+        end
+    end
     if e == self.worldTree then
         game:setNotice("스테이지 " .. self.stage .. " 클리어 — 세계수를 쓰러뜨렸다!", "food")
         self:advanceStage(game)
@@ -1206,7 +1224,10 @@ function ClearcutMode:updateEnemies(dt, game)
             table.remove(self.enemies, i)
         end
     end
-    if not self.sandbox and self.remainingTrees <= 0 and not self.worldTreeSpawned then self:spawnWorldTree(game) end
+    local securedZones,totalZones=ForestZones.status(self)
+    if not self.sandbox and self.remainingTrees <= 0 and totalZones>0 and securedZones==totalZones and not self.worldTreeSpawned then
+        self:spawnWorldTree(game)
+    end
 end
 
 -- 담배꽁초가 나무에 처음 옮겨붙을 때 쓰는 불씨 궤적(emberTransfers/emberArrivals)과 똑같은
@@ -3503,6 +3524,10 @@ function ClearcutMode:fellTree(node, game)
     self.treesFelled = self.treesFelled + 1
     if game.achievements then game.achievements:recordTree(self.mapId,node.treeVariant or 1,self.job) end
     self.remainingTrees = math.max(0, self.remainingTrees - 1)
+    if node.forestZone then
+        local secured=ForestZones.refresh(self,node.forestZone)
+        if secured then game:setNotice(secured.name.." 제압 완료 — 이 구역은 다시 자라지 않는다","food") end
+    end
     if love.math.random() < (self.permanentTraits.sterileChance or 0) then
         node.sterile = true
     end
@@ -3631,7 +3656,8 @@ function ClearcutMode:finish(game, victory)
     local baseReward = math.floor(self.treesFelled / 5) + self.kills * 2 + math.floor(self.level * 1.5) + (victory and 30 or 0)
     local traitReward = math.max(1, math.floor(baseReward * (self.permanentTraits.reward or 1) + .5))
     if game.characterTraits then game.characterTraits:addCurrency(traitReward) end
-    game.result={elapsed=math.floor(self.elapsed),wood=self.totalWood,trees=self.treesFelled,total=self.initialTrees,maxMulti=self.maxMulti,maxChain=self.maxChain,level=self.level,stage=self.stage,regrowPulses=self.regrowPulses,treesRevived=self.treesRevived,rootedCount=self.rootedCount,beeSwarms=self.beeSwarmsTriggered,victory=victory,kills=self.kills,traitEarned=traitReward,traitCurrency=game.characterTraits and game.characterTraits.data.currency or traitReward}
+    local zonesSecured,zonesTotal=ForestZones.status(self)
+    game.result={elapsed=math.floor(self.elapsed),wood=self.totalWood,trees=self.treesFelled,total=self.initialTrees,maxMulti=self.maxMulti,maxChain=self.maxChain,level=self.level,stage=self.stage,regrowPulses=self.regrowPulses,treesRevived=self.treesRevived,rootedCount=self.rootedCount,beeSwarms=self.beeSwarmsTriggered,victory=victory,kills=self.kills,zonesSecured=zonesSecured,zonesTotal=zonesTotal,traitEarned=traitReward,traitCurrency=game.characterTraits and game.characterTraits.data.currency or traitReward}
     if game.achievements then game.achievements:recordRun(game.result) end
     game.mode="clearcut_results"
 end
@@ -5177,7 +5203,8 @@ function ClearcutMode:drawHUD(game,fonts)
     love.graphics.print(string.format("동시 타격 %d   연쇄 %d   Lv.%d",self.maxMulti,self.maxChain,self.level),32,101)
     local statusColor = (self.rootedTimer > 0 or self.beeSlow) and {1,.6,.35} or {.6,.72,.66}
     love.graphics.setColor(statusColor)
-    local status = self.rootedTimer > 0 and "발이 묶임!" or self.beeSlow and "벌떼에 쫓기는 중" or ("숲 재생 " .. self.regrowPulses .. "회 · 되살아난 나무 " .. self.treesRevived)
+    local secured,totalZones=ForestZones.status(self)
+    local status = self.rootedTimer > 0 and "발이 묶임!" or self.beeSlow and "벌떼에 쫓기는 중" or string.format("구역 %d/%d 확보 · 재생 %d회",secured,totalZones,self.regrowPulses)
     love.graphics.print(status, 32, 124)
     local evoNames=Fusions.activeNames(self)
     if #evoNames>0 then
@@ -5199,13 +5226,14 @@ function ClearcutMode:drawHUD(game,fonts)
     love.graphics.setFont(fonts.small); love.graphics.setColor(.95,.85,.7); love.graphics.printf("FOREST REMAINING",w/2-barW/2,25,barW,"center")
     UI.bar(w/2-barW/2,45,barW,16,1-pct/100,flash and {1,.4,.3,1} or {.35,1,.45,1},{.1,.06,.04,.95})
     love.graphics.setFont(fonts.body); love.graphics.setColor(1,1,1); love.graphics.printf(string.format("%.0f%%",100-pct),w/2-barW/2,63,barW,"center")
+    ForestZones.drawHUD(self,fonts,w,96)
 
     if self.activeBoss then
         local boss = self.activeBoss
         local bw = math.min(700, w*.55)
-        UI.panel(w/2-bw/2,96,bw,42,{1,.3,.15,1},.95)
-        love.graphics.setFont(fonts.small); love.graphics.setColor(1,.85,.7); love.graphics.printf(boss.def.name,w/2-bw/2,102,bw,"center")
-        UI.bar(w/2-bw/2+14,120,bw-28,12,math.max(0,boss.hp/boss.maxHp),{1,.3,.2,1},{.12,.05,.04,.95})
+        UI.panel(w/2-bw/2,140,bw,42,{1,.3,.15,1},.95)
+        love.graphics.setFont(fonts.small); love.graphics.setColor(1,.85,.7); love.graphics.printf(boss.def.name,w/2-bw/2,146,bw,"center")
+        UI.bar(w/2-bw/2+14,164,bw-28,12,math.max(0,boss.hp/boss.maxHp),{1,.3,.2,1},{.12,.05,.04,.95})
     end
 
     if self.berserkState == "warn" or self.berserkState == "active" then
@@ -5859,7 +5887,7 @@ function ClearcutMode:drawResults(game,fonts)
     love.graphics.printf(victory and "세계수를 쓰러뜨렸다 — 숲을 완전히 정복했다" or "숲의 반격에 쓰러졌다",w/2-300,h/2-230,600,"center")
     love.graphics.setFont(fonts.small); love.graphics.setColor(.7,.85,.76)
     love.graphics.printf((victory and "숲 파괴율 100%  ·  " or "미완의 정복  ·  ") .. "핵심 재미 검증 보고서",w/2-300,h/2-182,600,"center")
-    local rows={{"도달 스테이지",r.stage or 1},{"걸린 시간",formatTime(r.elapsed)},{"총 목재",r.wood},{"쓰러뜨린 나무",r.trees.." / "..r.total},{"처치한 적",r.kills or 0},{"최대 동시 타격",r.maxMulti},{"최대 연쇄 벌목",r.maxChain},{"도달 레벨",r.level},{"숲 재생 펄스 · 되살아난 나무",r.regrowPulses.."회 · "..r.treesRevived.."그루"},{"가시덩굴에 붙잡힌 횟수",r.rootedCount},{"자극한 벌집",r.beeSwarms}}
+    local rows={{"도달 스테이지",r.stage or 1},{"걸린 시간",formatTime(r.elapsed)},{"총 목재",r.wood},{"쓰러뜨린 나무",r.trees.." / "..r.total},{"제압한 구역",(r.zonesSecured or 0).." / "..(r.zonesTotal or 0)},{"처치한 적",r.kills or 0},{"최대 동시 타격",r.maxMulti},{"최대 연쇄 벌목",r.maxChain},{"도달 레벨",r.level},{"숲 재생 펄스 · 되살아난 나무",r.regrowPulses.."회 · "..r.treesRevived.."그루"},{"가시덩굴에 붙잡힌 횟수",r.rootedCount},{"자극한 벌집",r.beeSwarms}}
     for i,row in ipairs(rows) do local y=h/2-140+(i-1)*38; love.graphics.setColor(i%2==0 and {.07,.12,.1,.9} or {.045,.085,.07,.9}); love.graphics.rectangle("fill",w/2-270,y,540,32,4,4); love.graphics.setColor(.72,.82,.76); love.graphics.print(row[1],w/2-250,y+7); love.graphics.setColor(1,.75,.25); love.graphics.printf(tostring(row[2]),w/2+40,y+7,270,"center") end
     UI.button(w/2-250,h/2+270,240,48,"로비로",true,fonts.body); UI.button(w/2+10,h/2+270,240,48,"다시 실험",true,fonts.body)
 end
