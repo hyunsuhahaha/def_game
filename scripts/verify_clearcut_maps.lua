@@ -276,17 +276,29 @@ for i,c in ipairs(Mode.characters) do
     Game.keypressed(g,"return")
     assert(g.mode=="playing" and g.clearcut.job==c.id and g.clearcut.mapId=="island")
 end
-for _,size in ipairs({{960,540},{1280,720}}) do
+for _,size in ipairs({{960,540},{1280,720},{1920,1080}}) do
     width,height=unpack(size)
     local g=newGame();g:chooseClearcutCharacter(1)
-    for i,b in ipairs(Select.boxes(width,height)) do
-        assert(b.x>=0 and b.x+b.w<=width and b.y+b.h<=height-40)
-        assert(Select.at(b.x+b.w/2,b.y+b.h/2)==i)
+    for i=1,#Maps.catalog do
+        Select.focus(g,i,true)
+        local found
+        for _,b in ipairs(Select.boxes(width,height,g))do if b.index==i then found=b break end end
+        assert(found and found.x>=0 and found.x+found.w<=width and found.y>=0 and found.y+found.h<=height-40,"focused globe marker not visible")
+        assert(Select.at(found.x+found.w/2,found.y+found.h/2,g)==i,"globe marker hit mismatch")
     end
-    local b=Select.boxes(width,height)[2]
-    Game.mousepressed(g,b.x+10,b.y+10,1)
-    assert(g.clearcutMapFocus==2 and g.mode=="clearcut_map_select","click did not focus biome")
-    g:chooseClearcutMap(g.clearcutMapFocus)
+    Select.focus(g,3,true);local hidden=0
+    for _,m in ipairs(require("src.stage_select_globe").markers(g,width,height))do
+        if not m.visible then hidden=hidden+1;assert(Select.at(m.x,m.y,g)~=m.index,"back-side globe marker accepted input")end
+    end
+    assert(hidden>=1,"globe test did not place any marker on back hemisphere")
+    -- A drag can cross a complete longitude without selecting a marker.
+    Select.focus(g,1,true);local globe=require("src.stage_select_globe");local l=globe.layout(width,height);local before=globe.stateFor(g).yaw
+    Game.mousepressed(g,l.cx,l.cy,1);Game.mousemoved(g,l.cx+l.r*4.06,l.cy,l.r*4.06,0);Game.mousereleased(g,l.cx+l.r*4.06,l.cy,1)
+    assert(g.mode=="clearcut_map_select" and math.abs(math.cos(globe.stateFor(g).yaw-before))>.99,"360 globe drag failed or selected accidentally")
+    -- A stationary click on a visible stage marker selects it immediately.
+    Select.focus(g,2,true);local marker
+    for _,b in ipairs(Select.boxes(width,height,g))do if b.index==2 then marker=b break end end
+    Game.mousepressed(g,marker.x+marker.w/2,marker.y+marker.h/2,1);Game.mousereleased(g,marker.x+marker.w/2,marker.y+marker.h/2,1)
     assert(g.mode=="clearcut_briefing" and g.selectedClearcutMap=="mangrove","biome briefing was skipped")
     if MAP_UI_CAPTURE then
         fixture.reset();Select.draw(g)

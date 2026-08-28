@@ -251,7 +251,8 @@ function Game:update(dt)
     if self.paused then return end
     if self.mode == "lobby" then self.lobby:update(dt); return end
     if self.mode == "settings" then self.lobby:update(dt); return end
-    if self.mode == "clearcut_select" or self.mode == "clearcut_map_select" or self.mode == "clearcut_briefing" or self.mode == "character_story" or self.mode == "character_codex" or self.mode == "achievements" then return end
+    if self.mode == "clearcut_map_select" then require("src.clearcut_map_select").update(self,dt);return end
+    if self.mode == "clearcut_select" or self.mode == "clearcut_briefing" or self.mode == "character_story" or self.mode == "character_codex" or self.mode == "achievements" then return end
     if self.mode == "character_traits" then self.characterTraitBoard:update(dt); return end
     if self.mode == "test_options" then self.testResetTime=math.max(0,(self.testResetTime or 0)-dt); if self.testResetTime<=0 then self.testResetArmed=false end; return end
     if self.mode == "meta" then self.traitTree:update(dt); return end
@@ -314,9 +315,12 @@ function Game:keypressed(key)
         return
     end
     if self.mode == "clearcut_map_select" then
+        local select=require("src.clearcut_map_select")
         if key=="escape" then self.mode="clearcut_select"
         elseif key=="return" or key=="kpenter" or key=="space" then self:chooseClearcutMap(self.clearcutMapFocus or 1)
-        elseif key=="1" or key=="2" or key=="3" or key=="4" or key=="5" then self.clearcutMapFocus=tonumber(key) end
+        elseif key=="1" or key=="2" or key=="3" or key=="4" or key=="5" then select.focus(self,tonumber(key),false)
+        elseif key=="left" or key=="a" then select.focus(self,((self.clearcutMapFocus or 1)-2)%5+1,false)
+        elseif key=="right" or key=="d" then select.focus(self,(self.clearcutMapFocus or 1)%5+1,false) end
         return
     end
     if self.mode == "clearcut_briefing" then
@@ -490,10 +494,9 @@ function Game:mousepressed(x, y, button)
     end
     if self.mode=="clearcut_map_select" then
         if button==1 then
-            local i=require("src.clearcut_map_select").at(x,y)
-            if i then self.clearcutMapFocus=i
-            elseif Frontend.inside(self.clearcutMapConfirmBox,x,y) then self:chooseClearcutMap(self.clearcutMapFocus or 1)
-            elseif Frontend.inside(self.clearcutMapBackBox,x,y) then self.mode="clearcut_select" end
+            if Frontend.inside(self.clearcutMapConfirmBox,x,y) then self:chooseClearcutMap(self.clearcutMapFocus or 1);return
+            elseif Frontend.inside(self.clearcutMapBackBox,x,y) then self.mode="clearcut_select";return end
+            require("src.clearcut_map_select").mousepressed(self,x,y,button)
         end
         return
     end
@@ -1239,6 +1242,17 @@ function Game:pauseButtons()
     return px, py, pw, ph,
         {x = px + 30, y = py + 96, w = pw - 60, h = 52},
         {x = px + 30, y = py + 160, w = pw - 60, h = 52}
+end
+
+function Game:mousemoved(x,y,dx,dy)
+    if self.mode=="clearcut_map_select" then require("src.clearcut_map_select").mousemoved(self,x,y,dx,dy) end
+end
+
+function Game:mousereleased(x,y,button)
+    if self.mode=="clearcut_map_select" then
+        local index=require("src.clearcut_map_select").mousereleased(self,x,y,button)
+        if index then self.clearcutMapFocus=index;self:chooseClearcutMap(index) end
+    end
 end
 
 function Game:drawAchievementOverlay()

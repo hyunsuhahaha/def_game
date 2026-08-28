@@ -421,6 +421,12 @@ end
 function love.mousepressed(x, y, button)
     game:mousepressed(x, y, button)
 end
+function love.mousemoved(x, y, dx, dy)
+    game:mousemoved(x, y, dx, dy)
+end
+function love.mousereleased(x, y, button)
+    game:mousereleased(x, y, button)
+end
 function love.wheelmoved(x, y)
     game:wheelmoved(x, y)
 end

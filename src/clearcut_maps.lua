@@ -3,11 +3,11 @@ local Maps={}
 -- One geometry source for collision, wildlife and the terrain shader.
 Maps.island={radiusX=1300,radiusY=660,width=3400,height=2200}
 Maps.catalog={
-    {id="forest",name="온대 숲",subtitle="능선 · 낙엽길 · 깊은 숲",desc="작은 벌목지 60그루에서 시작해 깊은 숲으로 확장됩니다.",short="60그루 벌목지에서 깊은 숲으로.",trees=60,color={.53,.68,.30}},
-    {id="mangrove",name="맹그로브 숲",subtitle="청록 물길 · 뿌리 · 물가의 게",desc="성긴 물가 55그루에서 시작해 지주뿌리 습지 전역으로 진입합니다.",short="55그루 물가에서 수로 전역으로.",trees=55,tree="mangrove",color={.26,.72,.65}},
-    {id="madagascar",name="마다가스카르 숲",subtitle="붉은 흙 · 바오밥 · 여우원숭이",desc="성긴 붉은 땅 50그루에서 시작해 바오밥 혼합림으로 전진합니다.",short="50그루 붉은 땅에서 내륙으로.",trees=50,tree="baobab",color={.85,.48,.28}},
-    {id="island",name="무인도 전소",subtitle="해변 상륙 · 혼합 야자림 · 앵무새",desc="상륙 구역 65그루부터 태우며 섬과 사방의 해안을 개방합니다.",short="65그루 해변에서 섬 전체로.",trees=65,tree="palm",color={.30,.70,.88}},
-    {id="beginner",name="초심자의 숲",subtitle="좁은 개활지 · 듬성듬성한 나무",desc="처음 시작하기 좋은 좁고 여유로운 숲. 온대 숲과 같은 나무들이지만 훨씬 듬성듬성 나 있습니다.",short="좁고 나무가 듬성듬성한 초심자 숲.",trees=45,preview="forest",color={.62,.78,.42}},
+    {id="forest",name="온대 숲",region="한반도 중부 산림",globeLat=37.4,globeLon=127.1,subtitle="능선 · 낙엽길 · 깊은 숲",desc="작은 벌목지 60그루에서 시작해 깊은 숲으로 확장됩니다.",short="60그루 벌목지에서 깊은 숲으로.",trees=60,color={.53,.68,.30}},
+    {id="mangrove",name="맹그로브 숲",region="벵골만 삼각주",globeLat=21.9,globeLon=89.1,subtitle="청록 물길 · 뿌리 · 물가의 게",desc="성긴 물가 55그루에서 시작해 지주뿌리 습지 전역으로 진입합니다.",short="55그루 물가에서 수로 전역으로.",trees=55,tree="mangrove",color={.26,.72,.65}},
+    {id="madagascar",name="마다가스카르 숲",region="마다가스카르 서부",globeLat=-19.2,globeLon=46.7,subtitle="붉은 흙 · 바오밥 · 여우원숭이",desc="성긴 붉은 땅 50그루에서 시작해 바오밥 혼합림으로 전진합니다.",short="50그루 붉은 땅에서 내륙으로.",trees=50,tree="baobab",color={.85,.48,.28}},
+    {id="island",name="무인도 전소",region="남태평양 외딴섬",globeLat=-17.6,globeLon=-149.5,subtitle="해변 상륙 · 혼합 야자림 · 앵무새",desc="상륙 구역 65그루부터 태우며 섬과 사방의 해안을 개방합니다.",short="65그루 해변에서 섬 전체로.",trees=65,tree="palm",color={.30,.70,.88}},
+    {id="beginner",name="초심자의 숲",region="중부 유럽 연습림",globeLat=49.2,globeLon=14.5,subtitle="좁은 개활지 · 듬성듬성한 나무",desc="처음 시작하기 좋은 좁고 여유로운 숲. 온대 숲과 같은 나무들이지만 훨씬 듬성듬성 나 있습니다.",short="좁고 나무가 듬성듬성한 초심자 숲.",trees=45,preview="forest",color={.62,.78,.42}},
 }
 local byId,images={},{}
 Maps.species={
