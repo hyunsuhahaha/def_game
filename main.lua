@@ -333,7 +333,11 @@ function love.load()
     if os.getenv("LAST_HAUL_CAPTURE_CLEARCUT_BRIEFING") then game.pendingClearcutCharacter="fire"; game.selectedClearcutMap="madagascar"; game.mode="clearcut_briefing" end
     if os.getenv("LAST_HAUL_CAPTURE_CLEARCUT_INTRO") then
         game:startClearcut(os.getenv("LAST_HAUL_CLEARCUT_JOB") or "physical",os.getenv("LAST_HAUL_CLEARCUT_MAP") or "forest")
-        if game.clearcut and game.clearcut.intro then game.clearcut.intro.t=tonumber(os.getenv("LAST_HAUL_CLEARCUT_INTRO_TIME")) or 1.62 end
+        if game.clearcut and game.clearcut.intro then
+            local target=tonumber(os.getenv("LAST_HAUL_CLEARCUT_INTRO_TIME"))or 1.62
+            local Intro=require("src.clearcut_intro");local simulated=0
+            while simulated<target and Intro.active(game)do local step=math.min(1/60,target-simulated);Intro.update(game,step);simulated=simulated+step end
+        end
     end
     if os.getenv("LAST_HAUL_CAPTURE_CHARACTER_TRAITS") then game.characterTraitReturnMode="lobby"; game.mode="character_traits" end
     if os.getenv("LAST_HAUL_CAPTURE_ACHIEVEMENTS") then

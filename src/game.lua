@@ -1180,7 +1180,9 @@ function Game:draw()
     if self.mode == "meta" then self.traitTree:draw(); return end
     if self.mode == "build_select" then self:drawBuildSelect(); return end
     local introActive=ClearcutIntro.active(self);local worldActors=self.clearcut;if introActive then worldActors=nil end
-    love.graphics.clear(.08, .11, .12); self.camera:attach(); self.world:draw(self.player, worldActors)
+    love.graphics.clear(.08, .11, .12); self.camera:attach()
+    if introActive then ClearcutIntro.drawWorldBack(self) end
+    self.world:draw(self.player, worldActors)
     local left, top, right, bottom = self.camera:visibleBounds()
     if self.runType ~= "rush" and not self.clearcut then
         love.graphics.setBlendMode("screen", "alphamultiply"); love.graphics.setColor(.25, .34, .22, .13); love.graphics.rectangle("fill", left, top, right - left, bottom - top)
@@ -1224,7 +1226,7 @@ function Game:draw()
         end
     end
     if self.clearcut and not introActive then self.clearcut:drawWorldOverlay(self) end
-    if introActive then ClearcutIntro.drawWorld(self) end
+    if introActive then ClearcutIntro.drawWorldFront(self) end
     self.camera:detach(); if introActive then ClearcutIntro.drawScreen(self) else self:drawUI() end
     if self.clearcut and self.clearcut.sandbox then self:drawSandboxPanel() end
     if self.mode == "upgrade" then self.upgrades:drawSelection(self, self.fonts) end

@@ -318,20 +318,28 @@ end
 local Intro=require("src.clearcut_intro")
 for _,def in ipairs(Maps.catalog)do
     local g=newGame();g:startClearcut("physical",def.id)
-    local intro=g.clearcut.intro;assert(intro and g.player.introHidden and #intro.birds==10,def.id.." intro missing")
+    local intro=g.clearcut.intro;assert(intro and g.player.introHidden and #intro.birds==14,def.id.." intro missing")
+    local minDepth,maxDepth=9,0;for _,bird in ipairs(intro.birds)do minDepth=math.min(minDepth,bird.depth);maxDepth=math.max(maxDepth,bird.depth)end
+    assert(minDepth<.7 and maxDepth>1.5,"intro depth bands missing")
     local elapsed,time=g.clearcut.elapsed,g.time;local enemy=g.clearcut.enemies[1];local ex,ey=enemy and enemy.x,enemy and enemy.y
     Intro.update(g,.8);assert(g.clearcut.elapsed==elapsed and g.time==time and g.player.introHidden,"intro advanced gameplay")
     Intro.update(g,.9);assert(g.clearcut.intro and not g.player.introHidden and g.player.isMoving,"worker did not enter")
     local flying=0;for _,bird in ipairs(g.clearcut.intro.birds)do if bird.flying then flying=flying+1 end end
     assert(flying>=4,"birds did not scatter")
+    assert(#g.clearcut.intro.debris>=20,"authored canopy debris did not burst")
+    local swaying=0;for _,node in ipairs(g.world.nodes)do if math.abs(node.swayAngle or 0)>.001 then swaying=swaying+1 end end
+    assert(swaying>0,"canopy did not react to flock launch")
     if def.id~="forest" and def.id~="beginner" then
         local startled=0;for _,p in ipairs(g.world.biomeLife.items)do if p.startle then startled=startled+1 end end
         assert(startled>0,def.id.." wildlife ignored arrival")
     end
     if enemy then assert(enemy.x==ex and enemy.y==ey,"enemy moved during intro")end
-    fixture.reset();Intro.drawWorld(g);Intro.drawScreen(g)
-    local birdDraw=false;for _,cmd in ipairs(fixture.commands)do if cmd.file=="assets/fx/stage-intro/stage-intro-birds-atlas-pixel-v1.png" then birdDraw=true end end
-    assert(birdDraw,"intro bird atlas not rendered")
+    fixture.reset();Intro.drawWorldBack(g);Intro.drawWorldFront(g);Intro.drawScreen(g)
+    local birdDraw,debrisDraw=false,false;for _,cmd in ipairs(fixture.commands)do
+        if cmd.file=="assets/fx/stage-intro/stage-intro-birds-atlas-pixel-v2.png" then birdDraw=true end
+        if cmd.file=="assets/fx/stage-intro/stage-intro-debris-atlas-pixel-v2.png" then debrisDraw=true end
+    end
+    assert(birdDraw and debrisDraw,"intro v2 authored atlases not rendered")
     while Intro.active(g)do Intro.update(g,.25)end
     assert(not g.player.introHidden and not g.player.isMoving and g.clearcut.elapsed==0,"intro completion state invalid")
     g.clearcut:update(.1,g);assert(g.clearcut.elapsed>.09,"gameplay did not start after intro")
@@ -340,5 +348,5 @@ local skipGame=newGame();skipGame:startClearcut("physical","forest");Game.keypre
 assert(not Intro.active(skipGame) and skipGame.clearcut.elapsed==0,"intro skip started combat early")
 local clickGame=newGame();clickGame:startClearcut("physical","forest");Game.mousepressed(clickGame,10,10,1)
 assert(not Intro.active(clickGame) and clickGame.clearcut.elapsed==0,"mouse intro skip started combat early")
-print("CLEARCUT_INTRO_OK maps=5 quiet=frozen worker=walk_in birds=10x4 wildlife=startled skip=space/click")
+print("CLEARCUT_INTRO_V2_OK maps=5 quiet=frozen flock=14_clustered depth=3 debris=authored canopy=sway camera=impact wildlife=startled skip=space/click")
 print("CLEARCUT_MAPS_OK maps="..#Maps.catalog.." first_stage_trees="..totalTrees.." stages=1..5 pacing=opening_locked jobs="..#Mode.characters.." sea=bounded camera=all_sides retry=kept keyboard=ok mouse=ok")
