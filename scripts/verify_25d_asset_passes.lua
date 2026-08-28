@@ -23,7 +23,7 @@ local game={player=player,world={billboardQueue={},nodes={{x=300,y=240,rushTree=
 mode:queueProjectedOverlay(game,1)
 
 local queue=game.world.billboardQueue
-assert(#queue>=15,"representative upright assets were not queued")
+assert(#queue>=13,"representative upright assets were not queued")
 for i,item in ipairs(queue) do
     assert(item.ground~=true,"upright overlay leaked into the projected ground pass at "..i)
     assert(type(item.x)=="number" and type(item.anchorY)=="number" and type(item.draw)=="function","invalid billboard entry at "..i)
@@ -31,7 +31,7 @@ end
 
 local source=assert(io.open("src/clearcut_mode.lua","rb")):read("*a")
 for _,token in ipairs({
-    "MoleClawArt.queue(self,queue)","SecondhandSmokeArt.queue(self,queue)",
+    "MoleClawArt.queue(self,queue,game.camera)","SecondhandSmokeArt.draw(self)",
     "self:drawHeldSmoker(game,t)","drawBeeBody", "AttackPlants.drawProjectile",
     "if not projected then self:drawCigaretteProjectiles(t) end",
     "if not projected then self:drawCigaretteGroundEffects() end"
@@ -44,4 +44,9 @@ local projection=assert(io.open("src/world_projection.lua","rb")):read("*a")
 assert(projection:find("item.sortBias or 0",1,true),"billboard attachments cannot sort after their actor")
 assert(source:find("hiveChance,hiveCap,hiveCount=.022,6,0",1,true),"beehives are not capped at the reduced density")
 assert(source:find("node.y+.08,node.y",1,true),"beehive has no stable sort bias over its host tree")
-print("ASSET_PASSES_25D_OK ground=burrow+butt+oil+puddles upright=claw+cigarette+reload+smoke+bee+projectiles+props+threats")
+assert(source:find("SupplementArt.drawGround(self,game,t)",1,true),"combat footprints are not projected with the ground")
+assert(source:find("SupplementArt.drawUpright(self,game,t)",1,true),"decorative skill sprites are not separated from footprints")
+assert(source:find("BruteForceArt.queue(self,queue,t)",1,true),"moving number projectiles are not anchored individually")
+assert(source:find("VeganForkArt.queueFx(self,game,queue)",1,true),"fork impacts and consumed targets are not anchored individually")
+assert(source:find("PhilosopherArt.draw(self)",1,true),"sermon stream is not projected through its world target")
+print("ASSET_PASSES_25D_OK ground=burrow+butt+oil+puddles+combat_footprints upright=claw+cigarette+reload+bee+projectiles+props+threats")

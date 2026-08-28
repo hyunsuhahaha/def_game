@@ -67,7 +67,11 @@ local function forkPose(mode,game)
         local facing=player.facing or 1
         return handX,handY,facing>0 and .13 or math.pi-.13,.39
     end
-    local target=math.atan2(action.ty-handY,action.tx-handX)
+    local target
+    if game.camera and game.camera.perspective and game.camera.worldToScreen then
+        local hx,hy=game.camera:worldToScreen(handX,handY);local tx,ty=game.camera:worldToScreen(action.tx,action.ty)
+        target=math.atan2(ty-hy,tx-hx)
+    else target=math.atan2(action.ty-handY,action.tx-handX) end
     local p=clamp(action.t/action.dur,0,1)
     local facing=action.facing or player.facing or 1
     local windup=target-facing*1.30
@@ -96,24 +100,18 @@ function VeganForkArt.drawFork(mode,game)
     love.graphics.pop()
 end
 
-function VeganForkArt.drawFx(mode,game)
-    local art=game.player.clearcutSprite and game.player.clearcutSprite.veganArt
-    if not art then return end
-    for _,fx in ipairs(mode.veganForkImpacts) do
-        local p=clamp(fx.t/fx.dur,0,.999)
-        local frame=math.floor(p*6)+1
-        love.graphics.setColor(1,1,1,1)
-        love.graphics.draw(art.impact,art.impactQuads[frame],fx.x,fx.y-30,0,.76,.76,64,64)
-    end
-    local variants=(game.world.images and game.world.images.treeVariants) or {}
-    for _,fx in ipairs(mode.veganConsumeFx) do
-        local p=clamp(fx.t/fx.dur,0,.999)
+local function drawImpactFx(art,fx)
+    local p=clamp(fx.t/fx.dur,0,.999);local frame=math.floor(p*6)+1
+    love.graphics.setColor(1,1,1,1);love.graphics.draw(art.impact,art.impactQuads[frame],fx.x,fx.y-30,0,.76,.76,64,64)
+end
+local function consumePosition(fx)
+    local p=clamp(fx.t/fx.dur,0,.999);local pull=ease(clamp((p-.18)/.67,0,1))
+    local mouthX=fx.player.x+12*(fx.player.facing or 1);local mouthY=fx.player.y-82
+    return lerp(fx.x,mouthX,pull),lerp(fx.y,mouthY,pull)-math.sin(pull*math.pi)*62,p
+end
+local function drawConsumeFx(art,variants,fx)
+        local x,y,p=consumePosition(fx)
         local image=fx.kind=="tree" and variants[math.max(1,math.min(#variants,fx.variant or 1))] or nil
-        local pull=ease(clamp((p-.18)/.67,0,1))
-        local mouthX=fx.player.x+12*(fx.player.facing or 1)
-        local mouthY=fx.player.y-82
-        local x=lerp(fx.x,mouthX,pull)
-        local y=lerp(fx.y,mouthY,pull)-math.sin(pull*math.pi)*62
         local scale=math.max(.08,1-p*.9)*(1+math.sin(p*math.pi*5)*.025)
         if image then
             love.graphics.setColor(1,1,1,1-p*.28)
@@ -127,6 +125,23 @@ function VeganForkArt.drawFx(mode,game)
         love.graphics.setColor(1,1,1,math.min(1,.72+p*.35))
         love.graphics.draw(art.chomp,art.chompQuads[frame],x,y-42,0,(fx.facing or 1)*.72,.72,80,80)
         love.graphics.pop()
+end
+
+function VeganForkArt.drawFx(mode,game)
+    local art=game.player.clearcutSprite and game.player.clearcutSprite.veganArt;if not art then return end
+    for _,fx in ipairs(mode.veganForkImpacts) do drawImpactFx(art,fx) end
+    local variants=(game.world.images and game.world.images.treeVariants) or {}
+    for _,fx in ipairs(mode.veganConsumeFx) do drawConsumeFx(art,variants,fx) end
+end
+
+function VeganForkArt.queueFx(mode,game,queue)
+    local art=game.player.clearcutSprite and game.player.clearcutSprite.veganArt;if not art then return end
+    local variants=(game.world.images and game.world.images.treeVariants) or {}
+    for _,value in ipairs(mode.veganForkImpacts) do local fx=value
+        queue[#queue+1]={x=fx.x,y=fx.y,anchorY=fx.y,draw=function()drawImpactFx(art,fx)end}
+    end
+    for _,value in ipairs(mode.veganConsumeFx) do local fx=value;local x,y=consumePosition(fx)
+        queue[#queue+1]={x=x,y=y,anchorY=y,draw=function()drawConsumeFx(art,variants,fx)end}
     end
 end
 

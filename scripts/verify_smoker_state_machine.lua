@@ -49,10 +49,12 @@ assert(facing==-1 and emberX<mouthX,"left-facing smoker holds the cigarette back
 -- sits outside the old radius and behind the ring's current point, but inside
 -- the path that was visibly crossed during this frame.
 local ringMode=ClearcutMode.new();ringMode.job="fire"
-local ringTarget={x=0,y=60,hp=50}
-ringMode.enemies={ringTarget};ringMode.smokeRing={x=0,y=0,vx=480,vy=0,radius=20,startRadius=20,maxRadius=20,dmg=10,knockback=100,maxRange=500,traveled=0,hit={}}
+local ringTarget={x=0,y=37,hp=50}
+local outsideRing={x=0,y=39.1,hp=50}
+ringMode.enemies={ringTarget,outsideRing};ringMode.smokeRing={x=0,y=0,vx=480,vy=0,radius=20,startRadius=20,maxRadius=20,dmg=10,knockback=100,maxRange=500,traveled=0,hit={}}
 ringMode:updateSmokeRing(.1,{world={nodes={}}})
 assert(ringTarget.hp==40 and ringTarget.knockTimer>0,"expanded swept smoke-ring hitbox missed a visible crossing")
+assert(outsideRing.hp==50,"smoke-ring hit beyond its visible outer puff")
 
 -- Use the real movement update order: movement first, then the smoking loop.
 local Player=require("src.player")

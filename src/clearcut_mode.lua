@@ -29,6 +29,7 @@ local RegrowthCastArt = require("src.regrowth_cast_art")
 local ForestZones = require("src.forest_zones")
 local BiomeBosses = require("src.biome_bosses")
 local BossEntrance = require("src.boss_entrance")
+local CombatGeometry = require("src.combat_geometry")
 
 local ClearcutMode = {}
 ClearcutMode.__index = ClearcutMode
@@ -606,8 +607,7 @@ function ClearcutMode:updateRootHazards(dt, game)
         hazard.timer = hazard.timer - dt
         if hazard.phase == "warn" and hazard.timer <= 0 then
             hazard.phase, hazard.timer = "active", 1.1
-            local dx, dy = game.player.x - hazard.x, game.player.y - hazard.y
-            if dx*dx + dy*dy <= hazard.radius*hazard.radius then
+            if CombatGeometry.circleOverlapsTarget(hazard.x,hazard.y,hazard.radius,game.player,CombatGeometry.PLAYER_RADIUS) then
                 self.rootedTimer = math.max(self.rootedTimer, 1.3)
                 self.rootedCount = self.rootedCount + 1
                 if game.camera then game.camera.trauma = math.min(1, game.camera.trauma + .3) end
@@ -674,8 +674,7 @@ end
 function ClearcutMode:damageEnemiesInRadius(x, y, radius, damage, game)
     ForestUnderstory.cutRadius(game.world,x,y,radius,game)
     for _, e in ipairs(self.enemies) do
-        local dx, dy = e.x - x, e.y - y
-        if dx*dx + dy*dy <= radius*radius then
+        if CombatGeometry.circleOverlapsTarget(x,y,radius,e) then
             e.hp = e.hp - damage
             e.visualHit = .14
             for _ = 1, 4 do game.world:addParticle(e.x, e.y - 12, {1, .32, .2}, true, false) end
@@ -693,8 +692,7 @@ function ClearcutMode:igniteEnemiesInRadius(x, y, radius, game, depth)
     if self.rainSuppressFire then return end
     for _, e in ipairs(self.enemies) do
         if not e.burning then
-            local dx, dy = e.x - x, e.y - y
-            if dx*dx + dy*dy <= radius*radius then self:igniteEnemy(e, game, depth) end
+            if CombatGeometry.circleOverlapsTarget(x,y,radius,e) then self:igniteEnemy(e, game, depth) end
         end
     end
 end
@@ -970,7 +968,7 @@ function ClearcutMode:spawnEnemyProjectile(e, game)
     local d = math.sqrt(dx*dx + dy*dy)
     if d <= 0 then return end
     e.visualAttack = .24
-    self.projectiles[#self.projectiles + 1] = {x = e.x, y = e.y, vx = dx / d * 150, vy = dy / d * 150, life = 3, damage = e.def.damage * (e.dmgMul or 1), color = e.def.color}
+    self.projectiles[#self.projectiles + 1] = {x = e.x, y = e.y, vx = dx / d * 150, vy = dy / d * 150, life = 3, damage = e.def.damage * (e.dmgMul or 1), hitRadius=5, color = e.def.color}
 end
 
 -- 정예 개체 전용 원거리 공격: 근접전만 하던 몹에게 가시 투사체를 추가로 부여한다
@@ -981,7 +979,7 @@ function ClearcutMode:spawnThornProjectile(e, game)
     e.visualAttack = .24
     self.projectiles[#self.projectiles + 1] = {
         x = e.x, y = e.y, vx = dx / d * 210, vy = dy / d * 210, life = 2.4,
-        damage = e.def.damage * (e.dmgMul or 1) * .6, color = {.62, .42, .15}, kind = "thorn",
+        damage = e.def.damage * (e.dmgMul or 1) * .6, color = {.62, .42, .15}, kind = "thorn",hitRadius=11,
     }
 end
 
@@ -1031,10 +1029,10 @@ end
 function ClearcutMode:updateProjectiles(dt, game)
     for i = #self.projectiles, 1, -1 do
         local p = self.projectiles[i]
+        local previousX,previousY=p.x,p.y
         p.x, p.y = p.x + p.vx * dt, p.y + p.vy * dt
         p.life = p.life - dt
-        local dx, dy = game.player.x - p.x, game.player.y - p.y
-        if dx*dx + dy*dy <= 22*22 then
+        if CombatGeometry.sweptCircleOverlapsTarget(previousX,previousY,p.x,p.y,p.hitRadius or 5,game.player,CombatGeometry.PLAYER_RADIUS) then
             self:damagePlayer(p.damage, game)
             AttackPlants.onProjectileExpired(self,p)
             table.remove(self.projectiles, i)
@@ -1106,16 +1104,9 @@ function ClearcutMode:updateBossTelegraphs(dt, game)
             t.phase, t.timer = "active", .25
             local hit
             if t.kind == "line" then
-                local ex, ey = t.x2 - t.x1, t.y2 - t.y1
-                local len2 = ex * ex + ey * ey
-                local rx, ry = game.player.x - t.x1, game.player.y - t.y1
-                local proj = len2 > 0 and math.max(0, math.min(1, (rx * ex + ry * ey) / len2)) or 0
-                local nx, ny = t.x1 + ex * proj, t.y1 + ey * proj
-                local ddx, ddy = game.player.x - nx, game.player.y - ny
-                hit = ddx * ddx + ddy * ddy <= (t.halfWidth or 40) ^ 2
+                hit=CombatGeometry.sweptCircleOverlapsTarget(t.x1,t.y1,t.x2,t.y2,t.halfWidth or 40,game.player,CombatGeometry.PLAYER_RADIUS)
             else
-                local dx, dy = game.player.x - t.x, game.player.y - t.y
-                hit = dx * dx + dy * dy <= t.radius * t.radius
+                hit=CombatGeometry.circleOverlapsTarget(t.x,t.y,t.radius,game.player,CombatGeometry.PLAYER_RADIUS)
             end
             if hit then self:damagePlayer(t.damage, game) end
             if game.camera then game.camera.trauma = math.min(1, game.camera.trauma + .4) end
@@ -1560,14 +1551,16 @@ function ClearcutMode:updateMolotovImpacts(dt, game)
     if #self.enemies == 0 then return end
     local dmg = 6 + self:power("molotov") * 4
     for _, flight in ipairs(self.molotovs) do
-        local progress = math.min(1, (flight.t + dt) / flight.dur)
-        local x = flight.x0 + (flight.x1 - flight.x0) * progress
-        local y = flight.y0 + (flight.y1 - flight.y0) * progress
+        local previousProgress=math.max(0,math.min(1,flight.t/flight.dur))
+        local progress=math.min(1,(flight.t+dt)/flight.dur)
+        local previousX=flight.x0+(flight.x1-flight.x0)*previousProgress
+        local previousY=flight.y0+(flight.y1-flight.y0)*previousProgress-math.sin(previousProgress*math.pi)*120
+        local x=flight.x0+(flight.x1-flight.x0)*progress
+        local y=flight.y0+(flight.y1-flight.y0)*progress-math.sin(progress*math.pi)*120
         flight.hitSet = flight.hitSet or {}
         for _, e in ipairs(self.enemies) do
             if not flight.hitSet[e] then
-                local dx, dy = e.x - x, e.y - y
-                if dx*dx + dy*dy <= ((e.def and e.def.radius or 20) + 24)^2 then
+                if CombatGeometry.sweptCircleOverlapsTarget(previousX,previousY,x,y,24,e) then
                     flight.hitSet[e] = true
                     e.hp = e.hp - dmg
                     e.visualHit = .14
@@ -1613,8 +1606,7 @@ function ClearcutMode:updateSecondhandSmoke(dt, game)
             local damage=2.1+self:power("molotov")*.22
             for _,enemy in ipairs(self.enemies) do
                 if enemy.hp>0 then
-                    local dx,dy=enemy.x-cloud.x,enemy.y-cloud.y
-                    if (dx*dx)/(cloud.radiusX*cloud.radiusX)+(dy*dy)/(cloud.radiusY*cloud.radiusY)<=1 then
+                    if CombatGeometry.ellipseOverlapsTarget(cloud.x,cloud.y,cloud.radiusX,cloud.radiusY,enemy) then
                         enemy.hp=enemy.hp-damage
                         enemy.visualHit=.08
                     end
@@ -1764,18 +1756,12 @@ function ClearcutMode:updateSmokeRing(dt, game)
     -- The smoke atlas extends beyond the nominal ring and actors use a feet
     -- anchor. Add body allowance and test the whole travelled segment so the
     -- visible ring cannot skip a target between frames.
-    local hitRadius = ring.radius * 1.65 + 34
-    local function sweptDistanceSq(px,py)
-        local sx,sy=ring.x-previousX,ring.y-previousY;local len2=sx*sx+sy*sy
-        local u=len2>0 and math.max(0,math.min(1,((px-previousX)*sx+(py-previousY)*sy)/len2))or 0
-        local dx,dy=px-(previousX+sx*u),py-(previousY+sy*u)
-        return dx*dx+dy*dy
-    end
+    local hitRadius=ring.radius*1.05+(12+ring.radius*.3)
     for _, e in ipairs(self.enemies) do
         if not ring.hit[e] then
             local dx, dy = e.x - ring.x, e.y - ring.y
             local dist = math.sqrt(dx * dx + dy * dy)
-            if sweptDistanceSq(e.x,e.y)<=hitRadius*hitRadius then
+            if CombatGeometry.sweptCircleOverlapsTarget(previousX,previousY,ring.x,ring.y,hitRadius,e) then
                 ring.hit[e] = true
                 local nx, ny = dist > .01 and dx / dist or 1, dist > .01 and dy / dist or 0
                 e.hp = e.hp - ring.dmg
@@ -1786,7 +1772,7 @@ function ClearcutMode:updateSmokeRing(dt, game)
     end
     for _, node in ipairs(game.world.nodes) do
         if node.rushTree and node.active and not ring.hit[node] then
-            if sweptDistanceSq(node.x,node.y)<=hitRadius*hitRadius then
+            if CombatGeometry.sweptCircleOverlapsTarget(previousX,previousY,ring.x,ring.y,hitRadius,node,0) then
                 ring.hit[node] = true
                 node.rushHp = (node.rushHp or node.rushMaxHp) - ring.dmg
                 game.world:impactNode(node, game, true)
@@ -2108,7 +2094,8 @@ function ClearcutMode:applyVeganFork(action, game)
         local ox,oy=e.x-px,e.y-py
         local along=ox*nx+oy*ny
         local lateral=math.abs(ox*ny-oy*nx)
-        if along>=0 and along<=range and lateral<=halfWidth+(e.def.radius or 0) then
+        local body=CombatGeometry.targetRadius(e)
+        if along>=-body and along<=range+body and lateral<=halfWidth+body then
             local alive=e.hp>0
             e.hp=e.hp-dmg*(echo and 4.5 or 3); e.visualHit=.16
             VeganForkArt.impact(self,e.x,e.y-12)
@@ -2497,6 +2484,7 @@ function ClearcutMode:updateThrownTrees(dt, game)
     self.minerBurrowCooldown=math.max(0,(self.minerBurrowCooldown or 0)-dt)
     for index=#self.thrownTrees,1,-1 do
         local tree=self.thrownTrees[index]
+        local previousX,previousY=tree.x,tree.y
         tree.x,tree.y=tree.x+tree.vx*dt,tree.y+tree.vy*dt
         tree.z=tree.z+tree.vz*dt
         tree.vz=tree.vz-tree.gravity*dt
@@ -2504,8 +2492,7 @@ function ClearcutMode:updateThrownTrees(dt, game)
         local remove=false
         for _,node in ipairs(game.world.nodes) do
             if not remove and node.rushTree and node.active and not tree.hit[node] then
-                local dx,dy=node.x-tree.x,node.y-tree.y
-                if dx*dx+dy*dy<=68*68 then
+                if CombatGeometry.segmentDistanceSquared(node.x,node.y,previousX,previousY,tree.x,tree.y)<=68*68 then
                     tree.hit[node]=true
                     node.rushHp=(node.rushHp or node.rushMaxHp)-tree.damage
                     game.world:impactNode(node,game,true)
@@ -2518,8 +2505,7 @@ function ClearcutMode:updateThrownTrees(dt, game)
         end
         for _,enemy in ipairs(self.enemies) do
             if not remove and enemy.hp>0 and not tree.hit[enemy] then
-                local dx,dy=enemy.x-tree.x,enemy.y-tree.y
-                if dx*dx+dy*dy<=62*62 then
+                if CombatGeometry.sweptCircleOverlapsTarget(previousX,previousY,tree.x,tree.y,62,enemy) then
                     tree.hit[enemy]=true
                     enemy.hp,enemy.visualHit=enemy.hp-tree.damage*2.5,.18
                     tree.penetration=tree.penetration-1
@@ -2693,7 +2679,7 @@ function ClearcutMode:updateCrowStrike(dt, game)
         best.visualHit = .14
     end
     if level>=2 then self:damageEnemiesInRadius(best.x,best.y,radius,dmg*.5,game) end
-    self.crowFx[#self.crowFx+1] = {x=best.x, y=best.y, angle=math.atan2(best.y-game.player.y,best.x-game.player.x), life=.32, maxLife=.32}
+    self.crowFx[#self.crowFx+1] = {x=best.x,y=best.y,angle=math.atan2(best.y-game.player.y,best.x-game.player.x),radius=radius,life=.32,maxLife=.32}
     if game.camera then game.camera.trauma = math.min(1, game.camera.trauma + .12) end
 end
 
@@ -2740,15 +2726,9 @@ function ClearcutMode:updateVineWhip(dt, game)
         end
     end
     for _, e in ipairs(self.enemies) do
-        local dx, dy = e.x - game.player.x, e.y - game.player.y
-        local d2 = dx*dx + dy*dy
-        if d2 <= range*range then
-            local a = atan2(dy, dx)
-            local diff = math.abs((a - angle + math.pi) % (math.pi * 2) - math.pi)
-            if diff <= cone then
+            if CombatGeometry.coneOverlapsTarget(game.player.x,game.player.y,angle,range,cone,e) then
                 e.hp = e.hp - dmg
                 e.visualHit = .14
-            end
         end
     end
     self.whipFx[#self.whipFx+1] = {x=game.player.x,y=game.player.y,angle=angle, range=range, life=.22, maxLife=.22}
@@ -2760,6 +2740,7 @@ function ClearcutMode:updateBoomerangAxe(dt, game)
     local speed = 480
     for i = #self.boomerangs, 1, -1 do
         local b = self.boomerangs[i]
+        local previousX,previousY=b.x,b.y
         local remove, turning = false, false
         b.trail=b.trail or {}
         table.insert(b.trail,1,{x=b.x,y=b.y,angle=(self.supplementTime or 0)*17})
@@ -2782,9 +2763,8 @@ function ClearcutMode:updateBoomerangAxe(dt, game)
         else
             for _, node in ipairs(game.world.nodes) do
                 if node.rushTree and node.active and not b.hitSet[node] then
-                    local dx2, dy2 = node.x - b.x, node.y - b.y
                     local hitRadius=b.radius or 64
-                    if dx2*dx2 + dy2*dy2 <= hitRadius*hitRadius then
+                    if CombatGeometry.segmentDistanceSquared(node.x,node.y,previousX,previousY,b.x,b.y)<=hitRadius*hitRadius then
                         b.hitSet[node] = true
                         SupplementArt.impact(self,"axe",node.x,node.y,hitRadius)
                         node.rushHp = (node.rushHp or node.rushMaxHp) - b.dmg
@@ -2795,9 +2775,8 @@ function ClearcutMode:updateBoomerangAxe(dt, game)
             end
             for _, e in ipairs(self.enemies) do
                 if not b.hitSet[e] then
-                    local dx2, dy2 = e.x - b.x, e.y - b.y
                     local hitRadius=b.radius or 64
-                    if dx2*dx2 + dy2*dy2 <= hitRadius*hitRadius then
+                    if CombatGeometry.sweptCircleOverlapsTarget(previousX,previousY,b.x,b.y,hitRadius,e) then
                         b.hitSet[e] = true
                         SupplementArt.impact(self,"axe",e.x,e.y,hitRadius)
                         e.hp = e.hp - b.dmg
@@ -2945,13 +2924,13 @@ function ClearcutMode:updateBruteForce(dt, game)
             end
             if d.age>=d.launchAt then d.state="fly";d.x,d.y=d.walletX,d.walletY;d.life=.9 end
         elseif d.state=="fly" then
+            local previousX,previousY=d.x,d.y
             d.x,d.y=d.x+d.vx*dt,d.y+d.vy*dt
             d.life=d.life-dt
             if d.life<=0 then table.remove(self.digits,i) else
             for _, node in ipairs(game.world.nodes) do
                 if node.rushTree and node.active and not d.hitSet[node] then
-                    local dx, dy = node.x - d.x, node.y - d.y
-                    if dx*dx + dy*dy <= 18*18 then
+                    if CombatGeometry.segmentDistanceSquared(node.x,node.y,previousX,previousY,d.x,d.y)<=18*18 then
                         d.hitSet[node] = true
                         node.rushHp = (node.rushHp or node.rushMaxHp) - d.dmg
                         game.world:impactNode(node, game, false)
@@ -2962,8 +2941,7 @@ function ClearcutMode:updateBruteForce(dt, game)
             end
             for _, e in ipairs(self.enemies) do
                 if not d.hitSet[e] then
-                    local dx, dy = e.x - d.x, e.y - d.y
-                    if dx*dx + dy*dy <= 18*18 then
+                    if CombatGeometry.sweptCircleOverlapsTarget(previousX,previousY,d.x,d.y,18,e) then
                         d.hitSet[e] = true
                         e.hp = e.hp - d.dmg
                         e.visualHit = .14
@@ -3009,6 +2987,7 @@ function ClearcutMode:updateDdosAttack(dt, game)
     self.packets = self.packets or {}
     for i = #self.packets, 1, -1 do
         local p = self.packets[i]
+        local previousX,previousY=p.x,p.y
         p.x, p.y = p.x + p.vx * dt, p.y + p.vy * dt
         p.life = p.life - dt
         local hit = false
@@ -3017,8 +2996,7 @@ function ClearcutMode:updateDdosAttack(dt, game)
         else
             for _, node in ipairs(game.world.nodes) do
                 if node.rushTree and node.active then
-                    local dx, dy = node.x - p.x, node.y - p.y
-                    if dx*dx + dy*dy <= 14*14 then
+                    if CombatGeometry.segmentDistanceSquared(node.x,node.y,previousX,previousY,p.x,p.y)<=14*14 then
                         node.rushHp = (node.rushHp or node.rushMaxHp) - p.dmg
                         game.world:impactNode(node, game, false)
                         if node.rushHp <= 0 then self:fellTree(node, game) end
@@ -3029,8 +3007,7 @@ function ClearcutMode:updateDdosAttack(dt, game)
             end
             if not hit then
                 for _, e in ipairs(self.enemies) do
-                    local dx, dy = e.x - p.x, e.y - p.y
-                    if dx*dx + dy*dy <= 14*14 then
+                    if CombatGeometry.sweptCircleOverlapsTarget(previousX,previousY,p.x,p.y,14,e) then
                         e.hp = e.hp - p.dmg
                         e.visualHit = .14
                         hit = true
@@ -3272,8 +3249,7 @@ function ClearcutMode:tickEternalField(field,game)
     end
     for _,enemy in ipairs(self.enemies) do
         if enemy.hp>0 then
-            local dx,dy=enemy.x-field.x,enemy.y-field.y
-            if dx*dx+dy*dy<=radius2 then
+            if CombatGeometry.circleOverlapsTarget(field.x,field.y,field.radius,enemy) then
                 self:markPhilosopherPlague("enemy",enemy,poisonDuration,2)
             end
         end
@@ -3430,8 +3406,7 @@ function ClearcutMode:applySpit(tx, ty, verbosity, game, isBonus, isExtra)
     end
     if salivaLevel > 0 then
         for _, e in ipairs(self.enemies) do
-            local dx, dy = e.x - tx, e.y - ty
-            if dx*dx + dy*dy <= radius*radius and not e.plagueMarked then
+            if CombatGeometry.circleOverlapsTarget(tx,ty,radius,e) and not e.plagueMarked then
                 e.plagueMarked = true
                 self.plagued[#self.plagued+1] = {kind="enemy", ref=e, timer=plagueTimer, tickTimer=0}
             end
@@ -5006,12 +4981,12 @@ function ClearcutMode:queueProjectedOverlay(game,t)
         if self.invulnTimer>0 then love.graphics.setColor(1,.2,.15,.35);love.graphics.circle("fill",player.x,player.y-20,26) end
     end,player.y+.04,player.y)
 
-    if self.job=="toxic" then queueUpright(queue,player.x,player.y,function()VeganForkArt.drawFx(self,game)end,player.y+.03,player.y) end
+    if self.job=="toxic" then VeganForkArt.queueFx(self,game,queue) end
     queueUpright(queue,player.x,player.y,function()
-        SupplementArt.draw(self,game,t);BruteForceArt.draw(self,game,t);PhilosopherArt.draw(self);self.traitFx:draw()
+        SupplementArt.drawUpright(self,game,t);self.traitFx:draw()
     end,player.y+.02,player.y)
-    MoleClawArt.queue(self,queue);SecondhandSmokeArt.queue(self,queue)
-    if self.smokeRing then local ring=self.smokeRing;queueUpright(queue,ring.x,ring.y,function()self:drawSmokeRing(t)end) end
+    BruteForceArt.queue(self,queue,t)
+    MoleClawArt.queue(self,queue,game.camera)
     local groundTime=self.smokerGroundTime
     for _,value in ipairs(self.cigaretteButts) do local butt=value
         queueUpright(queue,butt.x,butt.y,function()CigaretteButtArt.drawSmolder(butt,groundTime)end)
@@ -5077,7 +5052,8 @@ function ClearcutMode:drawWorldOverlay(game)
     local px, py = game.player.x + 14, game.player.y - 34
     if not projected and self.job=="toxic" then VeganForkArt.drawFx(self,game) end
     if self.job == "fire" then
-        if not projected then SecondhandSmokeArt.draw(self);self:drawHeldSmoker(game,t);self:drawSmokeRing(t) end
+        SecondhandSmokeArt.draw(self);self:drawSmokeRing(t)
+        if not projected then self:drawHeldSmoker(game,t) end
     elseif self.job == "toxic" then
         if not projected then VeganForkArt.drawFork(self,game) end
     elseif self.job == "physical" then
@@ -5155,6 +5131,7 @@ function ClearcutMode:drawWorldOverlay(game)
         MoleClawArt.draw(self,game,t)
         self.traitFx:draw()
     end
+    if projected then SupplementArt.drawGround(self,game,t);BruteForceArt.drawGround(self,game,t);PhilosopherArt.draw(self) end
     AttackPlants.drawWorld(self,t)
     if not projected then for _, node in ipairs(game.world.nodes) do
         if node.rushTree and node.active and node.beehive then

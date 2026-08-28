@@ -1,4 +1,5 @@
 local Plants={}
+local Geometry=require("src.combat_geometry")
 Plants.definitions={
     thornHunter={name="가시덩굴 사냥꾼",hp=46,speed=0,damage=8,radius=27,reward=7,plantAttack=true,range=350,attackInterval=2.4},
     hammerBloom={name="망치 식인꽃",hp=68,speed=0,damage=15,radius=31,reward=9,plantAttack=true,range=205,attackInterval=3.0},
@@ -12,10 +13,11 @@ local function aim(e,game)
     if d<.001 then return 1,0,0 end
     return dx/d,dy/d,d
 end
+local projectileRadius={plantSeed=12,bambooBolt=18,resinBlob=14}
 local function shoot(mode,e,kind,speed,life,damage,spread)
     local nx,ny=e.attackDX,e.attackDY
     if spread and spread~=0 then local c,s=math.cos(spread),math.sin(spread);nx,ny=nx*c-ny*s,nx*s+ny*c end
-    mode.projectiles[#mode.projectiles+1]={x=e.x+nx*22,y=e.y-12+ny*12,vx=nx*speed,vy=ny*speed,life=life,damage=damage*(e.dmgMul or 1),kind=kind,color={.82,.62,.18}}
+    mode.projectiles[#mode.projectiles+1]={x=e.x+nx*22,y=e.y-12+ny*12,vx=nx*speed,vy=ny*speed,life=life,damage=damage*(e.dmgMul or 1),kind=kind,hitRadius=projectileRadius[kind],color={.82,.62,.18}}
 end
 local function telegraph(mode,e,x,y,r,kind,delay,damage)
     mode.bossTelegraphs[#mode.bossTelegraphs+1]={x=x,y=y,radius=r,phase="warn",timer=delay,damage=damage*(e.dmgMul or 1),plantKind=kind}
@@ -39,7 +41,7 @@ function Plants.update(e,dt,mode,game)
             elseif e.kind=="seedPod" then for _,a in ipairs({-.24,-.12,0,.12,.24}) do shoot(mode,e,"plantSeed",245,1.8,dmg,a) end
             elseif e.kind=="bambooCannon" then shoot(mode,e,"bambooBolt",480,1.05,dmg,0)
             else
-                local p={x=e.x,y=e.y-16,vx=(e.targetX-e.x)/.7,vy=(e.targetY-e.y)/.7,life=.7,damage=dmg*(e.dmgMul or 1),kind="resinBlob",color={.92,.57,.12},targetX=e.targetX,targetY=e.targetY}
+                local p={x=e.x,y=e.y-16,vx=(e.targetX-e.x)/.7,vy=(e.targetY-e.y)/.7,life=.7,damage=dmg*(e.dmgMul or 1),kind="resinBlob",hitRadius=projectileRadius.resinBlob,color={.92,.57,.12},targetX=e.targetX,targetY=e.targetY}
                 mode.projectiles[#mode.projectiles+1]=p
             end
             e.plantState="recover";e.plantTimer=.5;e.recoverDuration=.5
@@ -57,7 +59,7 @@ function Plants.updateWorld(mode,dt,game)
     for i=#mode.resinPuddles,1,-1 do
         local p=mode.resinPuddles[i];p.life=p.life-dt
         local dx,dy=game.player.x-p.x,game.player.y-p.y
-        if dx*dx+dy*dy<p.radius*p.radius then mode.rootedTimer=math.max(mode.rootedTimer,.12) end
+        if Geometry.circleOverlapsTarget(p.x,p.y,p.radius,game.player,Geometry.PLAYER_RADIUS) then mode.rootedTimer=math.max(mode.rootedTimer,.12) end
         if p.life<=0 then table.remove(mode.resinPuddles,i) end
     end
 end
@@ -95,7 +97,7 @@ function Plants.drawWorld(mode,t)
     if not loadProjectileFx() then return end
     for _,p in ipairs(mode.resinPuddles) do
         local a=math.min(1,p.life);local frame=math.floor((t+p.x*.003)*8)%6;local scale=p.radius/72
-        love.graphics.setColor(1,1,1,a);love.graphics.draw(projectileFx,projectileQuads[19+frame],math.floor(p.x+.5),math.floor(p.y+.5),0,scale,scale*.72,80,89)
+        love.graphics.setColor(1,1,1,a);love.graphics.draw(projectileFx,projectileQuads[19+frame],math.floor(p.x+.5),math.floor(p.y+.5),0,scale,scale,80,89)
     end
     love.graphics.setColor(1,1,1,1)
 end
@@ -104,7 +106,7 @@ function Plants.drawTelegraph(tel)
     loadFx()
     if tel.phase=="warn" then
         local col=tel.branchFall and {1,.74,.18,.8} or {.78,.38,.12,.78}
-        love.graphics.setColor(col);love.graphics.setLineWidth(2);love.graphics.ellipse("line",tel.x,tel.y,tel.radius,tel.radius*.45);love.graphics.setLineWidth(1)
+        love.graphics.setColor(col);love.graphics.setLineWidth(2);love.graphics.circle("line",tel.x,tel.y,tel.radius);love.graphics.setLineWidth(1)
     else
         local row=tel.branchFall and 1 or 0;local frame=math.min(5,math.floor((1-math.max(0,tel.timer)/.25)*6))
         love.graphics.setColor(1,1,1,1);love.graphics.draw(fx,quads[row*6+frame+1],tel.x,tel.y,0,1,1,80,145)

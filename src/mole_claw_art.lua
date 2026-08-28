@@ -32,10 +32,11 @@ function Art.spawn(mode,x,y,angle,level,curveFlip,halfWidth,hand,dual)
     if #mode.minerClawMarks>90 then table.remove(mode.minerClawMarks,1) end
 end
 
-local function drawEntry(entry,quad)
+local function drawEntry(entry,quad,displayAngle)
+    local angle=displayAngle or entry.angle
     if not entry.dual then
         local scale=(entry.halfWidth or defaultHalfWidth(entry.level))/39
-        love.graphics.draw(image,quad,math.floor(entry.x+.5),math.floor(entry.y+.5),entry.angle,
+        love.graphics.draw(image,quad,math.floor(entry.x+.5),math.floor(entry.y+.5),angle,
             scale,scale*(entry.curveFlip or 1),96,64)
         return
     end
@@ -45,10 +46,10 @@ local function drawEntry(entry,quad)
     local offset=halfWidth*.28
     local handWidth=halfWidth-offset
     local scale=handWidth/39
-    local px,py=-math.sin(entry.angle),math.cos(entry.angle)
-    love.graphics.draw(image,quad,math.floor(entry.x+px*offset+.5),math.floor(entry.y+py*offset+.5),entry.angle,
+    local px,py=-math.sin(angle),math.cos(angle)
+    love.graphics.draw(image,quad,math.floor(entry.x+px*offset+.5),math.floor(entry.y+py*offset+.5),angle,
         scale,scale*(entry.curveFlip or 1),96,64)
-    love.graphics.draw(image,quad,math.floor(entry.x-px*offset+.5),math.floor(entry.y-py*offset+.5),entry.angle,
+    love.graphics.draw(image,quad,math.floor(entry.x-px*offset+.5),math.floor(entry.y-py*offset+.5),angle,
         scale,scale*-(entry.curveFlip or 1),96,64)
 end
 
@@ -86,23 +87,32 @@ function Art.draw(mode,game,t)
     love.graphics.setColor(unpack(previous))
 end
 
-function Art.queue(mode,queue)
+local function projectedAngle(entry,camera)
+    if not camera or not camera.perspective or not camera.worldToScreen then return entry.angle end
+    local reach=64;local x1,y1=camera:worldToScreen(entry.x,entry.y)
+    local x2,y2=camera:worldToScreen(entry.x+math.cos(entry.angle)*reach,entry.y+math.sin(entry.angle)*reach)
+    return math.atan2 and math.atan2(y2-y1,x2-x1) or math.atan((y2-y1)/(x2-x1))
+end
+
+function Art.queue(mode,queue,camera)
     if #(mode.minerClawFx or {})==0 and #(mode.minerClawMarks or {})==0 then return end
     load()
     for _,value in ipairs(mode.minerClawMarks or {}) do
         local mark=value
+        local angle=projectedAngle(mark,camera)
         queue[#queue+1]={x=mark.x,y=mark.y,anchorY=mark.y,draw=function()
             local previous={love.graphics.getColor()};local tier=tierFor(mark.level)
             love.graphics.setColor(.34,.25,.18,math.min(.86,mark.life/.8*.86)*.82)
-            drawEntry(mark,quads[tier][5]);love.graphics.setColor(unpack(previous))
+            drawEntry(mark,quads[tier][5],angle);love.graphics.setColor(unpack(previous))
         end}
     end
     for _,value in ipairs(mode.minerClawFx or {}) do
         local fx=value
+        local angle=projectedAngle(fx,camera)
         queue[#queue+1]={x=fx.x,y=fx.y+.01,anchorY=fx.y,draw=function()
             local previous={love.graphics.getColor()};local p=math.max(0,math.min(.999,1-fx.life/fx.maxLife))
             local frame=math.floor(p*5)+1;local tier=tierFor(fx.level)
-            love.graphics.setColor(1,1,1,math.min(1,fx.life/.05));drawEntry(fx,quads[tier][frame])
+            love.graphics.setColor(1,1,1,math.min(1,fx.life/.05));drawEntry(fx,quads[tier][frame],angle)
             love.graphics.setColor(unpack(previous))
         end}
     end
