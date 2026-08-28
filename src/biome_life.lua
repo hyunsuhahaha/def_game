@@ -123,7 +123,7 @@ function Life.queue(world,queue,player)
     local data=world.biomeLife;if not data then return end
     for _,p in ipairs(data.items) do
         local entry=p
-        queue[#queue+1]={y=p.air and 100000+p.y or p.y,draw=function() draw(entry,data.time,player) end}
+        queue[#queue+1]={x=p.x,y=p.air and 100000+p.y or p.y,anchorY=p.y,draw=function() draw(entry,data.time,player) end}
     end
 end
 return Life

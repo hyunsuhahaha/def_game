@@ -22,7 +22,7 @@ function Art.queue(mode,queue)
     Art.load()
     for _,value in ipairs(mode.eternalFields or {}) do
         local field=value
-        queue[#queue+1]={y=-150000+field.y*.001,draw=function()
+        queue[#queue+1]={y=-150000+field.y*.001,ground=true,draw=function()
             local scale=(field.radius or 100)/132
             local alpha=math.min(1,field.age*5,field.life*2.4)
             love.graphics.setColor(1,1,1,alpha)

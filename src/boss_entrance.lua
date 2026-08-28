@@ -106,8 +106,8 @@ end
 function Entrance.queue(mode,queue)
     local state=mode.bossEntrance
     if not state then return end
-    queue[#queue+1]={y=state.boss.y-.2,draw=function() drawGround(state) end}
-    queue[#queue+1]={y=state.boss.y+.2,draw=function() drawFront(state) end}
+    queue[#queue+1]={x=state.boss.x,y=state.boss.y-.2,anchorY=state.boss.y,draw=function() drawGround(state) end}
+    queue[#queue+1]={x=state.boss.x,y=state.boss.y+.2,anchorY=state.boss.y,draw=function() drawFront(state) end}
 end
 
 function Entrance.active(mode) return mode and mode.bossEntrance~=nil end

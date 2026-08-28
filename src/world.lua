@@ -1371,10 +1371,10 @@ function World:draw(player, actorSource)
     if not self.hideBase then
         for i = 1, self.turretSlotLimit do
             local slot = self.turretSlots[i]
-            queue[#queue + 1] = {y = slot.y - 1, draw = function() self:drawTurretSlot(slot) end}
+            queue[#queue + 1] = {x=slot.x,y = slot.y - 1, anchorY=slot.y, draw = function() self:drawTurretSlot(slot) end}
         end
-        queue[#queue + 1] = {y = self.core.y, draw = function() shadow(self.core.x, self.core.y, 145, 48, .5); centered(self.images.core, self.core.x, self.core.y - 50, .23) end}
-        queue[#queue + 1] = {y = self.core.y + 1, draw = function()
+        queue[#queue + 1] = {x=self.core.x,y = self.core.y, draw = function() shadow(self.core.x, self.core.y, 145, 48, .5); centered(self.images.core, self.core.x, self.core.y - 50, .23) end}
+        queue[#queue + 1] = {x=self.core.x,y = self.core.y + 1,anchorY=self.core.y, draw = function()
             for _, turret in ipairs(self.turrets) do
                 local pulse = 1 + turret.level * .025 + (turret.flash or 0) * .45
                 shadow(turret.x, turret.y + 25, 28, 9, .35)
@@ -1383,7 +1383,7 @@ function World:draw(player, actorSource)
             end
         end}
     end
-    for _, value in ipairs(self.buildings) do local building = value; queue[#queue + 1] = {y = building.y, draw = function()
+    for _, value in ipairs(self.buildings) do local building = value; queue[#queue + 1] = {x=building.x,y = building.y, draw = function()
         local flash, icon = building.flash or 0, self.buildingIcons[building.kind]
         local def = buildingById[building.kind]
         if def.fuelRadius then
@@ -1425,7 +1425,7 @@ function World:draw(player, actorSource)
             end
         end
     end} end
-    for _, value in ipairs(self.helpers) do local helper = value; queue[#queue + 1] = {y = helper.y, draw = function()
+    for _, value in ipairs(self.helpers) do local helper = value; queue[#queue + 1] = {x=helper.x,y = helper.y, draw = function()
         local bob = math.sin(helper.bob) * 4
         shadow(helper.x, helper.y + 10, 16, 6, .38)
         local icon = self.buildingIcons.carrier_drone
@@ -1444,12 +1444,12 @@ function World:draw(player, actorSource)
             end
         end
     end} end
-    if not self.hideBase then queue[#queue + 1] = {y = self.wall.y, draw = function() self:drawWall(player) end} end
+    if not self.hideBase then queue[#queue + 1] = {x=self.wall.x or self.width*.5,y = self.wall.y, draw = function() self:drawWall(player) end} end
     for _, n in ipairs(self.nodes) do
         if n.active or n.kind == "plot" or n.rushTree then
             local node = n
             local sortY = node.kind == "quarry" and (node.y - self.quarryVisual.frontBias) or node.kind == "tree" and (node.y - self.treeVisual.frontBias) or node.y
-            queue[#queue + 1] = {y = sortY, draw = function()
+            queue[#queue + 1] = {x=node.x,y = sortY,anchorY=node.y, draw = function()
                 local shake = (node.hitShake or 0) * 42
                 local ox, oy = (love.math.random() * 2 - 1) * shake, (love.math.random() * 2 - 1) * shake * .35
                 local bump = 1 + (node.hitFlash or 0) * .32
@@ -1540,12 +1540,12 @@ function World:draw(player, actorSource)
             end}
         end
     end
-    for _, d in ipairs(self.defenders) do local defender = d; queue[#queue + 1] = {y = defender.y, draw = function()
+    for _, d in ipairs(self.defenders) do local defender = d; queue[#queue + 1] = {x=defender.x,y = defender.y, draw = function()
         if defender.kind == "drone" then
             local bob=math.sin(love.timer.getTime()*4+defender.x*.01)*5; shadow(defender.x,defender.y+8,31,10,.38); love.graphics.setColor(1,1,1); centered(self.images.drone,defender.x,defender.y-34+bob,.052)
         else shadow(defender.x, defender.y, 20, 8, .42); love.graphics.setColor(.25, .9, .38); love.graphics.circle("fill", defender.x, defender.y - 20, 22) end
     end} end
-    for _, value in ipairs(self.drops) do local drop = value; queue[#queue + 1] = {y = drop.y, draw = function()
+    for _, value in ipairs(self.drops) do local drop = value; queue[#queue + 1] = {x=drop.x,y = drop.y, draw = function()
         local img = drop.kind == "stone" and self.images.stone or drop.kind == "wood" and self.images.lumber or drop.kind == "food" and self.images.crop or self.images.ore
         local width = drop.kind == "stone" and 38 or drop.kind == "wood" and 48 or drop.kind == "food" and 34 or 31
         local scale = width / img:getWidth()
@@ -1554,10 +1554,16 @@ function World:draw(player, actorSource)
         love.graphics.setColor(1, 1, 1, 1)
         love.graphics.draw(img, drop.x, drop.y - drop.height, 0, scale, scale, img:getWidth() / 2, img:getHeight() * .91)
     end} end
-    for _, e in ipairs(self.enemies) do local enemy = e; queue[#queue + 1] = {y = enemy.y, draw = function() shadow(enemy.x, enemy.y, 20, 9, .5); love.graphics.setColor(.65, .12, .15); love.graphics.circle("fill", enemy.x, enemy.y - 22, 24); love.graphics.setColor(1, .35, .25); love.graphics.circle("line", enemy.x, enemy.y - 22, 24) end} end
+    for _, e in ipairs(self.enemies) do local enemy = e; queue[#queue + 1] = {x=enemy.x,y = enemy.y, draw = function() shadow(enemy.x, enemy.y, 20, 9, .5); love.graphics.setColor(.65, .12, .15); love.graphics.circle("fill", enemy.x, enemy.y - 22, 24); love.graphics.setColor(1, .35, .25); love.graphics.circle("line", enemy.x, enemy.y - 22, 24) end} end
     if actorSource then actorSource:queueWorldActors(queue, love.timer.getTime()) end
-    if not player.introHidden then queue[#queue + 1] = {y = player.y, draw = function() player:draw() end} end
-    table.sort(queue, function(a, b) return a.y < b.y end); for _, item in ipairs(queue) do item.draw() end
+    if not player.introHidden then queue[#queue + 1] = {x=player.x,y = player.y, draw = function() player:draw() end} end
+    table.sort(queue, function(a, b) return a.y < b.y end)
+    if self.deferBillboards then
+        self.billboardQueue={}
+        for _,item in ipairs(queue) do
+            if item.ground then item.draw() else self.billboardQueue[#self.billboardQueue+1]=item end
+        end
+    else for _,item in ipairs(queue) do item.draw() end end
     love.graphics.setBlendMode("alpha")
     for _, explosion in ipairs(self.explosions) do
         local alpha = math.max(0, explosion.life / explosion.maxLife)

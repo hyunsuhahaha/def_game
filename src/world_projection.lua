@@ -92,4 +92,27 @@ function Projection.finish()
     love.graphics.pop()
 end
 
+function Projection.drawBillboards(queue,camera)
+    if not queue then return end
+    local zoom=camera.renderZoom or camera.zoom
+    for _,item in ipairs(queue) do
+        local anchorY=item.anchorY or item.y
+        item.screenX,item.screenY,item.screenScale=camera:worldToScreen(item.x,anchorY)
+        item.screenSort=math.abs(item.y)>50000 and item.y or item.screenY
+    end
+    table.sort(queue,function(a,b) return a.screenSort<b.screenSort end)
+    love.graphics.setBlendMode("alpha")
+    for _,item in ipairs(queue) do
+        local uniform=zoom*item.screenScale
+        love.graphics.push()
+        love.graphics.translate(item.screenX,item.screenY)
+        -- Vertical sprites are billboards: ground position receives pitch,
+        -- their pixels receive one uniform perspective scale on both axes.
+        love.graphics.scale(uniform,uniform)
+        love.graphics.translate(-item.x,-(item.anchorY or item.y))
+        item.draw()
+        love.graphics.pop()
+    end
+end
+
 return Projection

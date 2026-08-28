@@ -143,7 +143,7 @@ end
 function Scenery.queue(world,queue,player)
     for _,entry in ipairs(world.forestScenery and world.forestScenery.actors or {}) do
         local prop=entry
-        queue[#queue+1]={y=prop.y,draw=function() draw(prop,player) end}
+        queue[#queue+1]={x=prop.x,y=prop.y,draw=function() draw(prop,player) end}
     end
 end
 

@@ -1195,6 +1195,7 @@ function Game:draw()
     local projected=self.clearcut and self.camera.perspective
     local renderW,renderH
     if projected then renderW,renderH=WorldProjection.begin(self.camera) end
+    self.world.deferBillboards=projected
     self.camera:attach(renderW,renderH,projected)
     if introActive then ClearcutIntro.drawWorldBack(self) end
     self.world:draw(self.player, worldActors)
@@ -1243,7 +1244,12 @@ function Game:draw()
     if self.clearcut and not introActive then self.clearcut:drawWorldOverlay(self) end
     if introActive then ClearcutIntro.drawWorldFront(self) end
     self.camera:detach()
-    if projected then WorldProjection.finish() end
+    if projected then
+        WorldProjection.finish()
+        WorldProjection.drawBillboards(self.world.billboardQueue,self.camera)
+        self.world.billboardQueue=nil
+    end
+    self.world.deferBillboards=false
     if introActive then ClearcutIntro.drawScreen(self) else self:drawUI() end
     if self.clearcut and self.clearcut.sandbox then self:drawSandboxPanel() end
     if self.mode == "upgrade" then self.upgrades:drawSelection(self, self.fonts) end

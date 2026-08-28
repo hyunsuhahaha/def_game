@@ -4850,42 +4850,42 @@ function ClearcutMode:queueWorldActors(queue,t)
     RevivalCrowdArt.queue(self,queue)
     for _,value in ipairs(self.burrowTracks) do
         local mark=value
-        queue[#queue+1]={y=-200000+mark.y*.001,draw=function() MoleBurrowArt.draw(mark) end}
+        queue[#queue+1]={y=-200000+mark.y*.001,ground=true,draw=function() MoleBurrowArt.draw(mark) end}
     end
     for _,value in ipairs(self.strawBales) do
         local bale=value
-        queue[#queue+1]={y=bale.y,draw=function() StrawBaleArt.draw(bale,groundTime) end}
+        queue[#queue+1]={x=bale.x,y=bale.y,draw=function() StrawBaleArt.draw(bale,groundTime) end}
     end
     for index,value in ipairs(self.oilTrail) do
         local spot=value
         -- Ground liquid is always behind actors; flame/smoke participates in
         -- the regular quarter-view foot-depth order.
-        queue[#queue+1]={y=-100000+spot.y*.001,draw=function() OilTrailArt.drawGround(spot,groundTime) end}
+        queue[#queue+1]={y=-100000+spot.y*.001,ground=true,draw=function() OilTrailArt.drawGround(spot,groundTime) end}
         if spot.ignited then
-            queue[#queue+1]={y=spot.y+.1,draw=function() OilTrailArt.drawFlame(spot,groundTime) end}
+            queue[#queue+1]={x=spot.x,y=spot.y+.1,anchorY=spot.y,draw=function() OilTrailArt.drawFlame(spot,groundTime) end}
         end
         local previous=self.oilTrail[index-1]
         if previous then
-            queue[#queue+1]={y=-99999+math.min(previous.y,spot.y)*.001,draw=function() OilTrailArt.drawGroundBridge(previous,spot,groundTime) end}
+            queue[#queue+1]={y=-99999+math.min(previous.y,spot.y)*.001,ground=true,draw=function() OilTrailArt.drawGroundBridge(previous,spot,groundTime) end}
             if previous.ignited and spot.ignited then
-                queue[#queue+1]={y=(previous.y+spot.y)*.5+.1,draw=function() OilTrailArt.drawFlameBridge(previous,spot,groundTime) end}
+                queue[#queue+1]={x=(previous.x+spot.x)*.5,y=(previous.y+spot.y)*.5+.1,anchorY=(previous.y+spot.y)*.5,draw=function() OilTrailArt.drawFlameBridge(previous,spot,groundTime) end}
             end
         end
     end
     for _,value in ipairs(self.cigaretteButts) do
         local butt=value
-        queue[#queue+1]={y=butt.y+3,draw=function() CigaretteButtArt.drawGround(butt,groundTime) end}
+        queue[#queue+1]={y=butt.y+3,ground=true,draw=function() CigaretteButtArt.drawGround(butt,groundTime) end}
     end
     for _, value in ipairs(self.enemies) do
         local enemy=value
-        queue[#queue+1]={y=ForestArt.footY(enemy),draw=function() ForestArt.drawBody(enemy,t) end}
+        queue[#queue+1]={x=enemy.x,y=ForestArt.footY(enemy),anchorY=enemy.y,draw=function() ForestArt.drawBody(enemy,t) end}
     end
     for _, value in ipairs(self.vineSpawns) do
         local sprout=value
         local grow=1-math.max(0,sprout.timer)/1.15
         if grow>.3 then
             local growth=math.min(1,(grow-.3)/.7)
-            queue[#queue+1]={y=sprout.y,draw=function() ForestArt.drawSprout(sprout.x,sprout.y,growth,t) end}
+            queue[#queue+1]={x=sprout.x,y=sprout.y,draw=function() ForestArt.drawSprout(sprout.x,sprout.y,growth,t) end}
         end
     end
 end

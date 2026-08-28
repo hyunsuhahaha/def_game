@@ -106,7 +106,7 @@ function Understory.queue(world,queue,player)
     if not data then return end
     for _,entry in ipairs(data.patches) do
         local patch=entry
-        queue[#queue+1]={y=patch.y-1,draw=function() drawPatch(patch,player) end}
+        queue[#queue+1]={x=patch.x,y=patch.y-1,anchorY=patch.y,draw=function() drawPatch(patch,player) end}
     end
 end
 
