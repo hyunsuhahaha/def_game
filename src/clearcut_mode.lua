@@ -357,6 +357,9 @@ function ClearcutMode:generateForest(game, target)
     local minSepBase = game.world.clearcutMap=="island" and islandBase or (game.world.clearcutMap=="beginner" and 165 or normalBase)
     local minSepFloor = game.world.clearcutMap=="island" and islandFloor or (game.world.clearcutMap=="beginner" and 90 or normalFloor)
     local attempts, minSep = 0, minSepBase
+    -- 벌집은 나무 밀도에 그대로 비례시키면 첫 화면부터 수십 개가 보여
+    -- 희귀 위험물이라는 의미가 사라진다. 스테이지별 확률과 상한을 함께 둔다.
+    local hiveChance,hiveCap,hiveCount=.022,6,0
     -- Large islands (and the beginner map's tighter world, which needs many relax cycles
     -- to walk minSep down from its sparse starting value) need more land samples in later stages.
     local attemptLimit=game.world.clearcutMap=="island" and math.max(40000,target*160)
@@ -382,7 +385,7 @@ function ClearcutMode:generateForest(game, target)
             if ndx*ndx + ndy*ndy < minSep*minSep then separated = false; break end
         end
         if clearSpawn and separated then
-            local beehive = love.math.random() < .07
+            local beehive = hiveCount<hiveCap and love.math.random()<hiveChance
             local variantCount = math.max(1, #(game.world.images.treeVariants or {}))
             local treeVariant = Maps.treeVariant(game.world,x,y,#game.world.nodes+1)
                 or ForestScenery.treeVariant(x,y,w,h,self.stage,#game.world.nodes+1,variantCount)
@@ -395,7 +398,7 @@ function ClearcutMode:generateForest(game, target)
             -- no hidden HP, reward, collision, or regrowth rule changes.
             local giantTree=isDefaultForest and treeVariant==1 and treeIndex%17==0
             game.world.nodes[treeIndex] = {kind="tree",x=x,y=y,work=0,workTime=1,active=true,respawn=0,rushTree=true,rushHp=hp,rushMaxHp=hp,beehive=beehive,treeVariant=treeVariant,giantTree=giantTree}
-            if beehive then self.beehiveTotal = self.beehiveTotal + 1 end
+            if beehive then hiveCount=hiveCount+1;self.beehiveTotal=self.beehiveTotal+1 end
         end
     end
     self.initialTrees, self.remainingTrees = #game.world.nodes, #game.world.nodes
@@ -4508,10 +4511,18 @@ function ClearcutMode:drawSmokerCigarette(game)
     if sprite and sprite.walkMouth then
         if sprite.cigarette then
             Cigarette.draw(sprite.cigarette,mouthX,mouthY,facing,love.timer.getTime())
+            return true
         end
-        return true
     end
-    drawFacingPixelGrid(cigaretteIconRows,cigaretteIconPalette,(mouthX+tipX)/2,mouthY-2,2,facing)
+    -- 안전 폴백도 입 기준에서 끝까지 2px 텍셀로 직접 잇는다. 공용 그리드의
+    -- +1px 이음새 확장은 작은 불씨를 뭉개므로 담배에는 적용하지 않는다.
+    for i=0,11 do
+        if i==11 then love.graphics.setColor(1,.48,.08,1)
+        elseif i==10 then love.graphics.setColor(.42,.19,.08,1)
+        elseif i<2 then love.graphics.setColor(.68,.49,.25,1)
+        else love.graphics.setColor(.94,.92,.86,1) end
+        love.graphics.rectangle("fill",math.floor(mouthX+facing*i*2+.5),math.floor(mouthY-3+.5),2,2)
+    end
     return true
 end
 
@@ -4929,7 +4940,6 @@ end
 
 function ClearcutMode:drawSupplementSkills(game, t)
     SupplementArt.draw(self,game,t)
-    MoleClawArt.draw(self,game,t)
     BruteForceArt.draw(self,game,t)
     PhilosopherArt.draw(self)
     PhilosopherFusionArt.draw(self)
@@ -4950,47 +4960,132 @@ function ClearcutMode:drawThrownTrees(game)
     end
 end
 
+function ClearcutMode:drawHeldSmoker(game,t)
+    SmokeRingArt.drawCharge(self,game,t)
+    local smoking=self.smoking
+    if not smoking or smoking.phase=="flick" then return end
+    self:drawSmokerReloadBar(game);self:drawSmokerCigarette(game)
+    local _,mouthY,facing,tipX=self:smokerMouthPose(game)
+    local progress=smoking.phase=="loaded" and 1 or math.min(1,smoking.t/smoking.dur)
+    local breath=smoking.phase=="loaded" and .58 or (.55+math.sin(progress*math.pi)*.45)
+    local equipment=game.player.clearcutSprite and game.player.clearcutSprite.cigarette
+    if equipment then Cigarette.drawSmoke(equipment,tipX,mouthY,facing,t);return end
+    for i=0,13 do
+        local rise=i*3;local drift=math.sin(t*1.65-i*.34)*i*.26+facing*i*.16
+        love.graphics.setColor(.78,.79,.75,(.30-i*.018)*breath)
+        love.graphics.rectangle("fill",math.floor(tipX+drift+.5),math.floor(mouthY-rise-2),2,2)
+    end
+end
+
+local function queueUpright(queue,x,y,draw,sortY,anchorY)
+    queue[#queue+1]={x=x,y=y,anchorY=anchorY or y,sortBias=(sortY and sortY-y or 0),draw=draw}
+end
+
+function ClearcutMode:queueProjectedOverlay(game,t)
+    local queue=game.world.billboardQueue;if not queue then return end
+    local player=game.player
+    queueUpright(queue,player.x,player.y,function()
+        local px,py=player.x+14,player.y-34
+        if self.job=="fire" then self:drawHeldSmoker(game,t)
+        elseif self.job=="toxic" then VeganForkArt.drawFork(self,game)
+        elseif self.job=="physical" then drawPixelGrid(axeIconRows,axeIconPalette,px,py,2.2)
+        elseif self.job=="developer" then drawPixelGrid(hardhatIconRows,hardhatIconPalette,px,py,2.4);self:drawDeveloperMachinery(game,t)
+        elseif self.job=="philosopher" then
+            drawPixelGrid(speechIconRows,speechIconPalette,px+math.sin(t*9)*1.5,py,2.2);self:drawSalivaGauge(game)
+        end
+        if self.rootedTimer>0 then
+            for i=1,3 do love.graphics.setLineWidth(3);love.graphics.setColor(.26,.48,.13,.75-i*.12);love.graphics.ellipse("line",player.x,player.y+10-i*2,17-i*3,7-i) end
+            for i=1,4 do
+                local a=i/4*math.pi*2+t*2.4;local lx,ly=player.x+math.cos(a)*15,player.y+9+math.sin(a)*6
+                love.graphics.push();love.graphics.translate(lx,ly);love.graphics.rotate(a)
+                love.graphics.setColor(.36,.64,.2,.85);love.graphics.ellipse("fill",0,0,4.2,2)
+                love.graphics.setColor(.16,.3,.07,.9);love.graphics.setLineWidth(.8);love.graphics.ellipse("line",0,0,4.2,2)
+                love.graphics.setColor(.22,.42,.1,.9);love.graphics.setLineWidth(1);love.graphics.line(-3.5,0,3.5,0);love.graphics.pop()
+            end
+        end
+        if self.invulnTimer>0 then love.graphics.setColor(1,.2,.15,.35);love.graphics.circle("fill",player.x,player.y-20,26) end
+    end,player.y+.04,player.y)
+
+    if self.job=="toxic" then queueUpright(queue,player.x,player.y,function()VeganForkArt.drawFx(self,game)end,player.y+.03,player.y) end
+    queueUpright(queue,player.x,player.y,function()
+        SupplementArt.draw(self,game,t);BruteForceArt.draw(self,game,t);PhilosopherArt.draw(self);self.traitFx:draw()
+    end,player.y+.02,player.y)
+    MoleClawArt.queue(self,queue);SecondhandSmokeArt.queue(self,queue)
+    if self.smokeRing then local ring=self.smokeRing;queueUpright(queue,ring.x,ring.y,function()self:drawSmokeRing(t)end) end
+    local groundTime=self.smokerGroundTime
+    for _,value in ipairs(self.cigaretteButts) do local butt=value
+        queueUpright(queue,butt.x,butt.y,function()CigaretteButtArt.drawSmolder(butt,groundTime)end)
+    end
+    for _,value in ipairs(self.emberTransfers) do local transfer=value
+        queueUpright(queue,(transfer.x+transfer.tx)*.5,(transfer.y+transfer.ty)*.5,function()CigaretteButtArt.drawTransfer(transfer,groundTime)end)
+    end
+    for _,value in ipairs(self.emberArrivals) do local arrival=value
+        queueUpright(queue,arrival.x,arrival.y,function()CigaretteButtArt.drawArrival(arrival,groundTime)end)
+    end
+    for _,value in ipairs(self.treeSparks) do local spark=value
+        queueUpright(queue,(spark.x+spark.tx)*.5,(spark.y+spark.ty)*.5,function()CigaretteButtArt.drawTransfer(spark,groundTime)end)
+    end
+    for _,value in ipairs(self.treeSparkArrivals) do local arrival=value
+        queueUpright(queue,arrival.x,arrival.y,function()CigaretteButtArt.drawArrival(arrival,groundTime)end)
+    end
+
+    for _,value in ipairs(self.thrownTrees) do local tree=value
+        queueUpright(queue,tree.x,tree.y,function()
+            local variants=(game.world.images and game.world.images.treeVariants)or{};local image=variants[math.max(1,math.min(#variants,tree.variant or 1))]
+            if image then local height=math.max(0,tree.z or 0);love.graphics.setColor(1,1,1,1);love.graphics.draw(image,tree.x,tree.y-height,tree.angle or 0,.82,.82,image:getWidth()/2,image:getHeight()*.91) end
+        end)
+    end
+    for _,value in ipairs(self.molotovs) do local flight=value;queueUpright(queue,flight.x,flight.y,function()CigaretteButtArt.drawFlight(flight,self.smokerGroundTime)end) end
+    for _,value in ipairs(self.bees) do local swarm=value
+        queueUpright(queue,swarm.x,swarm.y,function()
+            love.graphics.setColor(1,.9,.3,.08);love.graphics.circle("fill",swarm.x,swarm.y,40)
+            for i=1,5 do local a=t*14+i*1.3;drawBeeBody(swarm.x+math.cos(a)*(8+i),swarm.y+math.sin(a*1.7)*(6+i*.4),a,t*34+i*2,1.30) end
+        end)
+    end
+    for _,node in ipairs(game.world.nodes) do if node.rushTree and node.active and node.beehive then
+        -- 나무와 같은 발 좌표를 쓰더라도 반드시 수관보다 뒤에 그려지도록
+        -- 고정 sort bias를 둔다. 동일 키 table.sort의 프레임별 깜빡임을 막는다.
+        queueUpright(queue,node.x,node.y,function()drawBeehive(node.x,node.y-150,t)end,node.y+.08,node.y)
+    end end
+    for _,value in ipairs(self.chests) do local chest=value;if not chest.collected then
+        queueUpright(queue,chest.x,chest.y,function()
+            local bob=math.sin(t*2.4+chest.x)*4;love.graphics.setColor(1,.85,.3,.18+math.sin(t*3)*.08)
+            love.graphics.circle("fill",chest.x,chest.y+bob,34);drawPixelGrid(chestRows,chestPalette,chest.x,chest.y+bob,4.2)
+        end)
+    end end
+    for _,value in ipairs(self.projectiles) do local projectile=value
+        queueUpright(queue,projectile.x,projectile.y,function()
+            if projectile.kind=="plantSeed" or projectile.kind=="bambooBolt" or projectile.kind=="resinBlob" then AttackPlants.drawProjectile(projectile)
+            elseif projectile.kind=="thorn" then
+                love.graphics.push();love.graphics.translate(projectile.x,projectile.y);love.graphics.rotate(t*12);drawPixelGrid(thornRows,thornPalette,0,0,2.6);love.graphics.pop()
+            else love.graphics.setColor(projectile.color);love.graphics.circle("fill",projectile.x,projectile.y,4.5) end
+        end)
+    end
+    for _,value in ipairs(self.bossTelegraphs) do local tel=value
+        if tel.kind~="line" and tel.phase~="warn" and (tel.rootQuake or tel.branchFall or tel.plantKind) then
+            queueUpright(queue,tel.x,tel.y,function()AttackPlants.drawTelegraph(tel)end)
+        end
+    end
+    for _,value in ipairs(self.enemies) do local enemy=value;queueUpright(queue,enemy.x,enemy.y,function()drawEnemyThreat(enemy,t)end,enemy.y+.1,enemy.y) end
+end
+
 function ClearcutMode:drawWorldOverlay(game)
     love.graphics.setLineStyle("rough")
     local t = love.timer.getTime()
+    local projected=game.world.deferBillboards
+    if projected then self:queueProjectedOverlay(game,t) end
     local px, py = game.player.x + 14, game.player.y - 34
-    if self.job=="toxic" then VeganForkArt.drawFx(self,game) end
+    if not projected and self.job=="toxic" then VeganForkArt.drawFx(self,game) end
     if self.job == "fire" then
-        SecondhandSmokeArt.draw(self)
-        SmokeRingArt.drawCharge(self,game,t)
-        local smoking = self.smoking
-        if smoking and smoking.phase ~= "flick" then
-            self:drawSmokerReloadBar(game)
-            self:drawSmokerCigarette(game)
-            local mouthX,mouthY,facing,tipX=self:smokerMouthPose(game)
-            local progress=smoking.phase=="loaded" and 1 or math.min(1,smoking.t/smoking.dur)
-            local breath=smoking.phase=="loaded" and .58 or (.55+math.sin(progress*math.pi)*.45)
-            local equipment=game.player.clearcutSprite and game.player.clearcutSprite.cigarette
-            if equipment then
-                Cigarette.drawSmoke(equipment,tipX,mouthY,facing,t)
-            else
-                -- Legacy fallback for sprites without the authored equipment.
-                for i=0,13 do
-                    local rise=i*3
-                    local drift=math.sin(t*1.65-i*.34)*i*.26+facing*i*.16
-                    local alpha=(.30-i*.018)*breath
-                    love.graphics.setColor(.78,.79,.75,alpha)
-                    love.graphics.rectangle("fill",math.floor(tipX+drift+.5),math.floor(mouthY-rise-2),2,2)
-                end
-                love.graphics.setColor(.92,.34,.10,.55+math.sin(t*8)*.12)
-                love.graphics.rectangle("fill",math.floor(tipX+.5),math.floor(mouthY-.5),2,2)
-            end
-        end
-        self:drawSmokeRing(t)
+        if not projected then SecondhandSmokeArt.draw(self);self:drawHeldSmoker(game,t);self:drawSmokeRing(t) end
     elseif self.job == "toxic" then
-        VeganForkArt.drawFork(self,game)
+        if not projected then VeganForkArt.drawFork(self,game) end
     elseif self.job == "physical" then
-        drawPixelGrid(axeIconRows, axeIconPalette, px, py, 2.2)
+        if not projected then drawPixelGrid(axeIconRows, axeIconPalette, px, py, 2.2) end
     elseif self.job == "developer" then
-        drawPixelGrid(hardhatIconRows, hardhatIconPalette, px, py, 2.4)
+        if not projected then drawPixelGrid(hardhatIconRows, hardhatIconPalette, px, py, 2.4) end
     elseif self.job == "philosopher" then
-        local jitter = math.sin(t * 9) * 1.5
-        drawPixelGrid(speechIconRows, speechIconPalette, px + jitter, py, 2.2)
+        if not projected then local jitter=math.sin(t*9)*1.5;drawPixelGrid(speechIconRows,speechIconPalette,px+jitter,py,2.2) end
     end
     if (self.job == "fire" or self.job == "philosopher") and self.aimX then
         local ringColor = self.job == "fire" and {1, .5, .15} or {.75, .9, .35}
@@ -5036,7 +5131,7 @@ function ClearcutMode:drawWorldOverlay(game)
             love.graphics.setColor(1,.66,.16,.9); love.graphics.rectangle("fill",ex-9,ey-2,18,4); love.graphics.rectangle("fill",ex-2,ey-9,4,18)
         end
     end
-    if self.job == "philosopher" then self:drawSalivaGauge(game) end
+    if not projected and self.job == "philosopher" then self:drawSalivaGauge(game) end
     if self.job == "developer" and #self.dashTrail > 0 then
         for _, tr in ipairs(self.dashTrail) do
             local a = math.max(0, tr.life / tr.maxLife)
@@ -5053,24 +5148,27 @@ function ClearcutMode:drawWorldOverlay(game)
             end
         end
     end
-    if self.job=="developer" then self:drawDeveloperMachinery(game,t) end
-    self:drawThrownTrees(game)
-    self:drawSupplementSkills(game, t)
-    self.traitFx:draw()
+    if not projected then
+        if self.job=="developer" then self:drawDeveloperMachinery(game,t) end
+        self:drawThrownTrees(game)
+        self:drawSupplementSkills(game,t)
+        MoleClawArt.draw(self,game,t)
+        self.traitFx:draw()
+    end
     AttackPlants.drawWorld(self,t)
-    for _, node in ipairs(game.world.nodes) do
+    if not projected then for _, node in ipairs(game.world.nodes) do
         if node.rushTree and node.active and node.beehive then
             drawBeehive(node.x, node.y - 150, t)
         end
-    end
-    for _, c in ipairs(self.chests) do
+    end end
+    if not projected then for _, c in ipairs(self.chests) do
         if not c.collected then
             local bob = math.sin(t * 2.4 + c.x) * 4
             love.graphics.setColor(1, .85, .3, .18 + math.sin(t * 3) * .08)
             love.graphics.circle("fill", c.x, c.y + bob, 34)
             drawPixelGrid(chestRows, chestPalette, c.x, c.y + bob, 4.2)
         end
-    end
+    end end
     for _, hazard in ipairs(self.rootHazards) do
         if hazard.berserk then
             if hazard.phase == "warn" then
@@ -5144,15 +5242,15 @@ function ClearcutMode:drawWorldOverlay(game)
             end
         end
     end
-    for _, swarm in ipairs(self.bees) do
+    if not projected then for _, swarm in ipairs(self.bees) do
         love.graphics.setColor(1, .9, .3, .08); love.graphics.circle("fill", swarm.x, swarm.y, 40)
         for i = 1, 5 do
             local a = t * 14 + i * 1.3
             local bx, by = swarm.x + math.cos(a) * (8 + i), swarm.y + math.sin(a * 1.7) * (6 + i * .4)
             drawBeeBody(bx, by, a, t * 34 + i * 2,1.30)
         end
-    end
-    if self.rootedTimer > 0 then
+    end end
+    if not projected and self.rootedTimer > 0 then
         for i = 1, 3 do
             love.graphics.setLineWidth(3); love.graphics.setColor(.26, .48, .13, .75 - i * .12)
             love.graphics.ellipse("line", game.player.x, game.player.y + 10 - i * 2, 17 - i * 3, 7 - i)
@@ -5167,8 +5265,8 @@ function ClearcutMode:drawWorldOverlay(game)
             love.graphics.pop()
         end
     end
-    self:drawCigaretteProjectiles(t)
-    self:drawCigaretteGroundEffects()
+    if not projected then self:drawCigaretteProjectiles(t) end
+    if not projected then self:drawCigaretteGroundEffects() end
     for _, tel in ipairs(self.bossTelegraphs) do
         if tel.kind == "line" then
             if tel.phase == "warn" then
@@ -5184,6 +5282,8 @@ function ClearcutMode:drawWorldOverlay(game)
                 love.graphics.setLineWidth(8); love.graphics.setColor(1, .85, .35, fade)
                 love.graphics.line(tel.x1, tel.y1, tel.x2, tel.y2)
             end
+        elseif projected and tel.phase~="warn" and (tel.rootQuake or tel.branchFall or tel.plantKind) then
+            -- Active authored impact art is queued as an upright billboard.
         elseif AttackPlants.drawTelegraph(tel) then
             -- Authored counterattack atlas handles root eruptions, falling branches and plant impacts.
         elseif tel.quake then
@@ -5249,8 +5349,8 @@ function ClearcutMode:drawWorldOverlay(game)
             love.graphics.ellipse("fill", v.x, v.y, 14 * glowT, 6 * glowT)
         end
     end
-    for _, e in ipairs(self.enemies) do drawEnemyThreat(e, t) end
-    for _, p in ipairs(self.projectiles) do
+    if not projected then for _, e in ipairs(self.enemies) do drawEnemyThreat(e,t) end end
+    if not projected then for _, p in ipairs(self.projectiles) do
         if p.kind=="plantSeed" or p.kind=="bambooBolt" or p.kind=="resinBlob" then
             AttackPlants.drawProjectile(p)
         elseif p.kind == "thorn" then
@@ -5263,8 +5363,8 @@ function ClearcutMode:drawWorldOverlay(game)
             love.graphics.setColor(p.color); love.graphics.circle("fill", p.x, p.y, 4.5)
             love.graphics.setColor(0, 0, 0, .8); love.graphics.setLineWidth(1); love.graphics.circle("line", p.x, p.y, 4.5)
         end
-    end
-    if self.invulnTimer > 0 then
+    end end
+    if not projected and self.invulnTimer > 0 then
         love.graphics.setColor(1, .2, .15, .35); love.graphics.circle("fill", game.player.x, game.player.y - 20, 26)
     end
     love.graphics.setLineStyle("smooth")

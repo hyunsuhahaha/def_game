@@ -98,7 +98,7 @@ function Projection.drawBillboards(queue,camera)
     for _,item in ipairs(queue) do
         local anchorY=item.anchorY or item.y
         item.screenX,item.screenY,item.screenScale=camera:worldToScreen(item.x,anchorY)
-        item.screenSort=math.abs(item.y)>50000 and item.y or item.screenY
+        item.screenSort=(math.abs(item.y)>50000 and item.y or item.screenY)+(item.sortBias or 0)
     end
     table.sort(queue,function(a,b) return a.screenSort<b.screenSort end)
     love.graphics.setBlendMode("alpha")

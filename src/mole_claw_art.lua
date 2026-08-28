@@ -86,4 +86,26 @@ function Art.draw(mode,game,t)
     love.graphics.setColor(unpack(previous))
 end
 
+function Art.queue(mode,queue)
+    if #(mode.minerClawFx or {})==0 and #(mode.minerClawMarks or {})==0 then return end
+    load()
+    for _,value in ipairs(mode.minerClawMarks or {}) do
+        local mark=value
+        queue[#queue+1]={x=mark.x,y=mark.y,anchorY=mark.y,draw=function()
+            local previous={love.graphics.getColor()};local tier=tierFor(mark.level)
+            love.graphics.setColor(.34,.25,.18,math.min(.86,mark.life/.8*.86)*.82)
+            drawEntry(mark,quads[tier][5]);love.graphics.setColor(unpack(previous))
+        end}
+    end
+    for _,value in ipairs(mode.minerClawFx or {}) do
+        local fx=value
+        queue[#queue+1]={x=fx.x,y=fx.y+.01,anchorY=fx.y,draw=function()
+            local previous={love.graphics.getColor()};local p=math.max(0,math.min(.999,1-fx.life/fx.maxLife))
+            local frame=math.floor(p*5)+1;local tier=tierFor(fx.level)
+            love.graphics.setColor(1,1,1,math.min(1,fx.life/.05));drawEntry(fx,quads[tier][frame])
+            love.graphics.setColor(unpack(previous))
+        end}
+    end
+end
+
 return Art

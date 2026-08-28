@@ -98,7 +98,7 @@ function love.load()
         }
     end
     if os.getenv("LAST_HAUL_CAPTURE_CLEARCUT") then
-        game:startClearcut()
+        game:startClearcut(nil,os.getenv("LAST_HAUL_CLEARCUT_MAP"))
         if game.clearcut and game.clearcut.intro then require("src.clearcut_intro").finish(game) end
         game.clearcut.levels.wide_blade,game.clearcut.levels.shockwave,game.clearcut.levels.berserker=2,2,1
         local target,best=game.world.nodes[1],math.huge
@@ -141,6 +141,7 @@ function love.load()
     end
     if os.getenv("LAST_HAUL_CAPTURE_CLEARCUT_FIREJOB") then
         game:startClearcut("fire")
+        if game.clearcut and game.clearcut.intro then require("src.clearcut_intro").finish(game) end
         game.clearcut.levels.molotov = 2
         love.mouse.setPosition(love.graphics.getWidth() / 2 + 220, love.graphics.getHeight() / 2 - 60)
         game.clearcut:updateHeldAxe(0, game, true)
@@ -303,9 +304,12 @@ function love.load()
     end
     if os.getenv("LAST_HAUL_CAPTURE_CLEARCUT_THREATS") then
         game:startClearcut()
+        if game.clearcut and game.clearcut.intro then require("src.clearcut_intro").finish(game) end
         game.clearcut.elapsed = 46
         game.clearcut:regrowPulse(game)
         game.clearcut.bees[#game.clearcut.bees+1] = {x=game.player.x+90,y=game.player.y-30,speed=150,life=7}
+        game.clearcut.minerClawFx={{x=game.player.x-105,y=game.player.y+34,angle=-.18,level=6,curveFlip=1,halfWidth=72,life=2,maxLife=2}}
+        game.clearcut.minerClawMarks={{x=game.player.x-105,y=game.player.y+34,angle=-.18,level=6,curveFlip=1,halfWidth=72,life=4,maxLife=4}}
         game.clearcut.beeSlow = true
         game.clearcut.rootHazards[#game.clearcut.rootHazards+1] = {x=game.player.x-70,y=game.player.y+40,phase="warn",timer=.4,radius=95}
         local planter=game.clearcut:spawnEnemy("planter",game.player.x+155,game.player.y-95)
