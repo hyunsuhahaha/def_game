@@ -1,4 +1,5 @@
 local VeganForkArt = {}
+local ForestArt = require("src.forest_arcade_art")
 
 local function clamp(v,a,b) return math.max(a,math.min(b,v)) end
 local function lerp(a,b,t) return a+(b-a)*t end
@@ -7,11 +8,11 @@ local function ease(t) t=clamp(t,0,1); return t*t*(3-2*t) end
 function VeganForkArt.load()
     local art={}
     art.fork=love.graphics.newImage("assets/characters/ingame/vegan-fork-pixel-v1.png")
-    art.impact=love.graphics.newImage("assets/fx/vegan-fork-impact-atlas-v1.png")
-    art.chomp=love.graphics.newImage("assets/fx/vegan-chomp-atlas-v1.png")
+    art.impact=love.graphics.newImage("assets/fx/vegan-fork-impact-atlas-v2.png")
+    art.chomp=love.graphics.newImage("assets/fx/vegan-fork-consume-atlas-v2.png")
     art.fork:setFilter("nearest","nearest"); art.impact:setFilter("nearest","nearest"); art.chomp:setFilter("nearest","nearest")
     art.impactQuads={}; art.chompQuads={}
-    for i=0,5 do art.impactQuads[i+1]=love.graphics.newQuad(i*96,0,96,96,576,96) end
+    for i=0,5 do art.impactQuads[i+1]=love.graphics.newQuad(i*128,0,128,128,768,128) end
     for i=0,7 do art.chompQuads[i+1]=love.graphics.newQuad(i*160,0,160,160,1280,160) end
     return art
 end
@@ -32,8 +33,20 @@ end
 
 function VeganForkArt.consume(mode,node,game)
     mode.veganConsumeFx[#mode.veganConsumeFx+1]={
-        x=node.x,y=node.y,variant=node.treeVariant or 1,t=0,dur=.92,
-        player=game.player,seed=(node.x*.017+node.y*.013)%6.28
+        kind="tree",x=node.x,y=node.y,variant=node.treeVariant or 1,t=0,dur=1.02,
+        player=game.player,facing=node.x<game.player.x and -1 or 1,
+        seed=(node.x*.017+node.y*.013)%6.28
+    }
+end
+
+function VeganForkArt.consumeEnemy(mode,enemy,game)
+    local victim={}
+    for key,value in pairs(enemy) do victim[key]=value end
+    victim.hp,victim.maxHp,victim.visualHit,victim.moving=1,math.max(1,enemy.maxHp or 1),0,false
+    mode.veganConsumeFx[#mode.veganConsumeFx+1]={
+        kind="enemy",x=enemy.x,y=enemy.y,enemy=victim,t=0,dur=1.02,
+        player=game.player,facing=enemy.x<game.player.x and -1 or 1,
+        seed=(enemy.x*.019+enemy.y*.011)%6.28
     }
 end
 
@@ -90,25 +103,30 @@ function VeganForkArt.drawFx(mode,game)
         local p=clamp(fx.t/fx.dur,0,.999)
         local frame=math.floor(p*6)+1
         love.graphics.setColor(1,1,1,1)
-        love.graphics.draw(art.impact,art.impactQuads[frame],fx.x,fx.y-32,0,.82,.82,48,48)
+        love.graphics.draw(art.impact,art.impactQuads[frame],fx.x,fx.y-30,0,.76,.76,64,64)
     end
     local variants=(game.world.images and game.world.images.treeVariants) or {}
     for _,fx in ipairs(mode.veganConsumeFx) do
         local p=clamp(fx.t/fx.dur,0,.999)
-        local image=variants[math.max(1,math.min(#variants,fx.variant))]
-        local pull=ease(clamp((p-.30)/.70,0,1))
+        local image=fx.kind=="tree" and variants[math.max(1,math.min(#variants,fx.variant or 1))] or nil
+        local pull=ease(clamp((p-.18)/.67,0,1))
         local mouthX=fx.player.x+12*(fx.player.facing or 1)
         local mouthY=fx.player.y-82
         local x=lerp(fx.x,mouthX,pull)
-        local y=lerp(fx.y,mouthY,pull)-math.sin(pull*math.pi)*74
-        local scale=(1-p*.86)*(1+math.sin(p*math.pi*5)*.025)
+        local y=lerp(fx.y,mouthY,pull)-math.sin(pull*math.pi)*62
+        local scale=math.max(.08,1-p*.9)*(1+math.sin(p*math.pi*5)*.025)
         if image then
             love.graphics.setColor(1,1,1,1-p*.28)
             love.graphics.draw(image,x,y,math.sin(p*math.pi*3+fx.seed)*.06,scale,scale,image:getWidth()/2,image:getHeight()*.91)
+        elseif fx.enemy and p<.92 then
+            ForestArt.drawCarried(fx.enemy,fx.t,x,y,scale*.86,
+                math.sin(p*math.pi*2+fx.seed)*.12)
         end
         local frame=math.floor(p*8)+1
-        love.graphics.setColor(1,1,1,1)
-        love.graphics.draw(art.chomp,art.chompQuads[frame],x,y-48,0,.78,.78,80,80)
+        love.graphics.push("all")
+        love.graphics.setColor(1,1,1,math.min(1,.72+p*.35))
+        love.graphics.draw(art.chomp,art.chompQuads[frame],x,y-42,0,(fx.facing or 1)*.72,.72,80,80)
+        love.graphics.pop()
     end
 end
 

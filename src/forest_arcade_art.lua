@@ -1,6 +1,7 @@
 -- Approved small arcade silhouettes. Art transforms never change combat state.
 local catalog = require("src.forest_arcade_catalog")
 for kind,spec in pairs(require("src.biome_enemy_catalog")) do catalog[kind]=spec end
+for kind,spec in pairs(require("src.attack_plant_catalog")) do catalog[kind]=spec end
 local Art = {}
 local assets, material
 
@@ -30,14 +31,18 @@ function Art.pose(e, t)
     local frame = moving and (math.floor(cycle)%6+1) or (spec.motion==2 and math.floor(cycle*.65)%6+1 or 1)
     local recoil = math.min(1, (e.visualAttack or 0)/.24)
     if recoil > 0 then frame = 10 + math.min(2, math.floor((1-recoil)*3)) end
-    if e.biomeState=="warn" then
+    if e.plantState=="windup" then
+        frame=7+math.min(2,math.floor((1-math.max(0,e.plantTimer)/(e.windupDuration or .62))*3))
+    elseif e.plantState=="recover" then
+        frame=10+math.min(2,math.floor((1-math.max(0,e.plantTimer)/(e.recoverDuration or .5))*3))
+    elseif e.biomeState=="warn" then
         frame=7+math.min(2,math.floor((1-math.max(0,e.biomeTimer)/(e.warnDuration or .65))*3))
     elseif e.biomeState=="lunge" then
         frame=10+math.min(2,math.floor((1-math.max(0,e.biomeTimer)/e.lungeDuration)*3))
     end
     if e.reaperState == "charging" then frame=8 end
     local facing = e.facing or spec.facing
-    local flip = (e.kind == "squirrel" or spec.biome) and facing/spec.facing or 1
+    local flip = (e.kind == "squirrel" or spec.biome or spec.directional) and facing/spec.facing or 1
     local scale = spec.width/spec.bodyWidth
     local bob = moving and math.abs(math.sin(cycle*math.pi/3))*1.3 or 0
     local lean = moving and math.sin(cycle*math.pi/3)*.025 or 0
@@ -63,6 +68,31 @@ function Art.drawBody(e, t)
     love.graphics.draw(asset.image,asset.frames[pose.frame],pose.x,pose.y,pose.angle,
         pose.sx,pose.sy,pose.spec.cell/2,pose.spec.foot)
     love.graphics.setShader(previous)
+end
+
+-- Draw a defeated enemy while another gameplay effect carries it. This keeps the
+-- real enemy sprite/material instead of replacing the victim with a generic blob.
+function Art.drawCarried(e, t, x, y, carryScale, angle)
+    load()
+    local originalX, originalY, originalMoving = e.x, e.y, e.moving
+    e.x, e.y, e.moving = 0, 0, false
+    local pose = Art.pose(e, t)
+    local asset = assets[e.kind]
+    local previous = love.graphics.getShader()
+    love.graphics.push("all")
+    love.graphics.translate(math.floor(x + .5), math.floor(y + .5))
+    love.graphics.rotate(angle or 0)
+    love.graphics.scale(carryScale or 1)
+    love.graphics.setShader(material)
+    material:send("hurt", 0)
+    material:send("elite", e.elite and 1 or 0)
+    material:send("plague", 0)
+    love.graphics.setColor(1, 1, 1, 1)
+    love.graphics.draw(asset.image, asset.frames[pose.frame], pose.x, pose.y, pose.angle,
+        pose.sx, pose.sy, pose.spec.cell / 2, pose.spec.foot)
+    love.graphics.setShader(previous)
+    love.graphics.pop()
+    e.x, e.y, e.moving = originalX, originalY, originalMoving
 end
 
 function Art.drawSprout(x,y,grow,t)

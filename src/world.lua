@@ -1,5 +1,6 @@
 local World = {}
 local ForestScenery = require("src.forest_scenery")
+local TreeDestruction = require("src.tree_destruction")
 World.__index = World
 
 local buildingDefs = require("src.buildings")
@@ -69,6 +70,10 @@ function World.new()
         turretBase = image("assets/turret-base-v1.png"), turretHead = image("assets/turret-head-v2.png"),
         muzzleFlash = image("assets/muzzle-flash-v1.png")
     }
+    self.images.treeDamage = image("assets/fx/tree-damage-atlas-v1.png")
+    self.images.treeDamage:setFilter("nearest","nearest")
+    self.treeDamageQuads={}
+    for i=0,3 do self.treeDamageQuads[i+1]=love.graphics.newQuad(i*160,0,160,160,self.images.treeDamage:getDimensions()) end
     self.images.treeVariants = {
         image("assets/trees/broadleaf-tree-pixel-v2.png"),
         image("assets/trees/pine-tree-pixel-v2.png"),
@@ -79,7 +84,7 @@ function World.new()
     for _, def in ipairs(buildingDefs) do self.buildingIcons[def.id] = image(def.icon or ("assets/upgrades/" .. def.id .. ".png")) end
     self.nodes, self.enemies, self.defenders, self.turrets, self.buildings, self.shots, self.drops, self.helpers = {}, {}, {}, {}, {}, {}, {}, {}
     self.bullets, self.muzzleFlashes, self.impactFlashes, self.chainArcs, self.explosions = {}, {}, {}, {}, {}
-    self.particles, self.popups, self.harvestChain, self.harvestChainTime = {}, {}, 0, 0
+    self.particles, self.popups, self.treeBreakFx, self.harvestChain, self.harvestChainTime = {}, {}, {}, 0, 0
     self.effectFont = love.graphics.newFont("assets/font-korean-bold.ttf", 18)
     self.quarryVisual = {shadowX = 5, shadowY = 7, shadowRx = 104, shadowRy = 11, shadowAlpha = .22, frontBias = 130}
     self.treeVisual = {
@@ -140,6 +145,8 @@ function World:spawnFallImpact(node, game)
         }
     end
     if game.camera then game.camera.trauma = math.min(1, game.camera.trauma + .22) end
+    local profile=TreeDestruction.fallProfile(node.rushMaxHp)
+    self.treeBreakFx[#self.treeBreakFx+1]={x=node.x+(node.fallDir or 1)*(node.fallReach or profile.reach)*.58,y=node.y-18,life=.32,maxLife=.32,scale=profile.breakScale}
     local chopper = activeChopper(game)
     if chopper and chopper.onTreeFallen then chopper:onTreeFallen(node, game) end
 end
@@ -179,6 +186,9 @@ function World:impactNode(node, game, strong)
     local x, y = effectOrigin(node)
     local color = effectColors[node.kind]
     node.hitFlash, node.hitShake = strong and .2 or .12, strong and .24 or .14
+    if node.rushTree and node.rushMaxHp and node.rushMaxHp>0 then
+        node.damageStage=TreeDestruction.damageStage(node.rushHp,node.rushMaxHp)
+    end
     for _ = 1, strong and 15 or 6 do self:addParticle(x, y, color, strong, false) end
     self.particles[#self.particles + 1] = {x = x, y = y, life = .2, maxLife = .2, size = 12, color = color, ring = true}
     if node.kind == "tree" and game.player then
@@ -206,7 +216,8 @@ function World:harvestBurst(node, game, amount, label)
     self.popups[#self.popups + 1] = {x = x, y = y - 78, life = 1.05, maxLife = 1.05, text = "+" .. amount .. " " .. label, color = color, chain = self.harvestChain}
     if node.rushTree then
         local sway = node.swayAngle or 0
-        node.fallT, node.fallDur = 0, .46
+        local profile=TreeDestruction.fallProfile(node.rushMaxHp)
+        node.fallT, node.fallDur, node.fallReach = 0, profile.duration, profile.reach
         node.fallDir = sway > 0 and 1 or sway < 0 and -1 or (love.math.random() < .5 and 1 or -1)
         for _ = 1, 10 do self:addLeafParticle(x, y) end
     end
@@ -255,6 +266,10 @@ function World:updateEffects(dt, game)
             p.x, p.y = p.x + p.vx * dt, p.y + p.vy * dt
         end
         if p.life <= 0 then table.remove(self.particles, i) end
+    end
+    for i=#self.treeBreakFx,1,-1 do
+        local fx=self.treeBreakFx[i];fx.life=fx.life-dt
+        if fx.life<=0 then table.remove(self.treeBreakFx,i) end
     end
     for i = #self.popups, 1, -1 do
         local popup = self.popups[i]
@@ -400,7 +415,7 @@ function World:update(dt, game)
             node.respawn = node.respawn - dt
             if node.respawn <= 0 then
                 node.active, node.work = true, 0
-                if node.rushTree then node.rushHp=node.rushMaxHp end
+                if node.rushTree then node.rushHp,node.damageStage=node.rushMaxHp,nil end
             end
         end
     end
@@ -1405,10 +1420,13 @@ function World:draw(player, actorSource)
                     local ft = node.fallT / node.fallDur
                     local ease = 1 - (1 - ft) * (1 - ft)
                     local angle = ease * math.pi * .42 * node.fallDir
+                    local small=(node.rushMaxHp or 5)<=4
+                    local slide=ease*(node.fallReach or 110)*(small and .34 or .10)*node.fallDir
+                    local lift=small and math.sin(ft*math.pi)*18 or 0
                     if ft > .82 then angle = angle + math.sin((ft - .82) / .18 * math.pi) * .05 * node.fallDir end
                     love.graphics.setColor(0, 0, 0, visual.shadowAlpha * (1 - ft * .4))
-                    love.graphics.ellipse("fill", node.x + visual.shadowX + ease * 30 * node.fallDir, node.y + visual.shadowY, visual.shadowRx * shadowScale * (1 + ease * .5), visual.shadowRy)
-                    groundedRotated(treeImage, node.x, node.y, visual.scale * variantScale, angle)
+                    love.graphics.ellipse("fill", node.x + visual.shadowX + slide, node.y + visual.shadowY, visual.shadowRx * shadowScale * (1 + ease * .5), visual.shadowRy)
+                    groundedRotated(treeImage, node.x+slide, node.y-lift, visual.scale * variantScale, angle)
                     return
                 elseif not node.active and node.rushTree then
                     if not node.uprooted then self:drawRushStump(node) end
@@ -1436,6 +1454,12 @@ function World:draw(player, actorSource)
                         end
                     end
                     groundedRotated(treeImage, node.x + ox, node.y + oy, visual.scale * variantScale * bump, node.swayAngle or 0)
+                    if (node.damageStage or 0)>0 then
+                        local q=self.treeDamageQuads[math.min(3,node.damageStage)]
+                        local ds=.18*(visual.scale/.28)
+                        love.graphics.setColor(1,1,1,.96)
+                        love.graphics.draw(self.images.treeDamage,q,node.x+ox,node.y+oy,0,ds,ds,80,154)
+                    end
                     if node.burning then
                         if actorSource and actorSource.drawCigaretteTreeFire then
                             actorSource:drawCigaretteTreeFire(node)
@@ -1548,6 +1572,12 @@ function World:draw(player, actorSource)
         local alpha = math.max(0, effect.life / effect.maxLife)
         love.graphics.setColor(1, .62, .18, alpha * .55); love.graphics.circle("fill", effect.x, effect.y, 10 + (1 - alpha) * 18)
         love.graphics.setColor(1, .95, .72, alpha); love.graphics.setLineWidth(3); love.graphics.circle("line", effect.x, effect.y, 6 + (1 - alpha) * 26)
+    end
+    for _,fx in ipairs(self.treeBreakFx) do
+        local a=math.max(0,fx.life/fx.maxLife)
+        local scale=fx.scale*(1+(1-a)*.16)
+        love.graphics.setColor(1,1,1,a)
+        love.graphics.draw(self.images.treeDamage,self.treeDamageQuads[4],fx.x,fx.y,0,scale,scale,80,80)
     end
     love.graphics.setBlendMode("alpha")
     for _, p in ipairs(self.particles) do

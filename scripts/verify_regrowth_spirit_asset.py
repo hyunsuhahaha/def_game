@@ -10,6 +10,7 @@ ROOT = Path(__file__).resolve().parents[1]
 MODEL = ROOT / "assets/enemies/concepts/regrowth-spirit-model-v1.png"
 ATLAS = ROOT / "assets/enemies/arcade/planter-atlas-v1.png"
 REPORT = ROOT / "docs/previews/regrowth-spirit-v1-build.json"
+CAST_FX = ROOT / "assets/fx/regrowth-cast-atlas-v2.png"
 
 
 def main():
@@ -34,7 +35,17 @@ def main():
     assert 'planter-atlas-v1.png' in catalog and "Placeholder art" not in catalog
     runtime = (ROOT / "src/clearcut_mode.lua").read_text(encoding="utf-8")
     assert "e.planterCasting" in runtime and 'e.kind == "planter"' in runtime
-    print(f"REGROWTH_SPIRIT_ASSET_OK size={atlas.width}x{atlas.height} frames=12 colors={colors} alpha=binary")
+    cast = np.asarray(Image.open(CAST_FX).convert("RGBA"))
+    assert cast.shape == (192, 1152, 4)
+    assert set(np.unique(cast[:, :, 3]).tolist()) == {0, 255}
+    cast_colors = len({tuple(pixel[:3]) for pixel in cast.reshape(-1, 4) if pixel[3]})
+    assert 72 <= cast_colors <= 128
+    assert len({cast[:, i*192:(i+1)*192].tobytes() for i in range(6)}) == 6
+    cast_runtime = (ROOT / "src/regrowth_cast_art.lua").read_text(encoding="utf-8")
+    assert "regrowth-cast-atlas-v2.png" in cast_runtime and "love.graphics.circle" not in cast_runtime
+    planter_block = runtime[runtime.index('e.kind == "planter"'):runtime.index("ForestArt.drawHealth")]
+    assert "RegrowthCastArt.draw(e)" in planter_block and "love.graphics.polygon" not in planter_block
+    print(f"REGROWTH_SPIRIT_ASSET_OK body={atlas.width}x{atlas.height}/12 cast=1152x192/6 colors={cast_colors} alpha=binary")
 
 
 if __name__ == "__main__":

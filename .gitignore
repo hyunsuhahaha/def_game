@@ -8,7 +8,14 @@ farming-system.png
 mining-system.png
 wall-*.png
 wall-system*.png
-docs/previews/
+docs/previews/*
+!docs/previews/signature-fx-v2-atlases.png
+!docs/previews/signature-fx-v2-display-scale.png
+!docs/previews/signature-fx-v2-build.json
+!docs/previews/regrowth-cast-v2-motion.gif
+!docs/previews/vegan-fork-consume-v2-motion.gif
+!docs/previews/tree-destruction-v1-3x.png
+!docs/previews/tree-destruction-v1-display-scale.png
 __pycache__/
 
 # Unused generation drafts kept only on the original workstation

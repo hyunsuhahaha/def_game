@@ -25,16 +25,18 @@ for value in column:
     inside=bool(value)
 assert runs==4,f"fork has {runs} readable tines"
 
-impact=rgba(ROOT/"assets/fx/vegan-fork-impact-atlas-v1.png")
-chomp=rgba(ROOT/"assets/fx/vegan-chomp-atlas-v1.png")
-assert impact.shape==(96,576,4) and chomp.shape==(160,1280,4)
-assert len({impact[:,i*96:(i+1)*96].tobytes() for i in range(6)})==6
+impact=rgba(ROOT/"assets/fx/vegan-fork-impact-atlas-v2.png")
+chomp=rgba(ROOT/"assets/fx/vegan-fork-consume-atlas-v2.png")
+assert impact.shape==(128,768,4) and chomp.shape==(160,1280,4)
+assert set(np.unique(impact[:,:,3]))=={0,255} and set(np.unique(chomp[:,:,3]))=={0,255}
+assert 72<=opaque_colors(impact)<=128 and 72<=opaque_colors(chomp)<=128
+assert len({impact[:,i*128:(i+1)*128].tobytes() for i in range(6)})==6
 assert len({chomp[:,i*160:(i+1)*160].tobytes() for i in range(8)})==8
 
 game=(ROOT/"src/game.lua").read_text(encoding="utf-8")
 runtime=(ROOT/"src/clearcut_mode.lua").read_text(encoding="utf-8")
 assert "vegan-atlas-pixel-v3.png" in game and "VeganForkArt.load" in game
-for token in ("fork_feast","buffet_fork","clean_plate","seconds_please","applyVeganFork","veganConsumeFx"):
+for token in ("fork_feast","buffet_fork","clean_plate","seconds_please","applyVeganFork","veganConsumeFx","consumeEnemy"):
     assert token in runtime,token
 assert "toxic_rain" not in runtime and "applyVeganBite" not in runtime
 print("VEGAN_FORK_ART_OK woman=v3 fork=4tines/84colors body=72colors fx=6+8 density=high")

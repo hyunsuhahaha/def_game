@@ -46,7 +46,7 @@
 
 - 나무 고정 원화: `assets/trees/concepts/forest-cartoon-models-v3.png`. 승인 시안에서 2×2 나무 보드를 만들고, 별도 배경 추출 요청으로 실제 RGBA를 받았다. 최초 보드의 가짜 체크무늬는 최종본에 사용하지 않았다.
 - 몬스터 고정 원화: `assets/enemies/concepts/forest-arcade-models-v3.png`. 단색 마젠타 배경을 명시했고 제작용 GLSL에서 키잉한다. 이 원화를 게임에서 직접 그리지 않는다.
-- 재생의 정령 고정 원화: `assets/enemies/concepts/regrowth-spirit-model-v1.png`. 새싹 두 잎, 에메랄드 씨앗 꼬투리 몸체, 발광 씨앗을 감싼 뿌리손, 뿌리발을 역할 실루엣으로 고정했다. `scripts/build_regrowth_spirit_asset.py`가 160×160 셀의 6+6 프레임을 GPU로 굽는다. 최종 아틀라스는 122색, 이진 알파이며 기존 작은 몬스터와 동일한 발선·nearest 계약을 쓴다.
+- 재생의 정령 고정 원화: `assets/enemies/concepts/regrowth-spirit-model-v1.png`. 새싹 두 잎, 에메랄드 씨앗 꼬투리 몸체, 발광 씨앗을 감싼 뿌리손, 뿌리발을 역할 실루엣으로 고정했다. `scripts/build_regrowth_spirit_asset.py`가 160×160 셀의 6+6 본체 프레임을 GPU로 굽는다. 시전 효과는 `regrowth-cast-fx-source-v2.png`를 `build_signature_fx_v2.py`가 192×192 셀 6프레임의 뿌리·씨앗·발아 아틀라스로 굽고, 런타임 원·선·폴리곤을 사용하지 않는다.
 - 최종 프롬프트 세트: [FOREST_ARCADE_PROMPTS.md](FOREST_ARCADE_PROMPTS.md).
 - 제작: `scripts/build_forest_arcade_assets.py` + `assets/shaders/forest-arcade-bake.glsl`. 원화의 형태를 고정하고 최종 픽셀 그리드, 재질 팔레트, 윤곽 명암, 발 접점과 동작을 결정적으로 굽는다.
 - 런타임 재질: `assets/shaders/forest-arcade-light.glsl`. 피격/정예/독 상태를 기존 색 위에서 처리하고 이전 셰이더를 복구한다.
@@ -57,10 +57,23 @@
 **사용자에게 보이는 게임 창은 실행하지 않았다.** 자산 검사는 오프스크린 GPU에서 수행했고, 최종 연결은 숨김 LÖVE 창으로 실제 런타임 캡처했다.
 
 - [기본 줌 .72 미리보기](previews/forest-arcade-v3-camera072.png), [원생 크기](previews/forest-arcade-v3-runtime.png), [확대](previews/forest-arcade-v3-zoom.png), [6프레임 동작](previews/forest-arcade-v3-motion.gif), [자산 보드](previews/forest-arcade-v3-assets.png).
-- 재생의 정령: [12칸 아틀라스](previews/regrowth-spirit-atlas-v1.png), [실제 필드와 시전 표시](previews/regrowth-spirit-runtime-v1.png), [제작 수치](previews/regrowth-spirit-v1-build.json).
+- 재생의 정령: [12칸 본체 아틀라스](previews/regrowth-spirit-atlas-v1.png), [기존 필드 배치](previews/regrowth-spirit-runtime-v1.png), [본체 제작 수치](previews/regrowth-spirit-v1-build.json), [v2 시전·포크 FX 아틀라스](previews/signature-fx-v2-atlases.png), [실제 표시 크기](previews/signature-fx-v2-display-scale.png), [시전 동작](previews/regrowth-cast-v2-motion.gif).
 - `verify_boss_sprites.lua`: 8종 실물 파일·nearest·발선·셰이더 복구·이동 방향/정지·접촉/발사 반동·실제 World 앞뒤 순서·overlay 중복 그리기 방지 통과. 숲 배치는 실제 `generateForest`를 사용한다.
-- `verify_regrowth_spirit_asset.py`: 960×320, 대기 6프레임과 순환 시전 동작, 122색, 이진 알파, 전용 카탈로그 연결과 시전 피드백 경로를 검사한다.
+- `verify_regrowth_spirit_asset.py`: 960×320 본체와 1152×192 시전 FX, 서로 다른 6프레임, 이진 알파, 제한 팔레트, 전용 카탈로그와 픽셀 아틀라스 시전 경로를 검사한다.
 - `verify_forest_arcade_assets.py`: 11개 파일, 이진 알파, 키색 잔여물, 서로 다른 걷기 6프레임, 모든 걷기 발선 검사 통과. 실제 런타임 재질/담배 불씨/연기 셰이더 3종 컴파일·렌더 통과.
 - 2026-08-28 기준 `scripts/headless_lua.py`의 Lua 검사 26종 전체 통과. 재생의 정령 전용 Python 자산 검사도 별도로 통과했다.
 
 재검증은 LÖVE 창 대신 Python(Pillow/numpy/moderngl)으로 `scripts/verify_forest_arcade_assets.py`를 실행한다. Lua DLL 기본 경로는 Windows LÖVE 설치 폴더이며 `LOVE_LUA_DLL`로 변경할 수 있다.
+# 공격 식물과 자연 반격 (v1)
+
+- 공격 식물 5종은 `assets/enemies/arcade/*-atlas-v1.png`의 160px 6x2 아틀라스를 사용한다.
+- 외형은 실사 재질이 아닌 짧고 굵은 카툰 픽셀 실루엣이며, 둘째 줄은 장식 프레임이 아니라 실제 공격 예비동작/타격/회수다.
+- 가시덩굴 사냥꾼은 연속 뿌리 찌르기, 망치 식인꽃은 지점 내려찍기, 폭발 씨앗 꼬투리는 5발 산탄, 대나무 압축포는 고속 직사, 송진 분사목은 감속 웅덩이를 만든다.
+- 뿌리 지진과 낙하 가지는 `assets/fx/nature-counterattack-atlas-v1.png`를 사용하며 경고 이후 접촉 판정과 같은 프레임에 타격 그림이 나온다.
+
+## 나무 파괴 손맛 (v1)
+
+- 나무 피해율 1~37%, 38~71%, 72% 이상을 3단 파손 흔적으로 표시한다.
+- 체력 4 이하의 작은 나무는 0.20초에 짧게 튕겨 나가며, 보통 나무는 0.44초, 체력 9 이상의 큰 나무는 0.64초에 묵직하게 쓰러진다.
+- 바닥 접촉 프레임에 `tree-damage-atlas-v1.png`의 목재·잎 파편과 기존 먼지·자원 방출이 함께 발생한다.
+- 쓰러진 나무가 다른 나무나 적에게 피해를 주는 연쇄 도미노 판정은 사용하지 않는다.

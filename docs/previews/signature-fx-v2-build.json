@@ -1,0 +1,20 @@
+{
+  "regrowth": {
+    "path": "assets\\fx\\regrowth-cast-atlas-v2.png",
+    "cell": 192,
+    "frames": 6,
+    "colors": 112
+  },
+  "veganImpact": {
+    "path": "assets\\fx\\vegan-fork-impact-atlas-v2.png",
+    "cell": 128,
+    "frames": 6,
+    "colors": 112
+  },
+  "veganConsume": {
+    "path": "assets\\fx\\vegan-fork-consume-atlas-v2.png",
+    "cell": 160,
+    "frames": 8,
+    "colors": 112
+  }
+}

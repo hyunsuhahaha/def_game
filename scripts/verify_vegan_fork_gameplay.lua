@@ -18,7 +18,11 @@ assert(not tree.active and mode.actionAudit.veganFork==1 and mode.actionAudit.ve
 assert(#mode.veganForkImpacts>=1 and #mode.veganConsumeFx==1,"fork/chomp visual events missing")
 assert(mode.veganHaste>0 and mode.hp>40 and (mode.bonusWood or 0)>0,"clean plate / seconds effects missing")
 assert(enemy.hp<40,"fork hitbox missed enemy inside the visible strike lane")
+enemy.hp=1
+mode:applyVeganFork({tx=100,ty=0},game)
+assert(enemy.hp<=0 and enemy.veganConsumed,"lethal multi-target fork did not mark enemy for eating")
+assert(#mode.veganConsumeFx==2 and mode.veganConsumeFx[2].kind=="enemy","defeated enemy was not pulled into consume FX")
 assert(#mode.plagued==0 and not tree.plagueMarked and not enemy.plagueMarked,"vegan fork still applies poison")
 local source=assert(io.open("src/clearcut_mode.lua","rb")):read("*a")
 assert(not source:find("toxic_rain",1,true) and not source:find("updateToxicRain",1,true),"removed vegan poison skill remains in runtime")
-print("VEGAN_FORK_GAMEPLAY_OK contact=.53 consume=lethal poison=removed skills=4 fusion=ready")
+print("VEGAN_FORK_GAMEPLAY_OK contact=.53 multi=tree+enemy consume=pull-to-mouth poison=removed skills=4 fusion=ready")

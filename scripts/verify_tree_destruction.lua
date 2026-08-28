@@ -1,0 +1,12 @@
+package.path="./?.lua;./?/init.lua;"..package.path
+local Tree=require("src.tree_destruction")
+assert(Tree.damageStage(7,7)==0)
+assert(Tree.damageStage(6,7)==1)
+assert(Tree.damageStage(4,7)==2)
+assert(Tree.damageStage(1,7)==3)
+local small,normal,large=Tree.fallProfile(4),Tree.fallProfile(7),Tree.fallProfile(14)
+assert(small.duration<normal.duration and normal.duration<large.duration,"fall weight ordering")
+assert(small.reach>normal.reach,"small trees should snap farther")
+local mode=assert(io.open("src/clearcut_mode.lua","rb")):read("*a")
+assert(not mode:find("function ClearcutMode:onTreeFallen",1,true),"domino callback must stay absent")
+print("TREE_DESTRUCTION_GAMEPLAY_OK stages=3 small=snap large=weighty domino=off")

@@ -13,12 +13,14 @@ local ForestArt = require("src.forest_arcade_art")
 local ForestScenery = require("src.forest_scenery")
 local Fusions = require("src.clearcut_fusions")
 local BiomeEnemies = require("src.biome_enemies")
+local AttackPlants = require("src.attack_plants")
 local SupplementArt = require("src.supplement_art")
 local PhilosopherArt = require("src.philosopher_art")
 local RevivalCrowdArt = require("src.revival_crowd_art")
 local SmokeRingArt = require("src.smoke_ring_art")
 local BeeArt = require("src.bee_art")
 local VeganForkArt = require("src.vegan_fork_art")
+local RegrowthCastArt = require("src.regrowth_cast_art")
 
 local ClearcutMode = {}
 ClearcutMode.__index = ClearcutMode
@@ -31,7 +33,7 @@ local jobNames = {physical = "생계형 나무꾼", fire = "흡연자", toxic = 
 local jobDesc = {
     physical = "그냥 오늘 할당량을 채우러 왔을 뿐이다. 대출은 갚아야 하니까.",
     fire = "마우스 위치에 꽁초를 튕깁니다. 날아가는 도중 스치는 적에게는 그 자리에서 피해를 줍니다. 꽁초는 바닥에 남아 타들어가며 주변 나무로 기본 42%(최대 75%) 확률로 불씨를 옮깁니다. 착지 즉시 불붙지는 않습니다.",
-    toxic = "커다란 포크로 전방의 나무를 찍습니다. 이 타격으로 HP가 0이 된 나무는 그대로 끌어당겨 먹어 치웁니다.",
+    toxic = "커다란 포크로 전방의 여러 나무와 적을 한꺼번에 찍습니다. 이 타격으로 쓰러진 대상은 포크에 꿰어 끌어당긴 뒤 먹어 치웁니다.",
     developer = "기본 공격이 도끼질 대신 마우스 방향으로 중장비 돌진하는 것으로 바뀝니다. 여기에 아파트 지으면 됨.",
     miner = "거대한 발톱으로 전방을 할퀴고, 땅속에 잠복해 지나치는 나무를 뿌리째 뽑아 던집니다.",
     philosopher = "기본 공격이 도끼질 대신 마우스 방향으로 끝없는 일장연설이 됩니다. 침이 사방으로 튀고, 말이 길어질수록 사거리와 독성이 강해집니다."
@@ -50,10 +52,10 @@ local definitions = {
     {id="straw_bale", track="spread", name="마른 건초더미 생성", desc="주기적으로 큰 건초더미를 둡니다. 꽁초가 닿으면 0.5초 뒤 불이 붙고, 레벨에 따라 넓어지는 화염 지대가 주변 나무와 적에게 지속 피해를 줍니다. 불이 옮겨붙어 다른 대상을 점화시키지는 않습니다.", max=6, color={.85,.72,.25}, job="fire"},
     {id="smoke_ring", track="spread", name="도넛 강화 — 니코틴 농축", desc="SPACE로 쏘는 도넛 연기의 재사용 대기시간이 줄고, 피해·넉백·크기가 늘어납니다. 6레벨에는 SPACE를 끝까지 충전하면 초농축 도넛이 발사됩니다. 중간에 놓으면 일반 도넛과 같습니다.", max=6, color={1,.68,.2}, job="fire"},
     -- 식탐력 (suppress) — 큰 포크로 찍고 마지막 한입까지 비운다 [비건 단체 회장 전용 + 공용]
-    {id="fork_feast", track="suppress", name="대왕 포크", desc="기본 공격이 전방 포크 찍기로 바뀝니다. 레벨마다 포크 피해와 사거리가 늘고, 이 타격으로 HP가 0이 된 나무는 먹어 치웁니다.", max=6, color={.62,.92,.32}, job="toxic"},
+    {id="fork_feast", track="suppress", name="대왕 포크", desc="기본 공격이 전방 다중 포크 찍기로 바뀝니다. 레벨마다 포크 피해와 사거리가 늘고, 이 타격으로 쓰러진 나무와 적은 끌어와 먹습니다.", max=6, color={.62,.92,.32}, job="toxic"},
     {id="buffet_fork", track="suppress", name="뷔페용 포크", desc="포크의 좌우 피격 폭과 동시에 찍는 대상 수가 늘어납니다. 6레벨에는 타격 순간 커다란 포크 잔상이 한 번 더 찍힙니다.", max=6, color={.48,.82,.66}, job="toxic"},
-    {id="clean_plate", track="suppress", name="접시 비우기", desc="나무를 먹어 치울 때 체력을 회복하고 추가 목재를 얻습니다. 6레벨에는 사방으로 튄 부스러기가 주변 적에게 피해를 줍니다.", max=6, color={1,.76,.28}, job="toxic"},
-    {id="seconds_please", track="suppress", name="한 그릇 더", desc="나무를 먹은 뒤 잠시 포크질 속도가 빨라집니다. 연속으로 먹을수록 식사 템포를 유지하기 쉬워집니다.", max=6, color={.92,.48,.68}, job="toxic"},
+    {id="clean_plate", track="suppress", name="접시 비우기", desc="포크로 쓰러뜨린 대상을 먹을 때 체력을 회복하고, 나무라면 추가 목재도 얻습니다. 6레벨에는 부스러기가 주변 적에게 피해를 줍니다.", max=6, color={1,.76,.28}, job="toxic"},
+    {id="seconds_please", track="suppress", name="한 그릇 더", desc="대상을 먹은 뒤 잠시 포크질 속도가 빨라집니다. 연속으로 먹을수록 식사 템포를 유지하기 쉬워집니다.", max=6, color={.92,.48,.68}, job="toxic"},
     {id="forced_growth", track="suppress", name="강제 성장", desc="숲의 재생 속도가 크게 빨라지지만, 목재 경험치 획득량도 크게 늘어납니다.", max=6, color={.85,.7,.25}},
     -- 개발력 (develop) — 말뚝 → 중장비 → 폭파 [부동산 개발업자 전용]
     {id="pile_driving", track="develop", name="말뚝 박기", desc="돌진 사거리가 늘어나고 재사용 대기시간이 줄어듭니다.", max=6, color={.7,.62,.4}, job="developer"},
@@ -129,6 +131,7 @@ local enemyDefs = {
 }
 
 for kind,def in pairs(BiomeEnemies.definitions) do enemyDefs[kind]=def end
+for kind,def in pairs(AttackPlants.definitions) do enemyDefs[kind]=def end
 
 local function formatTime(value)
     value = math.max(0, math.floor(value))
@@ -156,7 +159,7 @@ function ClearcutMode.new()
         smokerHeldLast=false, physicalAction=nil, veganAction=nil, veganForkImpacts={}, veganConsumeFx={}, veganHaste=0, developerAction=nil,
         actionAudit={physicalImpact=0,cigaretteFlick=0,veganFork=0,veganConsume=0,developerRemote=0},
         hp=100, maxHp=100, invulnTimer=0, dead=false,
-        enemies={}, projectiles={}, bossTelegraphs={}, waveFired={}, worldTreeSpawned=false, readyToFinish=false, activeBoss=nil, kills=0,
+        enemies={}, projectiles={}, bossTelegraphs={}, resinPuddles={}, waveFired={}, worldTreeSpawned=false, readyToFinish=false, activeBoss=nil, kills=0,
         chests={}, chestPending=false, molotovShots=0, wildburstTimer=10, plagued={}, dodges=0,
         timeSpawnTimer=35, eliteTimer=200, reaperSpawned=false,
         stage=1, stageBossHpMul=1,
@@ -375,7 +378,7 @@ function ClearcutMode:advanceStage(game)
     self.regrowInterval=self.stage==1 and 12 or (self.stage==2 and 9 or 7)
     self.stageBossHpMul = 1 + (self.stage - 1) * .55
     game.world.nodes, game.world.drops = {}, {}
-    self.enemies, self.projectiles, self.bossTelegraphs = {}, {}, {}
+    self.enemies, self.projectiles, self.bossTelegraphs, self.resinPuddles = {}, {}, {}, {}
     self.rootHazards, self.bees, self.molotovs, self.chests, self.plagued = {}, {}, {}, {}, {}
     self.veganForkImpacts,self.veganConsumeFx,self.veganHaste={},{},0
     self.milestoneFired, self.worldTreeSpawned, self.worldTree, self.activeBoss = {}, false, nil, nil
@@ -422,6 +425,7 @@ function ClearcutMode:update(dt, game)
     self:updateBerserkFlashNodes(dt)
     self:updateVinePlants(dt, game)
     self:updateDisasters(dt, game)
+    AttackPlants.updateWorld(self,dt,game)
     self:updateEnemies(dt, game)
     self:updateProjectiles(dt, game)
     self:updateBossTelegraphs(dt, game)
@@ -480,7 +484,7 @@ function ClearcutMode:regrowPulse(game)
     for i = 1, count do
         local node = candidates[i]
         node.active, node.rushHp = true, node.rushMaxHp
-        node.burning, node.fallT, node.uprooted = nil, nil, nil
+        node.burning, node.fallT, node.uprooted, node.damageStage = nil, nil, nil, nil
         self.remainingTrees = self.remainingTrees + 1
     end
     if count > 0 then
@@ -511,7 +515,7 @@ function ClearcutMode:plantTreesNear(e, game)
     for i = 1, count do
         local node = candidates[i]
         node.active, node.rushHp = true, node.rushMaxHp
-        node.burning, node.fallT, node.uprooted = nil, nil, nil
+        node.burning, node.fallT, node.uprooted, node.damageStage = nil, nil, nil, nil
         self.remainingTrees = self.remainingTrees + 1
     end
     self.treesRevived = self.treesRevived + count
@@ -675,10 +679,12 @@ function ClearcutMode:updateTimeSpawner(dt, game)
     self.timeSpawnTimer = opening==1 and 9 or (opening==2 and 7 or math.max(.5,(6.5-curse*1.1)/berserkMul))
     local count = opening and (opening==1 and 1 or (love.math.random()<.5 and 1 or 2)) or math.floor((1+curse*1.4)*berserkMul)
     local pool = {"squirrel", "squirrel", "boar"}
+    if self.elapsed>=75 then pool[#pool+1]="thornHunter";pool[#pool+1]="seedPod" end
+    if self.elapsed>=150 then pool[#pool+1]="hammerBloom";pool[#pool+1]="bambooCannon";pool[#pool+1]="resinSprayer" end
     for _ = 1, count do
         local kind = pool[love.math.random(#pool)]
         local a = love.math.random() * math.pi * 2
-        local r = 520 + love.math.random() * 200
+        local r = enemyDefs[kind].plantAttack and (180+love.math.random()*230) or (520 + love.math.random() * 200)
         self:spawnEnemy(kind, game.player.x + math.cos(a) * r, game.player.y + math.sin(a) * r)
     end
 end
@@ -810,7 +816,7 @@ function ClearcutMode:updateVinePlants(dt, game)
     game:setNotice("땅속에서 무언가 꿈틀거린다...", "ore")
 end
 
--- 자연재해: 화난 자연이 숲 그 자체를 무기로 쓴다. 비(방화 완전 봉쇄)와 지진(회피형 광역 낙석)을 순환시킨다.
+-- 자연재해: 비, 뿌리 지진, 낙하 가지. 지면 경고 뒤 실제 식생이 공격한다.
 function ClearcutMode:updateDisasters(dt, game)
     if self.sandbox then return end
     if self.stage<2 then return end
@@ -818,8 +824,8 @@ function ClearcutMode:updateDisasters(dt, game)
     if self.disasterState == "idle" then
         if self.disasterTimer <= 0 then
             self.disasterState, self.disasterTimer = "warn", 3.4
-            self.disasterType = love.math.random() < .5 and "rain" or "quake"
-            game:setNotice(self.disasterType == "rain" and "먹구름이 몰려온다..." or "땅이 울렁이기 시작한다...", "ore")
+            local roll=love.math.random();self.disasterType=roll<.34 and "rain" or (roll<.68 and "rootQuake" or "branchFall")
+            game:setNotice(self.disasterType == "rain" and "먹구름이 몰려온다..." or (self.disasterType=="rootQuake" and "거대한 뿌리가 땅속을 뒤튼다..." or "수관 위에서 굵은 가지가 부러진다..."), "ore")
         end
     elseif self.disasterState == "warn" then
         if self.disasterTimer <= 0 then
@@ -836,7 +842,7 @@ function ClearcutMode:updateDisasters(dt, game)
                 game:setNotice("소나기 — 타오르던 불이 전부 꺼진다!", "food")
             else
                 self.quakeTickTimer = 0
-                game:setNotice("지진 발생 — 흔들리는 땅을 피해라!", "ore")
+                game:setNotice(self.disasterType=="rootQuake" and "뿌리 지진 — 솟는 선을 피해라!" or "낙하 가지 — 그림자 밖으로 피해라!", "ore")
             end
         end
     elseif self.disasterState == "active" then
@@ -849,16 +855,17 @@ function ClearcutMode:updateDisasters(dt, game)
                 if game.camera then game.camera.trauma = math.min(1, game.camera.trauma + .12) end
             end
         end
-        if self.disasterType == "quake" then
+        if self.disasterType == "rootQuake" or self.disasterType=="branchFall" then
             self.quakeTickTimer = (self.quakeTickTimer or 0) - dt
             if game.camera then game.camera.trauma = math.min(1, game.camera.trauma + dt * .3) end
             if self.quakeTickTimer <= 0 then
-                self.quakeTickTimer = .8
+                self.quakeTickTimer = self.disasterType=="rootQuake" and .72 or 1.05
                 local a = love.math.random() * math.pi * 2
                 local r = 60 + love.math.random() * 260
                 self.bossTelegraphs[#self.bossTelegraphs + 1] = {
                     x = game.player.x + math.cos(a) * r, y = game.player.y + math.sin(a) * r,
-                    radius = 72, phase = "warn", timer = .75, damage = 13, quake = true,
+                    radius = self.disasterType=="rootQuake" and 58 or 76, phase = "warn", timer = self.disasterType=="rootQuake" and .65 or .9,
+                    damage = self.disasterType=="rootQuake" and 13 or 17, rootQuake=self.disasterType=="rootQuake", branchFall=self.disasterType=="branchFall",
                 }
             end
         end
@@ -964,8 +971,10 @@ function ClearcutMode:updateProjectiles(dt, game)
         local dx, dy = game.player.x - p.x, game.player.y - p.y
         if dx*dx + dy*dy <= 22*22 then
             self:damagePlayer(p.damage, game)
+            AttackPlants.onProjectileExpired(self,p)
             table.remove(self.projectiles, i)
         elseif p.life <= 0 then
+            AttackPlants.onProjectileExpired(self,p)
             table.remove(self.projectiles, i)
         end
     end
@@ -1126,6 +1135,8 @@ function ClearcutMode:updateEnemies(dt, game)
             e.x, e.y = e.x + e.knockVX * dt, e.y + e.knockVY * dt
             e.knockVX, e.knockVY = e.knockVX * .86, e.knockVY * .86
             e.moving = true
+        elseif AttackPlants.update(e,dt,self,game) then
+            -- Rooted attack plants own their authored windup, strike and recovery.
         elseif BiomeEnemies.update(e,dt,self,game) then
             -- Regional attacks own their windup, swept hit and recovery phases.
         elseif e.kind == "reaper" then
@@ -1945,8 +1956,21 @@ function ClearcutMode:applyVeganFork(action, game)
         local along=ox*nx+oy*ny
         local lateral=math.abs(ox*ny-oy*nx)
         if along>=0 and along<=range and lateral<=halfWidth+(e.def.radius or 0) then
+            local alive=e.hp>0
             e.hp=e.hp-dmg*(echo and 4.5 or 3); e.visualHit=.16
             VeganForkArt.impact(self,e.x,e.y-12)
+            if alive and e.hp<=0 and not e.veganConsumed then
+                e.veganConsumed=true
+                VeganForkArt.consumeEnemy(self,e,game)
+                consumed=consumed+1
+                self.actionAudit.veganConsume=self.actionAudit.veganConsume+1
+                if game.achievements then game.achievements:add("vegan_eaten",1) end
+                local plate=self:power("clean_plate")
+                if plate>0 then
+                    self.hp=math.min(self.maxHp,self.hp+1+math.floor(plate/2))
+                    if self:levelOf("clean_plate")>=6 then self:damageEnemiesInRadius(e.x,e.y,120,10+plate*2,game) end
+                end
+            end
         end
     end
     if consumed>0 then
@@ -4451,6 +4475,7 @@ ClearcutMode.drawPixelGrid = drawPixelGrid
 -- Threat markers remain above the canopy for combat readability; bodies do not.
 local function drawEnemyThreat(e, t)
     BiomeEnemies.drawWarning(e)
+    AttackPlants.drawWarning(e)
     local def = e.def
     local walking = def.speed > 0 and (e.moving or false)
     local seed = e.seed or 0
@@ -4481,18 +4506,7 @@ local function drawEnemyThreat(e, t)
             love.graphics.line(e.x + math.cos(a) * r1, e.y - bob + math.sin(a) * r1 * .6, e.x + math.cos(a) * r2, e.y - bob + math.sin(a) * r2 * .6)
         end
     elseif e.kind == "planter" then
-        local left=math.max(0,e.plantTimer or def.plantInterval or 7)
-        local charge=left<=1.5 and (1-left/1.5) or 0
-        local pulse=.5+math.sin(t*8+seed)*.5
-        love.graphics.setColor(.32,1,.48,.10+charge*.22); love.graphics.circle("fill",e.x,e.y,def.plantRadius*(.12+charge*.18))
-        love.graphics.setLineWidth(1.5+charge*2); love.graphics.setColor(.58,1,.36,.42+charge*.5)
-        love.graphics.circle("line",e.x,e.y,def.radius*(1.2+pulse*.15+charge*.4))
-        for i=1,4 do
-            local a=t*(1.2+charge*1.5)+i*math.pi*.5+seed
-            local r=def.radius*(1.25+charge*.75)
-            love.graphics.setColor(.65,1,.42,.45+charge*.45)
-            love.graphics.polygon("fill",e.x+math.cos(a)*r,e.y-28+math.sin(a)*r*.45-4,e.x+math.cos(a)*r+4,e.y-28+math.sin(a)*r*.45,e.x+math.cos(a)*r,e.y-28+math.sin(a)*r*.45+4,e.x+math.cos(a)*r-3,e.y-28+math.sin(a)*r*.45)
-        end
+        RegrowthCastArt.draw(e)
     end
     ForestArt.drawHealth(e,t)
 end
@@ -4707,6 +4721,7 @@ function ClearcutMode:drawWorldOverlay(game)
     self:drawThrownTrees(game)
     self:drawSupplementSkills(game, t)
     self.traitFx:draw()
+    AttackPlants.drawWorld(self,t)
     for _, node in ipairs(game.world.nodes) do
         if node.rushTree and node.active and node.beehive then
             drawBeehive(node.x, node.y - 150, t)
@@ -4833,6 +4848,8 @@ function ClearcutMode:drawWorldOverlay(game)
                 love.graphics.setLineWidth(8); love.graphics.setColor(1, .85, .35, fade)
                 love.graphics.line(tel.x1, tel.y1, tel.x2, tel.y2)
             end
+        elseif AttackPlants.drawTelegraph(tel) then
+            -- Authored counterattack atlas handles root eruptions, falling branches and plant impacts.
         elseif tel.quake then
             if tel.phase == "warn" then
                 local pulse = 1 - math.max(0, tel.timer) / .75
@@ -4898,7 +4915,9 @@ function ClearcutMode:drawWorldOverlay(game)
     end
     for _, e in ipairs(self.enemies) do drawEnemyThreat(e, t) end
     for _, p in ipairs(self.projectiles) do
-        if p.kind == "thorn" then
+        if p.kind=="plantSeed" or p.kind=="bambooBolt" or p.kind=="resinBlob" then
+            AttackPlants.drawProjectile(p)
+        elseif p.kind == "thorn" then
             love.graphics.setColor(1, .7, .3, .28); love.graphics.circle("fill", p.x, p.y, 9)
             love.graphics.push(); love.graphics.translate(p.x, p.y); love.graphics.rotate(t * 12)
             drawPixelGrid(thornRows, thornPalette, 0, 0, 2.6)
