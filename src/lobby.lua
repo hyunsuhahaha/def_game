@@ -2,7 +2,7 @@ local F=require("src.frontend_ui")
 local Lobby={}; Lobby.__index=Lobby
 local function inside(b,x,y) return F.inside(b,x,y) end
 function Lobby.new(images,fonts)
- local bg=love.graphics.newImage("assets/lobby-forest-lofi-night-pixel-v3.png"); bg:setFilter("nearest","nearest")
+ local bg=love.graphics.newImage("assets/lobby-forest-lofi-day-pixel-v4.png"); bg:setFilter("nearest","nearest")
  return setmetatable({images=images,fonts=fonts,background=bg,time=0,clearcutHover=0,microFont=love.graphics.newFont("assets/font-korean-bold.ttf",12)},Lobby)
 end
 function Lobby:update(dt) self.time=self.time+dt; local mx,my=love.mouse.getPosition(); local target=inside(self.clearcutBox,mx,my) and 1 or 0; self.clearcutHover=self.clearcutHover+(target-self.clearcutHover)*math.min(1,dt*11) end
@@ -16,8 +16,8 @@ end
 function Lobby:drawBackground(w,h)
  local iw,ih=self.background:getDimensions(); local scale=math.max(w/iw,h/ih)*1.025; local dw,dh=iw*scale,ih*scale
  love.graphics.setColor(1,1,1,1); love.graphics.draw(self.background,(w-dw)/2+math.sin(self.time*.12)*4,(h-dh)/2,0,scale,scale)
- love.graphics.setColor(.008,.020,.026,.12); love.graphics.rectangle("fill",0,0,w,h)
- for i=0,24 do local t=i/24; love.graphics.setColor(.003,.012,.018,.93*(1-t)^2); love.graphics.rectangle("fill",t*w*.66,0,w*.66/24+2,h) end
+ love.graphics.setColor(.96,.90,.58,.035); love.graphics.rectangle("fill",0,0,w,h)
+ for i=0,24 do local t=i/24; love.graphics.setColor(.025,.11,.075,.22*(1-t)^2); love.graphics.rectangle("fill",t*w*.58,0,w*.58/24+2,h) end
  for y=0,h,4 do love.graphics.setColor(0,0,0,.045); love.graphics.rectangle("fill",0,y,w,1) end
 end
 function Lobby:drawStartButton(box,f)
@@ -61,11 +61,13 @@ end
 function Lobby:draw()
  local w,h=love.graphics.getDimensions(); local f=self.fonts; local micro=self.microFont or self.labelFont or f.small; self:drawBackground(w,h)
  local left=math.max(34,w*.045); local compact=w<1080
- love.graphics.setColor(.96,.92,.72); love.graphics.setFont(micro); love.graphics.print("90s PIXEL ANALOG",left,30)
- love.graphics.setColor(.30,.72,.68); love.graphics.setFont(f.display); love.graphics.print("LAST HAUL",left,52)
- love.graphics.setColor(.95,.91,.77); love.graphics.setFont(f.heading); love.graphics.print("달빛 아래, 다음 벌목을 준비한다",left,111)
- love.graphics.setColor(.45,.62,.62,.8); love.graphics.rectangle("fill",left,145,math.min(390,w*.35),2)
- love.graphics.setFont(micro); love.graphics.setColor(.62,.70,.66); love.graphics.print("FIELD TAPE  07  ·  NIGHT SHIFT",left,158)
+ love.graphics.setColor(.96,.92,.70,.76); love.graphics.rectangle("fill",left-14,18,math.min(410,w*.37),166,6,6)
+ love.graphics.setColor(.08,.27,.20,.58); love.graphics.rectangle("line",left-13.5,18.5,math.min(410,w*.37)-1,165,6,6)
+ love.graphics.setColor(.08,.19,.12,.95); love.graphics.setFont(micro); love.graphics.print("90s PIXEL ANALOG",left,30)
+ love.graphics.setColor(.05,.31,.28); love.graphics.setFont(f.display); love.graphics.print("LAST HAUL",left,52)
+ love.graphics.setColor(.12,.15,.08,.96); love.graphics.setFont(f.heading); love.graphics.print("햇살 아래, 다음 벌목을 준비한다",left,111)
+ love.graphics.setColor(.08,.36,.31,.75); love.graphics.rectangle("fill",left,145,math.min(390,w*.35),2)
+ love.graphics.setFont(micro); love.graphics.setColor(.12,.28,.18,.9); love.graphics.print("FIELD TAPE  07  ·  DAY SHIFT",left,158)
  local nav={{"연습","sandboxBox"},{"인물","codexBox"},{"업적","achievementBox"},{"특성","traitsBox"},{"설정","settingsBox"}}
  local nw,ng=compact and 58 or 72,6; local navY=h-62; local nx=w-34-(nw*#nav+ng*(#nav-1))
  for i,item in ipairs(nav) do local b={x=nx+(i-1)*(nw+ng),y=navY,w=nw,h=36}; self[item[2]]=b; F.button(b,item[1],micro,{accent=i==4 and F.colors.teal or F.colors.amber}) end
@@ -76,7 +78,7 @@ function Lobby:draw()
  love.graphics.setColor(.28,.70,.66,.7); love.graphics.rectangle("line",left+.5,py+.5,math.min(420,w*.40)-1,47,5,5)
  love.graphics.setFont(f.heading); love.graphics.setColor(.91,.91,.80); love.graphics.print("◀",left+18,py+10); love.graphics.print("Ⅱ",left+64,py+9); love.graphics.print("▶",left+108,py+10)
  for i=0,15 do local bar=4+math.floor((math.sin(i*1.7+self.time*2)+1)*5); love.graphics.setColor(.93,.62,.20,.8); love.graphics.rectangle("fill",left+164+i*7,py+24-bar/2,3,bar) end
- love.graphics.setFont(micro); love.graphics.setColor(.58,.68,.64); love.graphics.print("FOREST NIGHT / LOOP 07",left+292,py+17)
+ love.graphics.setFont(micro); love.graphics.setColor(.68,.78,.70); love.graphics.print("FOREST DAY / LOOP 07",left+292,py+17)
  love.graphics.setColor(.62,.70,.66); love.graphics.printf("ESC  종료",0,h-24,w-34,"right")
 end
 return Lobby

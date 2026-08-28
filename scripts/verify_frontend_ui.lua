@@ -8,7 +8,7 @@ local maps=read("src/clearcut_map_select.lua")
 local frontend=read("src/frontend_ui.lua")
 local doc=read("docs/FRONTEND_UI_REDESIGN.md")
 
-assert(lobby:find("lobby%-forest%-lofi%-night%-pixel%-v3%.png"),"night forest lo-fi lobby background is not connected")
+assert(lobby:find("lobby%-forest%-lofi%-day%-pixel%-v4%.png"),"bright forest lo-fi lobby background is not connected")
 assert(not lobby:find("숲이 다시 자라기 전에",1,true),"removed lobby slogan returned")
 assert(lobby:find("게임 시작",1,true),"lobby start button missing")
 assert(game:find('self.mode="clearcut_briefing"',1,true),"map selection still skips briefing")
@@ -19,6 +19,6 @@ assert(game:find("function Game:mousemoved",1,true) and game:find("function Game
 assert(frontend:find("function Frontend.button",1,true) and frontend:find("hover and 3 or 0",1,true),"interactive button presentation missing")
 assert(doc:find("레벨업 3택 화면은 이 프로젝트의 품질 기준이 아니다",1,true),"commercial indie quality bar is undocumented")
 
-local asset=assert(io.open("assets/lobby-forest-lofi-night-pixel-v3.png","rb")); local size=asset:seek("end"); asset:close()
+local asset=assert(io.open("assets/lobby-forest-lofi-day-pixel-v4.png","rb")); local size=asset:seek("end"); asset:close()
 assert(size>500000,"lobby background appears to be a placeholder")
-print("FRONTEND_UI_OK flow=briefing lobby=forest-lofi-night copy=concrete responsive=960x540..1280x720")
+print("FRONTEND_UI_OK flow=briefing lobby=forest-lofi-day copy=concrete responsive=960x540..1280x720")
