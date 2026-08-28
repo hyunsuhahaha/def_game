@@ -12,6 +12,7 @@ local BruteForceArt = require("src.brute_force_art")
 local MoleClawArt = require("src.mole_claw_art")
 local ForestArt = require("src.forest_arcade_art")
 local ForestScenery = require("src.forest_scenery")
+local ForestUnderstory = require("src.forest_understory")
 local Fusions = require("src.clearcut_fusions")
 local BiomeEnemies = require("src.biome_enemies")
 local AttackPlants = require("src.attack_plants")
@@ -387,7 +388,12 @@ function ClearcutMode:generateForest(game, target)
             -- 다수종 조림 협약을 아직 안 찍었으면 온대 숲 계열은 기본 수종 하나만 자란다.
             if isDefaultForest and (self.permanentTraits.treeVariety or 0) <= 0 then treeVariant = 1 end
             local hp = treeHpFor(game.world.clearcutMap, treeVariant)
-            game.world.nodes[#game.world.nodes+1] = {kind="tree",x=x,y=y,work=0,workTime=1,active=true,respawn=0,rushTree=true,rushHp=hp,rushMaxHp=hp,beehive=beehive,treeVariant=treeVariant}
+            local treeIndex=#game.world.nodes+1
+            -- A few mature canopy landmarks make the temperate maps read as a
+            -- forest at camera scale. They remain ordinary objective trees:
+            -- no hidden HP, reward, collision, or regrowth rule changes.
+            local giantTree=isDefaultForest and treeVariant==1 and treeIndex%17==0
+            game.world.nodes[treeIndex] = {kind="tree",x=x,y=y,work=0,workTime=1,active=true,respawn=0,rushTree=true,rushHp=hp,rushMaxHp=hp,beehive=beehive,treeVariant=treeVariant,giantTree=giantTree}
             if beehive then self.beehiveTotal = self.beehiveTotal + 1 end
         end
     end
@@ -395,6 +401,7 @@ function ClearcutMode:generateForest(game, target)
     ForestScenery.generate(game.world,self.stage)
     Maps.filterScenery(game.world)
     require("src.biome_life").generate(game.world,self.stage)
+    ForestUnderstory.generate(game.world,self.stage)
 end
 
 function ClearcutMode:initForestZones(game)
@@ -453,6 +460,7 @@ end
 function ClearcutMode:update(dt, game)
     if self.dead then return end
     require("src.biome_life").update(game.world,dt)
+    ForestUnderstory.update(game.world,game.player,dt,game)
     self.elapsed = self.elapsed + dt
     if self:updateStageClock(dt,game) then return end
     self:updateHeldAxe(dt, game)
@@ -659,6 +667,7 @@ function ClearcutMode:damagePlayer(amount, game)
 end
 
 function ClearcutMode:damageEnemiesInRadius(x, y, radius, damage, game)
+    ForestUnderstory.cutRadius(game.world,x,y,radius,game)
     for _, e in ipairs(self.enemies) do
         local dx, dy = e.x - x, e.y - y
         if dx*dx + dy*dy <= radius*radius then

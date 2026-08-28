@@ -99,6 +99,7 @@ function Game:resetRun()
     self.world = World.new()
     self.player = Player.new(1600, 1470, self.world.images.workerWalk, self.world.images.workerActions, self.world.images.workerRepair)
     self.camera = Camera.new(self.player.x, self.player.y)
+    self.camera.pitch = 1
     self.camera.shakeScale = self.settings.screenShake and 1 or 0
     self.food, self.ore, self.wood, self.stone, self.seeds = 0, 0, 0, 0, 8
     self.time, self.ended, self.victory, self.hoverNode, self.hoverWall, self.hoverBuilding, self.nearTurret = 15 * 60, false, false, nil, false, nil, nil
@@ -156,6 +157,9 @@ function Game:startClearcut(characterId, mapId)
     self.selectedClearcutMap=self.clearcut.mapId
     self.player:setClearcutSprite(self.clearcutSprites[characterId] or self.clearcutSprites.physical, characterId)
     self.clearcut:setup(self)
+    -- Oblique 2.5D projection: flatten only the world plane. UI remains crisp
+    -- in screen space and screenToWorld applies the exact inverse transform.
+    self.camera.pitch=.84
     self.mode="playing"
     ClearcutIntro.begin(self)
 end

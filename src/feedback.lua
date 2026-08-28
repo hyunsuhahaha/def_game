@@ -2,14 +2,20 @@ local Feedback = {}
 Feedback.__index = Feedback
 
 local function makeSource(kind)
-    local rate, duration = 22050, .11
+    local rate, duration = 22050, kind=="creak" and 1.05 or .11
     local count = math.floor(rate * duration)
     local data = love.sound.newSoundData(count, rate, 16, 1)
     for i = 0, count - 1 do
         local t, fade = i / rate, 1 - i / count
         local noise = love.math.random() * 2 - 1
         local sample
-        if kind == "tree" then
+        if kind == "creak" then
+            local groan=math.sin((t*72+t*t*34)*math.pi*2)*.34
+            local rub=math.sin((t*187+math.sin(t*19)*.7)*math.pi*2)*.12
+            sample=(groan+rub+noise*.16)*(math.sin(math.min(1,t/duration)*math.pi)^.55)
+        elseif kind == "grass" then
+            sample = (noise * .55 + math.sin(t * 1150 * math.pi * 2) * .08) * fade * fade
+        elseif kind == "tree" then
             sample = (math.sin(t * 170 * math.pi * 2) * .48 + noise * .28) * fade * fade
         elseif kind == "stone" then
             sample = (math.sin(t * 410 * math.pi * 2) * .34 + noise * .42) * fade * fade
@@ -26,10 +32,10 @@ end
 function Feedback.new()
     local self = setmetatable({pools = {}, cursor = {}}, Feedback)
     local ok = pcall(function()
-        for _, kind in ipairs({"tree", "stone", "ore", "harvest"}) do
+        for _, kind in ipairs({"tree", "stone", "ore", "harvest", "grass", "creak"}) do
             self.pools[kind], self.cursor[kind] = {}, 1
             local source = makeSource(kind)
-            source:setVolume(kind == "harvest" and .22 or .16)
+            source:setVolume(kind == "harvest" and .22 or kind=="grass" and .11 or kind=="creak" and .24 or .16)
             for i = 1, 4 do self.pools[kind][i] = source:clone() end
         end
     end)

@@ -4,7 +4,7 @@ Camera.__index = Camera
 function Camera.new(x, y)
     return setmetatable({
         x=x,y=y,zoom=1,trauma=0,shakeScale=1,
-        renderX=x,renderY=y,renderZoom=1,roll=0,
+        renderX=x,renderY=y,renderZoom=1,roll=0,pitch=1,
         inertiaX=0,inertiaY=0,inertiaVX=0,inertiaVY=0,
         rollVelocity=0,zoomKick=0,lastTargetX=x,lastTargetY=y,
         cinematic=nil,
@@ -40,6 +40,7 @@ end
 
 function Camera:update(dt, target, world)
     local w, h = love.graphics.getDimensions()
+    local pitch=clamp(self.pitch or 1,.72,1)
     if world.overviewBounds then
         local b=world.overviewBounds
         self.x,self.y,self.zoom=b.x,b.y,math.min(w/b.w,h/b.h)
@@ -58,7 +59,7 @@ function Camera:update(dt, target, world)
         local edge=math.min(1,(focus.duration-focus.time)/.28,focus.time/.38)
         desiredZoom=self.zoom*(1+(focus.zoom-1)*math.max(0,edge))
     end
-    local halfW, halfH = w / (2 * desiredZoom), h / (2 * desiredZoom)
+    local halfW, halfH = w / (2 * desiredZoom), h / (2 * desiredZoom * pitch)
     local b=world.playBounds or {x=0,y=0,w=world.width,h=world.height}
     local minX,maxX=b.x+halfW,b.x+b.w-halfW
     local minY,maxY=b.y+halfH,b.y+b.h-halfH
@@ -90,7 +91,8 @@ function Camera:attach()
     love.graphics.push()
     love.graphics.translate(w / 2 + love.math.random(-shake, shake), h / 2 + love.math.random(-shake, shake))
     love.graphics.rotate(self.roll or 0)
-    love.graphics.scale(self.renderZoom or self.zoom)
+    local z=self.renderZoom or self.zoom
+    love.graphics.scale(z,z*clamp(self.pitch or 1,.72,1))
     love.graphics.translate(-(self.renderX or self.x), -(self.renderY or self.y))
 end
 
@@ -99,15 +101,17 @@ function Camera:detach() love.graphics.pop() end
 function Camera:visibleBounds()
     local w, h = love.graphics.getDimensions()
     local z=self.renderZoom or self.zoom;local x,y=self.renderX or self.x,self.renderY or self.y
-    local pad=math.abs(math.sin(self.roll or 0))*math.max(w,h)/z
-    return x-w/(2*z)-pad,y-h/(2*z)-pad,x+w/(2*z)+pad,y+h/(2*z)+pad
+    local pitch=clamp(self.pitch or 1,.72,1)
+    local pad=math.abs(math.sin(self.roll or 0))*math.max(w,h)/(z*pitch)
+    return x-w/(2*z)-pad,y-h/(2*z*pitch)-pad,x+w/(2*z)+pad,y+h/(2*z*pitch)+pad
 end
 
 function Camera:screenToWorld(screenX, screenY)
     local w, h = love.graphics.getDimensions()
-    local z=self.renderZoom or self.zoom;local dx,dy=(screenX-w/2)/z,(screenY-h/2)/z
+    local z=self.renderZoom or self.zoom;local dx,dy=screenX-w/2,screenY-h/2
     local a=-(self.roll or 0);local c,s=math.cos(a),math.sin(a)
-    return (self.renderX or self.x)+dx*c-dy*s,(self.renderY or self.y)+dx*s+dy*c
+    local rx,ry=dx*c-dy*s,dx*s+dy*c
+    return (self.renderX or self.x)+rx/z,(self.renderY or self.y)+ry/(z*clamp(self.pitch or 1,.72,1))
 end
 
 return Camera

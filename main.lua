@@ -1,6 +1,6 @@
 local Game
 local game
-local frontendCapture = os.getenv("LAST_HAUL_CAPTURE_SETTINGS") or os.getenv("LAST_HAUL_CAPTURE_CLEARCUT_MAP_SELECT") or os.getenv("LAST_HAUL_CAPTURE_CLEARCUT_BRIEFING") or os.getenv("LAST_HAUL_CAPTURE_CLEARCUT_INTRO") or os.getenv("LAST_HAUL_CAPTURE_BOSS_ENTRANCE") or os.getenv("LAST_HAUL_CAPTURE_CHARACTER_TRAITS") or os.getenv("LAST_HAUL_CAPTURE_ACHIEVEMENTS")
+local frontendCapture = os.getenv("LAST_HAUL_CAPTURE_SETTINGS") or os.getenv("LAST_HAUL_CAPTURE_CLEARCUT_MAP_SELECT") or os.getenv("LAST_HAUL_CAPTURE_CLEARCUT_BRIEFING") or os.getenv("LAST_HAUL_CAPTURE_CLEARCUT_INTRO") or os.getenv("LAST_HAUL_CAPTURE_BOSS_ENTRANCE") or os.getenv("LAST_HAUL_CAPTURE_CHARACTER_TRAITS") or os.getenv("LAST_HAUL_CAPTURE_ACHIEVEMENTS") or os.getenv("LAST_HAUL_CAPTURE_TALL_FOREST") or os.getenv("LAST_HAUL_CAPTURE_TALL_FALL")
 local captureFrames = frontendCapture and 8 or (os.getenv("LAST_HAUL_CAPTURE_TURRET_FIRE") and 3 or (os.getenv("LAST_HAUL_CAPTURE_DRILL") and 2 or ((os.getenv("LAST_HAUL_CAPTURE_RUSH") or os.getenv("LAST_HAUL_CAPTURE_LOBBY") or os.getenv("LAST_HAUL_CAPTURE_CLEARCUT") or os.getenv("LAST_HAUL_CAPTURE_CLEARCUT_UPGRADE") or os.getenv("LAST_HAUL_CAPTURE_CLEARCUT_RESULTS") or os.getenv("LAST_HAUL_CAPTURE_CLEARCUT_THREATS") or os.getenv("LAST_HAUL_CAPTURE_CLEARCUT_BUILDS") or os.getenv("LAST_HAUL_CAPTURE_CLEARCUT_CHAR_SELECT") or os.getenv("LAST_HAUL_CAPTURE_CLEARCUT_FIREJOB") or os.getenv("LAST_HAUL_CAPTURE_CLEARCUT_DEVJOB") or os.getenv("LAST_HAUL_CAPTURE_CLEARCUT_COMBAT") or os.getenv("LAST_HAUL_CAPTURE_CLEARCUT_DEFEAT") or os.getenv("LAST_HAUL_CAPTURE_CLEARCUT_MILESTONE") or os.getenv("LAST_HAUL_CAPTURE_VEGAN_FORK") or os.getenv("LAST_HAUL_CAPTURE_ACHIEVEMENT_POPUP")) and 6 or (os.getenv("LAST_HAUL_CAPTURE_HARVEST") and 10 or ((os.getenv("LAST_HAUL_CAPTURE") or os.getenv("LAST_HAUL_CAPTURE_GAME") or os.getenv("LAST_HAUL_CAPTURE_FARM") or os.getenv("LAST_HAUL_CAPTURE_MINE") or os.getenv("LAST_HAUL_CAPTURE_WALL") or os.getenv("LAST_HAUL_CAPTURE_REPAIR") or os.getenv("LAST_HAUL_CAPTURE_META") or os.getenv("LAST_HAUL_CAPTURE_RESULTS") or os.getenv("LAST_HAUL_CAPTURE_UPGRADE") or os.getenv("LAST_HAUL_CAPTURE_UNITS") or os.getenv("LAST_HAUL_CAPTURE_TEST_OPTIONS") or os.getenv("LAST_HAUL_CAPTURE_TURRET_PROMPT") or os.getenv("LAST_HAUL_CAPTURE_TURRET_PLACEMENT") or os.getenv("LAST_HAUL_CAPTURE_TURRET_UPGRADE")) and 30 or nil)))))
 if os.getenv("LAST_HAUL_UI_CAPTURE_MODE") then
     function love.errorhandler(message)
@@ -119,6 +119,25 @@ function love.load()
             end
             if second then second.rushHp=1; game.clearcut:hitTree(second,game); game.world:spawnFallImpact(second,game) end
         end
+    end
+    if os.getenv("LAST_HAUL_CAPTURE_TALL_FOREST") or os.getenv("LAST_HAUL_CAPTURE_TALL_FALL") then
+        game:startClearcut()
+        if game.clearcut and game.clearcut.intro then require("src.clearcut_intro").finish(game) end
+        local target
+        for _,node in ipairs(game.world.nodes) do if node.giantTree then target=node break end end
+        assert(target,"tall forest capture has no landmark tree")
+        game.player.x,game.player.y=target.x+86,target.y+34
+        game.camera.x,game.camera.y=target.x,target.y-52
+        local grass=game.world.forestUnderstory and game.world.forestUnderstory.patches or {}
+        for i=1,math.min(5,#grass) do grass[i].x=target.x-150+i*52;grass[i].y=target.y+58 end
+        if grass[2] then grass[2].rustle=.34;grass[2].bend=-1 end
+        if grass[4] then require("src.forest_understory").cutRadius(game.world,grass[4].x,grass[4].y,8,game) end
+        if os.getenv("LAST_HAUL_CAPTURE_TALL_FALL") then
+            target.active=false;target.rushHp=0
+            game.world:harvestBurst(target,game,1,"목재")
+            captureFrames=116
+        end
+        game.mode="playing"
     end
     if os.getenv("LAST_HAUL_CAPTURE_CLEARCUT_FIREJOB") then
         game:startClearcut("fire")

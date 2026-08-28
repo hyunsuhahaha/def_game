@@ -1,5 +1,6 @@
 local World = {}
 local ForestScenery = require("src.forest_scenery")
+local ForestUnderstory = require("src.forest_understory")
 local TreeDestruction = require("src.tree_destruction")
 World.__index = World
 
@@ -133,18 +134,36 @@ end
 
 function World:spawnFallImpact(node, game)
     local gx, gy = node.x, node.y + 6
-    for _ = 1, 12 do
+    local giant=node.giantTree
+    local dustCount=giant and 26 or 12
+    local reach=giant and (node.fallReach or 238)*.82 or 0
+    for i = 1, dustCount do
         local a = love.math.random() * math.pi * 2
         local speed = 14 + love.math.random() * 34
-        local life = .6 + love.math.random() * .4
+        local along=giant and ((i-1)/(dustCount-1))*reach or 0
+        local life = (giant and .78 or .6) + love.math.random() * (giant and .58 or .4)
         self.particles[#self.particles + 1] = {
-            x = gx, y = gy, vx = math.cos(a) * speed, vy = math.sin(a) * speed * .3 - 16,
-            life = life, maxLife = life, size = 7 + love.math.random() * 9, color = {.42, .36, .26}, dust = true
+            x = gx+(node.fallDir or 1)*along+(love.math.random()*2-1)*(giant and 18 or 0),
+            y = gy+(love.math.random()*2-1)*(giant and 8 or 0),
+            vx = math.cos(a) * speed+(giant and (node.fallDir or 1)*12 or 0), vy = math.sin(a) * speed * .3 - 16,
+            life = life, maxLife = life, size = (giant and 7 or 7) + love.math.random() * (giant and 10 or 9),
+            color = giant and {.36,.31,.22} or {.42,.36,.26}, dust = true,
+            dustStretch=giant and (1.25+love.math.random()*.65) or 1
         }
     end
-    if game.camera then game.camera.trauma = math.min(1, game.camera.trauma + .22) end
-    local profile=TreeDestruction.fallProfile(node.rushMaxHp)
+    if giant then
+        for i=1,18 do
+            self:addLeafParticle(gx+(node.fallDir or 1)*(reach*.45+love.math.random()*reach*.55),gy-18-love.math.random()*36)
+        end
+    end
+    if game.camera then game.camera.trauma = math.min(1, game.camera.trauma + (giant and .68 or .22)) end
+    local profile=TreeDestruction.fallProfile(node.rushMaxHp,node.giantTree)
     self.treeBreakFx[#self.treeBreakFx+1]={x=node.x+(node.fallDir or 1)*(node.fallReach or profile.reach)*.58,y=node.y-18,life=.32,maxLife=.32,scale=profile.breakScale}
+    if giant then
+        for _,ratio in ipairs({.22,.48,.78}) do
+            self.treeBreakFx[#self.treeBreakFx+1]={x=node.x+(node.fallDir or 1)*profile.reach*ratio,y=node.y-12,life=.46,maxLife=.46,scale=.32+ratio*.24}
+        end
+    end
     local chopper = activeChopper(game)
     if chopper and chopper.onTreeFallen then chopper:onTreeFallen(node, game) end
 end
@@ -186,6 +205,7 @@ function World:impactNode(node, game, strong)
     node.hitFlash, node.hitShake = strong and .2 or .12, strong and .24 or .14
     if node.rushTree and node.rushMaxHp and node.rushMaxHp>0 then
         node.damageStage=TreeDestruction.damageStage(node.rushHp,node.rushMaxHp)
+        ForestUnderstory.cutRadius(self,node.x,node.y,strong and 92 or 64,game)
     end
     for _ = 1, strong and 15 or 6 do self:addParticle(x, y, color, strong, false) end
     self.particles[#self.particles + 1] = {x = x, y = y, life = .2, maxLife = .2, size = 12, color = color, ring = true}
@@ -214,10 +234,11 @@ function World:harvestBurst(node, game, amount, label)
     self.popups[#self.popups + 1] = {x = x, y = y - 78, life = 1.05, maxLife = 1.05, text = "+" .. amount .. " " .. label, color = color, chain = self.harvestChain}
     if node.rushTree then
         local sway = node.swayAngle or 0
-        local profile=TreeDestruction.fallProfile(node.rushMaxHp)
+        local profile=TreeDestruction.fallProfile(node.rushMaxHp,node.giantTree)
         node.fallT, node.fallDur, node.fallReach = 0, profile.duration, profile.reach
         node.fallDir = sway > 0 and 1 or sway < 0 and -1 or (love.math.random() < .5 and 1 or -1)
         for _ = 1, 10 do self:addLeafParticle(x, y) end
+        if node.giantTree and game.feedback then game.feedback:play("creak",true) end
     end
 end
 
@@ -1115,6 +1136,9 @@ local function grounded(img, x, y, scale) love.graphics.setColor(1, 1, 1, 1); lo
 local function groundedRotated(img, x, y, scale, angle) love.graphics.setColor(1, 1, 1, 1); love.graphics.draw(img, x, y, angle, scale, scale, img:getWidth() / 2, img:getHeight() * .91) end
 
 local function treeRenderSpec(world, node)
+    if node.giantTree and world.images.ancientBroadleaf then
+        return world.images.ancientBroadleaf, 1, 1.3
+    end
     local index = math.max(1, math.min(#world.images.treeVariants, node.treeVariant or 1))
     local stage=math.max(0,math.min(3,node.damageStage or 0))
     local damaged=world.images.treeDamageVariants and world.images.treeDamageVariants[index]
@@ -1131,6 +1155,8 @@ function World:useArcadeForest()
             sprite:setFilter("nearest", "nearest")
             self.images.treeVariants[#self.images.treeVariants+1] = sprite
         end
+        self.images.ancientBroadleaf = love.graphics.newImage("assets/trees/ancient-broadleaf-tall-cartoon-v1.png")
+        self.images.ancientBroadleaf:setFilter("nearest", "nearest")
         self.images.treeDamageVariants={}
         for _,name in ipairs({"broadleaf","pine","birch","maple"}) do
             local stages={}
@@ -1337,7 +1363,10 @@ function World:draw(player, actorSource)
         love.graphics.setColor(.06, .075, .085, 1); love.graphics.rectangle("fill", 0, 0, self.width, 55); love.graphics.rectangle("fill", 0, self.height - 55, self.width, 55); love.graphics.rectangle("fill", 0, 0, 55, self.height); love.graphics.rectangle("fill", self.width - 55, 0, 55, self.height)
     end
     local queue = {}
-    if self.arcadeForest and self.theme=="forest" then ForestScenery.queue(self,queue,player) end
+    if self.arcadeForest and self.theme=="forest" then
+        ForestScenery.queue(self,queue,player)
+        ForestUnderstory.queue(self,queue,player)
+    end
     if self.arcadeForest and self.theme=="forest" then require("src.biome_life").queue(self,queue,player) end
     if not self.hideBase then
         for i = 1, self.turretSlotLimit do
@@ -1428,10 +1457,16 @@ function World:draw(player, actorSource)
                     local visual = self.treeVisual
                     local treeImage, variantScale, shadowScale = treeRenderSpec(self, node)
                     local ft = node.fallT / node.fallDur
-                    local ease = 1 - (1 - ft) * (1 - ft)
-                    local angle = ease * math.pi * .42 * node.fallDir
+                    local ease
+                    if node.giantTree then
+                        local motion=math.max(0,(ft-.13)/.87)
+                        ease=motion*motion*(3-2*motion)
+                    else ease=1-(1-ft)*(1-ft) end
+                    local maxAngle=node.giantTree and .48 or .42
+                    local angle = ease * math.pi * maxAngle * node.fallDir
+                    if node.giantTree and ft<.48 then angle=angle+math.sin(ft*math.pi*9)*.008*node.fallDir end
                     local small=(node.rushMaxHp or 5)<=4
-                    local slide=ease*(node.fallReach or 110)*(small and .34 or .10)*node.fallDir
+                    local slide=ease*(node.fallReach or 110)*(node.giantTree and .055 or (small and .34 or .10))*node.fallDir
                     local lift=small and math.sin(ft*math.pi)*18 or 0
                     if ft > .82 then angle = angle + math.sin((ft - .82) / .18 * math.pi) * .05 * node.fallDir end
                     love.graphics.setColor(0, 0, 0, visual.shadowAlpha * (1 - ft * .4))
@@ -1602,11 +1637,12 @@ function World:draw(player, actorSource)
             love.graphics.ellipse("line", 0, 0, p.size, p.size * .48)
             love.graphics.pop()
         elseif p.dust then
-            local grow = 1 + (1 - alpha) * 1.8
-            love.graphics.setColor(p.color[1], p.color[2], p.color[3], alpha * .4)
-            love.graphics.circle("fill", p.x, p.y, p.size * grow)
-            love.graphics.setColor(p.color[1] * .5, p.color[2] * .5, p.color[3] * .5, alpha * .5); love.graphics.setLineWidth(1)
-            love.graphics.circle("line", p.x, p.y, p.size * grow)
+            local grow = 1 + (1 - alpha) * 1.45
+            local stretch=p.dustStretch or 1
+            love.graphics.setColor(p.color[1],p.color[2],p.color[3],alpha*(stretch>1 and .24 or .4))
+            love.graphics.ellipse("fill",p.x,p.y,p.size*grow*stretch,p.size*grow*.62)
+            love.graphics.setColor(.62,.55,.38,alpha*(stretch>1 and .08 or .12))
+            love.graphics.ellipse("fill",p.x-p.size*.18,p.y-p.size*.15,p.size*grow*stretch*.54,p.size*grow*.23)
         elseif p.ember then
             local flick = .75 + math.sin(love.timer.getTime() * 30 + p.x) * .25
             love.graphics.setColor(.7, .18, .02, alpha * .9); love.graphics.setLineWidth(1)
