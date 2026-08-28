@@ -148,6 +148,12 @@ for _,def in ipairs(Maps.catalog) do
                 assert(Maps.islandDistance(cx,cy,w.width,w.height)<=1-18/Maps.island.radiusY+.00001)
             end
             local zoom=g.camera.zoom;g:wheelmoved(0,1);assert(g.camera.zoom==zoom)
+            love.keyboard.isDown=function(key) return key=="lctrl" end
+            g:wheelmoved(0,1)
+            assert(g.camera.zoom>zoom and g.camera.renderZoom==g.camera.zoom,"Ctrl+wheel did not zoom projected world")
+            g:wheelmoved(0,-1)
+            assert(math.abs(g.camera.zoom-zoom)<.00001,string.format("projected zoom did not return to its base level %.6f != %.6f",g.camera.zoom,zoom))
+            love.keyboard.isDown=function() return false end
             local cx,cy=g.camera:screenToWorld(width/2,height/2)
             assert(cx==g.camera.x and cy==g.camera.y)
         end

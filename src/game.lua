@@ -649,9 +649,21 @@ function Game:wheelmoved(x, y)
     if self.mode=="achievements" then self.achievementBoard:wheelmoved(x,y); return end
     if self.mode=="clearcut_map_select" then local mx,my=love.mouse.getPosition();require("src.clearcut_map_select").wheelmoved(self,mx,my,y);return end
     if self.mode ~= "playing" or y == 0 then return end
-    if self.world.overviewBounds then return end -- keep every coastline visible
     if not (love.keyboard.isDown("lctrl") or love.keyboard.isDown("rctrl")) then return end
     local factor = y > 0 and 1.1 or 1 / 1.1
+    if self.clearcut and self.camera.perspective then
+        local userZoom=math.max(.68,math.min(1.6,(self.camera.userZoom or 1)*factor))
+        self.camera.userZoom=userZoom
+        local baseZoom=self.world.stageZoom or self.camera.zoom
+        if self.world.overviewBounds then
+            local w,h=love.graphics.getDimensions();local bounds=self.world.overviewBounds
+            baseZoom=math.min(w/bounds.w,h/bounds.h)
+        end
+        self.camera.zoom=baseZoom*userZoom
+        self.camera.renderZoom=self.camera.zoom
+        return
+    end
+    if self.world.overviewBounds then return end
     self.camera.zoom = math.max(.6, math.min(1.8, self.camera.zoom * factor))
 end
 

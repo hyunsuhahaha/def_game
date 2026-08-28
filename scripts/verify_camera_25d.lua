@@ -29,4 +29,5 @@ assert(projection:find("love.graphics.scale(uniform,uniform)",1,true),"billboard
 assert(game:find("WorldProjection.finish()",1,true)<game:find("WorldProjection.drawBillboards",1,true),"billboards are drawn before projected ground")
 local world=assert(io.open("src/world.lua","rb")):read("*a")
 assert(world:find("self.billboardQueue",1,true) and world:find("item.ground",1,true),"ground and billboard passes are not separated")
+assert(game:find("self.camera.userZoom=userZoom",1,true) and game:find("self.camera.renderZoom=self.camera.zoom",1,true),"Ctrl+wheel 2.5D zoom missing")
 print(string.format("CAMERA_25D_OK pitch=.76 inverse=exact scale=%.2f..%.2f spacing=projected ground=warped billboards=uniform",topScale,bottomScale))

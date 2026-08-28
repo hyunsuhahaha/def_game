@@ -428,7 +428,7 @@ function ClearcutMode:advanceStage(game)
     self.stageElapsed,self.stageTimeLimit=0,stageTimeLimit(self.stage)
     self.timeSpawnTimer,self.eliteTimer=18,240
     require("src.clearcut_maps").configureStage(game.world,self.stage)
-    game.camera.zoom=game.world.stageZoom or game.camera.zoom
+    game.camera.zoom=(game.world.stageZoom or game.camera.zoom)*(game.camera.userZoom or 1)
     self.regrowInterval=self.stage==1 and 12 or (self.stage==2 and 9 or 7)
     self.stageBossHpMul = 1 + (self.stage - 1) * .55
     game.world.nodes, game.world.drops = {}, {}

@@ -8,7 +8,7 @@ function Camera.new(x, y)
         renderX=x,renderY=y,renderZoom=1,roll=0,pitch=1,
         inertiaX=0,inertiaY=0,inertiaVX=0,inertiaVY=0,
         rollVelocity=0,zoomKick=0,lastTargetX=x,lastTargetY=y,
-        cinematic=nil,perspective=false,
+        cinematic=nil,perspective=false,userZoom=1,
     }, Camera)
 end
 
@@ -56,7 +56,8 @@ function Camera:update(dt, target, world)
     local pitch=clamp(self.pitch or 1,.72,1)
     if world.overviewBounds then
         local b=world.overviewBounds
-        self.x,self.y,self.zoom=b.x,b.y,math.min(w/b.w,h/b.h)
+        local overviewZoom=math.min(w/b.w,h/b.h)*(self.userZoom or 1)
+        self.x,self.y,self.zoom=b.x,b.y,overviewZoom
         self.renderX,self.renderY,self.renderZoom,self.roll=self.x,self.y,self.zoom,0
         self.trauma=math.max(0,self.trauma-dt*1.8)
         return
