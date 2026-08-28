@@ -12,7 +12,7 @@ end
 local function setup(job,nodes)
     local mode=Mode.new();mode.job=job;mode.remainingTrees=100;mode.initialTrees=100
     mode.checkMilestones=function() end
-    local game={mode="playing",clearcut=mode,wood=0,player={x=-500,y=0},tools={axe={speed=1}},camera={trauma=0},
+    local game={mode="playing",clearcut=mode,wood=0,player={x=-500,y=0},tools={axe={speed=1}},camera={trauma=0,screenToWorld=function(_,x,y) return x,y end},
         setNotice=function(self,text) self.notice=text end,
         world={nodes=nodes or {},impactNode=function() end,addParticle=function() end,spawnDrop=function() end,
             harvestBurst=function(_,node) node.fallDir=-1 end,igniteFx=function() end,toxicPulseFx=function() end}}
@@ -46,7 +46,7 @@ for _,def in ipairs(Fusions.definitions) do
     assert(text:find(def.name,1,true) and text:find("MAX",1,true) and text:find(def.desc,1,true),"card omits requirements/effect")
     if FUSION_CAPTURE then fixture.save("docs/previews/fusion-"..def.id.."-draws.json") end
     fixture.time=(fixture.time or 0)+1 -- clear the post-reveal input lock before simulating the real click/keypress
-    if def.id=="wildfire" then Game.keypressed(g,"return")
+    if def.id=="secondhand_smoke" then Game.keypressed(g,"return")
     elseif def.id=="newtown" then Game.mousepressed(g,box.x+5,box.y+5,1)
     else assert(m:choose(1,g)) end
     assert(m.evolutions[def.id] and g.mode=="playing" and m.pending==0,def.id.." was not acquired")
@@ -65,20 +65,20 @@ fixture.reset();small:drawSelection(sg,fonts)
 local smallBox=small.choiceBoxes[1]
 assert(smallBox.x+smallBox.w<=960 and smallBox.y+smallBox.h<=540)
 assert(small:choiceAt(smallBox.x+smallBox.w/2,smallBox.y+smallBox.h/2)==1,"scaled click misses acquisition")
-if FUSION_CAPTURE then fixture.save("docs/previews/fusion-wildfire-small-draws.json") end
+if FUSION_CAPTURE then fixture.save("docs/previews/fusion-secondhand_smoke-small-draws.json") end
 love.graphics.getDimensions=function() return 1280,720 end
 
 -- Independently completed recipes are queued and guaranteed without consuming XP.
 local m,g=setup("fire")
 m.levels={molotov=m:getUpgradeDefinition("molotov").max,dry_forest=m:getUpgradeDefinition("dry_forest").max,
     straw_bale=m:getUpgradeDefinition("straw_bale").max,oil_drum=m:getUpgradeDefinition("oil_drum").max};m.pending=2
-assert(m:checkEvolutions(g) and m.fusionChoice.id=="wildfire")
+assert(m:checkEvolutions(g) and m.fusionChoice.id=="secondhand_smoke")
 assert(m:choose(1,g) and m.fusionChoice.id=="oilRoad" and m.pending==2)
 assert(m:choose(1,g) and m.selectionKind=="upgrade" and m.pending==2 and #m.choices>0)
-assert(m.evolutions.wildfire and m.evolutions.oilRoad)
+assert(m.evolutions.secondhand_smoke and m.evolutions.oilRoad)
 fixture.reset();m:drawHUD(g,fonts)
 local hud="";for _,op in ipairs(fixture.commands) do hud=hud..(op.text or "") end
-assert(hud:find("산불",1,true) and hud:find("기름을 실수로 붓다",1,true),"HUD omits acquired fusions")
+assert(hud:find("간접흡연 구역",1,true) and hud:find("기름을 실수로 붓다",1,true),"HUD omits acquired fusions")
 fixture.reset();Fusions.drawProgress(m,fonts)
 if FUSION_CAPTURE then fixture.save("docs/previews/fusion-progress-draws.json") end
 
@@ -118,20 +118,33 @@ ingredient.max=4;dynamic.levels[secondId]=3
 assert(not Fusions.ready(dynamic,Fusions.definitions[1]))
 dynamic.levels[secondId]=4;assert(Fusions.ready(dynamic,Fusions.definitions[1]));ingredient.max=oldMax
 
--- Real effects: wildfire keeps ground landing, strengthens spreading only after fire.
-local fire,fg=setup("fire",{tree(0),tree(180)})
-fire.levels={molotov=3,dry_forest=3};fire.evolutions.wildfire=true;fire.molotovTimer=-100
-fire:updateFire(3,fg);assert(#fire.molotovs==1,"wildfire extra projectile missing")
-fire:updateMolotovs(2,fg);assert(#fire.cigaretteButts==1 and not fg.world.nodes[1].burning,"fusion bypassed smolder stage")
-local function spread(fused)
-    local a,b=tree(0),tree(170);a.burning=true;a.burnTimer=0
-    local mode,game=setup("fire",{a,b});mode.evolutions.wildfire=fused
-    love.math.random=function() return 0 end
-    mode:updateFire(.1,game)
-    love.math.random=function(a,b) if b then return a elseif a then return 1 else return .99 end end
-    return b.burning
+-- Real effect: one reload emits one authored mist field. Its visible 640x400
+-- footprint and authoritative 320x200 ellipse agree, and only enemies inside it
+-- receive the quarter-second DOT ticks.
+local fire,fg=setup("fire",{})
+fg.player.x,fg.player.y,fg.player.facing=0,0,1
+fg.player.gather=1;fg.player.setClearcutAction=function() end;fg.player.clearClearcutAction=function() end
+fire.levels={molotov=6,dry_forest=6};fire.evolutions.secondhand_smoke=true
+fire:startSmoking(fg)
+fire:updateFireAttack(fire.smoking.dur*.43,fg,false)
+assert(#fire.secondhandSmokeClouds==1 and fire.smoking.smokeEmitted,"reload exhale did not emit mist")
+fire:updateFireAttack(fire.smoking.dur*.2,fg,false)
+assert(#fire.secondhandSmokeClouds==1,"one reload emitted duplicate mist fields")
+local cloud=fire.secondhandSmokeClouds[1]
+fire.enemies={{x=cloud.x,y=cloud.y,hp=100},{x=cloud.x+330,y=cloud.y,hp=100}}
+fire:updateSecondhandSmoke(.25,fg)
+assert(fire.enemies[1].hp<100 and fire.enemies[2].hp==100,"mist ellipse DOT footprint is wrong")
+fixture.reset();require("src.secondhand_smoke_art").draw(fire)
+local smokeDraws=0
+for _,op in ipairs(fixture.commands) do
+    if op.op=="draw" and (op.file or ""):find("secondhand%-smoke%-mist%-atlas") then
+        smokeDraws=smokeDraws+1
+        assert(op.filter=="nearest","secondhand smoke atlas is blurred")
+        assert(math.abs(op.args[4]*1280-640)<.01 and math.abs(op.args[5]*800-400)<.01,"visible mist and DOT footprint disagree")
+    end
+    assert(not (op.op=="ellipse"),"secondhand smoke regressed to runtime circles")
 end
-assert(not spread(false) and spread(true),"wildfire spread range unchanged")
+assert(smokeDraws==1,"secondhand smoke atlas was not rendered exactly once")
 
 -- Eternal Return is a persistent field: it keeps ticking and catches late entrants.
 local pTree,pLate=tree(0,30),tree(260,30)
@@ -179,8 +192,9 @@ assert(n1.sterile and not n2.sterile,"newtown footprint wrong")
 -- Stage transition keeps acquired fusions, clears transient combat state only.
 all.generateForest=function() end
 ag.camera={trauma=0};ag.world.width=1000;ag.world.height=1000
+all.secondhandSmokeClouds={{x=0,y=0,age=0,life=3}}
 all:advanceStage(ag)
-assert(all.evolutions.frenzy,"stage reset erased fusions")
+assert(all.evolutions.frenzy and #all.secondhandSmokeClouds==0,"stage reset erased fusions or kept old smoke")
 
 -- Existing upgrade/arcana cards still run through the scaled wrapper. Their
 -- legacy stencil decorations are not rasterized by this interaction check.

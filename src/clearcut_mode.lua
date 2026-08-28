@@ -19,6 +19,7 @@ local PhilosopherArt = require("src.philosopher_art")
 local RevivalCrowdArt = require("src.revival_crowd_art")
 local PhilosopherFusionArt = require("src.philosopher_fusion_art")
 local SmokeRingArt = require("src.smoke_ring_art")
+local SecondhandSmokeArt = require("src.secondhand_smoke_art")
 local BeeArt = require("src.bee_art")
 local VeganForkArt = require("src.vegan_fork_art")
 local RegrowthCastArt = require("src.regrowth_cast_art")
@@ -150,8 +151,8 @@ function ClearcutMode.new()
         forestZones={},zonesSecured=0,
         rootHazards={}, rootedTimer=0, rootedCount=0,
         bees={}, beeSlow=false, beeSwarmsTriggered=0, beehiveTotal=0,
-        streak=0, lastHitAt=-10, molotovTimer=0, wildfireTimer=0, evolutions={}, molotovs={},
-        cigaretteButts={}, emberTransfers={}, emberArrivals={}, smokerGroundTime=0,
+        streak=0, lastHitAt=-10, molotovTimer=0, evolutions={}, molotovs={},
+        cigaretteButts={}, emberTransfers={}, emberArrivals={}, smokerGroundTime=0, secondhandSmokeClouds={},
         treeSparks={}, treeSparkArrivals={}, strawTimer=0, strawBales={}, strawBaleSequence=0,
         oilTrail={}, oilTrailTimer=0, oilTrailLastX=nil, oilTrailLastY=nil, oilTrailSequence=0,
         job=nil, attackCooldown=0, dashing=nil, dashTrail={}, smoking=nil,
@@ -401,6 +402,7 @@ function ClearcutMode:advanceStage(game)
     game.world.nodes, game.world.drops = {}, {}
     self.enemies, self.projectiles, self.bossTelegraphs, self.resinPuddles = {}, {}, {}, {}
     self.rootHazards, self.bees, self.molotovs, self.chests, self.plagued = {}, {}, {}, {}, {}
+    self.secondhandSmokeClouds={}
     self.eternalFields,self.revivalChorusShots,self.revivalChorusImpacts={},{},{}
     self.veganForkImpacts,self.veganConsumeFx,self.veganHaste={},{},0
     self.milestoneFired, self.worldTreeSpawned, self.worldTree, self.activeBoss = {}, false, nil, nil
@@ -1511,6 +1513,45 @@ function ClearcutMode:onTreeBurnedDown(node, game)
     end
 end
 
+function ClearcutMode:emitSecondhandSmoke(game)
+    local facing=game.player.facing or 1
+    local clouds=self.secondhandSmokeClouds
+    clouds[#clouds+1]={
+        x=game.player.x+facing*64,y=game.player.y-17,
+        vx=facing*7,vy=-2.5,age=0,life=3.2,tick=0,
+        radiusX=320,radiusY=200,
+    }
+    -- A fast reload build can overlap a large local fog bank, but cannot leave
+    -- an unlimited trail of transparent overlays across the whole stage.
+    while #clouds>3 do table.remove(clouds,1) end
+end
+
+function ClearcutMode:updateSecondhandSmoke(dt, game)
+    local clouds=self.secondhandSmokeClouds
+    for index=#clouds,1,-1 do
+        local cloud=clouds[index]
+        local activeDt=math.min(dt,math.max(0,cloud.life-cloud.age))
+        cloud.age=cloud.age+activeDt
+        cloud.x=cloud.x+cloud.vx*activeDt
+        cloud.y=cloud.y+cloud.vy*activeDt
+        cloud.tick=cloud.tick+activeDt
+        while cloud.tick>=.25 do
+            cloud.tick=cloud.tick-.25
+            local damage=2.1+self:power("molotov")*.22
+            for _,enemy in ipairs(self.enemies) do
+                if enemy.hp>0 then
+                    local dx,dy=enemy.x-cloud.x,enemy.y-cloud.y
+                    if (dx*dx)/(cloud.radiusX*cloud.radiusX)+(dy*dy)/(cloud.radiusY*cloud.radiusY)<=1 then
+                        enemy.hp=enemy.hp-damage
+                        enemy.visualHit=.08
+                    end
+                end
+            end
+        end
+        if cloud.age>=cloud.life then table.remove(clouds,index) end
+    end
+end
+
 function ClearcutMode:updateFire(dt, game)
     local molotovLevel = self:levelOf("molotov")
     if molotovLevel > 0 then
@@ -1521,24 +1562,14 @@ function ClearcutMode:updateFire(dt, game)
             self:throwMolotov(game)
         end
     end
-    if self.evolutions.wildfire then
-        self.wildfireTimer = self.wildfireTimer + dt
-        if self.wildfireTimer >= 3 then
-            self.wildfireTimer = 0
-            self:throwMolotov(game, true)
-        end
-    end
     local dryLevel = self:levelOf("dry_forest")
     local dryPower = self:power("dry_forest")
     local spreadChancePerSec = .12 + dryPower * .14 + self.permanentTraits.spreadChance
     local spreadRadius = 130 + dryPower * 45
-    if self.evolutions.wildfire then
-        spreadRadius=spreadRadius*1.35
-        spreadChancePerSec=spreadChancePerSec*1.5
-    end
     local burnDuration = math.max(2.2, (3.6 - dryPower * .35) / self.permanentTraits.burnSpeed)
     self:updateStrawBales(dt, game)
     self:updateOilTrail(dt, game)
+    self:updateSecondhandSmoke(dt, game)
     if dryLevel >= 6 then
         self.wildburstTimer = self.wildburstTimer - dt
         if self.wildburstTimer <= 0 then
@@ -1826,7 +1857,12 @@ function ClearcutMode:updateFireAttack(dt, game, heldOverride)
 
     if smoking.phase == "reload" then
         smoking.t = math.min(smoking.dur, smoking.t + dt)
-        if game.player.setClearcutAction then game.player:setClearcutAction(math.min(.48, (smoking.t / smoking.dur) * .48)) end
+        local reloadProgress=smoking.t/smoking.dur
+        if self.evolutions.secondhand_smoke and not smoking.smokeEmitted and reloadProgress>=.42 then
+            smoking.smokeEmitted=true
+            self:emitSecondhandSmoke(game)
+        end
+        if game.player.setClearcutAction then game.player:setClearcutAction(math.min(.48, reloadProgress * .48)) end
         if smoking.t >= smoking.dur then
             smoking.phase, smoking.loaded = "loaded", true
             if game.player.clearClearcutAction then game.player:clearClearcutAction() end
@@ -1862,7 +1898,7 @@ end
 
 function ClearcutMode:startSmoking(game)
     local speed = (game.tools.axe.speed or 1) * game.player.gather * self.permanentTraits.attackSpeed
-    self.smoking = {phase="reload",t=0,dur=math.max(.75,1.25/speed),loaded=false,fired=false}
+    self.smoking = {phase="reload",t=0,dur=math.max(.75,1.25/speed),loaded=false,fired=false,smokeEmitted=false}
     if game.player.setClearcutAction then game.player:setClearcutAction(0) end
 end
 
@@ -4820,6 +4856,7 @@ function ClearcutMode:drawWorldOverlay(game)
     local px, py = game.player.x + 14, game.player.y - 34
     if self.job=="toxic" then VeganForkArt.drawFx(self,game) end
     if self.job == "fire" then
+        SecondhandSmokeArt.draw(self)
         SmokeRingArt.drawCharge(self,game,t)
         local smoking = self.smoking
         if smoking and smoking.phase ~= "flick" then

@@ -2,8 +2,8 @@
 local UI = require("src.ui")
 local Fusions = {}
 Fusions.definitions = {
-    {id="wildfire",job="fire",name="산불",needs={"molotov","dry_forest"},color={1,.5,.18},
-        desc="3초마다 불붙은 꽁초를 추가 투척합니다. 바싹 마른 숲에서는 붙은 불의 확산 반경이 35%, 확산 확률이 50% 증가합니다. 기름 없이 숲 자체를 태우는 두 번째 빌드입니다."},
+    {id="secondhand_smoke",job="fire",name="간접흡연 구역",needs={"molotov","dry_forest"},color={.72,.76,.72},
+        desc="담배를 다시 피우는 동안 옅은 연기를 길게 내뿜습니다. 연기는 그 자리에 잠시 안개처럼 남고, 연기 안에 들어온 모든 적에게 0.25초마다 지속 피해를 줍니다."},
     {id="oilRoad",job="fire",name="기름을 실수로 붓다",needs={"oil_drum","straw_bale"},color={1,.55,.15},
         desc="이동하는 동안 밟고 지나간 자리에 기름 자국이 남습니다. 그 위에 담배꽁초가 떨어지면 그대로 옮겨붙어, 이어진 기름 자국을 따라 벽처럼 길게 늘어선 화염대가 잠시 유지되며 닿는 적에게 지속 피해를 줍니다."},
     {id="frenzy",job="physical",name="무한 야근",needs={"berserker","shockwave"},color={1,.76,.3},

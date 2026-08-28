@@ -434,17 +434,17 @@ function SelfTest.run(game)
 
     -- 융합 스킬: 재료를 만렙 찍을 필요 없이 목록에서 바로 켜고 끌 수 있어야 한다.
     local sandboxFusions = game.clearcut:sandboxFusionList()
-    local hasWildfire = false
-    for _, def in ipairs(sandboxFusions) do if def.id == "wildfire" then hasWildfire = true end end
-    assert(hasWildfire, "연습장 융합 스킬 목록에 해당 직업 융합이 없음")
-    assert(not game.clearcut.evolutions.wildfire, "초기 상태에서 이미 융합을 배운 것으로 표시됨")
-    local wildfireBox
-    for _, box in ipairs(game.sandboxFusionBoxes or {}) do if box.id == "wildfire" then wildfireBox = box.box end end
-    assert(wildfireBox, "융합 스킬 토글 버튼 생성 실패")
-    game:sandboxPanelClick(wildfireBox.x + 1, wildfireBox.y + 1)
-    assert(game.clearcut.evolutions.wildfire == true, "융합 스킬 토글(켜기) 실패")
-    game:sandboxPanelClick(wildfireBox.x + 1, wildfireBox.y + 1)
-    assert(not game.clearcut.evolutions.wildfire, "융합 스킬 토글(끄기) 실패")
+    local hasSecondhandSmoke = false
+    for _, def in ipairs(sandboxFusions) do if def.id == "secondhand_smoke" then hasSecondhandSmoke = true end end
+    assert(hasSecondhandSmoke, "연습장 융합 스킬 목록에 해당 직업 융합이 없음")
+    assert(not game.clearcut.evolutions.secondhand_smoke, "초기 상태에서 이미 융합을 배운 것으로 표시됨")
+    local secondhandSmokeBox
+    for _, box in ipairs(game.sandboxFusionBoxes or {}) do if box.id == "secondhand_smoke" then secondhandSmokeBox = box.box end end
+    assert(secondhandSmokeBox, "융합 스킬 토글 버튼 생성 실패")
+    game:sandboxPanelClick(secondhandSmokeBox.x + 1, secondhandSmokeBox.y + 1)
+    assert(game.clearcut.evolutions.secondhand_smoke == true, "융합 스킬 토글(켜기) 실패")
+    game:sandboxPanelClick(secondhandSmokeBox.x + 1, secondhandSmokeBox.y + 1)
+    assert(not game.clearcut.evolutions.secondhand_smoke, "융합 스킬 토글(끄기) 실패")
 
     game:sandboxPanelClick(game.sandboxExitBox.x + 1, game.sandboxExitBox.y + 1)
     assert(game.mode == "lobby" and game.clearcut == nil, "연습장 나가기 버튼 동작 실패")
