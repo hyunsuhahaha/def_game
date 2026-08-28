@@ -147,6 +147,8 @@ local function drawTreeEvidence(world,player,actorSource)
                     drawDecal(base,player,actorSource)
                 end
             else
+                love.graphics.setColor(0,0,0,node.giantTree and .24 or .18)
+                love.graphics.ellipse("fill",node.x+3,node.y+6,node.giantTree and 38 or 26,node.giantTree and 11 or 8)
                 base.kind,base.scale,base.alpha="soil",.94,.78;drawDecal(base,player,actorSource)
                 base.kind,base.scale,base.angle,base.alpha="sawdust",.72,(index%5-2)*.12,.92;drawDecal(base,player,actorSource)
                 local direction=node.fallDir or (index%2==0 and -1 or 1)

@@ -83,6 +83,27 @@ function Frontend.toggle(box,on,font,label,detail,accent)
     love.graphics.setColor(on and {.96,.91,.65,1} or {.48,.53,.49,1}); love.graphics.circle("fill",sx+(on and sw-14 or 14),sy+14,9)
 end
 
+function Frontend.sliderValueAt(box,x)
+    local trackX,trackW=box.x+20,box.w-40
+    return math.max(0,math.min(1,(x-trackX)/trackW))
+end
+
+function Frontend.slider(box,value,font,label,detail,accent)
+    accent=accent or Frontend.colors.teal
+    value=math.max(0,math.min(1,value or 0))
+    Frontend.frame(box.x,box.y,box.w,box.h,accent,{corner=false})
+    love.graphics.setFont(font);love.graphics.setColor(.94,.93,.84);love.graphics.print(label,box.x+20,box.y+11)
+    love.graphics.setColor(accent[1],accent[2],accent[3],.16);love.graphics.rectangle("fill",box.x+box.w-102,box.y+9,82,24,3,3)
+    love.graphics.setColor(accent);love.graphics.printf(string.format("%d%%",math.floor(value*100+.5)),box.x+box.w-102,box.y+13,82,"center")
+    if detail then love.graphics.setColor(.57,.65,.59);love.graphics.print(detail,box.x+20,box.y+36) end
+    local tx,tw,ty=box.x+20,box.w-40,box.y+box.h-18
+    love.graphics.setColor(.10,.14,.12,1);love.graphics.rectangle("fill",tx,ty,tw,6,3,3)
+    love.graphics.setColor(accent[1],accent[2],accent[3],.88);love.graphics.rectangle("fill",tx,ty,tw*value,6,3,3)
+    local knobX=tx+tw*value
+    love.graphics.setColor(.02,.035,.03,1);love.graphics.circle("fill",knobX,ty+3,9)
+    love.graphics.setColor(.96,.91,.65,1);love.graphics.circle("fill",knobX,ty+3,6)
+end
+
 function Frontend.footer(w,h,text,font)
     love.graphics.setColor(.008,.018,.015,.94); love.graphics.rectangle("fill",0,h-36,w,36)
     love.graphics.setColor(1,1,1,.08); love.graphics.line(0,h-36,w,h-36)

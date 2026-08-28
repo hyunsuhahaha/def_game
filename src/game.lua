@@ -21,6 +21,7 @@ local VeganForkArt = require("src.vegan_fork_art")
 local Achievements = require("src.achievements")
 local AchievementBoard = require("src.achievement_board")
 local resourceLabels = {wood = "목재", stone = "돌", ore = "광석", food = "식량"}
+local VIEW_PITCH_MIN,VIEW_PITCH_MAX=.72,1
 
 local Game = {}
 Game.__index = Game
@@ -70,7 +71,7 @@ function Game.new()
     self.clearcutSprites = loadClearcutSprites()
     self.clearcutMachineryImage = love.graphics.newImage("assets/characters/ingame/developer-bulldozer-pixel-v2.png")
     self.clearcutMachineryImage:setFilter("nearest", "nearest")
-    self.settings = {fullscreen = love.window.getFullscreen(), screenShake = true}
+    self.settings = {fullscreen = love.window.getFullscreen(), screenShake = true, viewPitch = .76}
     self.tools = {
         axe = {name = "나무 도끼", speed = .8, type = "벌목"},
         hoe = {name = "나무 괭이", speed = 1, type = "농사"},
@@ -160,12 +161,29 @@ function Game:startClearcut(characterId, mapId)
     self.clearcut:setup(self)
     -- The simulation remains top-down world space. Rendering and pointer input
     -- share one nonlinear projection that narrows both axes into the distance.
-    self.camera.pitch=.76
-    self.camera.perspective=true
+    self:enableClearcutPerspective()
     self.mode="playing"
     ClearcutIntro.begin(self)
 end
 function Game:setNotice(text, kind) self.notice, self.noticeKind, self.noticeTime = text, kind or "core", 2.2 end
+
+function Game:viewTiltAmount()
+    local settings=self.settings or {}
+    return (VIEW_PITCH_MAX-(settings.viewPitch or .76))/(VIEW_PITCH_MAX-VIEW_PITCH_MIN)
+end
+
+function Game:setViewTilt(amount)
+    amount=math.max(0,math.min(1,amount or 0))
+    self.settings=self.settings or {}
+    self.settings.viewPitch=VIEW_PITCH_MAX-(VIEW_PITCH_MAX-VIEW_PITCH_MIN)*amount
+    if self.camera and self.camera.perspective then self.camera.pitch=self.settings.viewPitch end
+end
+
+function Game:enableClearcutPerspective()
+    local settings=self.settings or {}
+    self.camera.pitch=math.max(VIEW_PITCH_MIN,math.min(VIEW_PITCH_MAX,settings.viewPitch or .76))
+    self.camera.perspective=true
+end
 
 function Game:grantTestRunResources()
     self.food, self.ore, self.wood, self.stone, self.seeds = self.food + 1000000, self.ore + 1000000, self.wood + 1000000, self.stone + 1000000, self.seeds + 1000000
@@ -358,7 +376,14 @@ function Game:keypressed(key)
         if self.characterTraitBoard:keypressed(key)=="back" then self.mode=self.characterTraitReturnMode or "clearcut_select" end
         return
     end
-    if self.mode == "settings" then if key == "escape" then self.mode = "lobby" end; return end
+    if self.mode == "settings" then
+        if key == "escape" then self.mode = "lobby"
+        elseif key == "left" or key == "a" then self:setViewTilt(self:viewTiltAmount()-.05)
+        elseif key == "right" or key == "d" then self:setViewTilt(self:viewTiltAmount()+.05)
+        elseif key == "home" then self:setViewTilt(0)
+        elseif key == "end" then self:setViewTilt(1) end
+        return
+    end
     if self.mode == "meta" then if self.traitTree:keypressed(key) == "back" then self.mode = "lobby" end; return end
     if self.mode == "upgrade" then if key == "1" or key == "2" or key == "3" then self:selectRunUpgrade(tonumber(key)) end; return end
     if self.mode == "rush_upgrade" then if key=="1" or key=="2" or key=="3" then self.rush:choose(tonumber(key),self) end; return end
@@ -530,6 +555,9 @@ function Game:mousepressed(x, y, button)
     if self.mode == "settings" then
         if button == 1 then
             if Frontend.inside(self.settingsBackBox,x,y) then self.mode = "lobby"
+            elseif Frontend.inside(self.settingsTiltBox,x,y) then
+                self.settingsTiltDragging=true
+                self:setViewTilt(Frontend.sliderValueAt(self.settingsTiltBox,x))
             elseif Frontend.inside(self.settingsShakeBox,x,y) then
                 self.settings.screenShake = not self.settings.screenShake
                 self.camera.shakeScale = self.settings.screenShake and 1 or 0
@@ -645,6 +673,11 @@ function Game:mousepressed(x, y, button)
 end
 
 function Game:wheelmoved(x, y)
+    if self.mode=="settings" then
+        local mx,my=love.mouse.getPosition()
+        if Frontend.inside(self.settingsTiltBox,mx,my) and y~=0 then self:setViewTilt(self:viewTiltAmount()+(y>0 and .04 or -.04)) end
+        return
+    end
     if self.mode=="character_traits" then self.characterTraitBoard:wheelmoved(x,y); return end
     if self.mode=="achievements" then self.achievementBoard:wheelmoved(x,y); return end
     if self.mode=="clearcut_map_select" then local mx,my=love.mouse.getPosition();require("src.clearcut_map_select").wheelmoved(self,mx,my,y);return end
@@ -1033,6 +1066,7 @@ function Game:startClearcutSandbox(characterId)
     self.selectedClearcutMap = self.clearcut.mapId
     self.player:setClearcutSprite(self.clearcutSprites[characterId] or self.clearcutSprites.physical, characterId)
     self.clearcut:setup(self)
+    self:enableClearcutPerspective()
     self.mode = "playing"
 end
 
@@ -1294,10 +1328,12 @@ function Game:pauseButtons()
 end
 
 function Game:mousemoved(x,y,dx,dy)
+    if self.mode=="settings" and self.settingsTiltDragging then self:setViewTilt(Frontend.sliderValueAt(self.settingsTiltBox,x));return end
     if self.mode=="clearcut_map_select" then require("src.clearcut_map_select").mousemoved(self,x,y,dx,dy) end
 end
 
 function Game:mousereleased(x,y,button)
+    if button==1 then self.settingsTiltDragging=false end
     if self.mode=="clearcut_map_select" then
         local index=require("src.clearcut_map_select").mousereleased(self,x,y,button)
         if index then self.clearcutMapFocus=index;self:chooseClearcutMap(index) end
@@ -1330,15 +1366,18 @@ function Game:drawSettings()
     love.graphics.setFont(f.title); love.graphics.setColor(.98,.96,.87); love.graphics.print("환경 설정",34,51)
     love.graphics.setFont(f.small); love.graphics.setColor(.54,.62,.56); love.graphics.print("시각 피드백과 표시 환경을 현재 장비에 맞게 조정합니다",34,96)
     self.settingsBackBox={x=w-174,y=28,w=140,h=42}; Frontend.button(self.settingsBackBox,"지휘실로",f.small,{accent=Frontend.colors.teal,key="ESC"})
-    local x,y,pw=math.max(34,w*.14),138,math.min(820,w*.72); local cx=x+(w-pw-2*x)/2
+    local x,y,pw=math.max(34,w*.14),compact and 122 or 138,math.min(820,w*.72); local cx=x+(w-pw-2*x)/2
     x=cx; Frontend.frame(x,y,pw,h-198,Frontend.colors.teal,{selected=true})
     Frontend.label("화면",x+24,y+22,f.micro,Frontend.colors.teal)
-    self.settingsShakeBox={x=x+24,y=y+58,w=pw-48,h=76}; Frontend.toggle(self.settingsShakeBox,self.settings.screenShake,f.body,"화면 흔들림","타격·폭발·보스 등장 시 카메라 반동",Frontend.colors.amber)
-    self.settingsFullscreenBox={x=x+24,y=y+148,w=pw-48,h=76}; Frontend.toggle(self.settingsFullscreenBox,self.settings.fullscreen,f.body,"화면 모드",self.settings.fullscreen and "전체 화면으로 실행 중" or "창 모드로 실행 중",Frontend.colors.teal)
-    Frontend.label("개발 도구",x+24,y+258,f.micro,Frontend.colors.rust)
-    self.settingsTestBox={x=x+24,y=y+294,w=pw-48,h=66}; Frontend.button(self.settingsTestBox,"테스트 도구 열기  (F10)",f.body,{accent=Frontend.colors.rust,align="left"})
-    if not compact then love.graphics.setFont(f.small); love.graphics.setColor(.49,.57,.51); love.graphics.printf("테스트 기능은 별도 패널에서 관리됩니다. 실제 저장 데이터에 영향을 줄 수 있습니다.",x+24,y+374,pw-48,"left") end
-    Frontend.footer(w,h,"클릭  설정 변경    ·    F10  테스트 도구    ·    ESC  지휘실",f.small)
+    local rowH=compact and 54 or 66;local firstY=y+(compact and 48 or 54);local gap=compact and 10 or 12
+    self.settingsShakeBox={x=x+24,y=firstY,w=pw-48,h=rowH}; Frontend.toggle(self.settingsShakeBox,self.settings.screenShake,f.body,"화면 흔들림",compact and nil or "타격·폭발·보스 등장 시 카메라 반동",Frontend.colors.amber)
+    self.settingsFullscreenBox={x=x+24,y=firstY+rowH+gap,w=pw-48,h=rowH}; Frontend.toggle(self.settingsFullscreenBox,self.settings.fullscreen,f.body,"화면 모드",compact and nil or (self.settings.fullscreen and "전체 화면으로 실행 중" or "창 모드로 실행 중"),Frontend.colors.teal)
+    local tiltY=firstY+(rowH+gap)*2;self.settingsTiltBox={x=x+24,y=tiltY,w=pw-48,h=compact and 70 or 82}
+    Frontend.slider(self.settingsTiltBox,self:viewTiltAmount(),f.body,"시점 기울기",compact and "평면  ↔  깊은 원근" or "벌목 지역·연습장 지면의 깊이만 조절 · 캐릭터 비율 유지",Frontend.colors.amber)
+    local devY=self.settingsTiltBox.y+self.settingsTiltBox.h+(compact and 12 or 20)
+    Frontend.label("개발 도구",x+24,devY,f.micro,Frontend.colors.rust)
+    self.settingsTestBox={x=x+24,y=devY+26,w=pw-48,h=compact and 42 or 54}; Frontend.button(self.settingsTestBox,"테스트 도구 열기  (F10)",f.body,{accent=Frontend.colors.rust,align="left"})
+    Frontend.footer(w,h,"드래그 / 휠 / ← →  시점 조절    ·    F10  테스트 도구    ·    ESC  지휘실",f.small)
 end
 
 function Game:drawTestOptions()

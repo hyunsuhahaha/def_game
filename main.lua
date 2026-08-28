@@ -109,6 +109,14 @@ function love.load()
         game.player.x,game.player.y=target.x+90,target.y+55
         game.camera.x,game.camera.y=target.x,target.y-30
         target.rushHp=1; game.clearcut:hitTree(target,game)
+        if os.getenv("LAST_HAUL_STUMP_VIEW") then
+            for index=1,4 do
+                local stump=game.world.nodes[index]
+                stump.x=game.player.x+(index-2.5)*92;stump.y=game.player.y+44+(index%2)*38
+                stump.treeVariant=index;stump.active=false;stump.fallT=nil;stump.respawn=10
+            end
+            game.camera.x,game.camera.y=game.player.x,game.player.y-24
+        end
         game.clearcut:onWood(95,game); game.clearcut.pending=0; game.mode="playing"
         game.world.harvestChain,game.world.harvestChainTime=14,2.0
         if os.getenv("LAST_HAUL_CAPTURE_CLEARCUT_JUICE") then

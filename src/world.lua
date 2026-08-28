@@ -1167,6 +1167,13 @@ function World:useArcadeForest()
             end
             self.images.treeDamageVariants[#self.images.treeDamageVariants+1]=stages
         end
+        self.images.stumpAtlas=love.graphics.newImage("assets/trees/stump-atlas-pixel-v1.png")
+        self.images.stumpAtlas:setFilter("nearest","nearest")
+        self.images.stumpQuads={}
+        for index=1,14 do
+            local zero=index-1
+            self.images.stumpQuads[index]=love.graphics.newQuad((zero%4)*128,math.floor(zero/4)*96,128,96,self.images.stumpAtlas:getDimensions())
+        end
     end
     self.treeVisual.frontBias = 0 -- authored roots are at the .91-height anchor
     self.treeVisual.shadowX, self.treeVisual.shadowY = 0, 0
@@ -1245,19 +1252,17 @@ end
 
 function World:drawRushStump(node)
     local regrow = math.max(0, math.min(1, 1 - (node.respawn or 0) / 10))
-    love.graphics.setColor(0, 0, 0, .24)
-    love.graphics.ellipse("fill", node.x + 4, node.y + 6, 23, 7)
-    love.graphics.setColor(.34, .17, .06, 1)
-    love.graphics.polygon("fill", node.x - 17, node.y + 3, node.x - 12, node.y - 20, node.x + 13, node.y - 20, node.x + 18, node.y + 3)
-    love.graphics.setColor(.72, .46, .18, 1)
-    love.graphics.ellipse("fill", node.x, node.y - 20, 15, 6)
-    love.graphics.setColor(.3, .15, .055, .9)
-    love.graphics.setLineWidth(2)
-    love.graphics.ellipse("line", node.x, node.y - 20, 8, 3)
-    if regrow > .7 then
-        love.graphics.setColor(.38, .8, .22, .95)
-        love.graphics.ellipse("fill", node.x - 5, node.y - 30, 5, 2.5)
-        love.graphics.ellipse("fill", node.x + 5, node.y - 34, 5, 2.5)
+    local offsets={forest=0,beginner=0,mangrove=4,madagascar=7,island=10}
+    local mapId=self.clearcutMap or "forest"
+    local variants=(mapId=="forest" or mapId=="beginner") and 4 or 3
+    local index=(offsets[mapId] or 0)+math.max(1,math.min(variants,node.treeVariant or 1))
+    local atlas,quad=self.images.stumpAtlas,self.images.stumpQuads and self.images.stumpQuads[index]
+    if not atlas or not quad then return end
+    local scale=node.giantTree and .78 or .58
+    love.graphics.setColor(1,1,1,1)
+    love.graphics.draw(atlas,quad,node.x,node.y,0,scale,scale,64,86)
+    if regrow>.7 then
+        love.graphics.draw(atlas,self.images.stumpQuads[14],node.x,node.y-(node.giantTree and 12 or 0),0,scale,scale,64,86)
     end
 end
 
