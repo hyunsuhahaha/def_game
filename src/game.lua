@@ -12,6 +12,7 @@ local RushMode = require("src.rush_mode")
 local ClearcutMode = require("src.clearcut_mode")
 local ClearcutIntro = require("src.clearcut_intro")
 local WorldProjection = require("src.world_projection")
+local BiomeCanopy = require("src.biome_canopy")
 local CharacterTraits = require("src.character_traits")
 local CharacterTraitBoard = require("src.character_trait_board")
 local CharacterStory = require("src.character_story")
@@ -1296,6 +1297,7 @@ function Game:draw()
         self.world.billboardQueue=nil
     end
     self.world.deferBillboards=false
+    if self.clearcut and not introActive then BiomeCanopy.draw(self.world,self.camera,love.timer.getTime()) end
     if introActive then ClearcutIntro.drawScreen(self) else self:drawUI() end
     if self.clearcut and self.clearcut.sandbox then self:drawSandboxPanel() end
     if self.mode == "upgrade" then self.upgrades:drawSelection(self, self.fonts) end
