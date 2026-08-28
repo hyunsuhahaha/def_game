@@ -59,4 +59,4 @@ python scripts/headless_lua.py scripts/verify_clearcut_fusions.lua
 python scripts/render_fusion_preview.py
 ```
 
-첫 검사는 LÖVE Lua DLL, 두 번째는 추가로 Pillow가 필요하다. 융합 회귀 검사와 9개 UI 미리보기(7종·진행표·최소 창)를 생성할 수 있다. 두더지 융합은 별도 표시 크기·3배 픽셀 검수를 함께 사용한다.
+첫 검사는 LÖVE Lua DLL, 두 번째는 추가로 Pillow가 필요하다. 융합 회귀 검사는 현재 조합 8종을 전부 확인하며, 렌더 스크립트는 기존 융합 획득 화면·진행표·최소 창 UI 미리보기 묶음을 생성한다. 두더지 융합은 별도 표시 크기·3배 픽셀 검수를 함께 사용한다.
