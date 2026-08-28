@@ -77,17 +77,13 @@ function Zones.status(mode)
 end
 function Zones.drawHUD(mode,fonts,w,y)
     local zones=mode.forestZones or {};if #zones==0 then return 0 end
-    local width,cellW,cellH=300,48,30;local x=math.floor(w/2-width/2)
-    love.graphics.setColor(.025,.045,.035,.92);love.graphics.rectangle("fill",x-6,y-4,width+12,cellH+8,6,6)
+    local cellW,cellH=30,25;local width=#zones*cellW;local x=math.floor(w/2-width/2)
     for i,z in ipairs(zones) do
-        local cx=x+(i-1)*cellW+(i-1)*2;local pct=z.initial>0 and z.active/z.initial or 0
+        local cx=x+(i-1)*cellW
         local c=z.secured and {.25,.58,.68} or (z.coreAlive and {.42,.78,.28} or {.92,.58,.18})
-        love.graphics.setColor(.08,.11,.075,.96);love.graphics.rectangle("fill",cx,y,cellW,cellH,3,3)
-        love.graphics.setColor(c[1],c[2],c[3],.30);love.graphics.rectangle("fill",cx,y+cellH-math.max(2,math.floor(cellH*pct)),cellW,math.max(2,math.floor(cellH*pct)),3,3)
-        love.graphics.setColor(c[1],c[2],c[3],.9);love.graphics.rectangle("line",cx+.5,y+.5,cellW-1,cellH-1,3,3)
-        love.graphics.setFont(fonts.micro or fonts.small);love.graphics.setColor(1,1,1,.92);love.graphics.printf(tostring(z.id),cx,y+1,cellW,"center")
-        love.graphics.setColor(.9,.9,.82,.78);love.graphics.printf(z.secured and "확보" or (z.coreAlive and tostring(z.active) or "정리"),cx,y+14,cellW,"center")
+        love.graphics.setFont(fonts.micro or fonts.small);love.graphics.setColor(z.secured and .55 or 1,z.secured and .62 or 1,z.secured and .58 or 1,.94);love.graphics.printf(tostring(z.id),cx,y,cellW,"center")
+        love.graphics.setColor(c[1],c[2],c[3],1);love.graphics.rectangle("fill",cx+8,y+18,14,3)
     end
-    return cellH+8
+    return cellH
 end
 return Zones

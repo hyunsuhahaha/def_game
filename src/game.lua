@@ -562,7 +562,7 @@ function Game:mousepressed(x, y, button)
         return
     end
     if self.mode == "clearcut_results" then
-        if button==1 then local w,h=love.graphics.getDimensions(); if y>=h/2+270 and y<=h/2+318 then if x>=w/2-250 and x<=w/2-10 then self.mode="lobby" elseif x>=w/2+10 and x<=w/2+250 then self:startClearcut(self.clearcut and self.clearcut.job) end end end
+        if button==1 then local boxes=self.clearcutResultButtons or{};local function inside(b)return b and x>=b.x and x<=b.x+b.w and y>=b.y and y<=b.y+b.h end;if inside(boxes.lobby)then self.mode="lobby"elseif inside(boxes.retry)then self:startClearcut(self.clearcut and self.clearcut.job)end end
         return
     end
     if self.mode == "results" then

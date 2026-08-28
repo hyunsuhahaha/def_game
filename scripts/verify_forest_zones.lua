@@ -30,7 +30,7 @@ for _,width in ipairs({960,1280}) do
             assert(op.args[1]>=0 and op.args[1]+op.args[3]<=width,"zone HUD overflow")
         else texts=texts+1 end
     end
-    assert(rectangles==19 and texts==12,"zone HUD lost one of six states")
+    assert(rectangles==6 and texts==6,"zone HUD lost one of six minimal states")
 end
 local capture=os.getenv("FOREST_ZONE_CAPTURE");if capture then fixture.save(capture) end
 print("FOREST_ZONES_OK grid=3x2 core_gate=true secured=permanent regen=local")

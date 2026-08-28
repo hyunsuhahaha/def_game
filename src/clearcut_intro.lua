@@ -1,5 +1,6 @@
 local Maps=require("src.clearcut_maps")
 local Life=require("src.biome_life")
+local StageUI=require("src.stage_intro_ui")
 local Intro={}
 local birdAtlas,birdQuads,debrisAtlas,debrisQuads
 local CELL_W,CELL_H,FRAMES=160,112,8
@@ -65,7 +66,6 @@ local function finish(game)
     local intro=game.clearcut and game.clearcut.intro;if not intro then return end;clearSway(intro)
     game.player.introHidden=false;game.player.isMoving=false;game.player.x,game.player.y=intro.targetX,intro.targetY
     game.camera.x,game.camera.y,game.camera.zoom=intro.targetX,intro.targetY,intro.baseZoom;game.clearcut.intro=nil
-    local def=Maps.get(game.clearcut.mapId);game:setNotice(def.name.." · 1구역 작전 개시","food")
 end
 Intro.finish=finish
 function Intro.skip(game)
@@ -125,12 +125,9 @@ function Intro.drawScreen(game)
     local intro=game.clearcut and game.clearcut.intro;if not intro then return end
     local w,h=love.graphics.getDimensions();local f=game.fonts;local def=Maps.get(intro.mapId);local t=intro.t
     local fade=clamp(1-t/.72,0,1);if fade>0 then love.graphics.setColor(0,0,0,fade);love.graphics.rectangle("fill",0,0,w,h)end
-    local bars=clamp(1-math.max(0,t-3.7)/1.1,0,1);local bh=math.floor(h*.065*bars)
-    if bh>0 then love.graphics.setColor(.005,.012,.01,.94);love.graphics.rectangle("fill",0,0,w,bh);love.graphics.rectangle("fill",0,h-bh,w,bh)end
+    local bars=clamp(1-math.max(0,t-3.7)/1.1,0,1);local bh=StageUI.drawBars(w,h,bars)
     local titleAlpha=clamp(t/.35,0,1)*clamp((1.68-t)/.38,0,1)
-    if titleAlpha>0 then love.graphics.setFont(f.micro);love.graphics.setColor(def.color[1],def.color[2],def.color[3],titleAlpha);love.graphics.printf("작전 구역 01",0,h*.19,w,"center");love.graphics.setFont(f.display);love.graphics.setColor(.97,.95,.84,titleAlpha);love.graphics.printf(def.name,0,h*.19+28,w,"center")end
-    local goAlpha=clamp((t-3.45)/.22,0,1)*clamp((4.65-t)/.35,0,1)
-    if goAlpha>0 then love.graphics.setColor(.006,.016,.012,goAlpha*.68);love.graphics.rectangle("fill",w/2-108,h*.67-8,216,48);love.graphics.setFont(f.big);love.graphics.setColor(1,.76,.28,goAlpha);love.graphics.printf("작전 개시",0,h*.67,w,"center")end
-    if t>.75 and t<3.9 then love.graphics.setFont(f.micro);love.graphics.setColor(.72,.78,.71,.58);love.graphics.printf("SPACE / 클릭  건너뛰기",0,h-bh-27,w,"center")end
+    StageUI.drawTitle(game,intro,def,titleAlpha)
+    if t>.75 and t<3.9 then StageUI.drawHint(game,intro,clamp((t-.75)/.22,0,1)*clamp((3.9-t)/.25,0,1),bh)end
 end
 return Intro

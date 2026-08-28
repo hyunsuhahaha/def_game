@@ -1,5 +1,6 @@
 local UI = require("src.ui")
 local Frontend = require("src.frontend_ui")
+local HUDArt = require("src.clearcut_ui_art")
 local TraitFx = require("src.trait_fx")
 local Cigarette = require("src.cigarette_sprite")
 local CigaretteButts = require("src.cigarette_butts")
@@ -5475,47 +5476,43 @@ end
 function ClearcutMode:drawHUD(game,fonts)
     local w,h=love.graphics.getDimensions()
     local t = love.timer.getTime()
+    local uiScale=math.max(.88,math.min(1.2,w/1280))
     drawBerserkOverlay(self.berserkState, w, h, t)
     drawDisasterOverlay(self, w, h, t)
     drawOffscreenIndicators(self, game, fonts, w, h, t)
-    UI.panel(16,16,360,168,{.35,1,.52,1},.94)
-    love.graphics.setFont(fonts.big); love.graphics.setColor(1,1,1); love.graphics.print(formatTime(self.elapsed),32,27)
-    love.graphics.setFont(fonts.body); love.graphics.setColor(.95,.7,.25); love.graphics.print("STAGE " .. self.stage .. "  ·  " .. (jobNames[self.job] or "벌목꾼"),155,35)
-    love.graphics.setFont(fonts.small); love.graphics.setColor(.72,.9,.76); love.graphics.print(string.format("목재 %d   쓰러뜨린 나무 %d / %d",self.totalWood,self.treesFelled,self.initialTrees),32,76)
-    love.graphics.print(string.format("동시 타격 %d   연쇄 %d   Lv.%d",self.maxMulti,self.maxChain,self.level),32,101)
+    love.graphics.setFont(fonts.big);love.graphics.setColor(1,.96,.82);love.graphics.print(formatTime(self.elapsed),18,16)
+    love.graphics.setFont(fonts.micro or fonts.small);love.graphics.setColor(.82,.84,.76);love.graphics.print("구역 "..self.stage.." · "..(jobNames[self.job]or"벌목꾼"),20,51)
+    love.graphics.setColor(.92,.90,.72);love.graphics.print(string.format("목재 %d   벌목 %d/%d",self.totalWood,self.treesFelled,self.initialTrees),20,71)
     local statusColor = (self.rootedTimer > 0 or self.beeSlow) and {1,.6,.35} or {.6,.72,.66}
     love.graphics.setColor(statusColor)
     local secured,totalZones=ForestZones.status(self)
     local status = self.rootedTimer > 0 and "발이 묶임!" or self.beeSlow and "벌떼에 쫓기는 중" or string.format("구역 %d/%d 확보 · 재생 %d회",secured,totalZones,self.regrowPulses)
-    love.graphics.print(status, 32, 124)
+    love.graphics.setFont(fonts.micro or fonts.small);love.graphics.setColor(statusColor);love.graphics.print(status,20,91)
     local evoNames=Fusions.activeNames(self)
     if #evoNames>0 then
         love.graphics.setColor(1,.82,.3)
-        love.graphics.printf("융합: "..table.concat(evoNames," · "),32,146,328,"left")
+        love.graphics.printf("융합  "..table.concat(evoNames," · "),20,111,320,"left")
     end
 
-    love.graphics.setColor(.04,.07,.055,.9); love.graphics.rectangle("fill",16,192,360,34,8,8)
-    love.graphics.setFont(fonts.small); love.graphics.setColor(1,.4,.35); love.graphics.print("HP",30,199)
-    UI.bar(66,199,296,18,math.max(0,self.hp/self.maxHp),{1,.32,.26,1},{.14,.06,.05,.95})
-    love.graphics.setFont(fonts.small); love.graphics.setColor(1,1,1); love.graphics.printf(math.ceil(self.hp).." / "..self.maxHp,66,201,296,"center")
+    local hpW=math.floor(260*uiScale);HUDArt.bar(20,135,hpW,14,math.max(0,self.hp/self.maxHp),"health",self.hp/self.maxHp<.3)
+    love.graphics.setFont(fonts.micro or fonts.small);love.graphics.setColor(1,.94,.88);love.graphics.printf("HP  "..math.ceil(self.hp).." / "..self.maxHp,20,134,hpW,"center")
 
     self:drawSkillTracker(fonts)
 
     local pct = self:destructionPct()
-    local barW = 300
+    local barW = math.floor(330*uiScale)
     local flash = self.regrowFlash > 0
-    UI.panel(w/2-barW/2-16,16,barW+32,70,flash and {1,.25,.2,1} or {1,.55,.2,1},.94)
-    love.graphics.setFont(fonts.small); love.graphics.setColor(.95,.85,.7); love.graphics.printf("FOREST REMAINING",w/2-barW/2,25,barW,"center")
-    UI.bar(w/2-barW/2,45,barW,16,1-pct/100,flash and {1,.4,.3,1} or {.35,1,.45,1},{.1,.06,.04,.95})
-    love.graphics.setFont(fonts.body); love.graphics.setColor(1,1,1); love.graphics.printf(string.format("%.0f%%",100-pct),w/2-barW/2,63,barW,"center")
-    ForestZones.drawHUD(self,fonts,w,96)
+    local forestX=math.floor(w/2-barW/2);love.graphics.setFont(fonts.micro or fonts.small);love.graphics.setColor(.90,.92,.78);love.graphics.print("남은 숲",forestX,17)
+    love.graphics.setColor(flash and {1,.47,.32}or{.70,1,.55});love.graphics.printf(string.format("%.0f%%",100-pct),forestX,17,barW,"right")
+    HUDArt.bar(forestX,38,barW,14,1-pct/100,"forest",flash)
+    ForestZones.drawHUD(self,fonts,w,61)
 
     if self.activeBoss then
         local boss = self.activeBoss
         local bw = math.min(700, w*.55)
-        UI.panel(w/2-bw/2,140,bw,42,{1,.3,.15,1},.95)
-        love.graphics.setFont(fonts.small); love.graphics.setColor(1,.85,.7); love.graphics.printf(boss.def.name,w/2-bw/2,146,bw,"center")
-        UI.bar(w/2-bw/2+14,164,bw-28,12,math.max(0,boss.hp/boss.maxHp),{1,.3,.2,1},{.12,.05,.04,.95})
+        love.graphics.setColor(.04,.025,.02,.9);love.graphics.rectangle("fill",w/2-bw/2,148,bw,48,10,10)
+        love.graphics.setFont(fonts.small); love.graphics.setColor(1,.85,.7); love.graphics.printf(boss.def.name,w/2-bw/2,153,bw,"center")
+        HUDArt.bar(w/2-bw/2+18,176,bw-36,12,math.max(0,boss.hp/boss.maxHp),"boss")
     end
 
     if self.berserkState == "warn" or self.berserkState == "active" then
@@ -5553,35 +5550,26 @@ function ClearcutMode:drawHUD(game,fonts)
         love.graphics.printf(sub, dbx, dby + 31, dbw, "center")
     end
 
-    -- 연속 채집 콤보(world.lua의 harvestChain — 나무를 벨 때마다 이미 세계 곳곳에
-    -- "연속 채집 x N" 팝업으로 떠 있던 바로 그 값). 2.4초 안에 또 나무를 못 베면
-    -- 끊긴다. 오른쪽 상단, 광폭화/재난 패널이 떠 있으면 그 아래로 밀려난다.
+    -- Fighting-game read: only the number and COMBO, never another HUD card.
     local harvestChain = game.world.harvestChain or 0
     if harvestChain >= 2 then
-        local cbw = 190
-        local cbx = w - 16 - cbw
+        local cbw = 180
+        local cbx = w - 24 - cbw
         local stacked = 0
         if self.berserkState == "warn" or self.berserkState == "active" then stacked = stacked + 1 end
         if self.disasterState == "warn" or self.disasterState == "active" then stacked = stacked + 1 end
-        local cby = 16 + stacked * 62
-        love.graphics.setColor(.05, .045, .02, .92); love.graphics.rectangle("fill", cbx, cby, cbw, 54, 8, 8)
-        love.graphics.setLineWidth(1.5); love.graphics.setColor(1, .62, .18, .9)
-        love.graphics.rectangle("line", cbx + .5, cby + .5, cbw - 1, 53, 8, 8)
-        love.graphics.setFont(fonts.body); love.graphics.setColor(1, .85, .4, 1)
-        love.graphics.printf("연속 채집 ×" .. harvestChain, cbx, cby + 6, cbw, "center")
-        local maxWindow = 2.4
-        local remaining = math.max(0, game.world.harvestChainTime or 0)
-        love.graphics.setColor(.14, .1, .05, .95); love.graphics.rectangle("fill", cbx + 12, cby + 33, cbw - 24, 12, 4, 4)
-        love.graphics.setColor(1, .55, .15, 1)
-        love.graphics.rectangle("fill", cbx + 12, cby + 33, (cbw - 24) * (remaining / maxWindow), 12, 4, 4)
-        love.graphics.setFont(fonts.small); love.graphics.setColor(1, 1, 1, .92)
-        love.graphics.printf(string.format("%.1f초", remaining), cbx, cby + 33, cbw, "center")
+        local cby = 24 + stacked * 66
+        local pop=1+math.min(.16,math.max(0,game.world.harvestChainTime or 0)*.05)
+        love.graphics.push();love.graphics.translate(cbx+cbw/2,cby+36);love.graphics.scale(pop,pop)
+        love.graphics.setFont(fonts.display or fonts.title);love.graphics.setColor(.06,.04,.02,.82);love.graphics.printf(tostring(harvestChain),-cbw/2+3,-15+3,cbw,"center")
+        love.graphics.setColor(1,.72,.16,1);love.graphics.printf(tostring(harvestChain),-cbw/2,-15,cbw,"center")
+        love.graphics.setFont(fonts.small);love.graphics.setColor(1,.94,.68,1);love.graphics.printf("COMBO",-cbw/2,38,cbw,"center")
+        love.graphics.pop()
     end
 
     local barH = 8
     local xpby = h - barH
-    love.graphics.setColor(.04,.07,.055,.9); love.graphics.rectangle("fill",0,xpby,w,barH)
-    love.graphics.setColor(1,.78,.25,1); love.graphics.rectangle("fill",0,xpby,w*math.min(1,self.xp/self.xpNext),barH)
+    HUDArt.bar(0,xpby,w,barH,math.min(1,self.xp/self.xpNext),"xp")
     love.graphics.setFont(fonts.small); love.graphics.setColor(1,1,1,.9)
     love.graphics.print("Lv."..self.level,12,xpby-18)
     love.graphics.printf(math.floor(self.xp).." / "..self.xpNext,0,xpby-18,w-12,"right")
@@ -6162,18 +6150,32 @@ end
 
 function ClearcutMode:drawResults(game,fonts)
     local w,h,r=love.graphics.getWidth(),love.graphics.getHeight(),game.result
-    local victory = r.victory ~= false
-    love.graphics.setColor(0,0,0,.84); love.graphics.rectangle("fill",0,0,w,h)
-    UI.panel(w/2-330,h/2-260,660,590,victory and {.35,1,.52,1} or {1,.3,.28,1},.98)
-    love.graphics.setFont(fonts.title); love.graphics.setColor(1,1,1)
-    love.graphics.printf(victory and ((r.operationName or "벌목 작전").." 완료") or "숲의 반격에 쓰러졌다",w/2-300,h/2-230,600,"center")
-    love.graphics.setFont(fonts.small); love.graphics.setColor(.7,.85,.76)
-    love.graphics.printf(victory and ((r.bossName or "지역 보스").." 격파 · 철수로 확보") or "목표 미달 · 장비 회수 실패",w/2-300,h/2-182,600,"center")
-    local rows={{"도달 스테이지",r.stage or 1},{"걸린 시간",formatTime(r.elapsed)},{"총 목재",r.wood},{"쓰러뜨린 나무",r.trees.." / "..r.total},{"제압한 구역",(r.zonesSecured or 0).." / "..(r.zonesTotal or 0)},{"처치한 적",r.kills or 0},{"최대 동시 타격",r.maxMulti},{"최대 연쇄 벌목",r.maxChain},{"도달 레벨",r.level},{"숲 재생 펄스 · 되살아난 나무",r.regrowPulses.."회 · "..r.treesRevived.."그루"},{"가시덩굴에 붙잡힌 횟수",r.rootedCount},{"자극한 벌집",r.beeSwarms}}
-    for i,row in ipairs(rows) do local y=h/2-140+(i-1)*38; love.graphics.setColor(i%2==0 and {.07,.12,.1,.9} or {.045,.085,.07,.9}); love.graphics.rectangle("fill",w/2-270,y,540,32,4,4); love.graphics.setColor(.72,.82,.76); love.graphics.print(row[1],w/2-250,y+7); love.graphics.setColor(1,.75,.25); love.graphics.printf(tostring(row[2]),w/2+40,y+7,270,"center") end
-    UI.button(w/2-250,h/2+270,240,48,"로비로",true,fonts.body); UI.button(w/2+10,h/2+270,240,48,"다시 실험",true,fonts.body)
+    local victory=r.victory~=false
+    local scale=math.max(.78,math.min(1.18,w/1280,h/720));local contentW=math.min(760,w-48);local x=(w-contentW)/2;local top=math.max(38,(h-510*scale)/2)
+    love.graphics.setColor(.006,.009,.007,.84);love.graphics.rectangle("fill",0,0,w,h)
+    love.graphics.setFont(fonts.title);love.graphics.setColor(victory and{1,.87,.40}or{1,.37,.24})
+    love.graphics.printf(victory and((r.operationName or"벌목 작전").." 완료")or"작업 중단",x,top,contentW,"center")
+    love.graphics.setFont(fonts.micro or fonts.small);love.graphics.setColor(.72,.76,.68)
+    love.graphics.printf(victory and((r.bossName or"지역 보스").." 격파")or"회수 기록",x,top+48*scale,contentW,"center")
+    local ratio=(r.total or 0)>0 and(r.trees or 0)/(r.total or 1)or 0;local rank=victory and(ratio>=.95 and"S"or ratio>=.75 and"A"or"B")or(ratio>=.5 and"C"or"D")
+    love.graphics.setColor(.35,.40,.34,.75);love.graphics.rectangle("fill",x,top+83*scale,contentW,2)
+    love.graphics.setFont(fonts.big);love.graphics.setColor(victory and{1,.70,.18}or{1,.35,.24});love.graphics.printf(rank,x+contentW-70,top,70,"right")
+    local metrics={{"작업 시간",formatTime(r.elapsed)},{"벌목",r.trees.." / "..r.total},{"확보 구역",(r.zonesSecured or 0).." / "..(r.zonesTotal or 0)}}
+    for i,m in ipairs(metrics)do local colW=contentW/3;local cx=x+(i-1)*colW
+        love.graphics.setFont(fonts.micro or fonts.small);love.graphics.setColor(.62,.67,.60);love.graphics.printf(m[1],cx,top+116*scale,colW,"center")
+        love.graphics.setFont(fonts.big);love.graphics.setColor(1,.96,.82);love.graphics.printf(tostring(m[2]),cx,top+145*scale,colW,"center")
+    end
+    love.graphics.setColor(.25,.29,.25,.8);love.graphics.rectangle("fill",x,top+205*scale,contentW,2)
+    local details={{"총 목재",r.wood},{"처치",r.kills or 0},{"최대 동시 / 연쇄",r.maxMulti.." / "..r.maxChain},{"도달 레벨",r.level},{"재생 / 부활 나무",r.regrowPulses.."회 / "..r.treesRevived.."그루"},{"가시덩굴 / 벌집",r.rootedCount.." / "..r.beeSwarms}}
+    love.graphics.setFont(fonts.micro or fonts.small)
+    for i,m in ipairs(details)do local col=(i-1)%2;local row=math.floor((i-1)/2);local dx=x+col*(contentW/2);local y=top+(236+row*34)*scale
+        love.graphics.setColor(.60,.65,.59);love.graphics.print(m[1],dx+18,y);love.graphics.setColor(.95,.92,.78);love.graphics.printf(tostring(m[2]),dx+130,y,contentW/2-150,"right")
+    end
+    love.graphics.setColor(1,.72,.22);love.graphics.setFont(fonts.small);love.graphics.printf("특성 연구  +"..tostring(r.traitEarned or 0).." P",x,top+352*scale,contentW,"center")
+    local buttonH=44*scale;local buttonW=220*scale;local by=top+407*scale;local bx=w/2-buttonW-8
+    game.clearcutResultButtons={lobby={x=bx,y=by,w=buttonW,h=buttonH},retry={x=w/2+8,y=by,w=buttonW,h=buttonH}}
+    HUDArt.button(bx,by,buttonW,buttonH,"로비로  [ESC]",fonts.small,"neutral",true);HUDArt.button(w/2+8,by,buttonW,buttonH,"다시 도전  [ENTER]",fonts.small,"amber",true)
 end
-
 ClearcutMode.characters = {
     {id="physical", name="생계형 나무꾼", icon="axe", color={1,.42,.22},
         tagline="그냥 오늘 할당량을 채우러 온 것뿐이다.",

@@ -316,6 +316,10 @@ end
 -- Stage entry is a frozen cinematic: no combat clock or enemy simulation runs
 -- while the quiet clearing, worker arrival and wildlife scatter are playing.
 local Intro=require("src.clearcut_intro")
+do
+    local file=assert(io.open("src/clearcut_intro.lua","rb"));local source=file:read("*a");file:close()
+    assert(not source:find("작전 개시",1,true)and not source:find("전투 시작",1,true)and not source:find("작업 시작",1,true),"start combat copy returned")
+end
 for _,def in ipairs(Maps.catalog)do
     local g=newGame();g:startClearcut("physical",def.id)
     local intro=g.clearcut.intro;assert(intro and g.player.introHidden and #intro.birds==14,def.id.." intro missing")

@@ -7,7 +7,7 @@
 1. **0.0–1.05초 — 고요한 현장:** HUD, 작업자, 재생핵과 전투 개체를 숨긴다. 카메라는 1구역 중앙 공터를 평소보다 16% 가까이 보여주며 맵 이름만 표시한다.
 2. **1.05–1.42초 — 작업자 진입:** 작업자가 중앙 공터 왼쪽에서 실제 걷기 프레임으로 들어온다. 지역명은 이 구간 안에 사라져 액션을 가리지 않는다.
 3. **1.42–3.42초 — 수관 폭발:** 네 곳의 수관에서 지역별 새 14마리가 무리 단위로 튀어나온다. 수관이 먼저 흔들리고 잎과 깃털이 터진 뒤, 후경·중경·전경의 새가 서로 다른 곡선으로 비행한다. 가장 가까운 새는 화면 앞을 크게 가로지르며 첫 이탈 순간에만 짧은 카메라 충격을 준다. 맹그로브의 게, 마다가스카르의 여우원숭이, 무인도의 앵무새도 작업자 반대 방향으로 달아난다.
-4. **3.42–5.0초 — 작전 전환:** 작업자가 중앙에 멈추고 `작전 개시` 표식이 나타난다. 카메라가 해당 스테이지의 실제 줌으로 돌아온 뒤 HUD와 전투 개체가 나타난다.
+4. **3.42–5.0초 — 조작 전환:** 작업자가 중앙에 멈추고 카메라가 해당 스테이지의 실제 줌으로 돌아간다. 별도의 `작전 개시`·`전투 시작` 문구 없이 HUD와 전투 개체가 자연스럽게 나타난다.
 
 연출 중에는 `ClearcutMode.elapsed`, 전체 제한 시간, 적 이동·공격·스폰, 플레이어 공격이 진행되지 않는다. `SPACE`, Enter, Escape 또는 좌클릭으로 건너뛸 수 있으며, 건너뛰어도 전투 시간은 0초부터 시작한다.
 
@@ -32,6 +32,8 @@ v2 캡처는 실제 오프스크린 게임 화면으로 갱신한다. `sources/s
 - `docs/previews/stage-intro-forest-v2-depth-1280.png`
 - `docs/previews/stage-intro-forest-v2-arrival-1280.png`
 - `docs/previews/stage-intro-island-v2-burst-1280.png`
+- `docs/previews/stage-intro-ui-v2-region-1280.png`
+- `docs/previews/stage-intro-ui-v2-no-start-banner-1280.png`
 
 - `docs/previews/stage-intro-forest-v1-quiet-1280.png`
 - `docs/previews/stage-intro-forest-v1-scatter-1280.png`

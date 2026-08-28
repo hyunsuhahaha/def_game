@@ -99,6 +99,7 @@ function love.load()
     end
     if os.getenv("LAST_HAUL_CAPTURE_CLEARCUT") then
         game:startClearcut()
+        if game.clearcut and game.clearcut.intro then require("src.clearcut_intro").finish(game) end
         game.clearcut.levels.wide_blade,game.clearcut.levels.shockwave,game.clearcut.levels.berserker=2,2,1
         local target,best=game.world.nodes[1],math.huge
         for _,node in ipairs(game.world.nodes) do
@@ -109,6 +110,7 @@ function love.load()
         game.camera.x,game.camera.y=target.x,target.y-30
         target.rushHp=1; game.clearcut:hitTree(target,game)
         game.clearcut:onWood(95,game); game.clearcut.pending=0; game.mode="playing"
+        game.world.harvestChain,game.world.harvestChainTime=14,2.0
         if os.getenv("LAST_HAUL_CAPTURE_CLEARCUT_JUICE") then
             local second,best2=nil,math.huge
             for _,node in ipairs(game.world.nodes) do

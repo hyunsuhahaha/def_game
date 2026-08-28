@@ -57,7 +57,8 @@
 - `docs/previews/globe-map-select-v1-960.png`, `docs/previews/globe-map-select-v1-1920.png`
 - 지구본 안의 작전 지점은 공통 원형 핀이 아니라 `assets/ui/globe-stage-landmarks-pixel-v1.png`의 전용 64px 픽셀 랜드마크로 표시한다. 온대 침엽수, 맹그로브 지주뿌리, 바오밥, 야자 무인도, 초심자 표지판이 축소 화면에서도 서로 다른 실루엣으로 읽혀야 한다.
 - 작전 진행 순서 `초심자 → 온대 → 맹그로브 → 마다가스카르 → 무인도`는 지구 곡면에 투영되는 점선 항로로 연결한다. 뒷면 항로는 숨기고 선택 지점에 닿는 구간만 황금색 펄스로 강조한다.
-- 브리핑의 `작업 시작` 이후에는 곧바로 HUD를 띄우지 않는다. [스테이지 진입 시네마틱](STAGE_ENTRY_CINEMATIC.md)에서 고요한 현장, 작업자 진입, 지역별 조류와 야생동물의 도주, 작전 개시 순서로 실제 월드를 5초간 보여준 뒤 조작을 넘긴다.
+- 브리핑의 `작업 시작` 이후에는 곧바로 HUD를 띄우지 않는다. [스테이지 진입 시네마틱](STAGE_ENTRY_CINEMATIC.md)에서 고요한 현장, 작업자 진입, 지역별 조류와 야생동물의 도주, 카메라 복귀 순서로 실제 월드를 5초간 보여준 뒤 별도 시작 문구 없이 조작을 넘긴다.
+- 인게임 HUD와 결과창은 [벌목 작전 HUD·결과 UI v4](CLEARCUT_UI_REDESIGN.md)를 따른다. 소품형 프레임과 카드 반복을 모두 금지하고 배경 없는 텍스트, 4단 명암의 얇은 픽셀 바, 짧은 구분선만 사용한다. 콤보는 패널 없이 숫자와 `COMBO`만 띄우며, 결과도 장식판 없이 타이포그래피로 정리한다. 진입 종료 시 별도 시작 문구는 표시하지 않는다.
 - `docs/previews/frontend-v2-briefing.png`
 - `docs/previews/frontend-v2-settings.png`
 - `docs/previews/frontend-v2-traits.png`
