@@ -14,16 +14,36 @@ end
 
 local function clamp(v,a,b) return math.max(a,math.min(b,v)) end
 
-local function perspectiveHalfExtents(camera,w,h,zoom)
-    local halfW,halfH=0,0
+local function perspectiveExtents(camera,w,h,zoom)
+    local left,top,right,bottom=0,0,0,0
     local angle=-(camera.roll or 0);local c,s=math.cos(angle),math.sin(angle)
     for _,point in ipairs({{0,0},{w*.5,0},{w,0},{0,h*.5},{w,h*.5},{0,h},{w*.5,h},{w,h}}) do
         local flatX,flatY=WorldProjection.unproject(point[1],point[2],w,h,camera.pitch)
         local dx,dy=flatX-w*.5,flatY-h*.5
         local rx,ry=dx*c-dy*s,dx*s+dy*c
-        halfW,halfH=math.max(halfW,math.abs(rx)/zoom),math.max(halfH,math.abs(ry)/zoom)
+        rx,ry=rx/zoom,ry/zoom
+        left,right=math.max(left,-rx),math.max(right,rx)
+        top,bottom=math.max(top,-ry),math.max(bottom,ry)
     end
-    return halfW,halfH
+    return left,top,right,bottom
+end
+
+local function retainProjectedTarget(camera,targetX,targetY,cameraX,cameraY,zoom,w,h)
+    local c,s=math.cos(camera.roll or 0),math.sin(camera.roll or 0)
+    local dx,dy=(targetX-cameraX)*zoom,(targetY-cameraY)*zoom
+    local flatX=w*.5+dx*c-dy*s
+    local flatY=h*.5+dx*s+dy*c
+    local screenX,screenY=WorldProjection.project(flatX,flatY,w,h,camera.pitch)
+    -- The foot anchor may reach the lower edge, while the character body needs
+    -- more clearance above it. Only edge-clamped views need this correction;
+    -- ordinary tracking remains centered on the target.
+    local safeX=clamp(screenX,56,w-56)
+    local safeY=clamp(screenY,116,h-48)
+    if safeX==screenX and safeY==screenY then return cameraX,cameraY end
+    local desiredFlatX,desiredFlatY=WorldProjection.unproject(safeX,safeY,w,h,camera.pitch)
+    local shiftFlatX,shiftFlatY=flatX-desiredFlatX,flatY-desiredFlatY
+    return cameraX+(shiftFlatX*c+shiftFlatY*s)/zoom,
+        cameraY+(-shiftFlatX*s+shiftFlatY*c)/zoom
 end
 
 -- Short world-space camera direction.  It is deliberately small: pixel art
@@ -74,16 +94,29 @@ function Camera:update(dt, target, world)
         desiredZoom=self.zoom*(1+(focus.zoom-1)*math.max(0,edge))
     end
     local b=world.playBounds or {x=0,y=0,w=world.width,h=world.height}
-    local halfW, halfH
+    local leftExtent,topExtent,rightExtent,bottomExtent
     if self.perspective then
-        local baseW,baseH=perspectiveHalfExtents(self,w,h,1)
-        desiredZoom=math.max(desiredZoom,baseW*2/b.w,baseH*2/b.h)
-        halfW,halfH=perspectiveHalfExtents(self,w,h,desiredZoom)
-    else halfW,halfH=w/(2*desiredZoom),h/(2*desiredZoom*pitch) end
-    local minX,maxX=b.x+halfW,b.x+b.w-halfW
-    local minY,maxY=b.y+halfH,b.y+b.h-halfH
-    local tx=minX>maxX and b.x+b.w/2 or math.max(minX,math.min(maxX,targetX))
-    local ty=minY>maxY and b.y+b.h/2 or math.max(minY,math.min(maxY,targetY))
+        local baseLeft,baseTop,baseRight,baseBottom=perspectiveExtents(self,w,h,1)
+        local fitZoom=math.max((baseLeft+baseRight)/b.w,(baseTop+baseBottom)/b.h)
+        -- Keep ordinary landscape views inside the current stage. A severe
+        -- aspect mismatch (notably a tall portrait window) would require a
+        -- huge zoom and a fixed midpoint, so preserve the authored zoom there.
+        if w>=h or fitZoom<=desiredZoom*1.25 then desiredZoom=math.max(desiredZoom,fitZoom) end
+        leftExtent,topExtent,rightExtent,bottomExtent=perspectiveExtents(self,w,h,desiredZoom)
+    else
+        leftExtent,rightExtent=w/(2*desiredZoom),w/(2*desiredZoom)
+        topExtent,bottomExtent=h/(2*desiredZoom*pitch),h/(2*desiredZoom*pitch)
+    end
+    local minX,maxX=b.x+leftExtent,b.x+b.w-rightExtent
+    local minY,maxY=b.y+topExtent,b.y+b.h-bottomExtent
+    -- A portrait viewport can see more world than the current stage footprint.
+    -- In that case there is no valid clamped camera interval: follow the actor
+    -- instead of freezing at the stage midpoint and letting them leave frame.
+    local tx=minX>maxX and targetX or math.max(minX,math.min(maxX,targetX))
+    local ty=minY>maxY and targetY or math.max(minY,math.min(maxY,targetY))
+    if self.perspective and targetX>=b.x and targetX<=b.x+b.w and targetY>=b.y and targetY<=b.y+b.h then
+        tx,ty=retainProjectedTarget(self,targetX,targetY,tx,ty,desiredZoom,w,h)
+    end
     local targetDX,targetDY=targetX-(self.lastTargetX or targetX),targetY-(self.lastTargetY or targetY)
     self.lastTargetX,self.lastTargetY=targetX,targetY
     self.inertiaVX=self.inertiaVX-targetDX*.24
