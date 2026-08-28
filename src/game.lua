@@ -11,7 +11,7 @@ local RunUpgrades = require("src.run_upgrades")
 local RushMode = require("src.rush_mode")
 local ClearcutMode = require("src.clearcut_mode")
 local ClearcutIntro = require("src.clearcut_intro")
-local CameraDepthArt = require("src.camera_depth_art")
+local WorldProjection = require("src.world_projection")
 local CharacterTraits = require("src.character_traits")
 local CharacterTraitBoard = require("src.character_trait_board")
 local CharacterStory = require("src.character_story")
@@ -100,6 +100,7 @@ function Game:resetRun()
     self.player = Player.new(1600, 1470, self.world.images.workerWalk, self.world.images.workerActions, self.world.images.workerRepair)
     self.camera = Camera.new(self.player.x, self.player.y)
     self.camera.pitch = 1
+    self.camera.perspective = false
     self.camera.shakeScale = self.settings.screenShake and 1 or 0
     self.food, self.ore, self.wood, self.stone, self.seeds = 0, 0, 0, 0, 8
     self.time, self.ended, self.victory, self.hoverNode, self.hoverWall, self.hoverBuilding, self.nearTurret = 15 * 60, false, false, nil, false, nil, nil
@@ -157,9 +158,10 @@ function Game:startClearcut(characterId, mapId)
     self.selectedClearcutMap=self.clearcut.mapId
     self.player:setClearcutSprite(self.clearcutSprites[characterId] or self.clearcutSprites.physical, characterId)
     self.clearcut:setup(self)
-    -- Oblique 2.5D projection: flatten only the world plane. UI remains crisp
-    -- in screen space and screenToWorld applies the exact inverse transform.
-    self.camera.pitch=.84
+    -- The simulation remains top-down world space. Rendering and pointer input
+    -- share one nonlinear projection that narrows both axes into the distance.
+    self.camera.pitch=.76
+    self.camera.perspective=true
     self.mode="playing"
     ClearcutIntro.begin(self)
 end
@@ -1189,7 +1191,11 @@ function Game:draw()
     if self.mode == "meta" then self.traitTree:draw(); return end
     if self.mode == "build_select" then self:drawBuildSelect(); return end
     local introActive=ClearcutIntro.active(self);local worldActors=self.clearcut;if introActive then worldActors=nil end
-    love.graphics.clear(.08, .11, .12); self.camera:attach()
+    love.graphics.clear(.08, .11, .12)
+    local projected=self.clearcut and self.camera.perspective
+    local renderW,renderH
+    if projected then renderW,renderH=WorldProjection.begin(self.camera) end
+    self.camera:attach(renderW,renderH,projected)
     if introActive then ClearcutIntro.drawWorldBack(self) end
     self.world:draw(self.player, worldActors)
     local left, top, right, bottom = self.camera:visibleBounds()
@@ -1237,7 +1243,7 @@ function Game:draw()
     if self.clearcut and not introActive then self.clearcut:drawWorldOverlay(self) end
     if introActive then ClearcutIntro.drawWorldFront(self) end
     self.camera:detach()
-    if self.clearcut and not introActive then CameraDepthArt.drawFront(self) end
+    if projected then WorldProjection.finish() end
     if introActive then ClearcutIntro.drawScreen(self) else self:drawUI() end
     if self.clearcut and self.clearcut.sandbox then self:drawSandboxPanel() end
     if self.mode == "upgrade" then self.upgrades:drawSelection(self, self.fonts) end
