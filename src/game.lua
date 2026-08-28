@@ -11,6 +11,7 @@ local RunUpgrades = require("src.run_upgrades")
 local RushMode = require("src.rush_mode")
 local ClearcutMode = require("src.clearcut_mode")
 local ClearcutIntro = require("src.clearcut_intro")
+local CameraDepthArt = require("src.camera_depth_art")
 local CharacterTraits = require("src.character_traits")
 local CharacterTraitBoard = require("src.character_trait_board")
 local CharacterStory = require("src.character_story")
@@ -78,7 +79,7 @@ function Game.new()
         hammer = {name = "나무 수리 망치", speed = 1, type = "방벽 수리"}
     }
     self.wallCosts = {{wood = 0, stone = 0}, {wood = 12, stone = 8}, {wood = 22, stone = 16}, {wood = 36, stone = 28}}
-    local temporaryProfile = os.getenv("LAST_HAUL_SELF_TEST") or os.getenv("LAST_HAUL_CAPTURE_META") or os.getenv("LAST_HAUL_CAPTURE_RESULTS") or os.getenv("LAST_HAUL_CAPTURE_TEST_OPTIONS") or os.getenv("LAST_HAUL_CAPTURE_TURRET_PROMPT") or os.getenv("LAST_HAUL_CAPTURE_TURRET_PLACEMENT") or os.getenv("LAST_HAUL_CAPTURE_ACHIEVEMENTS") or os.getenv("LAST_HAUL_CAPTURE_ACHIEVEMENT_POPUP")
+    local temporaryProfile = os.getenv("LAST_HAUL_SELF_TEST") or os.getenv("LAST_HAUL_CAPTURE_META") or os.getenv("LAST_HAUL_CAPTURE_RESULTS") or os.getenv("LAST_HAUL_CAPTURE_TEST_OPTIONS") or os.getenv("LAST_HAUL_CAPTURE_TURRET_PROMPT") or os.getenv("LAST_HAUL_CAPTURE_TURRET_PLACEMENT") or os.getenv("LAST_HAUL_CAPTURE_BOSS_ENTRANCE") or os.getenv("LAST_HAUL_CAPTURE_ACHIEVEMENTS") or os.getenv("LAST_HAUL_CAPTURE_ACHIEVEMENT_POPUP")
     self.progression = Progression.new(temporaryProfile ~= nil)
     self.characterTraits = CharacterTraits.new(temporaryProfile ~= nil)
     self.achievements = Achievements.new(temporaryProfile ~= nil)
@@ -265,6 +266,10 @@ function Game:update(dt)
     if self.mode == "upgrade" or self.mode == "rush_upgrade" or self.mode == "clearcut_upgrade" then return end
     if self.mode == "turret_upgrade" then return end
     if ClearcutIntro.update(self,dt) then return end
+    if self.clearcut and self.clearcut:updateBossEntrance(dt,self) then
+        self.camera:update(dt,self.player,self.world)
+        return
+    end
     self.noticeTime = math.max(0, self.noticeTime - dt)
     local wx, wy = self.camera:screenToWorld(love.mouse.getPosition())
     self.hoverNode, self.hoverWall, self.hoverBuilding = self.world:findNodeAt(wx, wy), self.world:isWallAt(wx, wy), self.world:buildingAt(wx, wy)
@@ -1227,7 +1232,9 @@ function Game:draw()
     end
     if self.clearcut and not introActive then self.clearcut:drawWorldOverlay(self) end
     if introActive then ClearcutIntro.drawWorldFront(self) end
-    self.camera:detach(); if introActive then ClearcutIntro.drawScreen(self) else self:drawUI() end
+    self.camera:detach()
+    if self.clearcut and not introActive then CameraDepthArt.drawFront(self) end
+    if introActive then ClearcutIntro.drawScreen(self) else self:drawUI() end
     if self.clearcut and self.clearcut.sandbox then self:drawSandboxPanel() end
     if self.mode == "upgrade" then self.upgrades:drawSelection(self, self.fonts) end
     if self.mode == "rush_upgrade" then self.rush:drawSelection(self,self.fonts) end

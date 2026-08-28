@@ -26,6 +26,7 @@ local VeganForkArt = require("src.vegan_fork_art")
 local RegrowthCastArt = require("src.regrowth_cast_art")
 local ForestZones = require("src.forest_zones")
 local BiomeBosses = require("src.biome_bosses")
+local BossEntrance = require("src.boss_entrance")
 
 local ClearcutMode = {}
 ClearcutMode.__index = ClearcutMode
@@ -476,6 +477,16 @@ function ClearcutMode:update(dt, game)
     end
 end
 
+function ClearcutMode:updateBossEntrance(dt,game)
+    if not BossEntrance.active(self) then return false end
+    require("src.biome_life").update(game.world,dt)
+    self.elapsed=self.elapsed+dt
+    BossEntrance.update(self,dt,game)
+    -- Keep the completion frame frozen as well; ordinary combat resumes on
+    -- the following update so no projectile or contact hit shares the landing.
+    return true
+end
+
 function ClearcutMode:updateRegrowth(dt, game)
     if self.sandbox then return end
     if self.regrowSuppressed then return end
@@ -907,8 +918,7 @@ end
 function ClearcutMode:spawnBoss(kind, game)
     local a = love.math.random() * math.pi * 2
     local e = self:spawnEnemy(kind, game.player.x + math.cos(a) * 420, game.player.y + math.sin(a) * 420)
-    game:setNotice((e and e.def.name or "보스") .. " 등장!", "ore")
-    if game.camera then game.camera.trauma = math.min(1, game.camera.trauma + .4) end
+    if not BossEntrance.start(self,e,game) and game.camera then game.camera.trauma=math.min(1,game.camera.trauma+.4) end
 end
 
 function ClearcutMode:spawnWorldTree(game)
@@ -918,8 +928,11 @@ function ClearcutMode:spawnWorldTree(game)
     local kind=finalStage and BiomeBosses.forMap(self.mapId) or "worldtree"
     self.worldTree=self:spawnEnemy(kind,game.player.x,game.player.y-280,{hpMul=finalStage and 1 or self.stageBossHpMul,dmgMul=1+(self.stage-1)*.22})
     self.operationFinalBoss=finalStage
-    game:setNotice(finalStage and (self.worldTree.def.name.." 등장 — "..BiomeBosses.operationName(self.mapId).."의 마지막 목표다!") or ("세계수가 깨어났다 — 스테이지 "..self.stage.."의 마지막 저항이다!"),"ore")
-    if game.camera then game.camera.trauma = math.min(1, game.camera.trauma + .5) end
+    if finalStage then
+        BossEntrance.start(self,self.worldTree,game)
+    elseif game.camera then
+        game.camera.trauma=math.min(1,game.camera.trauma+.5)
+    end
 end
 
 function ClearcutMode:spawnEnemyProjectile(e, game)
@@ -3451,7 +3464,10 @@ function ClearcutMode:startDash(tx, ty, game)
     game.player.facing = dx < 0 and -1 or 1
     if game.player.setClearcutAction then game.player:setClearcutAction(.58) end
     game:setNotice(megaProject and "초고층 프로젝트 — 중장비 투입 만렙 특수효과!" or "돌진!", "food")
-    if game.camera then game.camera.trauma = math.min(1, game.camera.trauma + .2) end
+    if game.camera then
+        game.camera.trauma=math.min(1,game.camera.trauma+.2)
+        if game.camera.impulse then game.camera:impulse(-dx/dist*75,-dy/dist*38,(dx<0 and .032 or -.032),.028) end
+    end
 end
 
 function ClearcutMode:updateDash(dt, game)
@@ -4804,6 +4820,7 @@ end
 ClearcutMode.drawEnemy = ForestArt.drawBody
 function ClearcutMode:queueWorldActors(queue,t)
     local groundTime=self.smokerGroundTime
+    BossEntrance.queue(self,queue)
     PhilosopherFusionArt.queue(self,queue)
     RevivalCrowdArt.queue(self,queue)
     for _,value in ipairs(self.burrowTracks) do
@@ -5492,10 +5509,18 @@ function ClearcutMode:drawHUD(game,fonts)
 
     if self.activeBoss then
         local boss = self.activeBoss
-        local bw = math.min(700, w*.55)
-        love.graphics.setColor(.04,.025,.02,.9);love.graphics.rectangle("fill",w/2-bw/2,148,bw,48,10,10)
-        love.graphics.setFont(fonts.small); love.graphics.setColor(1,.85,.7); love.graphics.printf(boss.def.name,w/2-bw/2,153,bw,"center")
-        HUDArt.bar(w/2-bw/2+18,176,bw-36,12,math.max(0,boss.hp/boss.maxHp),"boss")
+        local intro=self.bossEntrance
+        local reveal=intro and intro.impact and math.min(1,(intro.t-intro.duration*.58)/.28) or (intro and 0 or 1)
+        if reveal>0 then
+            local bw=math.floor(math.min(560,w*.48)*reveal);local bx=math.floor(w/2-bw/2);local by=151
+            love.graphics.setFont(fonts.micro or fonts.small);love.graphics.setColor(.94,.84,.70,reveal)
+            love.graphics.printf(boss.def.name,w/2-180,by-19,360,"center")
+            love.graphics.setColor(.10,.045,.035,.96*reveal);love.graphics.rectangle("fill",bx-2,by-2,bw+4,14)
+            local fill=math.floor(bw*math.max(0,boss.hp/boss.maxHp))
+            love.graphics.setColor(.52,.045,.035,reveal);love.graphics.rectangle("fill",bx,by,fill,10)
+            love.graphics.setColor(.96,.17,.09,reveal);love.graphics.rectangle("fill",bx,by,fill,5)
+            love.graphics.setColor(1,.48,.20,.72*reveal);love.graphics.rectangle("fill",bx+2,by+1,math.max(0,fill-4),2)
+        end
     end
 
     if self.berserkState == "warn" or self.berserkState == "active" then

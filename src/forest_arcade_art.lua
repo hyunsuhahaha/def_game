@@ -53,23 +53,26 @@ function Art.pose(e, t)
     local lean = moving and math.sin(cycle*math.pi/3)*.025 or 0
     if e.reaperState == "dashing" then lean=-facing*.13 end
     local squash = recoil*.045
+    local introX,introY=e.entranceOffsetX or 0,e.entranceOffsetY or 0
+    local introSX,introSY=e.entranceScaleX or 1,e.entranceScaleY or 1
     return {spec=spec,frame=frame,flip=flip,scale=scale,
-        x=e.x,y=Art.footY(e)-bob-(e.hopHeight or 0),footY=Art.footY(e),angle=lean,
-        sx=scale*flip*(1+squash),sy=scale*(1-squash),height=spec.height*scale}
+        x=e.x+introX,y=Art.footY(e)-bob-(e.hopHeight or 0)+introY,footY=Art.footY(e),angle=lean,
+        sx=scale*flip*(1+squash)*introSX,sy=scale*(1-squash)*introSY,height=spec.height*scale*introSY,
+        alpha=e.entranceAlpha or 1,shadowScale=introSX}
 end
 
 function Art.drawBody(e, t)
     load()
     local pose=Art.pose(e,t)
     local asset=assets[e.kind]
-    love.graphics.setColor(.08,.07,.035,.28)
-    love.graphics.ellipse("fill",e.x,pose.footY,pose.spec.width*.40,math.max(3,pose.spec.width*.105))
+    love.graphics.setColor(.08,.07,.035,.28*pose.alpha)
+    love.graphics.ellipse("fill",e.x,pose.footY,pose.spec.width*.40*pose.shadowScale,math.max(3,pose.spec.width*.105*pose.shadowScale))
     local previous=love.graphics.getShader()
     love.graphics.setShader(material)
     material:send("hurt",math.min(1,(e.visualHit or 0)/.14))
     material:send("elite",e.elite and 1 or 0)
     material:send("plague",e.plagueMarked and 1 or 0)
-    love.graphics.setColor(1,1,1,1)
+    love.graphics.setColor(1,1,1,pose.alpha)
     love.graphics.draw(asset.image,asset.frames[pose.frame],pose.x,pose.y,pose.angle,
         pose.sx,pose.sy,pose.spec.cell/2,pose.spec.foot)
     love.graphics.setShader(previous)
@@ -111,12 +114,14 @@ end
 
 function Art.drawHealth(e,t)
     local pose=Art.pose(e,t)
+    local alpha=e.entranceAlpha or 1
+    if alpha<=.05 then return end
     local w=math.max(e.def.radius*2.2,pose.spec.width*.85)
     local x,y=math.floor(e.x-w/2),math.floor(pose.footY-(e.hopHeight or 0)-pose.height-9)
     local pct=math.max(0,math.min(1,e.hp/e.maxHp))
-    love.graphics.setColor(.14,.10,.07,.95); love.graphics.rectangle("fill",x-1,y-1,w+2,6)
-    love.graphics.setColor(.9,.3,.19,1); love.graphics.rectangle("fill",x,y,math.floor(w*pct),4)
-    love.graphics.setColor(1,.71,.45,.8); love.graphics.rectangle("fill",x,y,math.floor(w*pct),1)
+    love.graphics.setColor(.14,.10,.07,.95*alpha); love.graphics.rectangle("fill",x-1,y-1,w+2,6)
+    love.graphics.setColor(.9,.3,.19,alpha); love.graphics.rectangle("fill",x,y,math.floor(w*pct),4)
+    love.graphics.setColor(1,.71,.45,.8*alpha); love.graphics.rectangle("fill",x,y,math.floor(w*pct),1)
 end
 
 return Art
