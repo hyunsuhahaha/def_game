@@ -13,7 +13,7 @@ Fusions.definitions = {
     {id="newtown",job="developer",name="뉴타운 계획",needs={"heavy_machinery","site_clearance"},color={1,.65,.25},
         desc="돌진 종료 지점의 반경 160을 추가로 정지합니다. 범위 안의 나무와 그루터기는 모두 불모지가 되어 다시 자라지 않습니다."},
     {id="coward_barrage",job="miner",name="비겁한 와다다다",needs={"detector","burrow_uproot"},color={.72,.58,.38},
-        desc="잠복 중에는 이동 여부와 관계없이 지상의 주변 나무와 적을 땅속에서 빠르게 연속으로 할큅니다. 손톱자국과 피해는 두더지 몸이 아니라 실제 공격 지점에 남습니다."},
+        desc="잠복 중에는 이동 여부와 관계없이 지상의 실제 공격 지점을 빠르게 연속으로 할큅니다. 한 손톱자국에 닿은 모든 나무와 적이 함께 피해를 받고, 대상 수가 늘어도 이펙트는 한 번만 생깁니다."},
     {id="eternal_return",job="philosopher",name="영원회귀",needs={"footnote","saliva_gland"},color={.75,.9,.35},
         desc="말을 최고조로 끌고 가다 마우스에서 손을 떼면, 마지막 지점에 맑은 말의 잔향이 7초간 남습니다. 새로 들어온 대상까지 반복해서 피해를 받고 중독됩니다."},
     {id="revival_chorus",job="philosopher",name="모두가 이해한 척했다",needs={"monologue","revival_meeting"},color={.93,.67,.26},

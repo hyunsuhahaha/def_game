@@ -20,16 +20,36 @@ local function defaultHalfWidth(level)
     return 39*(.66+(tier-1)*.08)
 end
 
-function Art.spawn(mode,x,y,angle,level,curveFlip,halfWidth,hand)
+function Art.spawn(mode,x,y,angle,level,curveFlip,halfWidth,hand,dual)
     mode.minerClawFx=mode.minerClawFx or {}
     mode.minerClawMarks=mode.minerClawMarks or {}
     halfWidth=halfWidth or defaultHalfWidth(level)
-    local shared={x=x,y=y,angle=angle,level=level,curveFlip=curveFlip or 1,halfWidth=halfWidth,hand=hand or 1}
+    local shared={x=x,y=y,angle=angle,level=level,curveFlip=curveFlip or 1,halfWidth=halfWidth,hand=hand or 1,dual=dual==true}
     mode.minerClawFx[#mode.minerClawFx+1]={x=shared.x,y=shared.y,angle=shared.angle,level=shared.level,
-        curveFlip=shared.curveFlip,halfWidth=shared.halfWidth,hand=shared.hand,life=.22,maxLife=.22}
+        curveFlip=shared.curveFlip,halfWidth=shared.halfWidth,hand=shared.hand,dual=shared.dual,life=.22,maxLife=.22}
     mode.minerClawMarks[#mode.minerClawMarks+1]={x=shared.x,y=shared.y,angle=shared.angle,level=shared.level,
-        curveFlip=shared.curveFlip,halfWidth=shared.halfWidth,hand=shared.hand,life=6,maxLife=6}
+        curveFlip=shared.curveFlip,halfWidth=shared.halfWidth,hand=shared.hand,dual=shared.dual,life=6,maxLife=6}
     if #mode.minerClawMarks>90 then table.remove(mode.minerClawMarks,1) end
+end
+
+local function drawEntry(entry,quad)
+    if not entry.dual then
+        local scale=(entry.halfWidth or defaultHalfWidth(entry.level))/39
+        love.graphics.draw(image,quad,math.floor(entry.x+.5),math.floor(entry.y+.5),entry.angle,
+            scale,scale*(entry.curveFlip or 1),96,64)
+        return
+    end
+    -- Rank six is one composite effect event. The two authored hand trails are
+    -- drawn inside it, so adding targets can never add more FX objects.
+    local halfWidth=entry.halfWidth or defaultHalfWidth(entry.level)
+    local offset=halfWidth*.28
+    local handWidth=halfWidth-offset
+    local scale=handWidth/39
+    local px,py=-math.sin(entry.angle),math.cos(entry.angle)
+    love.graphics.draw(image,quad,math.floor(entry.x+px*offset+.5),math.floor(entry.y+py*offset+.5),entry.angle,
+        scale,scale*(entry.curveFlip or 1),96,64)
+    love.graphics.draw(image,quad,math.floor(entry.x-px*offset+.5),math.floor(entry.y-py*offset+.5),entry.angle,
+        scale,scale*-(entry.curveFlip or 1),96,64)
 end
 
 function Art.update(mode,dt)
@@ -52,18 +72,16 @@ function Art.draw(mode,game,t)
         -- The atlas reaches 39 native pixels to either side of its centre.
         -- Scaling from the gameplay half-width keeps the visible gouge and hit
         -- envelope identical at every upgrade level.
-        local scale=(mark.halfWidth or defaultHalfWidth(mark.level))/39
         love.graphics.setColor(.34,.25,.18,alpha*.82)
-        love.graphics.draw(image,quads[tier][5],math.floor(mark.x+.5),math.floor(mark.y+.5),mark.angle,scale,scale*(mark.curveFlip or 1),96,64)
+        drawEntry(mark,quads[tier][5])
     end
     -- A very short contact animation reveals the same scratches at that point.
     for _,fx in ipairs(mode.minerClawFx or {}) do
         local p=math.max(0,math.min(.999,1-fx.life/fx.maxLife))
         local frame=math.floor(p*5)+1
         local tier=tierFor(fx.level)
-        local scale=(fx.halfWidth or defaultHalfWidth(fx.level))/39
         love.graphics.setColor(1,1,1,math.min(1,fx.life/.05))
-        love.graphics.draw(image,quads[tier][frame],math.floor(fx.x+.5),math.floor(fx.y+.5),fx.angle,scale,scale*(fx.curveFlip or 1),96,64)
+        drawEntry(fx,quads[tier][frame])
     end
     love.graphics.setColor(unpack(previous))
 end

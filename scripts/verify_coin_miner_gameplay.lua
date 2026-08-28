@@ -39,14 +39,14 @@ mode:updateMinerAttack(.25,game,true)
 assert(treeA.rushHp<3,"claw contact frame did not damage the forward tree")
 assert(treeC.rushHp<3,"a nearer tree incorrectly shielded another target inside the visible swipe")
 assert(treeD.rushHp<3,"visible forward claw lobe still has no matching damage range")
-assert(#mode.minerClawFx==3,"every target crossed by the claw must receive a contact effect")
-assert(mode.minerClawFx[1].x==treeA.x and mode.minerClawFx[1].x~=player.x,"claw effect must originate at the struck point, never the mole")
+assert(#mode.minerClawFx==1,"one click spawned one claw effect per target instead of one shared swipe")
+assert(mode.minerClawFx[1].x==220 and mode.minerClawFx[1].x~=player.x,"claw effect must remain at the chosen attack point, never the mole")
 assert(math.abs(mode.minerClawFx[1].angle)<.001,"rightward claw effect is not aligned to the attack vector")
 assert(mode.minerClawFx[1].curveFlip==-1,"rightward claw must be the mirror image of the accepted leftward curve")
-assert(#mode.minerClawMarks==3 and mode.minerClawMarks[1].life==6,"claw gouges were not left on every struck surface")
+assert(#mode.minerClawMarks==1 and mode.minerClawMarks[1].life==6,"one click must leave one shared gouge")
 assert(mode:getUpgradeDefinition("detector").name:find("손톱 강화",1,true),"miner claw upgrade is not identified as a job skill")
 mode:updateMinerAttack(.3,game,false)
-assert(#mode.minerClawFx==0 and #mode.minerClawMarks==3,"contact flashes should end while all scratch marks remain")
+assert(#mode.minerClawFx==0 and #mode.minerClawMarks==1,"contact flash should end while its one scratch mark remains")
 
 -- Continuous movement during the wind-up must carry the original direction
 -- with the mole instead of swinging back toward a stale mouse world point.
@@ -81,12 +81,8 @@ local maxTree={rushTree=true,active=true,x=160,y=100,rushHp=100,rushMaxHp=100,tr
 local emptyWorld={nodes={maxTree},impactNode=function() end}
 local maxGame={player=player,world=emptyWorld,camera={trauma=0}}
 maxMode:applyClawSwipe(260,100,maxGame)
-assert(#maxMode.minerClawFx==2 and #maxMode.minerClawMarks==2,"level-six claw must swipe with both hands")
-local a,b=maxMode.minerClawFx[1],maxMode.minerClawFx[2]
-assert(a.hand==1 and b.hand==2 and a.curveFlip==-b.curveFlip,"two hands must use mirrored claw curves")
-local gameplayHalfWidth=34+maxMode:power("detector")*5
-local offset=math.abs(a.y-b.y)*.5
-assert(math.abs(offset+a.halfWidth-gameplayHalfWidth)<.001,"two-hand effect does not match gameplay hit width")
+assert(#maxMode.minerClawFx==1 and #maxMode.minerClawMarks==1,"level-six paired claws must remain one composite attack effect")
+assert(maxMode.minerClawFx[1].dual==true,"level-six shared effect lost its mirrored second hand")
 local singleHitDamage=2+maxMode:power("detector")*.65
 assert(math.abs(maxTree.rushHp-(100-singleHitDamage))<.001,"two-hand visual must not apply claw damage twice")
 

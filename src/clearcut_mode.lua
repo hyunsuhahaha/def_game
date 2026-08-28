@@ -2044,8 +2044,9 @@ function ClearcutMode:updateMinerAttack(dt, game, heldOverride)
             -- Clearcut movement continues during the wind-up. Keep the input
             -- direction, but rebuild the endpoint from the current player
             -- position so the claw cannot swing at a stale world coordinate.
-            local strikeX=game.player.x+(action.dirX or 1)*range
-            local strikeY=game.player.y+(action.dirY or 0)*range
+            local strikeDistance=math.min(range,action.distance or range)
+            local strikeX=game.player.x+(action.dirX or 1)*strikeDistance
+            local strikeY=game.player.y+(action.dirY or 0)*strikeDistance
             self:applyClawSwipe(strikeX,strikeY,game)
             self.streak, self.lastHitAt = self.streak + 1, self.elapsed
             struck = true
@@ -2064,7 +2065,7 @@ function ClearcutMode:updateMinerAttack(dt, game, heldOverride)
     local distance=math.sqrt(dx*dx+dy*dy)
     if distance<1 then dx,dy,distance=game.player.facing or 1,0,1 end
     self.minerClawAction = {t=0, dur=math.max(.34, .62/speed), tx=tx, ty=ty,
-        dirX=dx/distance,dirY=dy/distance,struck=false}
+        dirX=dx/distance,dirY=dy/distance,distance=math.min(distance,maxRange),struck=false}
     game.player.facing = tx < game.player.x and -1 or 1
     if game.player.setClearcutAction then game.player:setClearcutAction(0) end
     return false
@@ -2079,6 +2080,40 @@ local function pointSegmentDistanceSquared(px, py, ax, ay, bx, by)
     return dx*dx + dy*dy
 end
 
+
+-- The claw atlas is anchored at (96,64). Its visible contact reaches roughly
+-- 72 native pixels behind and 85 ahead of that anchor, with 39px half-width.
+-- These helpers keep area damage bound to the one visible swipe.
+local function clawPointHit(x,y,radius,cx,cy,nx,ny,halfWidth)
+    local rx,ry=x-cx,y-cy
+    local along=rx*nx+ry*ny
+    local side=math.abs(rx*ny-ry*nx)
+    local back=halfWidth*(72/39)
+    local forward=halfWidth*(85/39)
+    radius=radius or 0
+    return along>=-back-radius and along<=forward+radius and side<=halfWidth+radius
+end
+
+local function clawVerticalContact(x,top,bottom,radius,cx,cy,nx,ny,halfWidth)
+    local back=halfWidth*(72/39)
+    local forward=halfWidth*(85/39)
+    local ys={top,(top+bottom)*.5,bottom,cy}
+    if math.abs(nx)>.0001 then ys[#ys+1]=cy+(x-cx)*ny/nx end
+    if math.abs(ny)>.0001 then
+        ys[#ys+1]=cy+(-back-(x-cx)*nx)/ny
+        ys[#ys+1]=cy+(forward-(x-cx)*nx)/ny
+    end
+    local bestY,bestSide
+    for _,candidate in ipairs(ys) do
+        local y=math.max(top,math.min(bottom,candidate))
+        if clawPointHit(x,y,radius,cx,cy,nx,ny,halfWidth) then
+            local side=math.abs((x-cx)*ny-(y-cy)*nx)
+            if not bestSide or side<bestSide then bestY,bestSide=y,side end
+        end
+    end
+    return bestY
+end
+
 function ClearcutMode:applyClawSwipe(tx, ty, game)
     local px, py = game.player.x, game.player.y
     local dx, dy = tx - px, ty - py
@@ -2087,10 +2122,6 @@ function ClearcutMode:applyClawSwipe(tx, ty, game)
     local nx, ny = dx / distance, dy / distance
     local range = 112 + self:power("detector") * 16 + self.permanentTraits.range
     local halfWidth = 34 + self:power("detector") * 5 + self.permanentTraits.area * .35
-    -- The authored atlas extends about 85/39 half-widths forward from its
-    -- anchor. Include that visible lobe in damage instead of stopping at the
-    -- effect centre and showing a harmless slash over distant targets.
-    local hitRange=range+halfWidth*(85/39)
     local damage = 2 + self:power("detector") * .65 + self.permanentTraits.treeDamage
     local clawLevel = self:levelOf("detector")
     local angle
@@ -2099,78 +2130,30 @@ function ClearcutMode:applyClawSwipe(tx, ty, game)
     -- Preserve the accepted left-facing curve. Right-facing swipes use its
     -- exact mirror image rather than a 180-degree rotation with wrong chirality.
     local curveFlip=(game.player.facing or 1)>0 and -1 or 1
-    local dualHands=clawLevel>=6
-    local perpx,perpy=-ny,nx
-    local function spawnClaws(x,y)
-        if dualHands then
-            -- Two narrower mirrored hand swipes share one damage envelope.
-            -- offset + hand width equals halfWidth, so visuals cannot extend
-            -- beyond the gameplay hit area or leave an unshown damage strip.
-            local offset=halfWidth*.28
-            local handWidth=halfWidth-offset
-            MoleClawArt.spawn(self,x+perpx*offset,y+perpy*offset,angle,clawLevel,curveFlip,handWidth,1)
-            MoleClawArt.spawn(self,x-perpx*offset,y-perpy*offset,angle,clawLevel,-curveFlip,handWidth,2)
-        else
-            MoleClawArt.spawn(self,x,y,angle,clawLevel,curveFlip,halfWidth,1)
-        end
-    end
-    -- Return the visible contact on a vertical body segment. Trees are tall
-    -- sprites anchored at their roots; testing only node.y made a swipe aimed
-    -- at the visible trunk/canopy miss even while the effect crossed it.
-    local function verticalContact(x,top,bottom)
-        local ys={top,(top+bottom)*.5,bottom}
-        if math.abs(nx)>.0001 then ys[#ys+1]=py+(x-px)*ny/nx end -- zero side distance
-        if math.abs(ny)>.0001 then
-            ys[#ys+1]=py-(x-px)*nx/ny -- attack start plane
-            ys[#ys+1]=py+(hitRange-(x-px)*nx)/ny -- visible attack end plane
-        end
-        local bestY,bestAlong,bestSide
-        for _,value in ipairs(ys) do
-            local y=math.max(top,math.min(bottom,value))
-            local rx,ry=x-px,y-py
-            local along=rx*nx+ry*ny
-            local side=math.abs(rx*ny-ry*nx)
-            if along>=0 and along<=hitRange and (not bestSide or side<bestSide) then
-                bestY,bestAlong,bestSide=y,along,side
-            end
-        end
-        if bestSide and bestSide<=halfWidth then return bestY,bestAlong end
-    end
-    local candidates = {}
+    local contact=math.min(range,distance)
+    local contactX,contactY=px+nx*contact,py+ny*contact
+    -- A click owns one composite swipe. Every target consumes this same
+    -- visible envelope and can never create another effect instance.
+    MoleClawArt.spawn(self,contactX,contactY,angle,clawLevel,curveFlip,halfWidth,1,clawLevel>=6)
     for _, node in ipairs(game.world.nodes) do
         if node.rushTree and node.active then
-            local hitY,along=verticalContact(node.x,node.y-150,node.y)
-            if hitY then candidates[#candidates+1]={node=node,along=along,hitY=hitY} end
+            local hitY=clawVerticalContact(node.x,node.y-150,node.y,0,contactX,contactY,nx,ny,halfWidth)
+            if hitY then
+                node.rushHp = (node.rushHp or node.rushMaxHp) - damage
+                game.world:impactNode(node, game, true)
+                SupplementArt.impact(self,"axe",node.x,hitY,30)
+                if node.rushHp <= 0 then self:fellTree(node,game) end
+            end
         end
-    end
-    table.sort(candidates, function(a,b) return a.along < b.along end)
-    local marked=false
-    -- A broad visible swipe is an area attack: every body crossed by the same
-    -- envelope takes one hit. A nearer tree must not shield everything behind it.
-    for index=1,#candidates do
-        local candidate=candidates[index]
-        local node = candidate.node
-        spawnClaws(node.x,candidate.hitY)
-        marked=true
-        node.rushHp = (node.rushHp or node.rushMaxHp) - damage
-        game.world:impactNode(node, game, true)
-        SupplementArt.impact(self,"axe",node.x,node.y,30)
-        if node.rushHp <= 0 then self:fellTree(node,game) end
     end
     for _, enemy in ipairs(self.enemies) do
-        local hitY=verticalContact(enemy.x,enemy.y-28,enemy.y+4)
+        local hitY=clawVerticalContact(enemy.x,enemy.y-28,enemy.y+4,enemy.def.radius or 0,contactX,contactY,nx,ny,halfWidth)
         if hitY then
-            spawnClaws(enemy.x,hitY)
-            marked=true
             enemy.hp, enemy.visualHit = enemy.hp - damage*2.2, .14
-            SupplementArt.impact(self,"axe",enemy.x,enemy.y,26)
+            SupplementArt.impact(self,"axe",enemy.x,hitY,26)
         end
     end
-    if not marked then
-        local contact=math.min(range,distance)
-        spawnClaws(px+nx*contact,py+ny*contact)
-    end
-    self.traitFx:emit("axe",px+nx*range*.58,py+ny*range*.58,{radius=halfWidth,power=.8,angle=math.atan2 and math.atan2(ny,nx) or 0})
+    self.traitFx:emit("axe",contactX,contactY,{radius=halfWidth,power=.8,angle=angle})
     if game.camera then game.camera.trauma=math.min(1,game.camera.trauma+.09) end
 end
 
@@ -2234,8 +2217,8 @@ function ClearcutMode:launchTreeSideways(node, moveX, moveY, burrow, game)
     return true
 end
 
--- 융합 "비겁한 와다다다": 잠복 중에는 멈춰 있어도 지상 표적 한 곳을 연속으로 할퀸다.
--- 두더지에서 표적까지 선을 긋지 않고, 기존 만렙 손톱 아틀라스를 실제 접촉점에만 남긴다.
+-- 융합 "비겁한 와다다다": 잠복 중에는 멈춰 있어도 지상의 실제 공격 지점을 연속으로 할퀸다.
+-- 한 이펙트에 닿은 모든 나무와 적이 함께 맞으며 대상 수가 FX 수를 늘리지 않는다.
 function ClearcutMode:burrowCowardBarrage(game,moveX,moveY)
     local burrow=self.minerBurrow
     if not self.evolutions.coward_barrage or not burrow or burrow.state~="tunnel" then return false end
@@ -2266,16 +2249,28 @@ function ClearcutMode:burrowCowardBarrage(game,moveX,moveY)
     local angle=math.atan2 and math.atan2(ny,nx) or math.atan(ny/nx)+(nx<0 and math.pi or 0)
     local hand=burrow.cowardSequence%2+1
     local halfWidth=27+self.permanentTraits.area*.12
-    MoleClawArt.spawn(self,target.x,target.y,angle,6,nx>=0 and -1 or 1,halfWidth,hand)
+    MoleClawArt.spawn(self,target.x,target.y,angle,6,nx>=0 and -1 or 1,halfWidth,hand,true)
     local damage=2.2+self:power("detector")*.5+self.permanentTraits.treeDamage
-    if target.kind=="tree" then
-        local node=target.ref
-        node.rushHp=(node.rushHp or node.rushMaxHp)-damage
-        game.world:impactNode(node,game,true)
-        if node.rushHp<=0 then self:fellTree(node,game) end
-    else
-        target.ref.hp=target.ref.hp-damage*1.6
-        target.ref.visualHit=.14
+    for _,node in ipairs(game.world.nodes) do
+        if node.rushTree and node.active then
+            local hitY=clawVerticalContact(node.x,node.y-150,node.y,0,target.x,target.y,nx,ny,halfWidth)
+            if hitY then
+                node.rushHp=(node.rushHp or node.rushMaxHp)-damage
+                game.world:impactNode(node,game,true)
+                SupplementArt.impact(self,"axe",node.x,hitY,25)
+                if node.rushHp<=0 then self:fellTree(node,game) end
+            end
+        end
+    end
+    for _,enemy in ipairs(self.enemies) do
+        if enemy.hp>0 then
+            local hitY=clawVerticalContact(enemy.x,enemy.y-28,enemy.y+4,enemy.def.radius or 0,target.x,target.y,nx,ny,halfWidth)
+            if hitY then
+                enemy.hp=enemy.hp-damage*1.6
+                enemy.visualHit=.14
+                SupplementArt.impact(self,"axe",enemy.x,hitY,23)
+            end
+        end
     end
     return true
 end
