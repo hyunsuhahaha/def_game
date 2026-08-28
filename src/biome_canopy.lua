@@ -5,11 +5,11 @@ local Canopy={}
 local atlasW,atlasH=1024,256
 local cache={}
 local definitions={
-    forest={alpha=.96,vines={.22,.46,.72,.86},phase=.1},
-    beginner={alpha=.72,vines={.28,.74},phase=1.4},
-    mangrove={alpha=.98,vines={.18,.39,.63,.82},phase=2.1},
-    madagascar={alpha=.66,vines={.31,.70},phase=3.2},
-    island={alpha=.98,vines={.16,.35,.61,.79,.91},phase=4.3},
+    forest={alpha=.88,vineAlpha=.46,vineScale=.68,vines={.07,.93},tuftAlpha=.38,phase=.1},
+    beginner={alpha=.66,vineAlpha=.30,vineScale=.58,vines={.08},tuftAlpha=.28,phase=1.4},
+    mangrove={alpha=.90,vineAlpha=.50,vineScale=.70,vines={.065,.935},tuftAlpha=.34,phase=2.1},
+    madagascar={alpha=.62,vineAlpha=.28,vineScale=.58,vines={.08},tuftAlpha=.24,phase=3.2},
+    island={alpha=.90,vineAlpha=.44,vineScale=.68,vines={.06,.94},tuftAlpha=.32,phase=4.3},
 }
 
 local function ensure(id)
@@ -38,13 +38,17 @@ function Canopy.draw(world,camera,time)
     love.graphics.setColor(1,1,1,def.alpha)
     love.graphics.draw(art.image,art.left,-20*scale-parallax,0,0,scale,scale)
     love.graphics.draw(art.image,art.right,w-300*scale+parallax,0,0,scale,scale)
-    love.graphics.draw(art.image,art.tuft,w*.50-64*scale+math.sin(time*.18+def.phase)*16,0,0,scale,scale,0,0)
+    local tuftScale=scale*.68
+    love.graphics.setColor(1,1,1,def.alpha*def.tuftAlpha)
+    love.graphics.draw(art.image,art.tuft,w*.50-64*tuftScale+math.sin(time*.18+def.phase)*8,0,0,tuftScale,tuftScale,0,0)
+    love.graphics.setColor(1,1,1,def.alpha*def.vineAlpha)
     for index,fraction in ipairs(def.vines)do
         local quad=index%2==0 and art.vineB or art.vineA
         local phase=def.phase+index*1.71
-        local sway=math.sin(time*.72+phase)*.022+math.sin(time*.31+phase)*.009
-        local y=-8*scale-(index%3)*7*scale
-        love.graphics.draw(art.image,quad,w*fraction+math.sin(time*.24+phase)*7,y,sway,scale,scale,64,0)
+        local vineScale=scale*def.vineScale
+        local sway=math.sin(time*.58+phase)*.012+math.sin(time*.27+phase)*.004
+        local y=-10*vineScale-(index%2)*5*vineScale
+        love.graphics.draw(art.image,quad,w*fraction+math.sin(time*.20+phase)*3,y,sway,vineScale,vineScale,64,0)
     end
     love.graphics.pop()
 end

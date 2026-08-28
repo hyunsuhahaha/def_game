@@ -4,7 +4,7 @@ Camera.__index = Camera
 
 function Camera.new(x, y)
     return setmetatable({
-        x=x,y=y,zoom=1,trauma=0,shakeScale=1,
+        x=x,y=y,zoom=1,trauma=0,shakeScale=1,shakeClock=0,shakeX=0,shakeY=0,
         renderX=x,renderY=y,renderZoom=1,roll=0,pitch=1,
         inertiaX=0,inertiaY=0,inertiaVX=0,inertiaVY=0,
         rollVelocity=0,zoomKick=0,lastTargetX=x,lastTargetY=y,
@@ -49,10 +49,22 @@ end
 -- Short world-space camera direction.  It is deliberately small: pixel art
 -- keeps its grid while the foreground/background appear to carry momentum.
 function Camera:impulse(dx,dy,roll,zoom)
+    local perspectiveScale=self.perspective and .55 or 1
     self.inertiaVX=self.inertiaVX+(dx or 0)
     self.inertiaVY=self.inertiaVY+(dy or 0)
-    self.rollVelocity=self.rollVelocity+(roll or 0)
-    self.zoomKick=clamp(self.zoomKick+(zoom or 0),-.08,.12)
+    self.rollVelocity=self.rollVelocity+(roll or 0)*perspectiveScale
+    local zoomLimit=self.perspective and .055 or .12
+    self.zoomKick=clamp(self.zoomKick+(zoom or 0)*perspectiveScale,-zoomLimit,zoomLimit)
+end
+
+function Camera:updateShake(dt)
+    self.shakeClock=(self.shakeClock or 0)+dt
+    local amplitude=(self.trauma or 0)^2*(self.perspective and 4 or 7)*(self.shakeScale or 0)
+    local clock=self.shakeClock
+    local x=(math.sin(clock*13.1)+math.sin(clock*19.7+.8)*.38)*amplitude/1.38
+    local y=(math.sin(clock*16.3+1.4)+math.sin(clock*23.2)*.32)*amplitude/1.32
+    self.shakeX=math.floor(x*2+.5)/2
+    self.shakeY=math.floor(y*2+.5)/2
 end
 
 function Camera:focus(x,y,duration,zoom)
@@ -66,6 +78,7 @@ function Camera:syncRender(resetMotion)
     if resetMotion then
         self.inertiaX,self.inertiaY,self.inertiaVX,self.inertiaVY=0,0,0,0
         self.roll,self.rollVelocity,self.zoomKick=0,0,0
+        self.shakeX,self.shakeY=0,0
         self.cinematic=nil
         self.lastTargetX,self.lastTargetY=self.x,self.y
     end
@@ -79,7 +92,8 @@ function Camera:update(dt, target, world)
         local overviewZoom=math.min(w/b.w,h/b.h)*(self.userZoom or 1)
         self.x,self.y,self.zoom=b.x,b.y,overviewZoom
         self.renderX,self.renderY,self.renderZoom,self.roll=self.x,self.y,self.zoom,0
-        self.trauma=math.max(0,self.trauma-dt*1.8)
+        self.trauma=math.max(0,self.trauma-dt*(self.perspective and 2.6 or 1.8))
+        self:updateShake(dt)
         return
     end
     local focus=self.cinematic
@@ -119,9 +133,10 @@ function Camera:update(dt, target, world)
     end
     local targetDX,targetDY=targetX-(self.lastTargetX or targetX),targetY-(self.lastTargetY or targetY)
     self.lastTargetX,self.lastTargetY=targetX,targetY
-    self.inertiaVX=self.inertiaVX-targetDX*.24
-    self.inertiaVY=self.inertiaVY-targetDY*.15
-    self.rollVelocity=self.rollVelocity+clamp(targetDX*-.000045,-.006,.006)
+    local motionScale=self.perspective and .45 or 1
+    self.inertiaVX=self.inertiaVX-targetDX*.24*motionScale
+    self.inertiaVY=self.inertiaVY-targetDY*.15*motionScale
+    self.rollVelocity=self.rollVelocity+clamp(targetDX*-.000045*motionScale,-.0025,.0025)
     local smoothing = 1 - math.exp(-dt * 7)
     self.x = self.x + (tx - self.x) * smoothing
     self.y = self.y + (ty - self.y) * smoothing
@@ -129,19 +144,22 @@ function Camera:update(dt, target, world)
     self.inertiaX=(self.inertiaX+self.inertiaVX*dt)*math.exp(-dt*5.2)
     self.inertiaY=(self.inertiaY+self.inertiaVY*dt)*math.exp(-dt*5.2)
     self.rollVelocity=self.rollVelocity*math.exp(-dt*8)
-    self.roll=clamp((self.roll+self.rollVelocity*dt)*math.exp(-dt*5.5),-.018,.018)
+    local rollLimit=self.perspective and .006 or .018
+    self.roll=clamp((self.roll+self.rollVelocity*dt)*math.exp(-dt*5.5),-rollLimit,rollLimit)
     self.zoomKick=self.zoomKick*math.exp(-dt*6.5)
-    self.renderX=self.x+clamp(self.inertiaX,-22,22)
-    self.renderY=self.y+clamp(self.inertiaY,-14,14)
+    local inertiaLimitX=self.perspective and 10 or 22
+    local inertiaLimitY=self.perspective and 7 or 14
+    self.renderX=self.x+clamp(self.inertiaX,-inertiaLimitX,inertiaLimitX)
+    self.renderY=self.y+clamp(self.inertiaY,-inertiaLimitY,inertiaLimitY)
     self.renderZoom=desiredZoom*(1+self.zoomKick)
-    self.trauma = math.max(0, self.trauma - dt * 1.8)
+    self.trauma = math.max(0, self.trauma - dt * (self.perspective and 2.6 or 1.8))
+    self:updateShake(dt)
 end
 
 function Camera:attach(viewWidth,viewHeight,rawPerspectivePass)
     local w, h = viewWidth or love.graphics.getWidth(), viewHeight or love.graphics.getHeight()
-    local shake = self.trauma * self.trauma * 9 * (self.shakeScale or 0)
     love.graphics.push()
-    love.graphics.translate(w / 2 + love.math.random(-shake, shake), h / 2 + love.math.random(-shake, shake))
+    love.graphics.translate(w / 2 + (self.shakeX or 0), h / 2 + (self.shakeY or 0))
     love.graphics.rotate(self.roll or 0)
     local z=self.renderZoom or self.zoom
     local pitch=rawPerspectivePass and 1 or clamp(self.pitch or 1,.72,1)
@@ -173,6 +191,7 @@ function Camera:screenToWorld(screenX, screenY)
     local w, h = love.graphics.getDimensions()
     local flatX,flatY=screenX,screenY
     if self.perspective then flatX,flatY=WorldProjection.unproject(screenX,screenY,w,h,self.pitch) end
+    flatX,flatY=flatX-(self.shakeX or 0),flatY-(self.shakeY or 0)
     local z=self.renderZoom or self.zoom;local dx,dy=flatX-w/2,flatY-h/2
     local a=-(self.roll or 0);local c,s=math.cos(a),math.sin(a)
     local rx,ry=dx*c-dy*s,dx*s+dy*c
@@ -185,8 +204,8 @@ function Camera:worldToScreen(worldX,worldY)
     local z=self.renderZoom or self.zoom
     local dx,dy=(worldX-(self.renderX or self.x))*z,(worldY-(self.renderY or self.y))*z
     local c,s=math.cos(self.roll or 0),math.sin(self.roll or 0)
-    local flatX=w*.5+dx*c-dy*s
-    local flatY=h*.5+dx*s+dy*c
+    local flatX=w*.5+dx*c-dy*s+(self.shakeX or 0)
+    local flatY=h*.5+dx*s+dy*c+(self.shakeY or 0)
     if self.perspective then return WorldProjection.project(flatX,flatY,w,h,self.pitch) end
     return flatX,h*.5+(flatY-h*.5)*clamp(self.pitch or 1,.72,1),1
 end

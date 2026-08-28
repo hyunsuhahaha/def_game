@@ -1,4 +1,5 @@
 from pathlib import Path
+import re
 
 from PIL import Image
 
@@ -28,8 +29,14 @@ def main():
     game = (ROOT / "src" / "game.lua").read_text(encoding="utf-8")
     for biome in BIOMES:
         assert biome in source
-    for token in ('setFilter("nearest","nearest")', "vines=", "sway=", "parallax=", 'love.graphics.push("all")'):
+    for token in ('setFilter("nearest","nearest")', "vines=", "vineAlpha=", "vineScale=", "tuftAlpha=", "sway=", "parallax=", 'love.graphics.push("all")'):
         assert token in source, token
+    vine_sets = re.findall(r"vines=\{([^}]*)\}", source)
+    assert len(vine_sets) == len(BIOMES)
+    for values in vine_sets:
+        fractions = [float(value) for value in values.split(",") if value.strip()]
+        assert 1 <= len(fractions) <= 2, fractions
+        assert all(value <= .12 or value >= .88 for value in fractions), fractions
     assert "BiomeCanopy.draw" in game
     assert game.index("BiomeCanopy.draw") < game.index("self:drawUI()")
     print("BIOME_CANOPY_VERIFY_OK biomes=5 components=25 layer=foreground hud=above")

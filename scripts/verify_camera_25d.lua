@@ -10,6 +10,13 @@ local wx0,wy0=742,533
 local sx,sy,perspective=cam:worldToScreen(wx0,wy0)
 local wx,wy=cam:screenToWorld(sx,sy)
 assert(math.abs(wx-wx0)<.001 and math.abs(wy-wy0)<.001,"2.5D projection input inverse drifted")
+cam.shakeX,cam.shakeY=3,-2
+local shakenX,shakenY=cam:worldToScreen(cam.renderX,cam.renderY)
+local expectedX,expectedY=Projection.project(640+cam.shakeX,360+cam.shakeY,1280,720,cam.pitch)
+assert(math.abs(shakenX-expectedX)<.001 and math.abs(shakenY-expectedY)<.001,"billboard shake diverged from projected ground")
+local centerWorldX,centerWorldY=cam:screenToWorld(shakenX,shakenY)
+assert(math.abs(centerWorldX-cam.renderX)<.001 and math.abs(centerWorldY-cam.renderY)<.001,"shared shake broke pointer inverse")
+cam.shakeX,cam.shakeY=0,0
 local topScale=Projection.factor(0,720,.76)
 local bottomScale=Projection.factor(720,720,.76)
 assert(topScale<.9 and bottomScale>1.05 and bottomScale>topScale,"perspective scale range drifted")
