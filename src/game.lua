@@ -320,7 +320,14 @@ end
 function Game:keypressed(key)
     if self.mode=="test_options" then if key=="escape" or key=="f10" then self:closeTestOptions() end; return end
     if key=="f10" then self:openTestOptions(self.mode); return end
-    if self.paused then if key=="escape" then self.paused=false end; return end
+    if self.paused then
+        if key=="escape" then self.paused=false;self.pauseTiltDragging=false
+        elseif key=="left" or key=="a" then self:setViewTilt(self:viewTiltAmount()-.04)
+        elseif key=="right" or key=="d" then self:setViewTilt(self:viewTiltAmount()+.04)
+        elseif key=="home" then self:setViewTilt(0)
+        elseif key=="end" then self:setViewTilt(1) end
+        return
+    end
     if self.mode == "lobby" then
         if key == "escape" then love.event.quit(); return end
         local action=self.lobby:keypressed(key)
@@ -470,9 +477,12 @@ end
 function Game:mousepressed(x, y, button)
     if self.paused then
         if button==1 then
-            local _, _, _, _, resumeBox, quitBox = self:pauseButtons()
-            if x>=resumeBox.x and x<=resumeBox.x+resumeBox.w and y>=resumeBox.y and y<=resumeBox.y+resumeBox.h then self.paused=false
-            elseif x>=quitBox.x and x<=quitBox.x+quitBox.w and y>=quitBox.y and y<=quitBox.y+quitBox.h then self.paused=false; self.mode="lobby" end
+            local _, _, _, _, resumeBox, quitBox, tiltBox = self:pauseButtons()
+            if Frontend.inside(tiltBox,x,y) then
+                self.pauseTiltDragging=true
+                self:setViewTilt(Frontend.sliderValueAt(tiltBox,x))
+            elseif Frontend.inside(resumeBox,x,y) then self.paused=false;self.pauseTiltDragging=false
+            elseif Frontend.inside(quitBox,x,y) then self.paused=false;self.pauseTiltDragging=false;self.mode="lobby" end
         end
         return
     end
@@ -674,6 +684,11 @@ function Game:mousepressed(x, y, button)
 end
 
 function Game:wheelmoved(x, y)
+    if self.paused then
+        local mx,my=love.mouse.getPosition();local _,_,_,_,_,_,tiltBox=self:pauseButtons()
+        if Frontend.inside(tiltBox,mx,my) and y~=0 then self:setViewTilt(self:viewTiltAmount()+(y>0 and .04 or -.04)) end
+        return
+    end
     if self.mode=="settings" then
         local mx,my=love.mouse.getPosition()
         if Frontend.inside(self.settingsTiltBox,mx,my) and y~=0 then self:setViewTilt(self:viewTiltAmount()+(y>0 and .04 or -.04)) end
@@ -1322,20 +1337,23 @@ end
 
 function Game:pauseButtons()
     local w, h = love.graphics.getDimensions()
-    local pw, ph = 360, 220
+    local pw, ph = math.min(560,w-40), math.min(390,h-40)
     local px, py = w / 2 - pw / 2, h / 2 - ph / 2
+    local tiltBox={x=px+28,y=py+86,w=pw-56,h=92}
     return px, py, pw, ph,
-        {x = px + 30, y = py + 96, w = pw - 60, h = 52},
-        {x = px + 30, y = py + 160, w = pw - 60, h = 52}
+        {x = px + 28, y = py + ph - 126, w = pw - 56, h = 48},
+        {x = px + 28, y = py + ph - 66, w = pw - 56, h = 42},
+        tiltBox
 end
 
 function Game:mousemoved(x,y,dx,dy)
+    if self.paused and self.pauseTiltDragging then local _,_,_,_,_,_,tiltBox=self:pauseButtons();self:setViewTilt(Frontend.sliderValueAt(tiltBox,x));return end
     if self.mode=="settings" and self.settingsTiltDragging then self:setViewTilt(Frontend.sliderValueAt(self.settingsTiltBox,x));return end
     if self.mode=="clearcut_map_select" then require("src.clearcut_map_select").mousemoved(self,x,y,dx,dy) end
 end
 
 function Game:mousereleased(x,y,button)
-    if button==1 then self.settingsTiltDragging=false end
+    if button==1 then self.settingsTiltDragging=false;self.pauseTiltDragging=false end
     if self.mode=="clearcut_map_select" then
         local index=require("src.clearcut_map_select").mousereleased(self,x,y,button)
         if index then self.clearcutMapFocus=index;self:chooseClearcutMap(index) end
@@ -1349,15 +1367,16 @@ end
 
 function Game:drawPauseOverlay()
     local w, h, f = love.graphics.getWidth(), love.graphics.getHeight(), self.fonts
-    love.graphics.setColor(0, 0, 0, .6); love.graphics.rectangle("fill", 0, 0, w, h)
-    local px, py, pw, ph, resumeBox, quitBox = self:pauseButtons()
-    UI.panel(px, py, pw, ph, {1, .78, .25, 1}, .96)
-    love.graphics.setFont(f.heading); love.graphics.setColor(1, 1, 1)
-    love.graphics.printf("일시정지", px, py + 22, pw, "center")
-    love.graphics.setFont(f.small); love.graphics.setColor(.75, .83, .75)
-    love.graphics.printf("ESC로 계속하기", px, py + 60, pw, "center")
-    UI.button(resumeBox.x, resumeBox.y, resumeBox.w, resumeBox.h, "계속하기", true, f.body)
-    UI.button(quitBox.x, quitBox.y, quitBox.w, quitBox.h, "로비로 나가기", true, f.body)
+    love.graphics.setColor(0, 0, 0, .66); love.graphics.rectangle("fill", 0, 0, w, h)
+    local px, py, pw, ph, resumeBox, quitBox, tiltBox = self:pauseButtons()
+    Frontend.frame(px,py,pw,ph,Frontend.colors.amber,{selected=true})
+    Frontend.label("일시정지 / 화면",px+28,py+20,f.micro,Frontend.colors.amber)
+    love.graphics.setFont(f.heading); love.graphics.setColor(.98,.96,.86);love.graphics.print("작업 일시정지",px+28,py+44)
+    Frontend.slider(tiltBox,self:viewTiltAmount(),f.body,"원근감", "평면  ↔  깊은 2.5D · 캐릭터와 스킬 비율은 유지",Frontend.colors.amber)
+    love.graphics.setFont(f.small);love.graphics.setColor(.55,.64,.58)
+    love.graphics.print("드래그 · 휠 · ← → 키로 즉시 조절",tiltBox.x,tiltBox.y+tiltBox.h+12)
+    Frontend.button(resumeBox,"계속하기",f.body,{primary=true,key="ESC",accent=Frontend.colors.amber})
+    Frontend.button(quitBox,"로비로 나가기",f.small,{accent=Frontend.colors.teal})
 end
 
 function Game:drawSettings()
