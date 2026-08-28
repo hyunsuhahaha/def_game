@@ -31,9 +31,10 @@ m,g=setup("crow_strike",{a,b},{e,out});m:updateCrowStrike(0,g)
 near(e.hp,1000-(3.5+openingGrowth*30.5));near(a.rushHp,1000);near(b.rushHp,1000);near(out.hp,1000)
 assert(#m.crowFx==1 and m.crowFx[1].x==600);near(m.crowFx[1].angle,0)
 m:updateCrowStrike(.33,g);assert(#m.crowFx==0)
--- Nearest direction, cone exclusion, snapshot origin: moving cannot drag a hit.
-a,b=tree(0,250),tree(270,0);m,g=setup("vine_whip",{a,b});m:updateVineWhip(0,g)
+-- Nearest monster direction, cone exclusion, snapshot origin: moving cannot drag a hit.
+a,b=tree(0,250),tree(270,0);e=enemy(0,200);m,g=setup("vine_whip",{a,b},{e});m:updateVineWhip(0,g)
 near(a.rushHp,1000-(2.25+openingGrowth*15.75));near(b.rushHp,1000);near(m.whipFx[1].angle,math.pi/2)
+near(e.hp,1000-(2.25+openingGrowth*15.75))
 assert(m.whipFx[1].range>2*(125+openingGrowth*155))
 g.player.x=77;assert(m.whipFx[1].x==0 and m.whipFx[1].y==0)
 m:updateVineWhip(.23,g);assert(#m.whipFx==0)
@@ -50,6 +51,11 @@ end
 assert(turns>0 and #m.boomerangs==0)
 near(a.rushHp,990);near(b.rushHp,990);near(e.hp,990)
 assert(64>30*2)
+-- New casts aim at a living monster instead of a random direction or a nearer tree.
+a=tree(20,0);e=enemy(0,300);m,g=setup("boomerang_axe",{a},{e});m:updateBoomerangAxe(0,g)
+assert(m.boomerangs[1].target==e,"boomerang did not select the monster")
+near(m.boomerangs[1].dx,0);near(m.boomerangs[1].dy,1)
+m,g=setup("boomerang_axe",{tree(30)},{});m:updateBoomerangAxe(0,g);assert(#m.boomerangs==0,"boomerang substituted a tree target")
 -- Mine keeps its fuse. Explosion persists after the gameplay object is removed.
 a,b=tree(20),tree(71);m,g=setup("seed_mine",{a,b});m.seedTimer=99
 m.seeds={{x=0,y=0,fuse=1.1,maxFuse=1.1,radius=70,dmg=7}}
@@ -59,14 +65,17 @@ assert(#m.seeds==0 and #m.supplementImpacts==1 and m.supplementImpacts[1].kind==
 Art.update(m,.3);assert(#m.supplementImpacts==1)
 Art.update(m,.3);assert(#m.supplementImpacts==0)
 -- Newly planted mines use more than twice the former explosion radius.
-m,g=setup("seed_mine",{});m:updateSeedMine(0,g)
+m,g=setup("seed_mine",{},{enemy(100,0)});m:updateSeedMine(0,g)
 assert(m.seeds[1].radius>2*(50+openingGrowth*89))
--- Chain records actual consecutive hits; never revisits or jumps across >260.
-a,b=tree(90),tree(300);e,out=enemy(500),enemy(900)
-m,g=setup("chain_lightning",{a,b},{e,out});m:updateChainLightning(0,g)
+e=enemy(0,300);m,g=setup("seed_mine",{tree(20,0)},{e});m:updateSeedMine(0,g)
+assert(m.seeds[1].target==e and math.abs(m.seeds[1].x)<.001 and m.seeds[1].y==160,"seed mine did not plant toward the monster")
+m,g=setup("seed_mine",{tree(30)},{});m:updateSeedMine(0,g);assert(#m.seeds==0,"seed mine substituted a tree target")
+-- Chain records monster-only consecutive hits; never revisits or jumps across >260.
+a,b=tree(90),tree(300);local e1,e2=enemy(90),enemy(300);out=enemy(900)
+m,g=setup("chain_lightning",{a,b},{e1,e2,out});m:updateChainLightning(0,g)
 local points=m.lightningFx[1].points;assert(#points==3)
 for i,x in ipairs({0,90,300}) do assert(points[i].x==x) end
-near(a.rushHp,1000-(1.75+openingGrowth*12.45));near(b.rushHp,1000-(1.75+openingGrowth*12.45));near(e.hp,1000);near(out.hp,1000)
+near(a.rushHp,1000);near(b.rushHp,1000);near(e1.hp,1000-(1.75+openingGrowth*12.45));near(e2.hp,1000-(1.75+openingGrowth*12.45));near(out.hp,1000)
 m:updateChainLightning(.26,g);assert(#m.lightningFx==0)
 -- Bounded transient storage / all events age out, including a long update.
 for i=1,100 do Art.impact(m,"seed",i,0,70) end
@@ -100,4 +109,4 @@ for i=1,7 do assert(kinds[i],"missing FX shader branch "..i) end
 for _,id in ipairs({"bat","crow","axe","seed"}) do assert(sprites["assets/fx/supplement/"..id.."-atlas-v1.png"]) end
 local first=fixture.commands[1].uniforms.clock
 fixture.reset();m:drawSupplementSkills(g,1999);assert(fixture.commands[1].uniforms.clock==first,"paused draw animates")
-print("SUPPLEMENT_FX_OK skills=7 bat=targeted-monster-first ranges=2x+ fuse/roundtrip/render-purity/cleanup")
+print("SUPPLEMENT_FX_OK skills=7 monster_targeting=bat+crow+vine+axe+seed+chain ranges=2x+ fuse/roundtrip/render-purity/cleanup")

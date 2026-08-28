@@ -55,7 +55,7 @@ local definitions = {
     {id="dry_forest", track="spread", name="건조주의보 무시", desc="꽁초의 착화 확률이 레벨당 +6%p 높아지고(최대 75%), 붙은 불이 주변 나무로 더 빠르고 넓게 번집니다.", max=6, color={1,.5,.15}, job="fire"},
     {id="oil_drum", track="spread", name="라이터 기름 유출", desc="나무가 다 타버리면 레벨당 폭발 확률이 크게 올라(1렙 7.5%→5렙 63%), 6렙에서는 100% 확정 발동합니다.", max=6, color={1,.62,.1}, job="fire"},
     {id="straw_bale", track="spread", name="마른 건초더미 생성", desc="주기적으로 큰 건초더미를 둡니다. 꽁초가 닿으면 0.5초 뒤 불이 붙고, 레벨에 따라 넓어지는 화염 지대가 주변 나무와 적에게 지속 피해를 줍니다. 불이 옮겨붙어 다른 대상을 점화시키지는 않습니다.", max=6, color={.85,.72,.25}, job="fire"},
-    {id="smoke_ring", track="spread", name="도넛 강화 — 니코틴 농축", desc="SPACE로 쏘는 도넛 연기의 재사용 대기시간이 줄고, 피해·넉백·크기가 늘어납니다. 6레벨에는 SPACE를 끝까지 충전하면 초농축 도넛이 발사됩니다. 중간에 놓으면 일반 도넛과 같습니다.", max=6, color={1,.68,.2}, job="fire"},
+    {id="smoke_ring", track="spread", name="도넛 강화 — 니코틴 농축", desc="SPACE로 쏘는 도넛 연기가 보이는 이동 궤적 전체를 넓게 타격합니다. 강화하면 재사용 대기시간이 줄고 피해·넉백·크기가 늘어납니다. 6레벨 완충 시 초농축 도넛이 발사됩니다.", max=6, color={1,.68,.2}, job="fire"},
     -- 식탐력 (suppress) — 큰 포크로 찍고 마지막 한입까지 비운다 [비건 단체 회장 전용 + 공용]
     {id="fork_feast", track="suppress", name="대왕 포크", desc="기본 공격이 전방 다중 포크 찍기로 바뀝니다. 레벨마다 포크 피해와 사거리가 늘고, 이 타격으로 쓰러진 나무와 적은 끌어와 먹습니다.", max=6, color={.62,.92,.32}, job="toxic"},
     {id="buffet_fork", track="suppress", name="뷔페용 포크", desc="포크의 좌우 피격 폭과 동시에 찍는 대상 수가 늘어납니다. 6레벨에는 타격 순간 커다란 포크 잔상이 한 번 더 찍힙니다.", max=6, color={.48,.82,.66}, job="toxic"},
@@ -78,13 +78,13 @@ local definitions = {
     {id="loud_voice", track="venom", name="목청 키우기", desc="침이 닿는 범위가 넓어집니다.", max=6, color={.65,.8,.3}, job="philosopher"},
     {id="saliva_gland", track="venom", name="침샘 발달", desc="침에 맞은 대상은 서서히 중독되어 지속 피해를 입습니다.", max=6, color={.55,.72,.25}, job="philosopher"},
     -- 보조력 (supplement) — 기본 공격과 무관하게 알아서 나가는 공용 패시브 [전 직업 공용]
-    {id="bat_swarm", track="supplement", name="박쥐 떼", desc="주위를 맴도는 박쥐가 주기적으로 주변 대상 하나를 고른 뒤 급강하해 쪼아버립니다. 사거리 안에 몬스터가 있으면 나무보다 먼저 노립니다.", max=6, color={.55,.42,.72}},
+    {id="bat_swarm", track="supplement", name="박쥐 떼", desc="주위를 맴도는 박쥐가 사거리 안의 생존 몬스터만 골라 주기적으로 급강하해 쪼아버립니다.", max=6, color={.55,.42,.72}},
     {id="thorn_aura", track="supplement", name="가시 오라", desc="몸 주위의 넓은 가시덩굴 지대가 주기적으로 주변 나무와 적에게 피해를 줍니다.", max=6, color={.42,.68,.32}},
-    {id="crow_strike", track="supplement", name="까마귀 습격", desc="주기적으로 까마귀가 급강하해 사거리 내 가장 먼 나무나 적을 공격합니다.", max=6, color={.3,.28,.36}},
-    {id="vine_whip", track="supplement", name="덩굴 채찍", desc="주기적으로 긴 덩굴을 채찍처럼 휘둘러 가장 가까운 방향의 넓은 부채꼴 범위를 가격합니다.", max=6, color={.35,.55,.22}},
-    {id="boomerang_axe", track="supplement", name="부메랑 도끼", desc="넓은 회전 피격 범위를 가진 도끼가 날아가 나무와 적을 가르고 손으로 돌아옵니다.", max=6, color={.6,.6,.65}},
-    {id="seed_mine", track="supplement", name="씨앗 지뢰", desc="주기적으로 씨앗 지뢰를 심습니다. 잠시 후 크게 터져 넓은 범위의 나무와 적에게 피해를 줍니다.", max=6, color={.65,.45,.2}},
-    {id="chain_lightning", track="supplement", name="번개 사슬", desc="주기적으로 번개가 근처 나무·적 사이를 연쇄로 튀며 피해를 줍니다.", max=6, color={.35,.75,.95}},
+    {id="crow_strike", track="supplement", name="까마귀 습격", desc="주기적으로 까마귀가 급강하해 사거리 내 가장 먼 생존 몬스터를 저격합니다.", max=6, color={.3,.28,.36}},
+    {id="vine_whip", track="supplement", name="덩굴 채찍", desc="가장 가까운 생존 몬스터 방향으로 긴 덩굴을 휘둘러 넓은 부채꼴 범위를 가격합니다.", max=6, color={.35,.55,.22}},
+    {id="boomerang_axe", track="supplement", name="부메랑 도끼", desc="가장 가까운 생존 몬스터를 향해 도끼가 날아가며, 넓은 회전 범위로 왕복 타격하고 손으로 돌아옵니다.", max=6, color={.6,.6,.65}},
+    {id="seed_mine", track="supplement", name="씨앗 지뢰", desc="가장 가까운 생존 몬스터 방향에 씨앗 지뢰를 심습니다. 잠시 후 크게 터져 넓은 범위에 피해를 줍니다.", max=6, color={.65,.45,.2}},
+    {id="chain_lightning", track="supplement", name="번개 사슬", desc="주기적으로 번개가 가까운 생존 몬스터 사이만 연쇄로 튀며 다단히트합니다.", max=6, color={.35,.75,.95}},
 }
 
 local upgradeById = {}
@@ -1711,21 +1711,28 @@ function ClearcutMode:updateSmokeRing(dt, game)
     end
     local ring = self.smokeRing
     if not ring then return end
+    local previousX,previousY=ring.x,ring.y
     local step = math.sqrt(ring.vx * ring.vx + ring.vy * ring.vy) * dt
     ring.x, ring.y = ring.x + ring.vx * dt, ring.y + ring.vy * dt
     ring.traveled = ring.traveled + step
     -- 처음엔 작게 시작해서 날아갈수록 점점 커진다(실제 담배연기 도넛처럼).
     local grow = math.min(1, ring.traveled / ring.maxRange)
     ring.radius = ring.startRadius + (ring.maxRadius - ring.startRadius) * grow
-    -- 실제로 그려지는 도넛 스프라이트는 ring.radius보다 눈에 띄게 커 보인다
-    -- (smoke_ring_art.lua의 scale=ring.radius/78, 원점 96 기준 ≈ 1.23배). 판정을
-    -- 눈에 보이는 크기에 맞춰 넓힌다.
-    local hitRadius = ring.radius * 1.3
+    -- The smoke atlas extends beyond the nominal ring and actors use a feet
+    -- anchor. Add body allowance and test the whole travelled segment so the
+    -- visible ring cannot skip a target between frames.
+    local hitRadius = ring.radius * 1.65 + 34
+    local function sweptDistanceSq(px,py)
+        local sx,sy=ring.x-previousX,ring.y-previousY;local len2=sx*sx+sy*sy
+        local u=len2>0 and math.max(0,math.min(1,((px-previousX)*sx+(py-previousY)*sy)/len2))or 0
+        local dx,dy=px-(previousX+sx*u),py-(previousY+sy*u)
+        return dx*dx+dy*dy
+    end
     for _, e in ipairs(self.enemies) do
         if not ring.hit[e] then
             local dx, dy = e.x - ring.x, e.y - ring.y
             local dist = math.sqrt(dx * dx + dy * dy)
-            if dist <= hitRadius then
+            if sweptDistanceSq(e.x,e.y)<=hitRadius*hitRadius then
                 ring.hit[e] = true
                 local nx, ny = dist > .01 and dx / dist or 1, dist > .01 and dy / dist or 0
                 e.hp = e.hp - ring.dmg
@@ -1736,8 +1743,7 @@ function ClearcutMode:updateSmokeRing(dt, game)
     end
     for _, node in ipairs(game.world.nodes) do
         if node.rushTree and node.active and not ring.hit[node] then
-            local dx, dy = node.x - ring.x, node.y - ring.y
-            if dx * dx + dy * dy <= hitRadius * hitRadius then
+            if sweptDistanceSq(node.x,node.y)<=hitRadius*hitRadius then
                 ring.hit[node] = true
                 node.rushHp = (node.rushHp or node.rushMaxHp) - ring.dmg
                 game.world:impactNode(node, game, true)
@@ -2529,14 +2535,6 @@ function ClearcutMode:updateBatSwarm(dt, game)
                 if d2<=bestD2 then best,bestD2=enemy,d2 end
             end
         end
-        if best then return best end
-        for _,node in ipairs(game.world.nodes) do
-            if node.rushTree and node.active then
-                local dx,dy=node.x-game.player.x,node.y-game.player.y
-                local d2=dx*dx+dy*dy
-                if d2<=bestD2 then best,bestD2=node,d2 end
-            end
-        end
         return best
     end
     for _, bat in ipairs(self.bats) do
@@ -2640,15 +2638,6 @@ function ClearcutMode:updateCrowStrike(dt, game)
         local d2 = dx*dx + dy*dy
         if d2 <= range*range and d2 > bestD2 then best, bestD2 = e, d2 end
     end
-    if not best then
-        for _, node in ipairs(game.world.nodes) do
-            if node.rushTree and node.active then
-                local dx, dy = node.x - game.player.x, node.y - game.player.y
-                local d2 = dx*dx + dy*dy
-                if d2 <= range*range and d2 > bestD2 then best, bestD2 = node, d2 end
-            end
-        end
-    end
     if not best then return end
     local dmg = 3.5 + growth*30.5
     local radius = 35 + growth*80
@@ -2686,19 +2675,10 @@ function ClearcutMode:updateVineWhip(dt, game)
         local d2 = dx*dx + dy*dy
         if d2 <= nearestD2 then nearest, nearestD2 = e, d2 end
     end
-    if not nearest then
-        for _, node in ipairs(game.world.nodes) do
-            if node.rushTree and node.active then
-                local dx, dy = node.x - game.player.x, node.y - game.player.y
-                local d2 = dx*dx + dy*dy
-                if d2 <= nearestD2 then nearest, nearestD2 = node, d2 end
-            end
-        end
-    end
+    if not nearest then self.whipTimer=.15;return end
     local atan2 = math.atan2 or math.atan
     local angle
-    if nearest then angle = atan2(nearest.y - game.player.y, nearest.x - game.player.x)
-    else angle = (game.player.facing or 1) > 0 and 0 or math.pi end
+    angle = atan2(nearest.y - game.player.y, nearest.x - game.player.x)
     local dmg = 2.25+growth*15.75
     local cone = .75
     for _, node in ipairs(game.world.nodes) do
@@ -2792,11 +2772,17 @@ function ClearcutMode:updateBoomerangAxe(dt, game)
     if self.boomerangTimer > 0 then return end
     local growth=self:growth("boomerang_axe")
     self.boomerangTimer = 3.2-growth*2
-    local a = love.math.random() * math.pi * 2
+    local target,bestD2=nil,math.huge
+    for _,enemy in ipairs(self.enemies)do
+        if enemy.hp and enemy.hp>0 then local dx,dy=enemy.x-game.player.x,enemy.y-game.player.y;local d2=dx*dx+dy*dy;if d2<bestD2 then target,bestD2=enemy,d2 end end
+    end
+    if not target then self.boomerangTimer=.15;return end
+    local atan2=math.atan2 or math.atan
+    local a=atan2(target.y-game.player.y,target.x-game.player.x)
     self.boomerangs[#self.boomerangs+1] = {
         x=game.player.x, y=game.player.y, dx=math.cos(a), dy=math.sin(a),
         traveled=0,maxDist=200+growth*244,phase="out",hitSet={},dmg=2+growth*12.2,
-        radius=64+growth*24,angle=a
+        radius=64+growth*24,angle=a,target=target
     }
 end
 
@@ -2828,11 +2814,17 @@ function ClearcutMode:updateSeedMine(dt, game)
     if self.seedTimer > 0 then return end
     local growth=self:growth("seed_mine")
     self.seedTimer = 4-growth*2.4
-    local a = love.math.random() * math.pi * 2
-    local r = 40 + love.math.random() * 120
+    local target,bestD2=nil,math.huge
+    for _,enemy in ipairs(self.enemies)do
+        if enemy.hp and enemy.hp>0 then local dx,dy=enemy.x-game.player.x,enemy.y-game.player.y;local d2=dx*dx+dy*dy;if d2<bestD2 then target,bestD2=enemy,d2 end end
+    end
+    if not target then self.seedTimer=.15;return end
+    local atan2=math.atan2 or math.atan
+    local a=atan2(target.y-game.player.y,target.x-game.player.x)
+    local r=math.min(160,math.sqrt(bestD2))
     self.seeds[#self.seeds+1] = {
         x=game.player.x + math.cos(a) * r, y=game.player.y + math.sin(a) * r,
-        fuse=1.1,maxFuse=1.1,radius=110+growth*185,dmg=2.5+growth*18.3
+        fuse=1.1,maxFuse=1.1,radius=110+growth*185,dmg=2.5+growth*18.3,target=target
     }
 end
 
@@ -2864,15 +2856,6 @@ function ClearcutMode:updateChainLightning(dt, game)
                 local dx, dy = e.x - cx, e.y - cy
                 local d2 = dx*dx + dy*dy
                 if d2 <= bestD2 then target, bestD2 = e, d2 end
-            end
-        end
-        if not target then
-            for _, node in ipairs(game.world.nodes) do
-                if node.rushTree and node.active and not visited[node] then
-                    local dx, dy = node.x - cx, node.y - cy
-                    local d2 = dx*dx + dy*dy
-                    if d2 <= bestD2 then target, bestD2 = node, d2 end
-                end
             end
         end
         if not target then break end

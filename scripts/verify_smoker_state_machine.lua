@@ -45,6 +45,15 @@ held=false; mode:updateFireAttack(0,game,false)
 local mouthX,_,facing,emberX=mode:smokerMouthPose(game)
 assert(facing==-1 and emberX<mouthX,"left-facing smoker holds the cigarette backwards")
 
+-- The visible smoke ring gets body allowance and swept collision. This target
+-- sits outside the old radius and behind the ring's current point, but inside
+-- the path that was visibly crossed during this frame.
+local ringMode=ClearcutMode.new();ringMode.job="fire"
+local ringTarget={x=0,y=60,hp=50}
+ringMode.enemies={ringTarget};ringMode.smokeRing={x=0,y=0,vx=480,vy=0,radius=20,startRadius=20,maxRadius=20,dmg=10,knockback=100,maxRange=500,traveled=0,hit={}}
+ringMode:updateSmokeRing(.1,{world={nodes={}}})
+assert(ringTarget.hp==40 and ringTarget.knockTimer>0,"expanded swept smoke-ring hitbox missed a visible crossing")
+
 -- Use the real movement update order: movement first, then the smoking loop.
 local Player=require("src.player")
 local walking=setmetatable({x=500,y=500,speed=260,walkClock=0,gather=1,facing=1},Player)
@@ -77,4 +86,4 @@ local board=CharacterTraitBoard.new(store,{}, {})
 local node=store:getNodes("physical")[#store:getNodes("physical")]
 assert(board:nodeLabel(node)==node.name,"node label and detail title use different names")
 
-print("SMOKER_STATE_AND_TRAIT_LABEL_OK")
+print("SMOKER_STATE_AND_TRAIT_LABEL_OK smoke_ring=expanded+swept")
