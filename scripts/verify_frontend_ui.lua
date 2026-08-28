@@ -10,7 +10,7 @@ local doc=read("docs/FRONTEND_UI_REDESIGN.md")
 
 assert(lobby:find("lobby%-forest%-field%-hq%-pixel%-v2%.png"),"new forest lobby background is not connected")
 assert(not lobby:find("숲이 다시 자라기 전에",1,true),"removed lobby slogan returned")
-assert(lobby:find("할당량 60그루",1,true) and lobby:find("작업 준비",1,true),"lobby copy is not concrete")
+assert(lobby:find("게임 시작",1,true),"lobby start button missing")
 assert(game:find('self.mode="clearcut_briefing"',1,true),"map selection still skips briefing")
 assert(game:find('self:startClearcut(self.pendingClearcutCharacter,self.selectedClearcutMap)',1,true),"briefing cannot start the run")
 assert(maps:find("선택 지역으로 이동",1,true),"map confirmation action missing")
