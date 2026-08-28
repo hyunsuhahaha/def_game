@@ -26,6 +26,18 @@ function Camera:focus(x,y,duration,zoom)
     self.cinematic={x=x,y=y,time=duration or 2.5,duration=duration or 2.5,zoom=zoom or 1.08}
 end
 
+-- Scripted scenes sometimes author x/y/zoom directly and return before the
+-- ordinary camera update. Mirror those authored values into the render pose.
+function Camera:syncRender(resetMotion)
+    self.renderX,self.renderY,self.renderZoom=self.x,self.y,self.zoom
+    if resetMotion then
+        self.inertiaX,self.inertiaY,self.inertiaVX,self.inertiaVY=0,0,0,0
+        self.roll,self.rollVelocity,self.zoomKick=0,0,0
+        self.cinematic=nil
+        self.lastTargetX,self.lastTargetY=self.x,self.y
+    end
+end
+
 function Camera:update(dt, target, world)
     local w, h = love.graphics.getDimensions()
     if world.overviewBounds then

@@ -323,10 +323,12 @@ end
 for _,def in ipairs(Maps.catalog)do
     local g=newGame();g:startClearcut("physical",def.id)
     local intro=g.clearcut.intro;assert(intro and g.player.introHidden and #intro.birds==14,def.id.." intro missing")
+    assert(g.camera.renderX==g.camera.x and g.camera.renderY==g.camera.y and g.camera.renderZoom==g.camera.zoom,def.id.." intro camera render pose was not initialized")
     local minDepth,maxDepth=9,0;for _,bird in ipairs(intro.birds)do minDepth=math.min(minDepth,bird.depth);maxDepth=math.max(maxDepth,bird.depth)end
     assert(minDepth<.7 and maxDepth>1.5,"intro depth bands missing")
     local elapsed,time=g.clearcut.elapsed,g.time;local enemy=g.clearcut.enemies[1];local ex,ey=enemy and enemy.x,enemy and enemy.y
     Intro.update(g,.8);assert(g.clearcut.elapsed==elapsed and g.time==time and g.player.introHidden,"intro advanced gameplay")
+    assert(g.camera.renderX==g.camera.x and g.camera.renderY==g.camera.y and g.camera.renderZoom==g.camera.zoom,def.id.." authored intro camera stopped reaching the renderer")
     Intro.update(g,.9);assert(g.clearcut.intro and not g.player.introHidden and g.player.isMoving,"worker did not enter")
     local flying=0;for _,bird in ipairs(g.clearcut.intro.birds)do if bird.flying then flying=flying+1 end end
     assert(flying>=4,"birds did not scatter")
@@ -346,6 +348,7 @@ for _,def in ipairs(Maps.catalog)do
     assert(birdDraw and debrisDraw,"intro v2 authored atlases not rendered")
     while Intro.active(g)do Intro.update(g,.25)end
     assert(not g.player.introHidden and not g.player.isMoving and g.clearcut.elapsed==0,"intro completion state invalid")
+    assert(g.camera.renderX==g.camera.x and g.camera.renderY==g.camera.y and g.camera.renderZoom==g.camera.zoom,"intro camera did not hand back a synchronized pose")
     g.clearcut:update(.1,g);assert(g.clearcut.elapsed>.09,"gameplay did not start after intro")
 end
 local skipGame=newGame();skipGame:startClearcut("physical","forest");Game.keypressed(skipGame,"space")

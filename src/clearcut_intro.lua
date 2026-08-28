@@ -59,13 +59,17 @@ function Intro.begin(game)
     mode.intro={t=0,duration=DURATION,mapId=id,targetX=tx,targetY=ty,entryX=tx-238,entryY=ty+70,
         baseZoom=game.world.stageZoom or game.camera.zoom or .84,birds=makeBirds(tx,ty),debris={},launched={},swayNodes={},startled=false,kick=0,stepClock=0}
     game.player.introHidden=true;game.player.isMoving=false;game.player.x,game.player.y=tx-238,ty+70
-    game.camera.x,game.camera.y,game.camera.zoom=tx,ty-22,(game.world.stageZoom or .84)*1.16;game.noticeTime=0
+    game.camera.x,game.camera.y,game.camera.zoom=tx,ty-22,(game.world.stageZoom or .84)*1.16
+    if game.camera.syncRender then game.camera:syncRender(true) end
+    game.noticeTime=0
 end
 local function clearSway(intro)for node in pairs(intro.swayNodes or{})do node.swayAngle=0;node.swayVel=0 end end
 local function finish(game)
     local intro=game.clearcut and game.clearcut.intro;if not intro then return end;clearSway(intro)
     game.player.introHidden=false;game.player.isMoving=false;game.player.x,game.player.y=intro.targetX,intro.targetY
-    game.camera.x,game.camera.y,game.camera.zoom=intro.targetX,intro.targetY,intro.baseZoom;game.clearcut.intro=nil
+    game.camera.x,game.camera.y,game.camera.zoom=intro.targetX,intro.targetY,intro.baseZoom
+    if game.camera.syncRender then game.camera:syncRender(true) end
+    game.clearcut.intro=nil
 end
 Intro.finish=finish
 function Intro.skip(game)
@@ -102,6 +106,7 @@ function Intro.update(game,dt)
     intro.kick=math.max(0,intro.kick-dt*3.8);local zoomQ=smooth(intro.t/intro.duration);local impact=math.sin(intro.kick*math.pi*3)*intro.kick
     game.camera.x=intro.targetX+(1-zoomQ)*24+impact*7;game.camera.y=intro.targetY-22*(1-zoomQ)-impact*4
     game.camera.zoom=intro.baseZoom*(1.16-.16*zoomQ+intro.kick*.025)
+    if game.camera.syncRender then game.camera:syncRender(false) end
     if intro.t>=intro.duration then finish(game)end;return true
 end
 local function drawDebris(intro,back)

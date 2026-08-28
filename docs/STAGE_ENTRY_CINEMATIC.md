@@ -11,6 +11,8 @@
 
 연출 중에는 `ClearcutMode.elapsed`, 전체 제한 시간, 적 이동·공격·스폰, 플레이어 공격이 진행되지 않는다. `SPACE`, Enter, Escape 또는 좌클릭으로 건너뛸 수 있으며, 건너뛰어도 전투 시간은 0초부터 시작한다.
 
+2.5D 카메라가 도입된 뒤에도 이 연출은 매 프레임 작성한 `x/y/zoom`을 실제 렌더 포즈에 즉시 동기화한다. 일반 전투용 관성 카메라 업데이트가 실행되기 전에 시네마틱이 반환되므로 이 동기화가 빠지면 새와 작업자는 남아 있어도 잘못된 화면 위치와 줌으로 보이게 된다. 시작·진행·건너뛰기·완료 모두 렌더 포즈를 동기화하며, `verify_clearcut_maps.lua`가 이를 회귀 검사한다.
+
 ## 지역별 새
 
 `assets/fx/stage-intro/stage-intro-birds-atlas-pixel-v2.png`은 160×112 셀, 8프레임, 4행으로 구성한다. 48색의 단계식 깃털 명암과 하드 알파를 사용한다. 잎 6종과 깃털 2종은 `stage-intro-debris-atlas-pixel-v2.png`의 32×32 셀로 분리해 회전·낙하·페이드한다.
@@ -34,6 +36,7 @@ v2 캡처는 실제 오프스크린 게임 화면으로 갱신한다. `sources/s
 - `docs/previews/stage-intro-island-v2-burst-1280.png`
 - `docs/previews/stage-intro-ui-v2-region-1280.png`
 - `docs/previews/stage-intro-ui-v2-no-start-banner-1280.png`
+- `docs/previews/stage-intro-camera-sync-v3.png` — 2.5D 카메라 적용 후 실제 새 떼·작업자 입장 복구 캡처
 
 - `docs/previews/stage-intro-forest-v1-quiet-1280.png`
 - `docs/previews/stage-intro-forest-v1-scatter-1280.png`
