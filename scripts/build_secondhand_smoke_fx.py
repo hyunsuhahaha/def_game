@@ -11,8 +11,9 @@ from PIL import Image
 
 
 ROOT = Path(__file__).resolve().parents[1]
-CELL_W, CELL_H, FRAMES = 1280, 800, 6
-OUT = ROOT / "assets/fx/secondhand-smoke/secondhand-smoke-mist-atlas-pixel-v1.png"
+CELL_W, CELL_H, FRAMES = 2048, 1280, 6
+ATLAS_COLS, ATLAS_ROWS = 3, 2
+OUT = ROOT / "assets/fx/secondhand-smoke/secondhand-smoke-mist-atlas-pixel-v2.png"
 
 
 def _hash(ix, iy, seed):
@@ -83,14 +84,14 @@ def frame(index):
 
 def main():
     OUT.parent.mkdir(parents=True, exist_ok=True)
-    atlas = Image.new("RGBA", (CELL_W * FRAMES, CELL_H))
+    atlas = Image.new("RGBA", (CELL_W * ATLAS_COLS, CELL_H * ATLAS_ROWS))
     for index in range(FRAMES):
-        atlas.alpha_composite(frame(index), (index * CELL_W, 0))
+        atlas.alpha_composite(frame(index), ((index % ATLAS_COLS) * CELL_W, (index // ATLAS_COLS) * CELL_H))
     atlas.save(OUT)
     pixels = np.asarray(atlas)
     colors = len(np.unique(pixels.reshape(-1, 4), axis=0))
     alphas = np.unique(pixels[:, :, 3]).tolist()
-    assert atlas.size == (7680, 800)
+    assert atlas.size == (6144, 2560)
     assert 18 <= colors <= 80
     assert len(alphas) >= 6 and max(alphas) <= 220
     print(f"SECONDHAND_SMOKE_BUILD_OK size={atlas.width}x{atlas.height} colors={colors} alpha={alphas}")
