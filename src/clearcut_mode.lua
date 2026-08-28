@@ -1551,12 +1551,8 @@ function ClearcutMode:updateMolotovImpacts(dt, game)
     if #self.enemies == 0 then return end
     local dmg = 6 + self:power("molotov") * 4
     for _, flight in ipairs(self.molotovs) do
-        local previousProgress=math.max(0,math.min(1,flight.t/flight.dur))
-        local progress=math.min(1,(flight.t+dt)/flight.dur)
-        local previousX=flight.x0+(flight.x1-flight.x0)*previousProgress
-        local previousY=flight.y0+(flight.y1-flight.y0)*previousProgress-math.sin(previousProgress*math.pi)*120
-        local x=flight.x0+(flight.x1-flight.x0)*progress
-        local y=flight.y0+(flight.y1-flight.y0)*progress-math.sin(progress*math.pi)*120
+        local previousX,previousY=CigaretteButts.flightPosition(flight,flight.t)
+        local x,y=CigaretteButts.flightPosition(flight,flight.t+dt)
         flight.hitSet = flight.hitSet or {}
         for _, e in ipairs(self.enemies) do
             if not flight.hitSet[e] then
@@ -5010,7 +5006,9 @@ function ClearcutMode:queueProjectedOverlay(game,t)
             if image then local height=math.max(0,tree.z or 0);love.graphics.setColor(1,1,1,1);love.graphics.draw(image,tree.x,tree.y-height,tree.angle or 0,.82,.82,image:getWidth()/2,image:getHeight()*.91) end
         end)
     end
-    for _,value in ipairs(self.molotovs) do local flight=value;queueUpright(queue,flight.x,flight.y,function()CigaretteButtArt.drawFlight(flight,self.smokerGroundTime)end) end
+    for _,value in ipairs(self.molotovs) do local flight=value;local x,y=CigaretteButts.flightPosition(flight)
+        queueUpright(queue,x,y,function()CigaretteButtArt.drawFlight(flight,self.smokerGroundTime)end)
+    end
     for _,value in ipairs(self.bees) do local swarm=value
         queueUpright(queue,swarm.x,swarm.y,function()
             love.graphics.setColor(1,.9,.3,.08);love.graphics.circle("fill",swarm.x,swarm.y,40)

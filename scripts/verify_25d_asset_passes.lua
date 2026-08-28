@@ -10,7 +10,6 @@ mode.secondhandSmokeClouds={{x=150,y=170,age=.2,life=2}}
 mode.minerClawFx={{x=80,y=210,angle=0,level=6,curveFlip=1,life=.2,maxLife=.3}}
 mode.minerClawMarks={{x=80,y=210,angle=0,level=6,curveFlip=1,life=2,maxLife=3}}
 mode.bees={{x=170,y=190}}
-mode.molotovs={{x=190,y=175}}
 mode.chests={{x=210,y=205,collected=false}}
 mode.projectiles={{x=230,y=180,kind="thorn",color={1,1,1,1}}}
 mode.bossTelegraphs={{x=250,y=210,phase="active",rootQuake=true}}
@@ -20,6 +19,8 @@ mode.emberTransfers={{x=120,y=210,tx=155,ty=190,startAt=0,duration=1}}
 
 local player={x=120,y=220,facing=1,clearcutSprite={walkMouth={}}}
 local game={player=player,world={billboardQueue={},nodes={{x=300,y=240,rushTree=true,active=true,beehive=true}},images={treeVariants={}}}}
+mode:hurlMolotovAt(260,220,game)
+mode.molotovs[1].t=mode.molotovs[1].dur*.34
 mode:queueProjectedOverlay(game,1)
 
 local queue=game.world.billboardQueue
@@ -28,6 +29,14 @@ for i,item in ipairs(queue) do
     assert(item.ground~=true,"upright overlay leaked into the projected ground pass at "..i)
     assert(type(item.x)=="number" and type(item.anchorY)=="number" and type(item.draw)=="function","invalid billboard entry at "..i)
 end
+local flightX,flightY=require("src.cigarette_butts").flightPosition(mode.molotovs[1])
+local flightQueued
+for _,item in ipairs(queue) do
+    if math.abs(item.x-flightX)<1e-6 and math.abs(item.y-flightY)<1e-6 then flightQueued=item;break end
+end
+assert(flightQueued,"real cigarette flight was not anchored to its visible arc")
+local flightDrawn,flightError=pcall(flightQueued.draw)
+assert(flightDrawn,"real cigarette flight failed on its first projected draw: "..tostring(flightError))
 
 local source=assert(io.open("src/clearcut_mode.lua","rb")):read("*a")
 for _,token in ipairs({

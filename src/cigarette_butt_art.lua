@@ -92,9 +92,7 @@ function Art.drawTreeFire(node,time)
 end
 
 function Art.drawFlight(flight,time)
-    local p=math.max(0,math.min(1,flight.t/flight.dur))
-    local x=flight.x0+(flight.x1-flight.x0)*p
-    local y=flight.y0+(flight.y1-flight.y0)*p-math.sin(p*math.pi)*120
+    local x,y,p=Butts.flightPosition(flight)
     local angle=(flight.landingAngle or .25)-(1-p)*math.pi*4
     body(x,y,angle,0,1,time)
     local tipX,tipY=x+math.cos(angle)*15.4,y+math.sin(angle)*15.4
@@ -103,8 +101,7 @@ function Art.drawFlight(flight,time)
     if flight.wildfire then
         for i=1,4 do
             local q=math.max(0,p-i*.05)
-            local tx=flight.x0+(flight.x1-flight.x0)*q
-            local ty=flight.y0+(flight.y1-flight.y0)*q-math.sin(q*math.pi)*120
+            local tx,ty=Butts.flightPosition(flight,q*flight.dur)
             fx(1,tx,ty+8,26-i*3,40-i*5,time+i*.13,.85-i*.14)
         end
     end

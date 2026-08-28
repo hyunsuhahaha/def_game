@@ -2,6 +2,17 @@
 -- Absolute event times keep rolls and spark arrivals independent of render FPS.
 local Butts = {lifetime=7, firstAttempt=1.1, interval=1, coldLifetime=1.5, baseChance=.42}
 
+-- The flight owns endpoints and elapsed time, not a mutable x/y pair. Keep the
+-- visible arc, billboard anchor and swept hit test on this single trajectory so
+-- a newly thrown cigarette is valid from its very first rendered frame.
+function Butts.flightPosition(flight,elapsed)
+    local duration=math.max(1e-6,flight.dur or 0)
+    local progress=math.max(0,math.min(1,(elapsed == nil and (flight.t or 0) or elapsed)/duration))
+    local x=flight.x0+(flight.x1-flight.x0)*progress
+    local y=flight.y0+(flight.y1-flight.y0)*progress-math.sin(progress*math.pi)*120
+    return x,y,progress
+end
+
 function Butts.tip(butt,time)
     local progress=math.max(0,math.min(1,(time-butt.bornAt)/Butts.lifetime))
     local offset=(.482-progress*.18)*32
