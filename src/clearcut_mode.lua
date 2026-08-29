@@ -1012,10 +1012,11 @@ function ClearcutMode:spawnWorldTree(game)
             self.worldTreeCamera={previousMode=camera.mode or "default",skyReturnStarted=false}
             camera.scriptedSkyviewBoss=true
             if camera.setMode then camera:setMode("skyview",.7) end
-            -- Put the root below screen centre. In skyview the intact crown can
-            -- then cross the horizon and occupy the sky, making its authored
-            -- 960-unit height legible without changing world coordinates.
-            if camera.focus then camera:focus(self.worldTree.x,self.worldTree.y-280,7.2,.96) end
+            -- Keep the root close to screen centre during SKYVIEW. The old
+            -- 280-unit upward offset pushed it into the near, enlarged part of
+            -- the projection and made the whole tree feel pressed against the
+            -- camera. This changes framing only; user/stage zoom stays intact.
+            if camera.focus then camera:focus(self.worldTree.x,self.worldTree.y-80,7.2,.96) end
         end
     end
     self.operationFinalBoss=finalStage

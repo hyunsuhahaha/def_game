@@ -6,7 +6,7 @@ tree=Image.open(ROOT/'assets/enemies/arcade/worldtree-siege-atlas-v1.png').conve
 fx=Image.open(ROOT/'assets/fx/worldtree/worldtree-emergence-atlas-v2.png').convert('RGBA')
 sky=Image.open(ROOT/'assets/scenery/skyview/forest-sun-skyview-pixel-v2.png').convert('RGB')
 ground=Image.open(ROOT/'assets/forest-ground-tile-v1.png').convert('RGB')
-W,H=320,420; TIMES=(.55,1.15,2.15,3.55,5.75,6.70)
+W,H=320,420; TREE_SIZE=266; TIMES=(.55,1.15,2.15,3.55,5.75,6.70)
 
 def panel(t):
     out=Image.new('RGBA',(W,H));out.alpha_composite(sky.resize((W,188),Image.Resampling.LANCZOS).convert('RGBA'),(0,0))
@@ -20,9 +20,9 @@ def panel(t):
     cell.putalpha(cell.getchannel('A').point(lambda a:round(a*(.18 if t<1.15 else min(1,.48+rise*1.4)))))
     out.alpha_composite(cell,(7,180))
     if rise>0:
-        sprite=tree.resize((344,344),Image.Resampling.NEAREST)
-        y=255+round((1-rise)**2*520)-round(344*.969)
-        layer=Image.new('RGBA',(W,H));layer.alpha_composite(sprite,((W-344)//2,y))
+        sprite=tree.resize((TREE_SIZE,TREE_SIZE),Image.Resampling.NEAREST)
+        y=255+round((1-rise)**2*520)-round(TREE_SIZE*.969)
+        layer=Image.new('RGBA',(W,H));layer.alpha_composite(sprite,((W-TREE_SIZE)//2,y))
         # Keep the same uncut source sprite, but hide pixels below the ground lip.
         alpha=layer.getchannel('A');clip=Image.new('L',(W,H));ImageDraw.Draw(clip).rectangle((0,0,W,359),fill=255)
         layer.putalpha(Image.composite(alpha,Image.new('L',(W,H)),clip));out=Image.alpha_composite(out,layer)

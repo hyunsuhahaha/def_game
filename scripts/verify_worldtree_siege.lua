@@ -93,9 +93,10 @@ local camera={userZoom=1,zoom=.84,renderZoom=.84,trauma=0,mode="default",skyview
 local cameraGame={world=cameraWorld,player=cameraMode.mapPlayer,camera=camera,setNotice=function()end}
 cameraMode:spawnWorldTree(cameraGame)
 assert(cameraMode.worldTreeCamera and camera.focused and not camera.scriptedWideView and not camera.allowWideUserZoom,"worldtree changed camera zoom fitting")
-assert(camera.mode=="skyview" and camera.scriptedSkyviewBoss and camera.focused.y==720 and camera.focused.duration==7.2,
+assert(camera.mode=="skyview" and camera.scriptedSkyviewBoss and camera.focused.y==920 and camera.focused.duration==7.2,
     "worldtree did not open and frame the skyview height reveal")
 local rising=cameraMode.worldTree
+assert(camera.focused.y==rising.y-80 and camera.focused.zoom==.96,"worldtree emergence camera moved back into the oversized near field")
 assert(rising.x==1600 and rising.y==1000,"worldtree did not spawn at the playable-map center")
 assert(cameraMode.worldTreeEmergence and rising.worldTreeEmerging and rising.entranceOffsetY==1720,"worldtree emergence did not start underground")
 assert(cameraMode.worldTreeEmergence.duration==6.75 and cameraMode.worldTreeEmergence.phase=="skyLead" and rising.worldTreeEmergenceProgress==0,"cinematic sky-first timing drift")
