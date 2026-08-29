@@ -67,13 +67,14 @@ mode:spawnWorldTreeGuards(e,game)
 assert(#mode.enemies==before+2,"worldtree did not summon plant guards")
 for i=before+1,#mode.enemies do assert(mode.enemies[i].kind=="vineSprout" or mode.enemies[i].kind=="turret","worldtree summoned an animal") end
 local cameraMode=ClearcutMode.new();cameraMode.mapId="forest";cameraMode.stage=1
-local cameraWorld={width=3200,height=2200,stageZoom=.84,playBounds={x=0,y=0,w=3200,h=2200}}
-cameraMode.mapWorld=cameraWorld;cameraMode.mapPlayer={x=1600,y=1100}
+local cameraWorld={width=3200,height=2200,stageZoom=.84,playBounds={x=400,y=300,w=2400,h=1400}}
+cameraMode.mapWorld=cameraWorld;cameraMode.mapPlayer={x=720,y=520}
 local camera={userZoom=1,zoom=.84,renderZoom=.84,trauma=0,focus=function(self,x,y,duration,zoom)self.focused={x=x,y=y,duration=duration,zoom=zoom}end}
 local cameraGame={world=cameraWorld,player=cameraMode.mapPlayer,camera=camera,setNotice=function()end}
 cameraMode:spawnWorldTree(cameraGame)
 assert(cameraMode.worldTreeCamera and camera.focused and camera.scriptedWideView,"worldtree did not start wide-view transition")
 local rising=cameraMode.worldTree
+assert(rising.x==1600 and rising.y==1000,"worldtree did not spawn at the playable-map center")
 assert(cameraMode.worldTreeEmergence and rising.worldTreeEmerging and rising.entranceOffsetY==1040,"worldtree emergence did not start underground")
 local firstCutoff=Art.pose(rising,0).emergenceCutoff
 rising.hp=rising.maxHp-100
@@ -97,4 +98,4 @@ for _=1,12 do Siege.updateBoss(cameraMode,rising,.25,cameraGame) end
 assert(not cameraMode.worldTreeEmergence and not rising.worldTreeEmerging and not rising.entranceOffsetY,"worldtree emergence did not settle")
 cameraMode:restoreWorldTreeCamera(cameraGame)
 assert(camera.userZoom==1 and math.abs(camera.zoom-.84)<.0001 and not camera.scriptedWideView,"worldtree view did not restore user zoom")
-print("WORLDTREE_SIEGE_OK fixed=true emergence=crack+rise+impact invulnerable=true grounded=36 contact_shadow=root_lobes atlas=1024 display=820 stages=4 leaves=62 branches=2 guards=plants zoom=.52_restore")
+print("WORLDTREE_SIEGE_OK fixed=true centered=playBounds emergence=crack+rise+impact invulnerable=true grounded=36 contact_shadow=root_lobes atlas=1024 display=820 stages=4 leaves=62 branches=2 guards=plants zoom=.52_restore")

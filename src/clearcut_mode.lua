@@ -997,7 +997,9 @@ function ClearcutMode:spawnWorldTree(game)
     self.worldTreeSpawned = true
     local finalStage=self.stage>=BiomeBosses.stageCap(self.mapId)
     local kind=finalStage and BiomeBosses.forMap(self.mapId) or "worldtree"
-    self.worldTree=self:spawnEnemy(kind,game.player.x,game.player.y-250,{hpMul=finalStage and 1 or self.stageBossHpMul,dmgMul=1+(self.stage-1)*.22})
+    local bounds=game.world.playBounds or {x=0,y=0,w=game.world.width,h=game.world.height}
+    local spawnX,spawnY=bounds.x+bounds.w*.5,bounds.y+bounds.h*.5
+    self.worldTree=self:spawnEnemy(kind,spawnX,spawnY,{hpMul=finalStage and 1 or self.stageBossHpMul,dmgMul=1+(self.stage-1)*.22})
     if self.worldTree and kind=="worldtree" then
         self.worldTree.fixedX,self.worldTree.fixedY=self.worldTree.x,self.worldTree.y
         self.worldTree.worldTreeDamageStage=0
