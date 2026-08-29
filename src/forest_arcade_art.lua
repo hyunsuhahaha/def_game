@@ -19,7 +19,21 @@ local function load()
             frames[i+1] = love.graphics.newQuad((i%6)*spec.cell, math.floor(i/6)*spec.cell,
                 spec.cell, spec.cell, image:getDimensions())
         end
-        assets[kind] = {image=image,frames=frames}
+        local emergenceSlices
+        if spec.siege then
+            emergenceSlices={}
+            for frame=0,11 do
+                local fx,fy=(frame%6)*spec.cell,math.floor(frame/6)*spec.cell
+                emergenceSlices[frame+1]={
+                    love.graphics.newQuad(fx,fy,210,spec.cell,image:getDimensions()),
+                    love.graphics.newQuad(fx+210,fy,190,spec.cell,image:getDimensions()),
+                    love.graphics.newQuad(fx+400,fy,224,spec.cell,image:getDimensions()),
+                    love.graphics.newQuad(fx+624,fy,190,spec.cell,image:getDimensions()),
+                    love.graphics.newQuad(fx+814,fy,210,spec.cell,image:getDimensions()),
+                }
+            end
+        end
+        assets[kind] = {image=image,frames=frames,emergenceSlices=emergenceSlices}
     end
 end
 
@@ -51,6 +65,36 @@ local function drawSiegeSoilLip(e,pose)
     love.graphics.rectangle("fill",x-42,y+7,52,4);love.graphics.rectangle("fill",x+54,y+5,29,3)
 end
 
+local function smooth(p)p=math.max(0,math.min(1,p));return p*p*(3-2*p)end
+
+local function drawSiegeEmergenceRibbon(asset,quad,pose,x0,progress,side)
+    local lift=(1-progress)*1320
+    local scaleX=.94+progress*.06+math.sin(progress*math.pi)*.025
+    local scaleY=.95+progress*.05
+    local cutoff=pose.spec.foot/pose.spec.cell-(pose.groundSink+lift)/(pose.spec.cell*pose.scale*scaleY)
+    material:send("emergenceCutoff",math.max(0,math.min(.94,cutoff)))
+    love.graphics.setColor(1,1,1,pose.alpha*math.max(0,math.min(1,progress*8)))
+    love.graphics.push()
+    love.graphics.translate(pose.x+side*math.sin(progress*math.pi)*18,pose.footY+pose.groundSink+lift)
+    if love.graphics.rotate then love.graphics.rotate(side*.018*math.sin(progress*math.pi)) end
+    love.graphics.draw(asset.image,quad,0,0,0,pose.sx*scaleX,pose.sy*scaleY,pose.spec.cell/2-x0,pose.spec.foot)
+    love.graphics.pop()
+end
+
+local function drawSiegeEmergence(asset,pose,e)
+    local p=math.max(0,math.min(1,e.worldTreeEmergenceProgress or 0))
+    local slices=asset.emergenceSlices[pose.frame]
+    local starts={.15,.09,.04,.11,.17}
+    local widths={210,190,224,190,210}
+    local x0=0
+    for i,quad in ipairs(slices) do
+        local progress=smooth((p-starts[i])/(.76-starts[i]*.25))
+        drawSiegeEmergenceRibbon(asset,quad,pose,x0,progress,(i-3)/2)
+        x0=x0+widths[i]
+    end
+    material:send("emergenceCutoff",pose.emergenceCutoff or 1)
+end
+
 function Art.pose(e, t)
     local spec = assert(catalog[e.kind], "unknown forest art: " .. tostring(e.kind))
     local clock = e.visualTime or t or 0
@@ -60,7 +104,12 @@ function Art.pose(e, t)
     if spec.siege then
         local pct=math.max(0,e.hp)/math.max(1,e.maxHp)
         local stage=pct>.75 and 0 or (pct>.50 and 1 or (pct>.25 and 2 or 3))
-        frame=stage*3+(math.floor(clock*2.2)%3)+1
+        if e.worldTreeEmerging then
+            local ep=math.max(0,math.min(1,e.worldTreeEmergenceProgress or 0))
+            frame=1+(math.floor(ep*12)%3)
+        else
+            frame=stage*3+(math.floor(clock*2.2)%3)+1
+        end
     end
     local recoil = math.min(1, (e.visualAttack or 0)/.24)
     if recoil > 0 and not spec.siege then frame = 10 + math.min(2, math.floor((1-recoil)*3)) end
@@ -116,8 +165,11 @@ function Art.drawBody(e, t)
     material:send("plague",e.plagueMarked and 1 or 0)
     material:send("emergenceCutoff",pose.emergenceCutoff or 1)
     love.graphics.setColor(1,1,1,pose.alpha)
-    love.graphics.draw(asset.image,asset.frames[pose.frame],pose.x,pose.y,pose.angle,
-        pose.sx,pose.sy,pose.spec.cell/2,pose.spec.foot)
+    if pose.spec.siege and e.worldTreeEmerging and asset.emergenceSlices then drawSiegeEmergence(asset,pose,e)
+    else
+        love.graphics.draw(asset.image,asset.frames[pose.frame],pose.x,pose.y,pose.angle,
+            pose.sx,pose.sy,pose.spec.cell/2,pose.spec.foot)
+    end
     love.graphics.setShader(previous)
     if pose.spec.siege then drawSiegeSoilLip(e,pose) end
 end

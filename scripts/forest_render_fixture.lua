@@ -47,6 +47,7 @@ local graphics={
     push=function() transforms[#transforms+1]={x=transform.x,y=transform.y,sx=transform.sx,sy=transform.sy} end,
     pop=function() transform=table.remove(transforms) end,
     translate=function(x,y) transform.x=transform.x+x*transform.sx;transform.y=transform.y+y*transform.sy end,
+    rotate=function() end,
     scale=function(x,y) transform.sx=transform.sx*x;transform.sy=transform.sy*(y or x) end,
     newImage=image,newFont=function(path,size)
         if type(path)=="number" then size,path=path,"assets/font-korean-regular.ttf" end

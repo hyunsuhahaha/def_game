@@ -75,11 +75,15 @@ cameraMode:spawnWorldTree(cameraGame)
 assert(cameraMode.worldTreeCamera and camera.focused and camera.scriptedWideView,"worldtree did not start wide-view transition")
 local rising=cameraMode.worldTree
 assert(rising.x==1600 and rising.y==1000,"worldtree did not spawn at the playable-map center")
-assert(cameraMode.worldTreeEmergence and rising.worldTreeEmerging and rising.entranceOffsetY==1040,"worldtree emergence did not start underground")
-local firstCutoff=Art.pose(rising,0).emergenceCutoff
+assert(cameraMode.worldTreeEmergence and rising.worldTreeEmerging and rising.entranceOffsetY==1320,"worldtree emergence did not start underground")
+assert(cameraMode.worldTreeEmergence.duration==3.35 and rising.worldTreeEmergenceProgress==0,"cinematic emergence timing drift")
 rising.hp=rising.maxHp-100
 Siege.updateBoss(cameraMode,rising,.4,cameraGame)
-assert(rising.hp==rising.maxHp and rising.entranceOffsetY<1040 and Art.pose(rising,0).emergenceCutoff>firstCutoff,"emergence rise or invulnerability regressed")
+assert(rising.hp==rising.maxHp and rising.entranceOffsetY<1320 and rising.worldTreeEmergenceProgress>0,"emergence rise or invulnerability regressed")
+fixture.reset();Art.drawBody(rising,0)
+local segmented=0
+for _,command in ipairs(fixture.commands)do if command.file==catalog.worldtree.file then segmented=segmented+1 end end
+assert(segmented==5,"worldtree emergence was not split into staggered full-height ribbons")
 fixture.reset();local emergenceQueue={};Siege.queue(cameraMode,emergenceQueue)
 assert(#emergenceQueue==2,"worldtree crack and foreground dirt layers missing")
 for _,entry in ipairs(emergenceQueue)do entry.draw()end
@@ -94,8 +98,12 @@ local narrow=Camera.new(1600,1000);narrow.perspective=true;narrow.pitch=.86;narr
 local wide=Camera.new(1600,1000);wide.perspective=true;wide.pitch=.86;wide.zoom=.84*.52;wide.userZoom=.52;wide.scriptedWideView=true
 narrow:update(.1,{x=1600,y=1000},stageWorld);wide:update(.1,{x=1600,y=1000},stageWorld)
 assert(wide.renderZoom<narrow.renderZoom,"stage fit still cancelled the worldtree view expansion")
+local emergenceState=cameraMode.worldTreeEmergence
 for _=1,12 do Siege.updateBoss(cameraMode,rising,.25,cameraGame) end
 assert(not cameraMode.worldTreeEmergence and not rising.worldTreeEmerging and not rising.entranceOffsetY,"worldtree emergence did not settle")
+assert(emergenceState.crownBreach and emergenceState.trunkImpact and emergenceState.canopyBurst and emergenceState.impact,
+    "worldtree emergence beats did not all fire")
+assert(#(cameraMode.worldTreeDebris or {})==22,"canopy opening did not shed authored leaves")
 cameraMode:restoreWorldTreeCamera(cameraGame)
 assert(camera.userZoom==1 and math.abs(camera.zoom-.84)<.0001 and not camera.scriptedWideView,"worldtree view did not restore user zoom")
-print("WORLDTREE_SIEGE_OK fixed=true centered=playBounds emergence=crack+rise+impact invulnerable=true grounded=36 contact_shadow=root_lobes atlas=1024 display=820 stages=4 leaves=62 branches=2 guards=plants zoom=.52_restore")
+print("WORLDTREE_SIEGE_OK fixed=true centered=playBounds emergence=crown+ribbons+root_impact duration=3.35 no_cut_section=true invulnerable=true grounded=36 contact_shadow=root_lobes atlas=1024 display=820 stages=4 leaves=62 branches=2 guards=plants zoom=.52_restore")

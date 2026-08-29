@@ -17,10 +17,34 @@ end
 local function smooth(p)p=math.max(0,math.min(1,p));return p*p*(3-2*p)end
 
 function Siege.startEmergence(mode,e,game)
-    mode.worldTreeEmergence={boss=e,t=0,duration=2.45,impact=false}
-    e.worldTreeEmerging=true;e.worldTreeGrounded=true
-    e.entranceAlpha=0;e.entranceOffsetY=1040;e.entranceScaleX=.94;e.entranceScaleY=1
+    mode.worldTreeEmergence={boss=e,t=0,duration=3.35,crownBreach=false,trunkImpact=false,canopyBurst=false,impact=false}
+    e.worldTreeEmerging=true;e.worldTreeGrounded=true;e.worldTreeEmergenceProgress=0
+    e.entranceAlpha=0;e.entranceOffsetY=1320;e.entranceScaleX=.22;e.entranceScaleY=1
     e.moving=false
+end
+
+local function cameraBeat(game,vertical,trauma)
+    if not game.camera then return end
+    if game.camera.impulse then game.camera:impulse(0,vertical,0,.025) end
+    game.camera.trauma=math.min(.42,(game.camera.trauma or 0)+trauma)
+end
+
+local function dirtBurst(game,e,count,spread,color)
+    if not (game.world and game.world.addParticle) then return end
+    for i=1,count do
+        local side=i%2==0 and -1 or 1
+        game.world:addParticle(e.x+side*(36+love.math.random()*spread),e.y+e.def.radius*.65-love.math.random()*18,color,true,false)
+    end
+end
+
+local function canopyBurst(mode,e)
+    mode.worldTreeDebris=mode.worldTreeDebris or {}
+    for i=1,22 do
+        local side=i%2==0 and -1 or 1
+        mode.worldTreeDebris[#mode.worldTreeDebris+1]={kind="leaf",frame=1+(i%4),x=e.x+side*(32+love.math.random()*245),y=e.y-love.math.random()*24,
+            h=250+love.math.random()*410,vh=42+love.math.random()*68,vx=side*(22+love.math.random()*62),vy=-24+love.math.random()*48,
+            angle=love.math.random()*6.28,spin=(-1+love.math.random()*2)*5.5,life=2.3+love.math.random()*1.1}
+    end
 end
 
 function Siege.updateEmergence(mode,dt,game)
@@ -30,26 +54,35 @@ function Siege.updateEmergence(mode,dt,game)
     if not e or e.hp<=0 then mode.worldTreeEmergence=nil;return false end
     state.t=math.min(state.duration,state.t+dt)
     local p=state.t/state.duration
-    local rise=smooth((p-.10)/.70)
+    local rise=smooth((p-.04)/.84)
     e.worldTreeEmerging=true;e.hp=e.maxHp;e.visualHit=0;e.visualAttack=0;e.moving=false
-    e.entranceOffsetY=(1-rise)*1040
-    e.entranceAlpha=math.min(1,math.max(0,(p-.07)*9))
-    e.entranceScaleX=.94+rise*.06;e.entranceScaleY=1
-    if p>=.79 and not state.impact then
+    e.worldTreeEmergenceProgress=p
+    e.entranceOffsetY=(1-rise)*1320
+    e.entranceAlpha=math.min(1,math.max(0,(p-.025)*14))
+    e.entranceScaleX=.28+smooth((p-.04)/.25)*.72;e.entranceScaleY=1
+    if p>=.26 and not state.crownBreach then
+        state.crownBreach=true
+        cameraBeat(game,22,.055)
+        dirtBurst(game,e,10,150,{.46,.31,.12})
+    end
+    if p>=.58 and not state.trunkImpact then
+        state.trunkImpact=true
+        cameraBeat(game,34,.075)
+        dirtBurst(game,e,14,220,{.55,.36,.13})
+    end
+    if p>=.42 and not state.canopyBurst then
+        state.canopyBurst=true
+        canopyBurst(mode,e)
+        cameraBeat(game,18,.035)
+    end
+    if p>=.89 and not state.impact then
         state.impact=true
-        if game.camera then
-            if game.camera.impulse then game.camera:impulse(0,80,0,.035) end
-            game.camera.trauma=math.min(1,(game.camera.trauma or 0)+.34)
-        end
-        if game.world and game.world.addParticle then
-            for i=1,28 do
-                local side=i%2==0 and -1 or 1
-                game.world:addParticle(e.x+side*(45+love.math.random()*260),e.y+e.def.radius*.65-love.math.random()*22,{.58,.39,.16},true,false)
-            end
-        end
+        cameraBeat(game,56,.14)
+        dirtBurst(game,e,28,280,{.58,.39,.16})
     end
     if state.t>=state.duration then
-        e.worldTreeEmerging=false;e.entranceAlpha,e.entranceOffsetY,e.entranceScaleX,e.entranceScaleY=nil,nil,nil,nil
+        e.worldTreeEmerging=false;e.worldTreeEmergenceProgress=nil
+        e.entranceAlpha,e.entranceOffsetY,e.entranceScaleX,e.entranceScaleY=nil,nil,nil,nil
         e.slamTimer=e.def.slamInterval;e.summonTimer=e.def.summonInterval
         mode.worldTreeEmergence=nil
         return false
@@ -145,7 +178,10 @@ function Siege.queue(mode,queue)
         end}
         queue[#queue+1]={x=e.x,y=groundY+.25,anchorY=e.y,draw=function()
             local p=emergence.t/emergence.duration
-            local burst=math.max(0,1-math.abs(p-.78)/.30)
+            local rootBurst=math.max(0,1-math.abs(p-.26)/.13)*.62
+            local trunkBurst=math.max(0,1-math.abs(p-.58)/.13)*.78
+            local finalBurst=math.max(0,1-math.abs(p-.89)/.16)
+            local burst=math.max(rootBurst,trunkBurst,finalBurst)
             if burst<=0 then return end
             for i=1,22 do
                 local side=i%2==0 and -1 or 1
