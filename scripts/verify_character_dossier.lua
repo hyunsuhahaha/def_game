@@ -5,6 +5,14 @@ local function read(path)
 end
 local source=read("src/clearcut_mode.lua")
 local dossier=read("docs/character_dossier.html")
+-- Index once. Re-running a leading [^\r\n]* pattern against the dossier's
+-- intentionally long system-note line for every skill caused quadratic
+-- backtracking as that documentation grew.
+local dossierById={}
+for line in dossier:gmatch("[^\r\n]+") do
+    local id=line:match('id:"([^"]+)"')
+    if id then dossierById[id]=line end
+end
 local checked=0
 for line in source:gmatch("[^\r\n]+") do
     local id=line:match('{id="([^"]+)"')
@@ -12,7 +20,7 @@ for line in source:gmatch("[^\r\n]+") do
     local desc=line:match('desc="([^"]*)"')
     local max=line:match('max=(%d+)')
     if id and name and desc and max then
-        local dossierLine=dossier:match('[^\r\n]*id:"'..id..'"[^\r\n]*')
+        local dossierLine=dossierById[id]
         assert(dossierLine,"character_dossier.html is missing skill "..id)
         assert(dossierLine:find('name:"'..name..'"',1,true),"dossier skill name is stale: "..id)
         assert(dossierLine:find('desc:"'..desc..'"',1,true),"dossier skill description is stale: "..id)
@@ -26,7 +34,7 @@ assert(checked>=29,"dossier verifier found too few skill definitions")
 local fusionSource=read("src/clearcut_fusions.lua")
 local fusionChecked=0
 for id,name,needs,desc in fusionSource:gmatch('{id="([^"]+)".-name="([^"]+)".-needs={(.-)}.-\n%s*desc="([^"]*)"') do
-    local dossierLine=dossier:match('[^\r\n]*id:"'..id..'"[^\r\n]*')
+    local dossierLine=dossierById[id]
     assert(dossierLine,"character_dossier.html is missing fusion "..id)
     assert(dossierLine:find('name:"'..name..'"',1,true),"dossier fusion name is stale: "..id)
     assert(dossierLine:find('desc:"'..desc..'"',1,true),"dossier fusion description is stale: "..id)

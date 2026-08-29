@@ -107,7 +107,7 @@ for frame=0,(FOREST_RENDER_CAPTURE and 5 or 0) do
     assert(#bodies==before,"overlay redrew enemy bodies over trees")
     if FOREST_RENDER_CAPTURE then fixture.save("docs/previews/forest-arcade-draws-"..frame..".json") end
 end
-assert(catalog.planter.file:find("planter%-forest%-atlas%-v3%.png") and catalog.planter.cell==256 and catalog.planter.width==68,"compact regrowth totem v3 is not wired")
+assert(catalog.planter.file:find("planter%-forest%-atlas%-v4%.png") and catalog.planter.cell==256 and catalog.planter.width==68,"open-core regrowth totem v4 is not wired")
 for _,id in ipairs({"forest","mangrove","madagascar","island"}) do
     local spec=assert(catalog["planter_"..id])
     assert(spec.width<=74 and spec.motion==0 and spec.prism and spec.prismRow~=nil,

@@ -1,0 +1,50 @@
+{
+  "forest": {
+    "file": "assets\\enemies\\arcade\\planter-forest-atlas-v4.png",
+    "source": "assets\\enemies\\concepts\\regrowth-prism-pedestals-concept-v4-cutout.png",
+    "worldWidth": 68,
+    "cell": 256,
+    "foot": 248,
+    "bodyWidth": 206,
+    "height": 152,
+    "frames": 12,
+    "stableBody": true,
+    "openCore": true
+  },
+  "mangrove": {
+    "file": "assets\\enemies\\arcade\\planter-mangrove-atlas-v4.png",
+    "source": "assets\\enemies\\concepts\\regrowth-prism-pedestals-concept-v4-cutout.png",
+    "worldWidth": 70,
+    "cell": 256,
+    "foot": 248,
+    "bodyWidth": 210,
+    "height": 109,
+    "frames": 12,
+    "stableBody": true,
+    "openCore": true
+  },
+  "madagascar": {
+    "file": "assets\\enemies\\arcade\\planter-madagascar-atlas-v4.png",
+    "source": "assets\\enemies\\concepts\\regrowth-prism-pedestals-concept-v4-cutout.png",
+    "worldWidth": 72,
+    "cell": 256,
+    "foot": 248,
+    "bodyWidth": 212,
+    "height": 146,
+    "frames": 12,
+    "stableBody": true,
+    "openCore": true
+  },
+  "island": {
+    "file": "assets\\enemies\\arcade\\planter-island-atlas-v4.png",
+    "source": "assets\\enemies\\concepts\\regrowth-prism-pedestals-concept-v4-cutout.png",
+    "worldWidth": 74,
+    "cell": 256,
+    "foot": 248,
+    "bodyWidth": 214,
+    "height": 140,
+    "frames": 12,
+    "stableBody": true,
+    "openCore": true
+  }
+}

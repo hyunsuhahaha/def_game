@@ -8,10 +8,10 @@ ROOT = Path(__file__).resolve().parents[1]
 OUT = ROOT / "docs/previews/regrowth-prism-v1-runtime-scale.png"
 PRISM = Image.open(ROOT / "assets/enemies/arcade/regrowth-prism-rotation-atlas-v1.png").convert("RGBA")
 REGIONS = [
-    ("1-1 TEMPERATE", "planter-forest-atlas-v3.png", 68, 182, 0, 22, 29),
-    ("2-1 MANGROVE", "planter-mangrove-atlas-v3.png", 70, 176, 1, 23, 31),
-    ("3-1 MADAGASCAR", "planter-madagascar-atlas-v3.png", 72, 190, 2, 23, 32),
-    ("4-1 ISLAND", "planter-island-atlas-v3.png", 74, 190, 3, 24, 29),
+    ("1-1 TEMPERATE", "planter-forest-atlas-v4.png", 68, 206, 0, 42, 43),
+    ("2-1 MANGROVE", "planter-mangrove-atlas-v4.png", 70, 210, 1, 42, 43),
+    ("3-1 MADAGASCAR", "planter-madagascar-atlas-v4.png", 72, 212, 2, 44, 44),
+    ("4-1 ISLAND", "planter-island-atlas-v4.png", 74, 214, 3, 44, 43),
 ]
 
 

@@ -35,6 +35,9 @@ def main():
     assert "e.planterCasting and 24 or 20" in art
     assert "frame=e.planterCasting and 7 or 1" in art
     assert "math.floor(clock*fps" in art
+    assert "prismWidth=42" in catalog and "prismWidth=44" in catalog
+    runtime_gif=Image.open(ROOT / "docs/previews/regrowth-totems-v4-runtime-motion.gif")
+    assert runtime_gif.n_frames==24 and runtime_gif.info.get("duration")==50
     print("REGROWTH_PRISM_ANIMATION_OK frames=24 rows=4 idle=20fps casting=24fps body=stable")
 
 
