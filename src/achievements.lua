@@ -5,8 +5,9 @@ local species={
  {key="mangrove",name="맹그로브"},{key="avicennia",name="아비케니아"},{key="nypa",name="니파야자"},
  {key="baobab",name="바오밥"},{key="tamarind",name="타마린드"},{key="commiphora",name="코미포라"},
  {key="palm",name="야자나무"},{key="seaalmond",name="씨아몬드"},{key="pandanus",name="판다누스"},
+ {key="giantcedar",name="거대 삼나무"},{key="ancienthemlock",name="고대 솔송나무"},{key="mossoak",name="이끼참나무"},
 }
-local mapSpecies={forest={"broadleaf","pine","birch","maple"},beginner={"broadleaf","pine","birch","maple"},mangrove={"mangrove","avicennia","nypa"},madagascar={"baobab","tamarind","commiphora"},island={"palm","seaalmond","pandanus"}}
+local mapSpecies={forest={"broadleaf","pine","birch","maple"},beginner={"broadleaf","pine","birch","maple"},mangrove={"mangrove","avicennia","nypa"},madagascar={"baobab","tamarind","commiphora"},island={"palm","seaalmond","pandanus"},greatforest={"giantcedar","ancienthemlock","mossoak"}}
 local definitions={
  {id="first_cut",name="첫 출근",desc="나무를 처음 쓰러뜨렸다.",stat="total_trees",goal=1,points=1,category="field",icon="axe"},
  {id="forest_100",name="숲 한 구역분",desc="누적 나무 100그루를 쓰러뜨린다.",stat="total_trees",goal=100,points=2,category="field",icon="rings"},
@@ -19,9 +20,9 @@ local definitions={
  {id="fire_500",name="재떨이 없는 숲",desc="흡연자로 나무 500그루를 태우거나 벤다.",stat="job_fire_trees",goal=500,points=5,category="character",icon="fire"},
  {id="vegan_100",name="샐러드바 단골",desc="비건 단체 회장으로 나무 100그루를 먹는다.",stat="vegan_eaten",goal=100,points=4,category="character",icon="fork"},
  {id="miner_300",name="뿌리째 계산",desc="코인 채굴꾼으로 나무 300그루를 처리한다.",stat="job_miner_trees",goal=300,points=4,category="character",icon="claw"},
- {id="all_maps",name="전국 출장",desc="서로 다른 벌목 구역 5곳에서 작업한다.",stat="maps_seen",goal=5,points=6,category="collection",icon="map"},
+ {id="all_maps",name="전국 출장",desc="서로 다른 벌목 구역 6곳에서 작업한다.",stat="maps_seen",goal=6,points=6,category="collection",icon="map"},
  {id="first_operation",name="철수로 확보",desc="지역 최종 작전을 처음 완료한다.",stat="operations_cleared",goal=1,points=5,category="challenge",icon="crown"},
- {id="all_operations",name="전국 강제집행",desc="서로 다른 지역 최종 작전 5개를 완료한다.",stat="unique_operations",goal=5,points=15,category="collection",icon="map"},
+ {id="all_operations",name="전국 강제집행",desc="서로 다른 지역 최종 작전 6개를 완료한다.",stat="unique_operations",goal=6,points=15,category="collection",icon="map"},
 }
 for _,s in ipairs(species) do definitions[#definitions+1]={id="species_"..s.key,name=s.name.." 전문반",desc=s.name.."를 누적 100그루 쓰러뜨린다.",stat="species_"..s.key,goal=100,points=3,category="species",icon="tree"} end
 

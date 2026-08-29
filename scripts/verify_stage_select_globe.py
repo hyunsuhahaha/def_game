@@ -15,16 +15,16 @@ assert 'atan(world.x, world.z)' in shader and 'globeYaw' in shader and 'globePit
 assert 'function Globe.mousemoved' in lua and 'function Globe.mousereleased' in lua and 's.moved' in lua
 assert 'z>.045' in lua and 'wrap(s.dragYaw-totalX' in lua
 assert 'function Globe.wheelmoved' in lua and '.70,1.15' in lua
-assert 'function Globe.routes' in lua and 'routeOrder={5,1,2,3,4}' in lua and 'drawRoutes(game,w,h' in lua
-assert maps.count('globeLat=')==5 and maps.count('globeLon=')==5
+assert 'function Globe.routes' in lua and 'routeOrder={5,1,2,3,4,6}' in lua and 'drawRoutes(game,w,h' in lua
+assert maps.count('globeLat=')==6 and maps.count('globeLon=')==6
 assert 'local displayIndex=hover or game.clearcutMapFocus' in select and 'imageFor(def)' in select
 assert 'isMapCleared(m.def.id)' in select and '완료' in select
 assert 'globe-stage-landmarks-pixel-v1.png' in select and 'landmarkQuads[m.index]' in select
 landmarks=Image.open(ROOT/'assets/ui/globe-stage-landmarks-pixel-v1.png').convert('RGBA')
-assert landmarks.size==(320,64),landmarks.size
+assert landmarks.size==(384,64),landmarks.size
 assert len({p[:3] for p in landmarks.get_flattened_data() if p[3]})>=30
 for source in ('ne_50m_land.geojson','ne_50m_lakes.geojson'):
     path=ROOT/'assets/ui/sources'/source
     assert path.stat().st_size>500_000,(source,path.stat().st_size)
 assert 'Natural Earth' in builder and 'continents = [' not in builder
-print(f'STAGE_SELECT_GLOBE_OK map=1024x512 colors={colors} source=NaturalEarth50m rotation=360 zoom=.70..1.15 landmarks=5 routes=dotted cleared=visible')
+print(f'STAGE_SELECT_GLOBE_OK map=1024x512 colors={colors} source=NaturalEarth50m rotation=360 zoom=.70..1.15 landmarks=6 routes=dotted cleared=visible')

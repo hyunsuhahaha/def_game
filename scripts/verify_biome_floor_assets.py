@@ -12,6 +12,7 @@ BIOMES = {
     "mangrove": ("mud", "puddle", "roots", "shells", "burrows"),
     "madagascar": ("laterite", "cracked", "thorn", "pods", "limestone"),
     "island": ("sand", "coral", "beachGrass", "frond", "volcanic"),
+    "greatforest": ("rootMat", "needles", "deepMoss", "mushrooms", "nurseLog"),
 }
 
 CELL_W = 128
@@ -70,7 +71,7 @@ def main():
     ):
         assert token in source, f"missing placement/rendering contract: {token}"
 
-    print("BIOME_FLOOR_VERIFY_OK biomes=4 decals=40 unique=true")
+    print("BIOME_FLOOR_VERIFY_OK biomes=5 decals=50 unique=true")
 
 
 if __name__ == "__main__":

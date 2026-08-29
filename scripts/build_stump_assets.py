@@ -1,5 +1,6 @@
 from collections import deque
 from pathlib import Path
+import math
 
 from PIL import Image, ImageDraw
 
@@ -22,6 +23,9 @@ SPECS = [
     ("palm", "palm-tree-pixel-v2.png", 53, (58, 39, 23, 255), (159, 111, 57, 255), (203, 151, 78, 255), (101, 67, 36, 255)),
     ("seaalmond", "seaalmond-tree-pixel-v1.png", 45, (50, 33, 22, 255), (139, 90, 48, 255), (181, 126, 67, 255), (88, 54, 31, 255)),
     ("pandanus", "pandanus-tree-pixel-v1.png", 48, (53, 38, 25, 255), (145, 101, 57, 255), (188, 139, 75, 255), (93, 62, 35, 255)),
+    ("giantcedar", "giantcedar-tree-pixel-v1.png", 58, (40, 27, 21, 255), (119, 76, 40, 255), (181, 125, 65, 255), (72, 45, 29, 255)),
+    ("ancienthemlock", "ancienthemlock-tree-pixel-v1.png", 54, (39, 30, 25, 255), (110, 78, 51, 255), (169, 126, 76, 255), (66, 48, 37, 255)),
+    ("mossoak", "mossoak-tree-pixel-v1.png", 57, (43, 29, 22, 255), (130, 88, 47, 255), (191, 143, 73, 255), (75, 50, 31, 255)),
 ]
 
 
@@ -110,15 +114,17 @@ def sprout_cell():
 
 
 def main():
-    sheet = Image.new("RGBA", (CELL_W * COLS, CELL_H * 4))
+    rows = math.ceil((len(SPECS)+1)/COLS)
+    sheet = Image.new("RGBA", (CELL_W * COLS, CELL_H * rows))
     cells = []
     for index, spec in enumerate(SPECS):
         name, cell = stump_cell(spec); cells.append((name, cell))
         sheet.alpha_composite(cell, ((index % COLS) * CELL_W, (index // COLS) * CELL_H))
-    sheet.alpha_composite(sprout_cell(), ((13 % COLS) * CELL_W, (13 // COLS) * CELL_H))
+    sprout_index=len(SPECS)
+    sheet.alpha_composite(sprout_cell(), ((sprout_index % COLS) * CELL_W, (sprout_index // COLS) * CELL_H))
     OUT.parent.mkdir(parents=True, exist_ok=True); sheet.save(OUT)
 
-    board = Image.new("RGBA", (CELL_W * COLS * 2, CELL_H * 4 * 2), (33, 49, 25, 255))
+    board = Image.new("RGBA", (CELL_W * COLS * 2, CELL_H * rows * 2), (33, 49, 25, 255))
     board.alpha_composite(sheet.resize(board.size, Image.Resampling.NEAREST))
     PREVIEW.parent.mkdir(parents=True, exist_ok=True); board.save(PREVIEW)
     print(f"STUMP_ASSET_OK {sheet.width}x{sheet.height} variants={len(SPECS)} sprout=1")

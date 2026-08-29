@@ -24,6 +24,10 @@ local catalogs={
         kinds={sand=1,coral=2,shells=3,beachGrass=4,vine=5,frond=6,husk=7,volcanic=8,fibre=9,sandDrag=10},
         macro={"sand","vine","sand","beachGrass","sand","vine"},path={"sand","sandDrag"},edge={"coral","husk"},
         clearing={"sand","vine"},active={"vine","frond"},felled={"sand","fibre","sandDrag","husk"}},
+    greatforest={file="assets/scenery/biomes/greatforest-floor-decal-atlas-pixel-v1.png",
+        kinds={rootMat=1,needles=2,deepMoss=3,mushrooms=4,bark=5,lichenStone=6,nurseLog=7,giantFern=8,paleSawdust=9,rootDrag=10},
+        macro={"deepMoss","rootMat","needles","deepMoss","nurseLog","rootMat"},path={"needles","rootDrag"},edge={"lichenStone","bark"},
+        clearing={"rootMat","deepMoss"},active={"needles","giantFern"},felled={"rootMat","paleSawdust","rootDrag","bark"}},
 }
 local art={}
 
@@ -52,6 +56,11 @@ local function regionThemes(world,x,y)
         if coast>.60 then return{{"sand","coral","shells","beachGrass"},{"frond","husk","sandDrag"}}end
         return{{"vine","frond","husk","volcanic"},{"beachGrass","vine","shells"}}
     elseif id=="beginner"then return{{"meadow","clover","flowers","trimmed"},{"bracken","cones","chalk","chips"}}end
+    if id=="greatforest"then
+        local ridge=math.sin(x/410)+math.cos(y/355)
+        if ridge>.45 then return{{"rootMat","bark","nurseLog"},{"deepMoss","lichenStone","mushrooms"}}end
+        return{{"needles","giantFern","bark"},{"deepMoss","mushrooms","lichenStone"}}
+    end
     return{{"leaves","branch","shortGrass"},{"moss","fern","stones"},{"trampled","shortGrass","branch"},{"soil","stones","moss"}}
 end
 
@@ -76,8 +85,9 @@ function Floor.generate(world,stage)
         if math.floor(y/pathStep)%2==0 then local side=random()<.5 and-1 or 1;add(data.decals,catalog.edge[random()<.5 and 1 or 2],x+side*(82+random()*34),y+22,.56+random()*.18,(random()-.5)*.8,.72,"pathEdge")end
     end
     for index=1,9 do local angle=index/9*math.pi*2;local radius=205+(index%3)*34;add(data.macro,catalog.clearing[index%3==0 and 2 or 1],w*.5+math.cos(angle)*radius,h*.5+math.sin(angle)*radius*.62,1.05+(index%2)*.25,angle*.18,.44,"clearing")end
-    for gy=1,3 do for gx=1,5 do if random()<.64 then
-        local cx=(gx-.5)/5*w+(random()-.5)*120;local cy=(gy-.5)/3*h+(random()-.5)*90;local centerDx,centerDy=cx-w*.5,cy-h*.5
+    local gridX,gridY=id=="greatforest" and 9 or 5,id=="greatforest" and 6 or 3
+    for gy=1,gridY do for gx=1,gridX do if random()<(id=="greatforest" and .78 or .64) then
+        local cx=(gx-.5)/gridX*w+(random()-.5)*120;local cy=(gy-.5)/gridY*h+(random()-.5)*90;local centerDx,centerDy=cx-w*.5,cy-h*.5
         if centerDx*centerDx+centerDy*centerDy>235^2 then
             data.clusters=data.clusters+1;local themes=regionThemes(world,cx,cy);local theme=themes[1+math.floor(random()*#themes)];local count=6+math.floor(random()*6)
             for index=1,count do local angle=random()*math.pi*2;local radius=math.sqrt(random());local x=cx+math.cos(angle)*radius*(105+random()*70);local y=cy+math.sin(angle)*radius*(55+random()*45);add(data.decals,theme[1+math.floor(random()*#theme)],x,y,.48+random()*.46,(random()-.5)*.9,.58+random()*.30,"cluster"..data.clusters)end

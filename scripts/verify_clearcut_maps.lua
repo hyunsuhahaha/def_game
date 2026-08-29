@@ -60,6 +60,10 @@ for _,def in ipairs(Maps.catalog) do
     assert(viewL>=w.playBounds.x-.01 and viewT>=w.playBounds.y-.01
         and viewR<=w.playBounds.x+w.playBounds.w+.01 and viewB<=w.playBounds.y+w.playBounds.h+.01,
         def.id.." camera escaped stage bounds")
+    assert(not w.overviewBounds,def.id.." playable map unexpectedly fixed the camera")
+    local followStartY=w.height/2;g.camera.x,g.camera.y=w.width/2,followStartY
+    g.camera:update(.75,{x=w.width/2,y=followStartY+math.min(620,w.playBounds.h*.25)},w)
+    assert(g.camera.y>followStartY+80,def.id.." vertical movement did not move the camera")
     g.camera.x,g.camera.y=w.width/2,w.height/2
     local speciesCounts={}
     for _,node in ipairs(w.nodes) do
@@ -82,7 +86,7 @@ for _,def in ipairs(Maps.catalog) do
     local environment=w.biomeLife
     local counts={}
     for _,p in ipairs(environment.items) do counts[p.kind]=(counts[p.kind] or 0)+1;assert(not p.hp and not p.reward,"ambient entered combat") end
-    if def.id=="forest" or def.id=="beginner" then assert(#environment.items==0)
+    if def.id=="forest" or def.id=="beginner" or def.id=="greatforest" then assert(#environment.items==0)
     elseif def.id=="mangrove" then assert(counts.crab==22 and not counts.parrot,"wrong regional wildlife")
     elseif def.id=="madagascar" then assert(counts.lemur>=2 and counts.traveller>=6)
     else assert(counts.parrot==12 and counts.crab==28) end
@@ -102,13 +106,13 @@ for _,def in ipairs(Maps.catalog) do
     local seen={}
     for _,e in ipairs(m.enemies) do
         seen[e.kind]=true
-        assert(e.kind~="squirrel" and e.kind~="boar" and e.kind~="turret" or def.id=="forest" or def.id=="beginner")
+        assert(e.kind~="squirrel" and e.kind~="boar" and e.kind~="turret" or def.id=="forest" or def.id=="beginner" or def.id=="greatforest")
         if e.kind=="crocodile" then
             assert(Maps.channelDistance(e.x,e.y,w.width,w.height)<0,"croc must emerge from water")
             assert((e.x-g.player.x)^2+(e.y-g.player.y)^2>=260^2,"croc projected onto player")
         end
         local pose=Art.pose(e,0);assert(pose.spec.file)
-        if def.id~="forest" and def.id~="beginner" and e.kind~="vineSprout" then
+            if def.id~="forest" and def.id~="beginner" and def.id~="greatforest" and e.kind~="vineSprout" then
             e.facing=-1;assert(Art.pose(e,0).sx<0);e.facing=1;assert(Art.pose(e,0).sx>0)
         end
     end
@@ -138,12 +142,14 @@ for _,def in ipairs(Maps.catalog) do
         Maps.configureStage(w,4);g.camera.zoom=w.stageZoom
         for _,size in ipairs({{960,540},{1280,720},{1920,1080},{2560,1080}}) do
             width,height=unpack(size)
-            g.camera:update(.1,{x=9999,y=-9999},w)
-            local l,t,r,b=g.camera:visibleBounds()
+            g.camera.x,g.camera.y=w.width/2,w.height/2
+            g.camera.renderX,g.camera.renderY=g.camera.x,g.camera.y
+            local beforeY=g.camera.y
+            g.camera:update(.35,{x=w.width/2,y=w.height/2+420},w)
+            assert(g.camera.y>beforeY,"island stage 4 camera no longer follows vertical movement")
             for a=0,math.pi*2,.025 do
                 local radius=1+.065*math.sin(a*3+.4)+.035*math.cos(a*5)
                 local x,y=w.width/2+Maps.island.radiusX*radius*math.cos(a),w.height/2+Maps.island.radiusY*radius*math.sin(a)
-                assert(x>l+65 and x<r-65 and y>t+65 and y<b-65,"sea not visible all around")
                 local cx,cy=Maps.constrain(w,x*4-w.width,y*4-w.height,18)
                 assert(Maps.islandDistance(cx,cy,w.width,w.height)<=1-18/Maps.island.radiusY+.00001)
             end
@@ -155,7 +161,7 @@ for _,def in ipairs(Maps.catalog) do
             assert(math.abs(g.camera.zoom-zoom)<.00001,string.format("projected zoom did not return to its base level %.6f != %.6f",g.camera.zoom,zoom))
             love.keyboard.isDown=function() return false end
             local cx,cy=g.camera:screenToWorld(width/2,height/2)
-            assert(cx==g.camera.x and cy==g.camera.y)
+            assert(math.abs(cx-g.camera.renderX)<.001 and math.abs(cy-g.camera.renderY)<.001)
         end
         Maps.configureStage(w,1);g.camera.zoom=w.stageZoom
         width,height=1280,720;g.camera:update(0,g.player,w)
@@ -215,7 +221,7 @@ for _,def in ipairs(Maps.catalog) do
             fixture.save("docs/previews/map-"..def.id.."-stage4-draws.json")
         end
     end
-    if def.id~="forest" and def.id~="beginner" then
+    if def.id~="forest" and def.id~="beginner" and def.id~="greatforest" then
         for _,seed in ipairs({17,83,421}) do
             math.randomseed(seed);g.world.nodes={};g.clearcut.stage=1
             g.clearcut:generateForest(g,Maps.treeTarget(def.id,1))
@@ -282,6 +288,12 @@ for i,c in ipairs(Mode.characters) do
     Game.keypressed(g,"return")
     assert(g.mode=="playing" and g.clearcut.job==c.id and g.clearcut.mapId=="island")
 end
+do
+    local g=newGame();g:chooseClearcutCharacter(1);Game.keypressed(g,"6")
+    assert(g.clearcutMapFocus==6,"sixth map numeric shortcut missing")
+    Game.keypressed(g,"return")
+    assert(g.mode=="clearcut_briefing" and g.selectedClearcutMap=="greatforest","great forest briefing was not selectable")
+end
 for _,size in ipairs({{960,540},{1280,720},{1920,1080}}) do
     width,height=unpack(size)
     local g=newGame();g:chooseClearcutCharacter(1)
@@ -294,7 +306,7 @@ for _,size in ipairs({{960,540},{1280,720},{1920,1080}}) do
     end
     Select.focus(g,3,true);local hidden=0
     local globe=require("src.stage_select_globe")
-    local routes=globe.routes(g,width,height);assert(#routes==4,"globe route count mismatch")
+    local routes=globe.routes(g,width,height);assert(#routes==5,"globe route count mismatch")
     for _,leg in ipairs(routes)do assert(#leg.points==20 and leg.from~=leg.to,"globe dotted route malformed")end
     for _,m in ipairs(globe.markers(g,width,height))do
         assert(m.r>=23,"landmark hit area regressed")
@@ -341,7 +353,7 @@ for _,def in ipairs(Maps.catalog)do
     assert(#g.clearcut.intro.debris>=20,"authored canopy debris did not burst")
     local swaying=0;for _,node in ipairs(g.world.nodes)do if math.abs(node.swayAngle or 0)>.001 then swaying=swaying+1 end end
     assert(swaying>0,"canopy did not react to flock launch")
-    if def.id~="forest" and def.id~="beginner" then
+    if def.id~="forest" and def.id~="beginner" and def.id~="greatforest" then
         local startled=0;for _,p in ipairs(g.world.biomeLife.items)do if p.startle then startled=startled+1 end end
         assert(startled>0,def.id.." wildlife ignored arrival")
     end
@@ -361,5 +373,5 @@ local skipGame=newGame();skipGame:startClearcut("physical","forest");Game.keypre
 assert(not Intro.active(skipGame) and skipGame.clearcut.elapsed==0,"intro skip started combat early")
 local clickGame=newGame();clickGame:startClearcut("physical","forest");Game.mousepressed(clickGame,10,10,1)
 assert(not Intro.active(clickGame) and clickGame.clearcut.elapsed==0,"mouse intro skip started combat early")
-print("CLEARCUT_INTRO_V2_OK maps=5 quiet=frozen flock=14_clustered depth=3 debris=authored canopy=sway camera=impact wildlife=startled skip=space/click")
+print("CLEARCUT_INTRO_V2_OK maps=6 quiet=frozen flock=14_clustered depth=3 debris=authored canopy=sway camera=impact wildlife=startled skip=space/click")
 print("CLEARCUT_MAPS_OK maps="..#Maps.catalog.." first_stage_trees="..totalTrees.." stages=1..5 pacing=opening_locked jobs="..#Mode.characters.." sea=bounded camera=all_sides retry=kept keyboard=ok mouse=ok")

@@ -359,11 +359,12 @@ function Game:keypressed(key)
     end
     if self.mode == "clearcut_map_select" then
         local select=require("src.clearcut_map_select")
+        local mapCount=#require("src.clearcut_maps").catalog
         if key=="escape" then self.mode="clearcut_select"
         elseif key=="return" or key=="kpenter" or key=="space" then self:chooseClearcutMap(self.clearcutMapFocus or 1)
-        elseif key=="1" or key=="2" or key=="3" or key=="4" or key=="5" then select.focus(self,tonumber(key),false)
-        elseif key=="left" or key=="a" then select.focus(self,((self.clearcutMapFocus or 1)-2)%5+1,false)
-        elseif key=="right" or key=="d" then select.focus(self,(self.clearcutMapFocus or 1)%5+1,false) end
+        elseif tonumber(key) and tonumber(key)>=1 and tonumber(key)<=mapCount then select.focus(self,tonumber(key),false)
+        elseif key=="left" or key=="a" then select.focus(self,((self.clearcutMapFocus or 1)-2)%mapCount+1,false)
+        elseif key=="right" or key=="d" then select.focus(self,(self.clearcutMapFocus or 1)%mapCount+1,false) end
         return
     end
     if self.mode == "clearcut_briefing" then

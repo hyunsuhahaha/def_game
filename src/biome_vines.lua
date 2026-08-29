@@ -12,6 +12,7 @@ local profiles={
     mangrove={attached=18,ground=12,tint={.64,.86,.72}},
     madagascar={attached=7,ground=5,tint={.82,.78,.55}},
     island={attached=12,ground=10,tint={.74,.90,.62}},
+    greatforest={attached=30,ground=22,tint={.64,.84,.56}},
 }
 
 local function ensureArt()

@@ -92,7 +92,7 @@ function Select.draw(game)
     love.graphics.setColor(.63,.72,.65);love.graphics.printf("표식 클릭: 즉시 선택  ·  숫자키: 해당 지역으로 회전",gl.cx-gl.r,gl.cy+gl.r+36,gl.r*2,"center")
     game.clearcutMapBackBox={x=w-180,y=30,w=146,h=38};game.clearcutMapConfirmBox={x=w-330,y=h-88,w=296,h=47}
     F.button(game.clearcutMapBackBox,"← 작업자",f.small,{accent=F.colors.teal});F.button(game.clearcutMapConfirmBox,"선택 지역으로 이동",f.body,{primary=true,key="ENT",align="left",accent=focus.color})
-    F.footer(w,h,"마우스 드래그  회전    ·    휠  확대/축소    ·    표식 클릭  지역 선택    ·    1–5  지역 찾기    ·    ESC  작업자",f.small)
+    F.footer(w,h,"마우스 드래그  회전    ·    휠  확대/축소    ·    표식 클릭  지역 선택    ·    1–6  지역 찾기    ·    ESC  작업자",f.small)
 end
 
 return Select

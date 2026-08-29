@@ -23,7 +23,7 @@ end
 function Life.generate(world,stage)
     local data={items={},time=0};world.biomeLife=data
     local id=world.clearcutMap
-    if not id or id=="forest" then return data end
+    if not id or id=="forest" or id=="greatforest" then return data end
     local seed=31771+(stage or 1)*11939+Maps.get(id).index*751
     local function random() seed=(seed*16807)%2147483647;return (seed-1)/2147483646 end
     local w,h=world.width,world.height
