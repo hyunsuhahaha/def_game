@@ -31,6 +31,7 @@ local RegrowthCastArt = require("src.regrowth_cast_art")
 local ForestZones = require("src.forest_zones")
 local BiomeBosses = require("src.biome_bosses")
 local BossEntrance = require("src.boss_entrance")
+local BossRewardPickup = require("src.boss_reward_pickup")
 local CombatGeometry = require("src.combat_geometry")
 
 local ClearcutMode = {}
@@ -178,7 +179,7 @@ function ClearcutMode.new()
         actionAudit={physicalImpact=0,cigaretteFlick=0,veganFork=0,veganConsume=0,developerRemote=0},
         hp=100, maxHp=100, invulnTimer=0, dead=false,
         enemies={}, projectiles={}, bossTelegraphs={}, resinPuddles={}, waveFired={}, worldTreeSpawned=false, readyToFinish=false, activeBoss=nil,operationFinalBoss=false,operationBossName=nil,kills=0,
-        chests={}, chestPending=false, molotovShots=0, wildburstTimer=10, plagued={}, dodges=0,
+        chests={}, bossMagnetPickups={}, chestPending=false, molotovShots=0, wildburstTimer=10, plagued={}, dodges=0,
         timeSpawnTimer=35, eliteTimer=200, reaperSpawned=false,
         stage=1, stageBossHpMul=1, stageElapsed=0, stageTimeLimit=stageTimeLimit(1), failureReason=nil,
         berserkState="idle", berserkTimer=170, berserkCycleCount=0, berserkTreeTimer=0, berserkKillsStart=0, berserkFlashNodes={},
@@ -448,6 +449,8 @@ function ClearcutMode:advanceStage(game)
     self.stageBossHpMul = 1 + (self.stage - 1) * .55
     game.world.nodes, game.world.drops = {}, {}
     self.enemies, self.projectiles, self.bossTelegraphs, self.resinPuddles = {}, {}, {}, {}
+    -- Boss magnets survive the immediate world-tree stage handoff; otherwise
+    -- the reward would be deleted on the same frame it dropped.
     self.rootHazards, self.bees, self.molotovs, self.chests, self.plagued = {}, {}, {}, {}, {}
     self.secondhandSmokeClouds={}
     self.eternalFields,self.revivalChorusShots,self.revivalChorusImpacts={},{},{}
@@ -505,6 +508,7 @@ function ClearcutMode:update(dt, game)
     self:updateProjectiles(dt, game)
     self:updateBossTelegraphs(dt, game)
     self:updateChests(dt, game)
+    BossRewardPickup.update(self,game)
     self:updatePlague(dt, game)
     self.traitFx:update(dt)
     for i = #self.dashTrail, 1, -1 do
@@ -1136,6 +1140,7 @@ end
 
 function ClearcutMode:onEnemyDefeated(e, game)
     self.kills = self.kills + 1
+    BossRewardPickup.grant(self,e,game)
     if e.def.boss and game.achievements then game.achievements:add("bosses",1) end
     if e.def.reward and e.def.reward > 0 then self:onWood(e.def.reward, game) end
     if e.zoneCoreId then
@@ -5037,6 +5042,9 @@ function ClearcutMode:queueProjectedOverlay(game,t)
             love.graphics.circle("fill",chest.x,chest.y+bob,34);drawPixelGrid(chestRows,chestPalette,chest.x,chest.y+bob,4.2)
         end)
     end end
+    for _,value in ipairs(self.bossMagnetPickups) do local pickup=value
+        queueUpright(queue,pickup.x,pickup.y,function()BossRewardPickup.draw(pickup,t)end)
+    end
     for _,value in ipairs(self.projectiles) do local projectile=value
         queueUpright(queue,projectile.x,projectile.y,function()
             if projectile.kind=="plantSeed" or projectile.kind=="bambooBolt" or projectile.kind=="resinBlob" then AttackPlants.drawProjectile(projectile)
@@ -5155,6 +5163,7 @@ function ClearcutMode:drawWorldOverlay(game)
             drawPixelGrid(chestRows, chestPalette, c.x, c.y + bob, 4.2)
         end
     end end
+    if not projected then for _,pickup in ipairs(self.bossMagnetPickups) do BossRewardPickup.draw(pickup,t) end end
     for _, hazard in ipairs(self.rootHazards) do
         if hazard.berserk then
             if hazard.phase == "warn" then
