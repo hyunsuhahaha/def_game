@@ -81,9 +81,14 @@ rising.hp=rising.maxHp-100
 Siege.updateBoss(cameraMode,rising,.4,cameraGame)
 assert(rising.hp==rising.maxHp and rising.entranceOffsetY<1320 and rising.worldTreeEmergenceProgress>0,"emergence rise or invulnerability regressed")
 fixture.reset();Art.drawBody(rising,0)
-local segmented=0
-for _,command in ipairs(fixture.commands)do if command.file==catalog.worldtree.file then segmented=segmented+1 end end
-assert(segmented==5,"worldtree emergence was not split into staggered full-height ribbons")
+local intact,warped=0,false
+for _,command in ipairs(fixture.commands)do
+    if command.file==catalog.worldtree.file then
+        intact=intact+1
+        warped=command.uniforms and (command.uniforms.emergenceWarp or 0)>0
+    end
+end
+assert(intact==1 and warped,"worldtree emergence did not preserve and continuously bend one intact sprite")
 fixture.reset();local emergenceQueue={};Siege.queue(cameraMode,emergenceQueue)
 assert(#emergenceQueue==2,"worldtree crack and foreground dirt layers missing")
 for _,entry in ipairs(emergenceQueue)do entry.draw()end
@@ -106,4 +111,4 @@ assert(emergenceState.crownBreach and emergenceState.trunkImpact and emergenceSt
 assert(#(cameraMode.worldTreeDebris or {})==22,"canopy opening did not shed authored leaves")
 cameraMode:restoreWorldTreeCamera(cameraGame)
 assert(camera.userZoom==1 and math.abs(camera.zoom-.84)<.0001 and not camera.scriptedWideView,"worldtree view did not restore user zoom")
-print("WORLDTREE_SIEGE_OK fixed=true centered=playBounds emergence=crown+ribbons+root_impact duration=3.35 no_cut_section=true invulnerable=true grounded=36 contact_shadow=root_lobes atlas=1024 display=820 stages=4 leaves=62 branches=2 guards=plants zoom=.52_restore")
+print("WORLDTREE_SIEGE_OK fixed=true centered=playBounds emergence=intact_warp+crown+root_impact duration=3.35 no_cut_section=true invulnerable=true grounded=36 contact_shadow=root_lobes atlas=1024 display=820 stages=4 leaves=62 branches=2 guards=plants zoom=.52_restore")

@@ -19,7 +19,7 @@ local function smooth(p)p=math.max(0,math.min(1,p));return p*p*(3-2*p)end
 function Siege.startEmergence(mode,e,game)
     mode.worldTreeEmergence={boss=e,t=0,duration=3.35,crownBreach=false,trunkImpact=false,canopyBurst=false,impact=false}
     e.worldTreeEmerging=true;e.worldTreeGrounded=true;e.worldTreeEmergenceProgress=0
-    e.entranceAlpha=0;e.entranceOffsetY=1320;e.entranceScaleX=.22;e.entranceScaleY=1
+    e.entranceAlpha=0;e.entranceOffsetY=1320;e.entranceScaleX=.86;e.entranceScaleY=.92
     e.moving=false
 end
 
@@ -59,7 +59,8 @@ function Siege.updateEmergence(mode,dt,game)
     e.worldTreeEmergenceProgress=p
     e.entranceOffsetY=(1-rise)*1320
     e.entranceAlpha=math.min(1,math.max(0,(p-.025)*14))
-    e.entranceScaleX=.28+smooth((p-.04)/.25)*.72;e.entranceScaleY=1
+    e.entranceScaleX=.86+smooth((p-.04)/.66)*.14+math.sin(p*math.pi)*.035
+    e.entranceScaleY=.92+rise*.08+math.sin(p*math.pi)*.022
     if p>=.26 and not state.crownBreach then
         state.crownBreach=true
         cameraBeat(game,22,.055)
@@ -181,12 +182,13 @@ function Siege.queue(mode,queue)
             local rootBurst=math.max(0,1-math.abs(p-.26)/.13)*.62
             local trunkBurst=math.max(0,1-math.abs(p-.58)/.13)*.78
             local finalBurst=math.max(0,1-math.abs(p-.89)/.16)
-            local burst=math.max(rootBurst,trunkBurst,finalBurst)
+            local curtain=math.max(0,math.min(1,(p-.14)/.12,(.94-p)/.12))*.48
+            local burst=math.max(rootBurst,trunkBurst,finalBurst,curtain)
             if burst<=0 then return end
             for i=1,22 do
                 local side=i%2==0 and -1 or 1
                 local lane=math.floor((i-1)/2)
-                local px=e.x+side*(42+lane*24)*burst
+                local px=e.x+side*(42+lane*30)
                 local py=groundY+8-math.sin((i*.73)%3.14)*68*burst+(i%4)*5
                 local size=3+(i%4)*2
                 love.graphics.setColor(.10,.07,.025,.68*burst)
