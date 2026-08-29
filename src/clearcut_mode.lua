@@ -189,7 +189,7 @@ function ClearcutMode.new()
         salivaGauge=100, salivaGaugeMax=100, salivaDrainRate=30, salivaRegenRate=25, salivaExhausted=false,
         revivalTimer=0, revivalCooldown=0, eternalFields={},
         revivalChorusTimer=0, revivalChorusSequence=0, revivalChorusShots={}, revivalChorusImpacts={},
-        smokerHeldLast=false, physicalAction=nil, veganAction=nil, veganForkImpacts={}, veganConsumeFx={}, veganHaste=0, developerAction=nil,
+        physicalAction=nil, veganAction=nil, veganForkImpacts={}, veganConsumeFx={}, veganHaste=0, developerAction=nil,
         actionAudit={physicalImpact=0,cigaretteFlick=0,veganFork=0,veganConsume=0,developerRemote=0},
         hp=100, maxHp=100, invulnTimer=0, dead=false,
         enemies={}, projectiles={}, bossTelegraphs={}, resinPuddles={}, waveFired={}, worldTreeSpawned=false, readyToFinish=false, activeBoss=nil,operationFinalBoss=false,operationBossName=nil,kills=0,
@@ -2028,8 +2028,6 @@ function ClearcutMode:updateFireAttack(dt, game, heldOverride)
     self.aimX, self.aimY, self.aimRadius = tx, ty, 90 + self:power("molotov") * 20 + self.permanentTraits.area
     if not self.smoking then self:startSmoking(game) end
     local smoking = self.smoking
-    local pressed = held and not self.smokerHeldLast
-    self.smokerHeldLast = held
     -- Movement owns facing while smoking/ready. Mouse aim only turns the body
     -- during an actual throw, and that throw keeps its original direction.
 
@@ -2049,7 +2047,7 @@ function ClearcutMode:updateFireAttack(dt, game, heldOverride)
     end
 
     if smoking.phase == "loaded" then
-        if not pressed then return false end
+        if not held then return false end
         smoking.phase, smoking.t, smoking.dur = "flick", 0, math.max(.38, .52 / ((game.tools.axe.speed or 1) * game.player.gather * self.permanentTraits.attackSpeed))
         smoking.loaded, smoking.fired, smoking.tx, smoking.ty = false, false, tx, ty
         smoking.facing = tx < game.player.x and -1 or 1

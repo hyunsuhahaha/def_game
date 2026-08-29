@@ -19,14 +19,14 @@ local player={x=0,y=0,gather=1,facing=1,axeHolding=false,
     clearClearcutAction=function(self) self.action=nil end}
 local game={player=player,tools={axe={speed=1}},camera={screenToWorld=function(_,x,y) return x,y end}}
 local mode=ClearcutMode.new(); mode.job="fire"
-local shots=0
-mode.hurlMolotovAt=function(_,tx,ty) shots=shots+1; assert(tx<0,"shot ignored the left-facing aim") end
+local shots,shotTargets=0,{}
+mode.hurlMolotovAt=function(_,tx,ty) shots=shots+1;shotTargets[#shotTargets+1]={x=tx,y=ty} end
 mode:startSmoking(game)
 
--- 재장전은 입력 없이 진행되고, 완료된 담배는 클릭할 때까지 준비 상태를 유지해야 한다.
+-- 재장전은 입력 없이 진행되고, 버튼을 놓은 동안 완료된 담배는 준비 상태를 유지해야 한다.
 mode:updateFireAttack(mode.smoking.dur+1,game,false)
 assert(mode.smoking and mode.smoking.phase=="loaded" and mode.smoking.loaded,"idle smoking did not stay loaded")
-assert(shots==0,"reload completion fired without a click")
+assert(shots==0,"reload completion fired while the attack button was released")
 
 -- 클릭은 플릭 모션만 시작하고, 투사체는 손가락이 펴지는 프레임에서 발생한다.
 aimX,held=-100,true
@@ -36,14 +36,18 @@ mode:updateFireAttack(mode.smoking.dur*.57,game,true)
 assert(player.facing==-1,"throw turned away from its committed target")
 assert(shots==0,"shot fired before the fingertip release frame")
 assert(mode:updateFireAttack(mode.smoking.dur*.02,game,true)==true,"release frame did not fire")
-assert(shots==1 and player.facing==-1,"shot/facing did not follow the user's left aim")
+assert(shots==1 and shotTargets[1].x<0 and player.facing==-1,"shot/facing did not follow the user's left aim")
 mode:updateFireAttack(mode.smoking.dur+1,game,true)
 assert(mode.smoking and mode.smoking.phase=="reload","next cigarette reload did not start after firing")
 mode:updateFireAttack(mode.smoking.dur+1,game,true)
-assert(shots==1,"holding the mouse auto-fired; firing must be click-edge only")
-held=false; mode:updateFireAttack(0,game,false)
+assert(mode.smoking.phase=="loaded" and shots==1,"held reload did not reach the next loaded cigarette")
+mode:updateFireAttack(0,game,true)
+assert(mode.smoking.phase=="flick","holding the mouse did not automatically start the next throw")
+mode:updateFireAttack(mode.smoking.dur*.60,game,true)
+assert(shots==2 and shotTargets[2].x>0,"held attack did not fire again toward the current aim after cooldown")
+held=false; mode:updateFireAttack(mode.smoking.dur+1,game,false)
 local mouthX,_,facing,emberX=mode:smokerMouthPose(game)
-assert(facing==-1 and emberX<mouthX,"left-facing smoker holds the cigarette backwards")
+assert((emberX-mouthX)*facing>0,"smoker holds the cigarette backwards after repeated fire")
 
 -- The visible smoke ring gets body allowance and swept collision. This target
 -- sits outside the old radius and behind the ring's current point, but inside
@@ -88,4 +92,4 @@ local board=CharacterTraitBoard.new(store,{}, {})
 local node=store:getNodes("physical")[#store:getNodes("physical")]
 assert(board:nodeLabel(node)==node.name,"node label and detail title use different names")
 
-print("SMOKER_STATE_AND_TRAIT_LABEL_OK smoke_ring=expanded+swept")
+print("SMOKER_STATE_AND_TRAIT_LABEL_OK autofire=held reload_cycle=repeat smoke_ring=expanded+swept")

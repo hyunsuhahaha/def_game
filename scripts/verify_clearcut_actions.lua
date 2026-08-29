@@ -46,6 +46,11 @@ smoker:updateFireAttack(smoker.smoking.dur * .57, smokerGame, true)
 assert(flicks == 0, "cigarette projectile fired before finger flick frame")
 smoker:updateFireAttack(smoker.smoking.dur * .02, smokerGame, true)
 assert(flicks == 1 and smoker.actionAudit.cigaretteFlick == 1, "cigarette did not fire exactly once on flick")
+smoker:updateFireAttack(smoker.smoking.dur + .01, smokerGame, true)
+smoker:updateFireAttack(smoker.smoking.dur + .01, smokerGame, true)
+smoker:updateFireAttack(0, smokerGame, true)
+smoker:updateFireAttack(smoker.smoking.dur * .60, smokerGame, true)
+assert(flicks == 2 and smoker.actionAudit.cigaretteFlick == 2, "held cigarette attack did not repeat after reload")
 
 local vegan, veganGame = ClearcutMode.new(), gameWithTree()
 vegan.job = "toxic"
@@ -66,4 +71,4 @@ assert(remotePresses==1,"developer held attack did not immediately start its das
 developer:updateDeveloperAttack(0,developerGame,false)
 assert(remotePresses==1,"developer dash fired after input release")
 
-print("CLEARCUT_ACTION_TIMING_OK")
+print("CLEARCUT_ACTION_TIMING_OK held_autofire=all_jobs")
