@@ -12,7 +12,6 @@ BIOMES = {
     "mangrove": ("mud", "puddle", "roots", "shells", "burrows"),
     "madagascar": ("laterite", "cracked", "thorn", "pods", "limestone"),
     "island": ("sand", "coral", "beachGrass", "frond", "volcanic"),
-    "greatforest": ("rootMat", "needles", "deepMoss", "mushrooms", "nurseLog"),
 }
 
 CELL_W = 128

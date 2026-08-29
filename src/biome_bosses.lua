@@ -8,8 +8,8 @@ Bosses.definitions={
     islandHermit={name="섬등 소라게",hp=1460,speed=48,damage=20,radius=80,color={.72,.38,.62},hitCooldown=1,boss=true,finalBoss=true,biomeBoss=true,reward=0},
 }
 
-Bosses.byMap={beginner="stumpWarden",forest="hollowOak",mangrove="rootjaw",madagascar="baobabTyrant",island="islandHermit",greatforest="hollowOak"}
-Bosses.names={beginner="초심자 벌목 계약",forest="온대림 전면 철거",mangrove="수로 봉쇄 작전",madagascar="바오밥 회랑 진입",island="무인도 전소 작전",greatforest="태고림 종단 작전"}
+Bosses.byMap={beginner="stumpWarden",forest="hollowOak",mangrove="rootjaw",madagascar="baobabTyrant",island="islandHermit"}
+Bosses.names={beginner="초심자 벌목 계약",forest="온대림 전면 철거",mangrove="수로 봉쇄 작전",madagascar="바오밥 회랑 진입",island="무인도 전소 작전"}
 function Bosses.forMap(id)return Bosses.byMap[id] or Bosses.byMap.forest end
 function Bosses.operationName(id)return Bosses.names[id] or Bosses.names.forest end
 function Bosses.stageCap(id)return id=="beginner" and 3 or 4 end

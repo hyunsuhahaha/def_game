@@ -6,7 +6,7 @@ local birdAtlas,birdQuads,debrisAtlas,debrisQuads
 local CELL_W,CELL_H,FRAMES=160,112,8
 local DEBRIS_CELL,DEBRIS_FRAMES=32,8
 local DURATION,ENTRY_AT,STARTLE_AT,ARRIVE_AT=5.0,1.05,1.42,3.42
-local speciesRow={forest=1,beginner=1,greatforest=1,mangrove=2,madagascar=3,island=4}
+local speciesRow={forest=1,beginner=1,mangrove=2,madagascar=3,island=4}
 local clusters={
     {x=-270,y=-142,dx=-1.00,dy=-.62,count=4,depths={.58,.94,1.46,.78}},
     {x=252,y=-166,dx=.96,dy=-.67,count=4,depths={.66,1.04,1.58,.84}},

@@ -8,14 +8,12 @@ Maps.catalog={
     {id="madagascar",name="마다가스카르 숲",region="마다가스카르 서부",globeLat=-19.2,globeLon=46.7,subtitle="붉은 흙 · 바오밥 · 여우원숭이",desc="성긴 붉은 땅 50그루에서 시작해 바오밥 혼합림으로 전진합니다.",short="50그루 붉은 땅에서 내륙으로.",trees=50,tree="baobab",color={.85,.48,.28}},
     {id="island",name="무인도 전소",region="남태평양 외딴섬",globeLat=-17.6,globeLon=-149.5,subtitle="해변 상륙 · 혼합 야자림 · 앵무새",desc="상륙 구역 65그루부터 태우며 섬과 사방의 해안을 개방합니다.",short="65그루 해변에서 섬 전체로.",trees=65,tree="palm",color={.30,.70,.88}},
     {id="beginner",name="초심자의 숲",region="중부 유럽 연습림",globeLat=49.2,globeLon=14.5,subtitle="좁은 개활지 · 듬성듬성한 나무",desc="처음 시작하기 좋은 좁고 여유로운 숲. 온대 숲과 같은 나무들이지만 훨씬 듬성듬성 나 있습니다.",short="좁고 나무가 듬성듬성한 초심자 숲.",trees=45,preview="forest",color={.62,.78,.42}},
-    {id="greatforest",name="태고의 대산림",region="태평양 북서부 원시림",globeLat=48.7,globeLon=-124.8,subtitle="거대 고목 · 이끼 협곡 · 끝없는 수림",desc="기존 작전지의 다섯 배가 넘는 초대형 원시림. 오래된 길과 고목 지대를 따라 수천 미터를 이동합니다.",short="끝이 보이지 않는 거대 원시림.",trees=120,color={.38,.62,.33}},
 }
 local byId,images={},{}
 Maps.species={
     mangrove={"mangrove","avicennia","nypa"},
     madagascar={"baobab","tamarind","commiphora"},
     island={"palm","seaalmond","pandanus"},
-    greatforest={"giantcedar","ancienthemlock","mossoak"},
 }
 for i,def in ipairs(Maps.catalog) do def.index=i;byId[def.id]=def end
 function Maps.get(id) return byId[id] or Maps.catalog[1] end
@@ -23,24 +21,23 @@ function Maps.treeTarget(id,stage)
     local def=Maps.get(id)
     if def.id=="beginner" then return def.trees+((stage or 1)-1)*16 end
     local targets={forest={60,130,220,320},mangrove={55,120,205,295},
-        madagascar={50,115,195,285},island={65,145,260,380},greatforest={120,260,480,760}}
+        madagascar={50,115,195,285},island={65,145,260,380}}
     local list=targets[def.id] or targets.forest;stage=stage or 1
     if stage<=#list then return list[stage] end
     return math.min(def.id=="island" and 520 or 500,list[#list]+(stage-#list)*(def.id=="island" and 120 or 85))
 end
 function Maps.stageTimeLimit(id,stage)
-    local limits=id=="greatforest" and {600,720,840,960} or {360,420,480,600}
+    local limits={360,420,480,600}
     stage=math.max(1,math.min(#limits,stage or 1))
     return limits[stage]
 end
 local stageSizes={
     normal={{2400,1400},{2800,1700},{3050,1900},{3200,2000}},
     island={{2200,1400},{2800,1750},{3150,2000},{3400,2200}},
-    greatforest={{4200,2700},{5400,3400},{6400,4000},{7200,4600}},
 }
 function Maps.configureStage(world,stage)
     stage=math.max(1,stage or 1);world.clearcutStage=stage
-    local kind=world.clearcutMap=="island" and "island" or (world.clearcutMap=="greatforest" and "greatforest" or "normal")
+    local kind=world.clearcutMap=="island" and "island" or "normal"
     local size=stageSizes[kind][math.min(stage,4)]
     if world.clearcutMap=="beginner" then size={world.width,world.height} end
     world.playBounds={x=(world.width-size[1])/2,y=(world.height-size[2])/2,w=size[1],h=size[2]}
@@ -99,11 +96,6 @@ function Maps.treeVariant(world,x,y,index)
         local coast=Maps.islandDistance(x,y,world.width,world.height)
         if coast>.68 then return (index*.61803398875)%1<.42 and 3 or 1 end
         return index%4==0 and 1 or 2
-    elseif id=="greatforest" then
-        local ridge=math.sin(x/410)+math.cos(y/355)
-        if index%9==0 or ridge>.88 then return 1 end
-        if ridge<-.42 then return 3 end
-        return 2
     end
 end
 function Maps.constrain(world,x,y,margin)
@@ -129,8 +121,6 @@ function Maps.configure(world,id)
         -- Includes crown overhang, beach, sea on every side, and room for the HUD.
     elseif def.id=="beginner" then
         world.width,world.height=1900,1200
-    elseif def.id=="greatforest" then
-        world.width,world.height=7200,4600
     end
     Maps.configureStage(world,1)
     if Maps.species[def.id] then
@@ -144,18 +134,12 @@ function Maps.configure(world,id)
             end
             world.images.treeVariants[#world.images.treeVariants+1]=images[name]
         end
-        world.treeVisual.variantScale=def.id=="island" and {.78,.82,.86} or (def.id=="greatforest" and {.86,.90,.84} or {1,.95,.92})
-        world.treeVisual.variantShadow=def.id=="greatforest" and {1.18,1.08,1.14} or {.8,1,1.05}
+        world.treeVisual.variantScale=def.id=="island" and {.78,.82,.86} or {1,.95,.92}
+        world.treeVisual.variantShadow={.8,1,1.05}
     end
 end
 function Maps.filterScenery(world)
     if world.clearcutMap==nil then return end
-    if world.clearcutMap=="greatforest" then
-        -- The giant forest owns a root/moss/nurse-log vocabulary; do not
-        -- repopulate it with the temperate map's rocks, logs and ferns.
-        world.forestScenery.ground,world.forestScenery.actors={},{}
-        return
-    end
     for _,list in ipairs({world.forestScenery.ground,world.forestScenery.actors}) do
         for i=#list,1,-1 do
             local p=list[i]
@@ -166,7 +150,7 @@ end
 local shader
 function Maps.drawGround(world,time)
     local def=Maps.get(world.clearcutMap)
-    if def.id=="forest" or def.id=="greatforest" then return false end
+    if def.id=="forest" then return false end
     if not shader then shader=love.graphics.newShader("assets/shaders/clearcut-terrain.glsl") end
     local previous=love.graphics.getShader()
     shader:send("worldSize",{world.width,world.height})

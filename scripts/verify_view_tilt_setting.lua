@@ -26,7 +26,7 @@ local regularStart=assert(game:match("function Game:startClearcut%b()%s*(.-)func
 assert(regularStart:find("self:enableClearcutPerspective()",1,true),"clearcut maps are not projected")
 assert(game:find("local projected=self.clearcut and self.camera.perspective",1,true),"projection leaked outside clearcut maps")
 
-for _,id in ipairs({"forest","mangrove","madagascar","island","beginner","greatforest"}) do
+for _,id in ipairs({"forest","mangrove","madagascar","island","beginner"}) do
     assert(maps:find('id="'..id..'"',1,true),"missing clearcut map: "..id)
 end
 local _,topDeep=Projection.project(640,0,1280,720,.72)
@@ -49,4 +49,4 @@ for _,pitch in ipairs({.72,1})do
 end
 assert(#scaleCalls==2,"billboard scale contract was not exercised at both slider extremes")
 
-print("VIEW_TILT_SETTING_OK range=0..100 default=86 pause=drag/wheel/keys maps=6 sandbox=projected scope=clearcut_only billboards=uniform")
+print("VIEW_TILT_SETTING_OK range=0..100 default=86 pause=drag/wheel/keys maps=5 sandbox=projected scope=clearcut_only billboards=uniform")

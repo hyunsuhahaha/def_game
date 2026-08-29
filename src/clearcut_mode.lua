@@ -15,6 +15,7 @@ local ForestScenery = require("src.forest_scenery")
 local ForestUnderstory = require("src.forest_understory")
 local BiomeVines = require("src.biome_vines")
 local ForestFloor = require("src.forest_floor")
+local ForestLighting = require("src.forest_lighting")
 local Fusions = require("src.clearcut_fusions")
 local BiomeEnemies = require("src.biome_enemies")
 local AttackPlants = require("src.attack_plants")
@@ -339,7 +340,6 @@ local treeHpByMapVariant = {
     mangrove = {9, 7, 4},       -- 맹그로브, 아비케니아, 니파야자
     madagascar = {14, 7, 4},    -- 바오밥(굵은 몸통), 타마린드, 코미포라
     island = {5, 7, 7},         -- 야자, 씨아몬드, 판다누스
-    greatforest = {12, 9, 11},  -- 거대 삼나무, 고대 솔송나무, 이끼참나무
 }
 local function treeHpFor(mapId, variant)
     local list = treeHpByMapVariant[mapId] or treeHpByMapVariant.forest
@@ -362,16 +362,15 @@ function ClearcutMode:generateForest(game, target)
     local normalFloor=stage==1 and 98 or (stage==2 and 82 or (stage==3 and 70 or 60))
     local islandBase=stage==1 and 100 or (stage==2 and 85 or (stage==3 and 75 or 68))
     local islandFloor=stage==1 and 78 or (stage==2 and 68 or (stage==3 and 58 or (stage==4 and 48 or 42)))
-    local minSepBase = game.world.clearcutMap=="greatforest" and (stage==1 and 132 or 114) or (game.world.clearcutMap=="island" and islandBase or (game.world.clearcutMap=="beginner" and 165 or normalBase))
-    local minSepFloor = game.world.clearcutMap=="greatforest" and (stage<3 and 82 or 66) or (game.world.clearcutMap=="island" and islandFloor or (game.world.clearcutMap=="beginner" and 90 or normalFloor))
+    local minSepBase = game.world.clearcutMap=="island" and islandBase or (game.world.clearcutMap=="beginner" and 165 or normalBase)
+    local minSepFloor = game.world.clearcutMap=="island" and islandFloor or (game.world.clearcutMap=="beginner" and 90 or normalFloor)
     local attempts, minSep = 0, minSepBase
     -- 벌집은 나무 밀도에 그대로 비례시키면 첫 화면부터 수십 개가 보여
     -- 희귀 위험물이라는 의미가 사라진다. 스테이지별 확률과 상한을 함께 둔다.
     local hiveChance,hiveCap,hiveCount=.022,6,0
     -- Large islands (and the beginner map's tighter world, which needs many relax cycles
     -- to walk minSep down from its sparse starting value) need more land samples in later stages.
-    local attemptLimit=game.world.clearcutMap=="greatforest" and math.max(90000,target*230)
-        or game.world.clearcutMap=="island" and math.max(40000,target*160)
+    local attemptLimit=game.world.clearcutMap=="island" and math.max(40000,target*160)
         or game.world.clearcutMap=="beginner" and math.max(60000,target*350)
         or math.max(36000,target*180)
     while #game.world.nodes < target and attempts < attemptLimit do
@@ -405,14 +404,14 @@ function ClearcutMode:generateForest(game, target)
             -- A few mature canopy landmarks make the temperate maps read as a
             -- forest at camera scale. They remain ordinary objective trees:
             -- no hidden HP, reward, collision, or regrowth rule changes.
-            local giantTree=(isDefaultForest and treeVariant==1 and treeIndex%17==0)
-                or (game.world.clearcutMap=="greatforest" and treeVariant==1 and treeIndex%11==0)
+            local giantTree=isDefaultForest and treeVariant==1 and treeIndex%17==0
             game.world.nodes[treeIndex] = {kind="tree",x=x,y=y,work=0,workTime=1,active=true,respawn=0,rushTree=true,rushHp=hp,rushMaxHp=hp,beehive=beehive,treeVariant=treeVariant,giantTree=giantTree}
             if beehive then hiveCount=hiveCount+1;self.beehiveTotal=self.beehiveTotal+1 end
         end
     end
     self.initialTrees, self.remainingTrees = #game.world.nodes, #game.world.nodes
     ForestFloor.generate(game.world,self.stage)
+    ForestLighting.generate(game.world,self.stage)
     ForestScenery.generate(game.world,self.stage)
     Maps.filterScenery(game.world)
     require("src.biome_life").generate(game.world,self.stage)

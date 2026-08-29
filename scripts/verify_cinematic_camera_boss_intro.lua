@@ -21,7 +21,7 @@ assert(math.abs(rsx-sx)<.001 and math.abs(rsy-sy)<.001,"screenToWorld no longer 
 local Entrance=require("src.boss_entrance")
 local Bosses=require("src.biome_bosses")
 local profiles=Entrance.profiles();local seen={}
-local mapKinds={beginner="stumpWarden",forest="hollowOak",mangrove="rootjaw",madagascar="baobabTyrant",island="islandHermit",greatforest="hollowOak"}
+local mapKinds={beginner="stumpWarden",forest="hollowOak",mangrove="rootjaw",madagascar="baobabTyrant",island="islandHermit"}
 for map,kind in pairs(mapKinds) do
   local mode={}
   local def=Bosses.definitions[kind]
@@ -46,4 +46,4 @@ local gameSource=assert(io.open("src/game.lua","rb")):read("*a")
 assert(clearcut:find("BossEntrance.start",1,true) and clearcut:find("BossEntrance.queue",1,true),"boss runtime hooks missing")
 assert(gameSource:find("updateBossEntrance",1,true) and gameSource:find("WorldProjection.finish",1,true),"combat freeze or projected world pass missing")
 assert(not clearcut:find("등장!",1,true),"generic boss entrance text returned")
-print("CINEMATIC_CAMERA_BOSS_INTRO_OK maps=6 world=projected input_inverse=roll+zoom combat_freeze=yes text_banner=none")
+print("CINEMATIC_CAMERA_BOSS_INTRO_OK maps=5 world=projected input_inverse=roll+zoom combat_freeze=yes text_banner=none")

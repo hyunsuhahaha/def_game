@@ -3,6 +3,7 @@ local ForestScenery = require("src.forest_scenery")
 local ForestUnderstory = require("src.forest_understory")
 local BiomeVines = require("src.biome_vines")
 local ForestFloor = require("src.forest_floor")
+local ForestLighting = require("src.forest_lighting")
 local TreeDestruction = require("src.tree_destruction")
 World.__index = World
 
@@ -1139,12 +1140,7 @@ local function grounded(img, x, y, scale) love.graphics.setColor(1, 1, 1, 1); lo
 local function groundedRotated(img, x, y, scale, angle) love.graphics.setColor(1, 1, 1, 1); love.graphics.draw(img, x, y, angle, scale, scale, img:getWidth() / 2, img:getHeight() * .91) end
 
 local function treeRenderSpec(world, node)
-    if node.giantTree and world.images.ancientBroadleaf then
-        if world.clearcutMap=="greatforest" and world.images.treeVariants[1] then
-            return world.images.treeVariants[1],1.18,1.35
-        end
-        return world.images.ancientBroadleaf, 1, 1.3
-    end
+    if node.giantTree and world.images.ancientBroadleaf then return world.images.ancientBroadleaf, 1, 1.3 end
     local index = math.max(1, math.min(#world.images.treeVariants, node.treeVariant or 1))
     local stage=math.max(0,math.min(3,node.damageStage or 0))
     local damaged=world.images.treeDamageVariants and world.images.treeDamageVariants[index]
@@ -1175,7 +1171,7 @@ function World:useArcadeForest()
         self.images.stumpAtlas=love.graphics.newImage("assets/trees/stump-atlas-pixel-v1.png")
         self.images.stumpAtlas:setFilter("nearest","nearest")
         self.images.stumpQuads={}
-        for index=1,17 do
+        for index=1,14 do
             local zero=index-1
             self.images.stumpQuads[index]=love.graphics.newQuad((zero%4)*128,math.floor(zero/4)*96,128,96,self.images.stumpAtlas:getDimensions())
         end
@@ -1190,6 +1186,7 @@ function World:drawForestGround(player,actorSource)
         if require("src.clearcut_maps").drawGround(self) then
             ForestFloor.drawGround(self,player,actorSource)
             ForestScenery.drawGround(self)
+            ForestLighting.drawGround(self)
             return
         end
         love.graphics.setColor(.29,.35,.14,1)
@@ -1197,6 +1194,7 @@ function World:drawForestGround(player,actorSource)
         drawMirroredTiled(self.images.forestGround,0,0,self.width,self.height,768,.14)
         ForestFloor.drawGround(self,player,actorSource)
         ForestScenery.drawGround(self)
+        ForestLighting.drawGround(self)
         return
     end
     love.graphics.setColor(.36, .53, .13, 1)
@@ -1257,7 +1255,7 @@ end
 
 function World:drawRushStump(node)
     local regrow = math.max(0, math.min(1, 1 - (node.respawn or 0) / 10))
-    local offsets={forest=0,beginner=0,mangrove=4,madagascar=7,island=10,greatforest=13}
+    local offsets={forest=0,beginner=0,mangrove=4,madagascar=7,island=10}
     local mapId=self.clearcutMap or "forest"
     local variants=(mapId=="forest" or mapId=="beginner") and 4 or 3
     local index=(offsets[mapId] or 0)+math.max(1,math.min(variants,node.treeVariant or 1))
@@ -1267,7 +1265,7 @@ function World:drawRushStump(node)
     love.graphics.setColor(1,1,1,1)
     love.graphics.draw(atlas,quad,node.x,node.y,0,scale,scale,64,86)
     if regrow>.7 then
-        love.graphics.draw(atlas,self.images.stumpQuads[17],node.x,node.y-(node.giantTree and 12 or 0),0,scale,scale,64,86)
+        love.graphics.draw(atlas,self.images.stumpQuads[14],node.x,node.y-(node.giantTree and 12 or 0),0,scale,scale,64,86)
     end
 end
 

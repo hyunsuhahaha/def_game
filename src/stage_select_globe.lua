@@ -78,7 +78,7 @@ function Globe.markers(game,w,h)
     return out
 end
 
-local routeOrder={5,1,2,3,4,6}
+local routeOrder={5,1,2,3,4}
 function Globe.routes(game,w,h)
     local legs={}
     for leg=1,#routeOrder-1 do

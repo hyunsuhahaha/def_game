@@ -12,7 +12,6 @@ assert(mode.failureReason=="timeout" and game.result.failureReason=="timeout","t
 local source=assert(io.open("src/clearcut_mode.lua","rb"));local text=source:read("*a");source:close()
 local mapSource=assert(io.open("src/clearcut_maps.lua","rb"));local mapText=mapSource:read("*a");mapSource:close()
 assert(mapText:find('{360,420,480,600}',1,true),"stage time curve changed")
-assert(mapText:find('{600,720,840,960}',1,true),"great forest travel allowance missing")
 assert(text:find("opening==1 and 24",1,true) and text:find("local count = (not opening",1,true),"reduced ambient spawning missing")
 assert(text:find("function ClearcutMode:updateReaper",1,true) and text:find("무한 추격자는 타임어택 동선",1,true),"reaper was not retired for time attack")
 print("CLEARCUT_TIME_ATTACK_OK limits=6/7/8/10min ambient=1..2 reaper=off timeout=failure")

@@ -4,7 +4,7 @@ from PIL import Image, ImageDraw
 
 ROOT = Path(__file__).resolve().parents[1]
 CELL = 64
-IDS = ("forest", "mangrove", "madagascar", "island", "beginner", "greatforest")
+IDS = ("forest", "mangrove", "madagascar", "island", "beginner")
 OUT = ROOT / "assets/ui/globe-stage-landmarks-pixel-v1.png"
 PREVIEW = ROOT / "docs/previews/globe-stage-landmarks-pixel-v1-4x.png"
 
@@ -84,18 +84,9 @@ def beginner(d):
     d.rectangle((30, 37, 34, 39), fill=(235, 225, 175, 255))
 
 
-def greatforest(d):
-    badge_base(d, (67, 126, 72, 255))
-    d.polygon([(31,8),(22,24),(27,22),(16,39),(25,36),(12,51),(31,45),(31,54),(38,54),(38,45),(54,51),(42,36),(51,39),(39,22),(45,24)],fill=INK)
-    d.polygon([(33,11),(25,24),(31,22),(20,37),(30,33),(18,48),(34,42),(34,51),(36,51),(36,42),(49,48),(39,33),(47,37),(37,22),(42,24)],fill=(44,92,51,255))
-    d.line([(35,17),(35,49)],fill=(172,112,58,255),width=3)
-    d.line([(27,31),(18,47)],fill=(129,161,76,255),width=2)
-    d.line([(42,29),(51,43)],fill=(129,161,76,255),width=2)
-
-
 def main():
     atlas = Image.new("RGBA", (CELL * len(IDS), CELL), (0, 0, 0, 0))
-    makers = (forest, mangrove, madagascar, island, beginner, greatforest)
+    makers = (forest, mangrove, madagascar, island, beginner)
     for i, maker in enumerate(makers):
         cell = Image.new("RGBA", (CELL, CELL), (0, 0, 0, 0))
         maker(ImageDraw.Draw(cell))

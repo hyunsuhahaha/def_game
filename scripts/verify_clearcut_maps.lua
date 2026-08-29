@@ -86,7 +86,7 @@ for _,def in ipairs(Maps.catalog) do
     local environment=w.biomeLife
     local counts={}
     for _,p in ipairs(environment.items) do counts[p.kind]=(counts[p.kind] or 0)+1;assert(not p.hp and not p.reward,"ambient entered combat") end
-    if def.id=="forest" or def.id=="beginner" or def.id=="greatforest" then assert(#environment.items==0)
+    if def.id=="forest" or def.id=="beginner" then assert(#environment.items==0)
     elseif def.id=="mangrove" then assert(counts.crab==22 and not counts.parrot,"wrong regional wildlife")
     elseif def.id=="madagascar" then assert(counts.lemur>=2 and counts.traveller>=6)
     else assert(counts.parrot==12 and counts.crab==28) end
@@ -106,13 +106,13 @@ for _,def in ipairs(Maps.catalog) do
     local seen={}
     for _,e in ipairs(m.enemies) do
         seen[e.kind]=true
-        assert(e.kind~="squirrel" and e.kind~="boar" and e.kind~="turret" or def.id=="forest" or def.id=="beginner" or def.id=="greatforest")
+        assert(e.kind~="squirrel" and e.kind~="boar" and e.kind~="turret" or def.id=="forest" or def.id=="beginner")
         if e.kind=="crocodile" then
             assert(Maps.channelDistance(e.x,e.y,w.width,w.height)<0,"croc must emerge from water")
             assert((e.x-g.player.x)^2+(e.y-g.player.y)^2>=260^2,"croc projected onto player")
         end
         local pose=Art.pose(e,0);assert(pose.spec.file)
-            if def.id~="forest" and def.id~="beginner" and def.id~="greatforest" and e.kind~="vineSprout" then
+            if def.id~="forest" and def.id~="beginner" and e.kind~="vineSprout" then
             e.facing=-1;assert(Art.pose(e,0).sx<0);e.facing=1;assert(Art.pose(e,0).sx>0)
         end
     end
@@ -221,7 +221,7 @@ for _,def in ipairs(Maps.catalog) do
             fixture.save("docs/previews/map-"..def.id.."-stage4-draws.json")
         end
     end
-    if def.id~="forest" and def.id~="beginner" and def.id~="greatforest" then
+    if def.id~="forest" and def.id~="beginner" then
         for _,seed in ipairs({17,83,421}) do
             math.randomseed(seed);g.world.nodes={};g.clearcut.stage=1
             g.clearcut:generateForest(g,Maps.treeTarget(def.id,1))
@@ -289,16 +289,16 @@ for i,c in ipairs(Mode.characters) do
     assert(g.mode=="playing" and g.clearcut.job==c.id and g.clearcut.mapId=="island")
 end
 do
-    local g=newGame();g:chooseClearcutCharacter(1);Game.keypressed(g,"6")
-    assert(g.clearcutMapFocus==6,"sixth map numeric shortcut missing")
+    local g=newGame();g:chooseClearcutCharacter(1);Game.keypressed(g,"4")
+    assert(g.clearcutMapFocus==4,"fourth map numeric shortcut missing")
     Game.keypressed(g,"up");Game.keypressed(g,"up");Game.keypressed(g,"up")
     assert(g.selectedClearcutStage==4,"map-select stage keyboard control missing")
     Game.keypressed(g,"return")
-    assert(g.mode=="clearcut_briefing" and g.selectedClearcutMap=="greatforest","great forest briefing was not selectable")
+    assert(g.mode=="clearcut_briefing" and g.selectedClearcutMap=="island","island briefing was not selectable")
     Game.keypressed(g,"return")
     assert(g.clearcut.stage==4 and g.selectedClearcutStage==4,"selected stage was not passed into gameplay")
-    assert(#g.world.nodes==Maps.treeTarget("greatforest",4) and g.clearcut.stageTimeLimit==Maps.stageTimeLimit("greatforest",4),"selected stage objective/time mismatch")
-    assert(g.world.playBounds.w==7200 and g.world.playBounds.h==4600,"selected final stage footprint mismatch")
+    assert(#g.world.nodes==Maps.treeTarget("island",4) and g.clearcut.stageTimeLimit==Maps.stageTimeLimit("island",4),"selected stage objective/time mismatch")
+    assert(g.world.playBounds.w==3400 and g.world.playBounds.h==2200,"selected final stage footprint mismatch")
     g:startClearcut("physical");assert(g.clearcut.stage==4,"retry lost selected starting stage")
 end
 for _,size in ipairs({{960,540},{1280,720},{1920,1080}}) do
@@ -319,7 +319,7 @@ for _,size in ipairs({{960,540},{1280,720},{1920,1080}}) do
     end
     Select.focus(g,3,true);local hidden=0
     local globe=require("src.stage_select_globe")
-    local routes=globe.routes(g,width,height);assert(#routes==5,"globe route count mismatch")
+    local routes=globe.routes(g,width,height);assert(#routes==4,"globe route count mismatch")
     for _,leg in ipairs(routes)do assert(#leg.points==20 and leg.from~=leg.to,"globe dotted route malformed")end
     for _,m in ipairs(globe.markers(g,width,height))do
         assert(m.r>=23,"landmark hit area regressed")
@@ -366,7 +366,7 @@ for _,def in ipairs(Maps.catalog)do
     assert(#g.clearcut.intro.debris>=20,"authored canopy debris did not burst")
     local swaying=0;for _,node in ipairs(g.world.nodes)do if math.abs(node.swayAngle or 0)>.001 then swaying=swaying+1 end end
     assert(swaying>0,"canopy did not react to flock launch")
-    if def.id~="forest" and def.id~="beginner" and def.id~="greatforest" then
+    if def.id~="forest" and def.id~="beginner" then
         local startled=0;for _,p in ipairs(g.world.biomeLife.items)do if p.startle then startled=startled+1 end end
         assert(startled>0,def.id.." wildlife ignored arrival")
     end
@@ -386,5 +386,5 @@ local skipGame=newGame();skipGame:startClearcut("physical","forest");Game.keypre
 assert(not Intro.active(skipGame) and skipGame.clearcut.elapsed==0,"intro skip started combat early")
 local clickGame=newGame();clickGame:startClearcut("physical","forest");Game.mousepressed(clickGame,10,10,1)
 assert(not Intro.active(clickGame) and clickGame.clearcut.elapsed==0,"mouse intro skip started combat early")
-print("CLEARCUT_INTRO_V2_OK maps=6 quiet=frozen flock=14_clustered depth=3 debris=authored canopy=sway camera=impact wildlife=startled skip=space/click")
+print("CLEARCUT_INTRO_V2_OK maps=5 quiet=frozen flock=14_clustered depth=3 debris=authored canopy=sway camera=impact wildlife=startled skip=space/click")
 print("CLEARCUT_MAPS_OK maps="..#Maps.catalog.." first_stage_trees="..totalTrees.." stages=1..5 pacing=opening_locked jobs="..#Mode.characters.." sea=bounded camera=all_sides retry=kept keyboard=ok mouse=ok")
