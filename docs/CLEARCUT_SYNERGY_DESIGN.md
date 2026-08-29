@@ -70,6 +70,15 @@
 - **빠른 왕복:** 비행 속도 +55%, 발사 주기 -35%.
 - **튕기는 도끼:** 나가는 도중 몬스터를 맞히면 최대 3회 다른 몬스터로 재조준.
 
+## 흡연자 6레벨 무기 진화
+
+`꽁초 투척`이 6레벨이 되면 일반 카드 선택을 잠시 중단하고 전용 2택을 연다. 선택 뒤 마우스 기본 공격만 새 무기로 교체되며, 기존 꽁초 투척은 2.6초 주기의 자동 패시브로 계속 작동해 바닥 불씨 전이 구조를 유지한다.
+
+- **전자담배:** 짧은 주기의 청록·보라 증기탄을 연사한다. 보이는 증기 덩어리와 같은 넉넉한 swept-circle 판정으로 나무와 몬스터를 관통한다.
+- **폭죽 발사기:** 목표 지점으로 로켓을 곡사 발사한다. 착탄 시 빨강·금색·청록·초록·자홍 불꽃이 6프레임으로 퍼지며 넓은 범위에 피해를 주고 식물형 대상에는 불을 붙인다.
+- 장비는 `assets/characters/ingame/smoker-weapon-evolution-equipment-v1.png`, 투사체/폭발은 `assets/effects/smoker-weapon-evolution-fx-v1.png`를 nearest 필터로 사용한다.
+- 제작 시안은 `assets/effects/concepts/smoker-weapon-evolutions-concept-v1.png`, 실제 크기 오프스크린 검수본은 `docs/previews/smoker-weapon-evolutions-v1.png`다.
+
 ## 밸런스 가드레일
 
 - 후반 성장감은 적·나무 HP 증가보다 동시 타격 수, 파동, 투사체 수, 재생 물량으로 만든다.

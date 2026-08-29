@@ -83,4 +83,4 @@ local dossier=assert(io.open("docs/character_dossier.html","rb")):read("*a")
 assert(dossier:find("const SYNERGIES",1,true) and dossier:find("const SYNERGY_TAGS",1,true) and dossier:find("synergy%-emblems%-pixel%-v1%.png"),"dossier has no icon synergy reference")
 for id in pairs(seen)do assert(dossier:find(id..':[',1,true),"dossier is missing tags for "..id)end
 for skill in pairs(Branches.definitions)do assert(dossier:find(skill..':[',1,true),"dossier is missing branch choices for "..skill)end
-print("CLEARCUT_SYNERGIES_OK live_tags="..liveCount.." branches=6 hover=cards+HUD ignition=real pressure=2.65 mass_clear=queued")
+print("CLEARCUT_SYNERGIES_OK live_tags="..liveCount.." branches=8 hover=cards+HUD ignition=real pressure=2.65 mass_clear=queued")

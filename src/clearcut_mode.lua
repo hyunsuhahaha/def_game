@@ -39,6 +39,7 @@ local Maps = require("src.clearcut_maps")
 local Synergies = require("src.clearcut_synergies")
 local SkillBranches = require("src.clearcut_skill_branches")
 local SynergyUI = require("src.synergy_ui")
+local SmokerWeaponArt = require("src.smoker_weapon_art")
 
 local ClearcutMode = {}
 ClearcutMode.__index = ClearcutMode
@@ -64,7 +65,7 @@ local definitions = {
     {id="berserker", track="destroy", name="이번 달 목표 초과", desc="쉬지 않고 벨수록 공격 속도가 빨라집니다 (멈추면 초기화).", max=6, color={1,.42,.22}, job="physical"},
     {id="shockwave", track="destroy", name="산재 위험수당", desc="나무를 쓰러뜨리면 주변 나무에도 충격파 피해를 줍니다.", max=6, color={1,.78,.2}, job="physical"},
     -- 확산력 (spread) — 한 번의 행동으로 얼마나 넓게 없애느냐 [흡연자 전용]
-    {id="molotov", track="spread", name="꽁초 투척", desc="사거리와 꽁초의 불씨 전이 범위, 날아가며 스치는 적에게 주는 직격 피해가 늘어나고, 주기적으로 하나 더 튕깁니다. 바닥의 꽁초는 7초간 남아 주변 나무에 기본 42%(최대 75%) 확률로 불을 옮깁니다.", max=6, color={1,.35,.12}, job="fire"},
+    {id="molotov", track="spread", name="꽁초 투척", desc="사거리와 꽁초의 불씨 전이 범위, 비행 직격 피해가 늘어납니다. 6레벨에는 전자담배/폭죽 중 기본 무기를 진화시키고, 꽁초는 7초간 남아 불씨를 옮기는 자동 패시브가 됩니다.", max=6, color={1,.35,.12}, job="fire"},
     {id="dry_forest", track="spread", name="건조주의보 무시", desc="꽁초의 착화 확률이 레벨당 +6%p 높아지고(최대 75%), 붙은 불이 주변 나무로 더 빠르고 넓게 번집니다.", max=6, color={1,.5,.15}, job="fire"},
     {id="oil_drum", track="spread", name="라이터 기름 유출", desc="나무가 다 타버리면 레벨당 폭발 확률이 크게 올라(1렙 7.5%→5렙 63%), 6렙에서는 100% 확정 발동합니다.", max=6, color={1,.62,.1}, job="fire"},
     {id="straw_bale", track="spread", name="마른 건초더미 생성", desc="주기적으로 큰 건초더미를 둡니다. 꽁초가 닿으면 0.5초 뒤 불이 붙고, 레벨에 따라 넓어지는 화염 지대가 주변 나무와 적에게 지속 피해를 줍니다. 불이 옮겨붙어 다른 대상을 점화시키지는 않습니다.", max=6, color={.85,.72,.25}, job="fire"},
@@ -187,6 +188,7 @@ function ClearcutMode.new()
         bees={}, beeSlow=false, beeSwarmsTriggered=0, beehiveTotal=0,
         streak=0, lastHitAt=-10, molotovTimer=0, evolutions={}, molotovs={},
         cigaretteButts={}, emberTransfers={}, emberArrivals={}, smokerGroundTime=0, secondhandSmokeClouds={},
+        smokerWeaponProjectiles={},smokerWeaponCooldown=0,
         treeSparks={}, treeSparkArrivals={}, strawTimer=0, strawBales={}, strawBaleSequence=0,
         oilTrail={}, oilTrailTimer=0, oilTrailLastX=nil, oilTrailLastY=nil, oilTrailSequence=0,
         job=nil, attackCooldown=0, dashing=nil, dashTrail={}, smoking=nil,
@@ -196,7 +198,7 @@ function ClearcutMode.new()
         revivalTimer=0, revivalCooldown=0, eternalFields={},
         revivalChorusTimer=0, revivalChorusSequence=0, revivalChorusShots={}, revivalChorusImpacts={},
         physicalAction=nil, veganAction=nil, veganForkImpacts={}, veganConsumeFx={}, veganHaste=0, developerAction=nil,
-        actionAudit={physicalImpact=0,cigaretteFlick=0,veganFork=0,veganConsume=0,developerRemote=0},
+        actionAudit={physicalImpact=0,cigaretteFlick=0,vapeShot=0,fireworkShot=0,veganFork=0,veganConsume=0,developerRemote=0},
         hp=100, maxHp=100, invulnTimer=0, dead=false,
         enemies={}, projectiles={}, bossTelegraphs={}, resinPuddles={}, waveFired={}, worldTreeSpawned=false, readyToFinish=false, activeBoss=nil,operationFinalBoss=false,operationBossName=nil,kills=0,
         chests={}, bossMagnetPickups={}, worldTreeDebris={}, chestPending=false, molotovShots=0, wildburstTimer=10, plagued={}, dodges=0,
@@ -509,6 +511,7 @@ function ClearcutMode:advanceStage(game)
     -- the reward would be deleted on the same frame it dropped.
     self.rootHazards, self.bees, self.molotovs, self.chests, self.plagued, self.worldTreeDebris = {}, {}, {}, {}, {}, {}
     self.secondhandSmokeClouds={}
+    self.smokerWeaponProjectiles={};self.smokerWeaponCooldown=0
     self.eternalFields,self.revivalChorusShots,self.revivalChorusImpacts={},{},{}
     self.veganForkImpacts,self.veganConsumeFx,self.veganHaste={},{},0
     self.milestoneFired, self.worldTreeSpawned, self.worldTree, self.activeBoss, self.operationFinalBoss, self.operationBossName = {}, false, nil, nil, false, nil
@@ -546,6 +549,7 @@ function ClearcutMode:update(dt, game)
     self:updateRegrowth(dt, game)
     self:updateFire(dt, game)
     self:updateMolotovs(dt, game)
+    self:updateSmokerWeaponProjectiles(dt,game)
     self:updateSmokeRing(dt, game)
     self:updateRevival(dt, game)
     VeganForkArt.update(self,dt)
@@ -2158,9 +2162,103 @@ function ClearcutMode:aimPoint(game, maxRange)
     return tx, ty
 end
 
+local function smokerAim(mode,game,maxRange)
+    local tx,ty=mode:aimPoint(game,maxRange);local dx,dy=tx-game.player.x,ty-game.player.y
+    local distance=math.sqrt(dx*dx+dy*dy);if distance<1 then dx,dy,distance=game.player.facing or 1,0,1 end
+    return tx,ty,dx/distance,dy/distance
+end
+
+function ClearcutMode:damageTreeWithSmokerWeapon(node,damage,game)
+    if not node.active then return false end
+    node.rushHp=(node.rushHp or node.rushMaxHp)-damage
+    game.world:impactNode(node,game,true)
+    if node.rushHp<=0 then return self:fellTree(node,game) end
+    return false
+end
+
+function ClearcutMode:updateVapeAttack(dt,game,held)
+    self.smokerWeaponCooldown=math.max(0,(self.smokerWeaponCooldown or 0)-dt)
+    local tx,ty,nx,ny=smokerAim(self,game,610+self.permanentTraits.range)
+    self.aimX,self.aimY,self.aimRadius=tx,ty,48+self.permanentTraits.area*.2
+    if not held or self.smokerWeaponCooldown>0 then return false end
+    game.player.facing=nx<0 and -1 or 1
+    local speed=720*Synergies.projectileSpeedMultiplier(self);local x=game.player.x+nx*42;local y=game.player.y-66+ny*10
+    self.smokerWeaponProjectiles[#self.smokerWeaponProjectiles+1]={
+        kind="vape",x=x,y=y,previousX=x,previousY=y,vx=nx*speed,vy=ny*speed,
+        angle=(math.atan2 and math.atan2(ny,nx) or math.atan(ny/nx)),age=0,maxLife=.72,
+        radius=45+self.permanentTraits.area*.18,damage=3.2+self.permanentTraits.treeDamage*.7,hitSet={}
+    }
+    self.actionAudit.vapeShot=(self.actionAudit.vapeShot or 0)+1
+    self.smokerWeaponCooldown=.27*Synergies.cooldownMultiplier(self)/((game.tools.axe.speed or 1)*game.player.gather*self.permanentTraits.attackSpeed)
+    return true
+end
+
+function ClearcutMode:updateFireworkAttack(dt,game,held)
+    self.smokerWeaponCooldown=math.max(0,(self.smokerWeaponCooldown or 0)-dt)
+    local tx,ty,nx,ny=smokerAim(self,game,720+self.permanentTraits.range)
+    self.aimX,self.aimY,self.aimRadius=tx,ty,178+self.permanentTraits.area*.3
+    if not held or self.smokerWeaponCooldown>0 then return false end
+    game.player.facing=nx<0 and -1 or 1
+    local x0,y0=game.player.x+nx*46,game.player.y-64+ny*8
+    local distance=math.sqrt((tx-x0)^2+(ty-y0)^2);local dur=math.max(.38,distance/820)
+    self.smokerWeaponProjectiles[#self.smokerWeaponProjectiles+1]={
+        kind="firework",x=x0,y=y0,x0=x0,y0=y0,x1=tx,y1=ty,t=0,age=0,dur=dur,
+        angle=(math.atan2 and math.atan2(ny,nx) or math.atan(ny/nx)),radius=180+self.permanentTraits.area*.3,
+        damage=8+self.permanentTraits.treeDamage*1.1
+    }
+    self.actionAudit.fireworkShot=(self.actionAudit.fireworkShot or 0)+1
+    self.smokerWeaponCooldown=.86*Synergies.cooldownMultiplier(self)/((game.tools.axe.speed or 1)*game.player.gather*self.permanentTraits.attackSpeed)
+    return true
+end
+
+function ClearcutMode:detonateFirework(projectile,game)
+    local radius=projectile.radius;local felled=0
+    for _,node in ipairs(game.world.nodes)do if node.rushTree and node.active and CombatGeometry.circleOverlapsTarget(projectile.x1,projectile.y1,radius,node,24)then
+        if self:damageTreeWithSmokerWeapon(node,projectile.damage,game)then felled=felled+1
+        elseif not self.rainSuppressFire and love.math.random()<.38 then node.burning=true;node.burnTimer=0;node.fireTickTimer=0;node.spreadDepth=0 end
+    end end
+    for _,enemy in ipairs(self.enemies)do if enemy.hp>0 and CombatGeometry.circleOverlapsTarget(projectile.x1,projectile.y1,radius,enemy)then
+        enemy.hp=enemy.hp-(28+projectile.damage*1.5);enemy.visualHit=.18
+        if self:enemyHasCategory(enemy,"plant")then self:igniteEnemy(enemy,game,self.smokerGroundTime)end
+    end end
+    self.maxChain=math.max(self.maxChain,felled)
+    self.smokerWeaponProjectiles[#self.smokerWeaponProjectiles+1]={kind="firework_burst",x=projectile.x1,y=projectile.y1,age=0,life=.82,radius=radius}
+end
+
+function ClearcutMode:updateSmokerWeaponProjectiles(dt,game)
+    local list=self.smokerWeaponProjectiles or {}
+    local bursts={}
+    for index=#list,1,-1 do local projectile=list[index]
+        if projectile.kind=="vape" then
+            projectile.previousX,projectile.previousY=projectile.x,projectile.y
+            projectile.x=projectile.x+projectile.vx*dt;projectile.y=projectile.y+projectile.vy*dt;projectile.age=projectile.age+dt
+            for _,node in ipairs(game.world.nodes)do if node.rushTree and node.active and not projectile.hitSet[node]
+                and CombatGeometry.sweptCircleOverlapsTarget(projectile.previousX,projectile.previousY,projectile.x,projectile.y,projectile.radius,node,22)then
+                projectile.hitSet[node]=true;self:damageTreeWithSmokerWeapon(node,projectile.damage,game)
+            end end
+            for _,enemy in ipairs(self.enemies)do if enemy.hp>0 and not projectile.hitSet[enemy]
+                and CombatGeometry.sweptCircleOverlapsTarget(projectile.previousX,projectile.previousY,projectile.x,projectile.y,projectile.radius,enemy)then
+                projectile.hitSet[enemy]=true;enemy.hp=enemy.hp-11;enemy.visualHit=.12
+            end end
+            if projectile.age>=projectile.maxLife then table.remove(list,index)end
+        elseif projectile.kind=="firework" then
+            projectile.t=math.min(projectile.dur,projectile.t+dt);projectile.age=projectile.t
+            local u=projectile.t/projectile.dur;projectile.x=projectile.x0+(projectile.x1-projectile.x0)*u
+            projectile.y=projectile.y0+(projectile.y1-projectile.y0)*u-math.sin(u*math.pi)*76
+            if projectile.t>=projectile.dur then bursts[#bursts+1]=projectile;table.remove(list,index)end
+        elseif projectile.kind=="firework_burst" then
+            projectile.age=projectile.age+dt;if projectile.age>=projectile.life then table.remove(list,index)end
+        end
+    end
+    for _,projectile in ipairs(bursts)do self:detonateFirework(projectile,game)end
+end
+
 function ClearcutMode:updateFireAttack(dt, game, heldOverride)
     local held = heldOverride
     if held == nil then held = love.mouse.isDown(1) end
+    local evolution=self:skillBranch("molotov")
+    if evolution=="vape" then return self:updateVapeAttack(dt,game,held)end
+    if evolution=="fireworks" then return self:updateFireworkAttack(dt,game,held)end
     local maxRange = 320 + self:power("molotov") * 40 + self.permanentTraits.range
     local tx, ty = self:aimPoint(game, maxRange)
     self.aimX, self.aimY, self.aimRadius = tx, ty, 90 + self:power("molotov") * 20 + self.permanentTraits.area
@@ -4099,6 +4197,7 @@ function ClearcutMode:chooseBranch(index,game)
     local def=self.branchChoices and self.branchChoices[index]
     if not def or def.skill~=self.branchChoiceSkill then return false end
     self.skillBranches[def.skill]=def.id
+    if def.skill=="molotov" then self.smoking=nil;self.smokerWeaponCooldown=0;if game.player.clearClearcutAction then game.player:clearClearcutAction()end end
     self.branchChoiceSkill=nil;self.branchChoices={};self.selectionKind="upgrade";self.choiceBoxes={}
     game:setNotice(def.name.." 선택 — "..def.desc,"ore")
     if self:checkEvolutions(game)then return true end
@@ -4149,8 +4248,9 @@ function ClearcutMode:choose(index, game)
     else
         game:setNotice(def.name.." Lv."..self:levelOf(def.id),"food")
     end
-    local branchReady=not def.recovery and self:levelOf(def.id)==3 and not self:skillBranch(def.id)
-        and SkillBranches.forSkill(def.id)
+    local branchLevel=SkillBranches.triggerLevel(def.id)
+    local branchReady=not def.recovery and branchLevel and self:levelOf(def.id)==branchLevel
+        and not self:skillBranch(def.id) and SkillBranches.forSkill(def.id)
     self.choices={}
     self.choiceBoxes={}
     if branchReady then self:openBranchChoice(def.id,game);return true end
@@ -5310,6 +5410,7 @@ end
 
 function ClearcutMode:drawHeldSmoker(game,t)
     SmokeRingArt.drawCharge(self,game,t)
+    if SmokerWeaponArt.drawHeld(self,game,t)then return end
     local smoking=self.smoking
     if not smoking or smoking.phase=="flick" then return end
     self:drawSmokerReloadBar(game);self:drawSmokerCigarette(game)
@@ -5392,6 +5493,9 @@ function ClearcutMode:queueProjectedOverlay(game,t)
     end
     for _,value in ipairs(self.molotovs) do local flight=value;local x,y=CigaretteButts.flightPosition(flight)
         queueUpright(queue,x,y,function()CigaretteButtArt.drawFlight(flight,self.smokerGroundTime)end)
+    end
+    for _,value in ipairs(self.smokerWeaponProjectiles or {})do local projectile=value
+        queueUpright(queue,projectile.x,projectile.y,function()SmokerWeaponArt.drawProjectile(projectile)end,projectile.y+.03,projectile.y)
     end
     for _,value in ipairs(self.bees) do local swarm=value
         queueUpright(queue,swarm.x,swarm.y,function()
@@ -5970,7 +6074,7 @@ function ClearcutMode:drawSkillTracker(fonts)
     end
     if #rows==0 then return end
     table.sort(rows,function(a,b)if a.tier~=b.tier then return a.tier>b.tier end;if a.count~=b.count then return a.count>b.count end;return a.def.id<b.def.id end)
-    local compact=love.graphics.getHeight()<650
+    local _,screenHeight=love.graphics.getDimensions();local compact=screenHeight<650
     local x0,y0,w,rowH,gap=16,compact and 168 or 254,compact and 140 or 148,compact and 40 or 48,compact and 3 or 5
     local mx,my=love.mouse.getPosition();local hovered
     self.synergyBoxes={}
@@ -6447,7 +6551,7 @@ end
 -- 카드에서는 효과를 빠르게 비교할 수 있도록 긴 기획 설명을 핵심 작동만 남겨 줄인다.
 -- 상세 수치와 전체 문장은 인물 기록부/스킬 설명 원본(def.desc)에 그대로 보존한다.
 local selectionDescriptions={
-    molotov="꽁초 사거리·불씨 범위·직격 피해가 증가합니다. 바닥의 꽁초는 7초 동안 남아 주변 나무에 불을 옮깁니다.",
+    molotov="꽁초 사거리·불씨 범위·직격 피해가 증가합니다. 6레벨에는 전자담배/폭죽 중 하나로 기본 공격이 진화하고 꽁초는 자동 패시브가 됩니다.",
     dry_forest="꽁초 착화 확률이 증가하고, 붙은 불이 주변 나무로 더 빠르고 넓게 번집니다.",
     oil_drum="불탄 나무가 폭발할 확률이 크게 증가합니다. 6레벨에는 폭발이 반드시 발생합니다.",
     straw_bale="큰 건초더미를 설치합니다. 꽁초가 닿으면 0.5초 뒤 넓은 화염 지대가 생겨 나무와 적에게 지속 피해를 줍니다.",
@@ -6489,10 +6593,11 @@ function ClearcutMode:drawSelectionContent(game,fonts,w,h)
     if self.selectionKind == "branch" then
         local skill=self:getUpgradeDefinition(self.branchChoiceSkill)
         love.graphics.setFont(fonts.title);love.graphics.setColor(1,.82,.3)
-        love.graphics.printf((skill and skill.name or "스킬").." · 3레벨 전문화",0,66,w,"center")
+        local branchLevel=SkillBranches.triggerLevel(self.branchChoiceSkill)or 3
+        love.graphics.printf((skill and skill.name or "스킬").." · "..branchLevel.."레벨 진화",0,66,w,"center")
         love.graphics.setFont(fonts.small);love.graphics.setColor(.72,.88,.76)
         love.graphics.printf("이번 런에서 사용할 공격 방식을 하나 선택합니다.",0,112,w,"center")
-        local startX,cardY,cardW,cardH,gap=selectionCardLayout(w,h,3,h-74)
+        local startX,cardY,cardW,cardH,gap=selectionCardLayout(w,h,#(self.branchChoices or {}),h-74)
         local mx,my=self:selectionMousePosition();local reveal=t-(self.choicesRevealAt or t)
         for i,def in ipairs(self.branchChoices or {})do
             local x,y=startX+(i-1)*(cardW+gap),cardY;self.choiceBoxes[i]={x=x,y=y,w=cardW,h=cardH}
@@ -6501,8 +6606,9 @@ function ClearcutMode:drawSelectionContent(game,fonts,w,h)
             love.graphics.push();love.graphics.translate(cx,y+cardH/2);love.graphics.scale(scaleX,1);love.graphics.translate(-cx,-(y+cardH/2))
             if scaleX<.5 then drawCardBack(x,y,cardW,cardH,t,def.color)else
                 drawUpgradeCardFrame(x,y,cardW,cardH,def.color,hovered,nil,t)
-                local icon=ClearcutMode.icons[self.branchChoiceSkill]
-                drawIconSocket(cx,y+math.min(118,cardH*.28),def.color,icon,t,true)
+                local iconY=y+math.min(118,cardH*.28)
+                if self.branchChoiceSkill=="molotov" then SmokerWeaponArt.drawChoice(def.id,cx,iconY,.88)
+                else local icon=ClearcutMode.icons[self.branchChoiceSkill];drawIconSocket(cx,iconY,def.color,icon,t,true)end
                 love.graphics.setColor(.06,.09,.08,.92);love.graphics.rectangle("fill",x+16,y+16,34,30,7,7)
                 love.graphics.setFont(fonts.heading);love.graphics.setColor(1,1,1);love.graphics.printf(tostring(i),x+16,y+21,34,"center")
                 love.graphics.setFont(fonts.heading);love.graphics.setColor(1,1,1);love.graphics.printf(def.name,x+18,y+cardH*.45,cardW-36,"center")
