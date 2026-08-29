@@ -61,6 +61,39 @@ function Maps.insidePlayable(world,x,y,margin)
     margin=margin or 0
     return x>=b.x+margin and x<=b.x+b.w-margin and y>=b.y+margin and y<=b.y+b.h-margin
 end
+
+-- Ground plants are foot-anchored billboards. Keeping only their anchor inside
+-- playBounds still lets their crown poke over the northern ridge, so plants
+-- share an asymmetric visual reserve. The other edges also retain a quieter
+-- strip instead of filling the border with clipped props.
+Maps.groundPlantMargins={left=150,right=150,top=240,bottom=140}
+local function plantMargins(override)
+    local base=Maps.groundPlantMargins
+    override=override or {}
+    return override.left or base.left,override.right or base.right,
+        override.top or base.top,override.bottom or base.bottom
+end
+function Maps.insideGroundPlants(world,x,y,override)
+    local b=world and world.playBounds
+    if not b then return true end
+    local left,right,top,bottom=plantMargins(override)
+    return x>=b.x+left and x<=b.x+b.w-right
+        and y>=b.y+top and y<=b.y+b.h-bottom
+end
+function Maps.constrainGroundPlant(world,x,y,override)
+    local b=world and world.playBounds
+    if not b then return x,y end
+    local left,right,top,bottom=plantMargins(override)
+    x=math.max(b.x+left,math.min(b.x+b.w-right,x))
+    y=math.max(b.y+top,math.min(b.y+b.h-bottom,y))
+    if world.clearcutMap=="island" then
+        -- Preserve the shoreline constraint as well as the visual reserve.
+        x,y=Maps.constrain(world,x,y,math.max(left,right,top,bottom))
+        x=math.max(b.x+left,math.min(b.x+b.w-right,x))
+        y=math.max(b.y+top,math.min(b.y+b.h-bottom,y))
+    end
+    return x,y
+end
 function Maps.islandDistance(x,y,w,h)
     local dx,dy=(x-w/2)/Maps.island.radiusX,(y-h/2)/Maps.island.radiusY
     local a=math.atan2(dy,dx)

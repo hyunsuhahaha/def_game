@@ -1,6 +1,7 @@
 -- Low forest dressing, independent of harvestable nodes and combat RNG.
 -- First pass is visual: these props never block movement or change fire rules.
 local Scenery={}
+local Maps=require("src.clearcut_maps")
 Scenery.catalog={
     rock={file="assets/scenery/forest/rock-pixel-v1.png",width=100,foot=.90,layer="actor"},
     fern={file="assets/scenery/forest/fern-pixel-v1.png",width=86,foot=.93,layer="actor"},
@@ -69,6 +70,7 @@ function Scenery.generate(world,stage)
     end
     local function add(kind,x,y,zone,scaleOverride)
         if Scenery.isOpen(x,y,w,h) then return end
+        if kind=="fern" and not Maps.insideGroundPlants(world,x,y,{left=135,right=135,top=220,bottom=120}) then return end
         local def=Scenery.catalog[kind]
         local size=scaleOverride or (.72+random()*.44)
         local radius=def.width*size*.55
@@ -143,7 +145,9 @@ end
 function Scenery.queue(world,queue,player)
     for _,entry in ipairs(world.forestScenery and world.forestScenery.actors or {}) do
         local prop=entry
-        queue[#queue+1]={x=prop.x,y=prop.y,draw=function() draw(prop,player) end}
+        if prop.kind~="fern" or Maps.insideGroundPlants(world,prop.x,prop.y,{left=135,right=135,top=220,bottom=120}) then
+            queue[#queue+1]={x=prop.x,y=prop.y,draw=function() draw(prop,player) end}
+        end
     end
 end
 

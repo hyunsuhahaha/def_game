@@ -733,6 +733,9 @@ function ClearcutMode:spawnEnemy(kind, x, y, opts)
     if not def then return end
     x,y=BiomeEnemies.spawnPoint(self.mapWorld,self.mapPlayer,kind,x,y)
     x,y=require("src.clearcut_maps").constrain(self.mapWorld,x,y,(def.radius or 20)+8)
+    if def.category=="plant" and not def.boss and self.mapWorld then
+        x,y=require("src.clearcut_maps").constrainGroundPlant(self.mapWorld,x,y)
+    end
     opts = opts or {}
     local curse = self:curseLevel()
     local hp = def.hp * (1 + (curse - 1) * .55) * (opts.hpMul or 1)

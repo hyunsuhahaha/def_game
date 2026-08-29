@@ -1,4 +1,5 @@
 local Understory={}
+local Maps=require("src.clearcut_maps")
 
 local CELL_W,CELL_H=128,96
 local image,quads
@@ -29,15 +30,16 @@ function Understory.generate(world,stage)
     -- Start far enough inside the authored ridge that the 96px tuft sprite
     -- cannot poke above the cliff edge after billboard projection.
     local bounds=world.playBounds or {x=0,y=0,w=w,h=h}
-    for gy=bounds.y+116,bounds.y+bounds.h-100,104 do
-        for gx=bounds.x+96,bounds.x+bounds.w-90,112 do
+    local margin=Maps.groundPlantMargins
+    for gy=bounds.y+margin.top+32,bounds.y+bounds.h-margin.bottom-24,104 do
+        for gx=bounds.x+margin.left+28,bounds.x+bounds.w-margin.right-28,112 do
             if random()<.58 then
                 local x=gx+(random()-.5)*72
                 local y=gy+(random()-.5)*58
                 local dx,dy=x-w/2,y-h/2
                 -- Keep the immediate arrival circle readable, then let grass
                 -- cross the wider walking lanes so traversal can disturb it.
-                if dx*dx+dy*dy>175^2 then
+                if dx*dx+dy*dy>175^2 and Maps.insideGroundPlants(world,x,y) then
                     data.patches[#data.patches+1]={x=x,y=y,scale=.66+random()*.26,
                         flip=random()<.5 and -1 or 1,rustle=0,bend=0,cut=false,cutPulse=0}
                 end
@@ -110,8 +112,7 @@ function Understory.queue(world,queue,player)
     if not data then return end
     for _,entry in ipairs(data.patches) do
         local patch=entry
-        local b=world.playBounds
-        if not b or (patch.x>=b.x+48 and patch.x<=b.x+b.w-48 and patch.y>=b.y+72 and patch.y<=b.y+b.h-36) then
+        if Maps.insideGroundPlants(world,patch.x,patch.y) then
             queue[#queue+1]={x=patch.x,y=patch.y-1,anchorY=patch.y,draw=function() drawPatch(patch,player) end}
         end
     end
