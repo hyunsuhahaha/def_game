@@ -19,13 +19,14 @@ local function fx(kind,x,y,w,h,time,strength)
     love.graphics.draw(sprite,x-w/2,y-h,0,w/256,h/64)
     love.graphics.setShader(previous)
 end
-local function body(x,y,angle,progress,heat,time,alpha)
+local function body(x,y,angle,progress,heat,time,alpha,scale)
     load()
     local previous=love.graphics.getShader()
     love.graphics.setShader(burnShader)
     burnShader:send("burnProgress",progress);burnShader:send("heat",heat);burnShader:send("emberTime",time)
     love.graphics.setColor(1,1,1,alpha or 1)
-    love.graphics.draw(sprite,x,y,angle,32/256,32/256,128,32)
+    scale=scale or 1
+    love.graphics.draw(sprite,x,y,angle,32/256*scale,32/256*scale,128,32)
     love.graphics.setShader(previous)
 end
 
@@ -117,10 +118,12 @@ end
 
 function Art.drawFlight(flight,time)
     local x,y,p=Butts.flightPosition(flight)
-    local angle=(flight.landingAngle or .25)-(1-p)*math.pi*4
-    body(x,y,angle,0,1,time)
-    local tipX,tipY=x+math.cos(angle)*15.4,y+math.sin(angle)*15.4
-    fx(0,tipX,tipY+9,18,18,time,flight.wildfire and 2.2 or 1.5)
+    local fall=Butts.fallProgress(flight)
+    local scale=1-fall*.58
+    local angle=(flight.landingAngle or .25)-(1-p)*math.pi*4-fall*math.pi*7
+    body(x,y,angle,0,1,time,1,scale)
+    local tipX,tipY=x+math.cos(angle)*15.4*scale,y+math.sin(angle)*15.4*scale
+    fx(0,tipX,tipY+9*scale,18*scale,18*scale,time,(flight.wildfire and 2.2 or 1.5)*(1-fall*.55))
     -- 산불 융합 전용 투척: 그냥 담뱃불이 아니라 궤적 뒤로 불타는 꼬리를 남긴다.
     if flight.wildfire then
         for i=1,4 do

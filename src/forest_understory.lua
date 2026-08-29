@@ -25,8 +25,12 @@ function Understory.generate(world,stage)
         return (seed-1)/2147483646
     end
     local w,h=world.width,world.height
-    for gy=86,h-70,104 do
-        for gx=76,w-70,112 do
+    -- Understory is part of the playable floor, not the decorative panorama.
+    -- Start far enough inside the authored ridge that the 96px tuft sprite
+    -- cannot poke above the cliff edge after billboard projection.
+    local bounds=world.playBounds or {x=0,y=0,w=w,h=h}
+    for gy=bounds.y+116,bounds.y+bounds.h-100,104 do
+        for gx=bounds.x+96,bounds.x+bounds.w-90,112 do
             if random()<.58 then
                 local x=gx+(random()-.5)*72
                 local y=gy+(random()-.5)*58
@@ -106,7 +110,10 @@ function Understory.queue(world,queue,player)
     if not data then return end
     for _,entry in ipairs(data.patches) do
         local patch=entry
-        queue[#queue+1]={x=patch.x,y=patch.y-1,anchorY=patch.y,draw=function() drawPatch(patch,player) end}
+        local b=world.playBounds
+        if not b or (patch.x>=b.x+48 and patch.x<=b.x+b.w-48 and patch.y>=b.y+72 and patch.y<=b.y+b.h-36) then
+            queue[#queue+1]={x=patch.x,y=patch.y-1,anchorY=patch.y,draw=function() drawPatch(patch,player) end}
+        end
     end
 end
 

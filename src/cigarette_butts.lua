@@ -6,11 +6,34 @@ local Butts = {lifetime=7, firstAttempt=1.1, interval=1, coldLifetime=1.5, baseC
 -- visible arc, billboard anchor and swept hit test on this single trajectory so
 -- a newly thrown cigarette is valid from its very first rendered frame.
 function Butts.flightPosition(flight,elapsed)
+    elapsed=elapsed == nil and (flight.t or 0) or elapsed
+    if flight.fallsOffMap then
+        local approach=math.max(1e-6,flight.approachDur or 0)
+        if elapsed>approach then
+            local fallDuration=math.max(1e-6,flight.fallDuration or 1.4)
+            local fall=math.max(0,math.min(1,(elapsed-approach)/fallDuration))
+            -- Once it clears the ridge, the butt is no longer on a ground arc:
+            -- it tumbles down the screen until it is genuinely out of view.
+            local x=flight.x1+(flight.dropDrift or 0)*(fall+.12*math.sin(fall*math.pi*3))
+            local y=flight.y1+(flight.dropDistance or 2600)*fall*fall
+            return x,y,math.max(0,math.min(1,elapsed/math.max(1e-6,flight.dur or 0)))
+        end
+        local progress=math.max(0,math.min(1,elapsed/approach))
+        local x=flight.x0+(flight.x1-flight.x0)*progress
+        local y=flight.y0+(flight.y1-flight.y0)*progress-math.sin(progress*math.pi)*120
+        return x,y,progress*(approach/math.max(approach,flight.dur or approach))
+    end
     local duration=math.max(1e-6,flight.dur or 0)
-    local progress=math.max(0,math.min(1,(elapsed == nil and (flight.t or 0) or elapsed)/duration))
+    local progress=math.max(0,math.min(1,elapsed/duration))
     local x=flight.x0+(flight.x1-flight.x0)*progress
     local y=flight.y0+(flight.y1-flight.y0)*progress-math.sin(progress*math.pi)*120
     return x,y,progress
+end
+
+function Butts.fallProgress(flight,elapsed)
+    if not flight.fallsOffMap then return 0 end
+    elapsed=elapsed == nil and (flight.t or 0) or elapsed
+    return math.max(0,math.min(1,(elapsed-(flight.approachDur or 0))/math.max(1e-6,flight.fallDuration or 1.4)))
 end
 
 function Butts.tip(butt,time)
@@ -102,7 +125,14 @@ function Butts.update(mode,dt,game)
         local flight=mode.molotovs[i]
         local remaining=math.max(0,flight.dur-flight.t)
         flight.t=flight.t+dt
-        if remaining<=dt then land(mode,flight,start+remaining); table.remove(mode.molotovs,i) end
+        if remaining<=dt then
+            if flight.fallsOffMap then
+                if flight.target then flight.target.igniting=nil end
+            else
+                land(mode,flight,start+remaining)
+            end
+            table.remove(mode.molotovs,i)
+        end
     end
     if mode.rainSuppressFire then
         for _,transfer in ipairs(mode.emberTransfers) do release(transfer) end

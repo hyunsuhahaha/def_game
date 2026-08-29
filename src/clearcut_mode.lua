@@ -1650,11 +1650,28 @@ function ClearcutMode:trackMolotovBarrage(game)
 end
 
 function ClearcutMode:hurlMolotovAt(tx, ty, game, isBarrage)
-    local dist = math.sqrt((tx-game.player.x)^2 + (ty-game.player.y)^2)
     local _,mouthY,_,tipX=self:smokerMouthPose(game)
+    local x1,y1=tx,ty
+    local fallsOffMap=false
+    local bounds=game.world and game.world.playBounds
+    if game.world and game.world.northBackdrop and bounds and ty<bounds.y then
+        fallsOffMap=true
+        -- Intersect the aim ray using the player's ground point. mouthY is an
+        -- elevated sprite attachment and would send near-edge throws backward.
+        local denominator=ty-game.player.y
+        local q=math.abs(denominator)>1e-6 and (bounds.y-game.player.y)/denominator or 1
+        q=math.max(0,math.min(1,q))
+        x1=tipX+(tx-tipX)*q
+        y1=bounds.y+2
+    end
+    local dist=math.sqrt((x1-tipX)^2+(y1-mouthY)^2)
+    local approachDur=math.max(.34,dist/850)
+    local fallDuration=fallsOffMap and 1.45 or 0
     self.molotovs[#self.molotovs+1] = {
-        x0=tipX, y0=mouthY, x1=tx, y1=ty,
-        t=0, dur=math.max(.34, dist/850), manual=true, radius=90 + self:power("molotov") * 20 + self.permanentTraits.area,
+        x0=tipX, y0=mouthY, x1=x1, y1=y1,
+        t=0, dur=approachDur+fallDuration, approachDur=approachDur,fallDuration=fallDuration,
+        fallsOffMap=fallsOffMap,dropDistance=2600,dropDrift=(tx-x1)*.16,
+        manual=true, radius=90 + self:power("molotov") * 20 + self.permanentTraits.area,
         landingAngle=.18+math.sin(tx*.013+ty*.017)*.6
     }
     if not isBarrage then
@@ -1678,16 +1695,18 @@ function ClearcutMode:updateMolotovImpacts(dt, game)
     if #self.enemies == 0 then return end
     local dmg = 6 + self:power("molotov") * 4
     for _, flight in ipairs(self.molotovs) do
-        local previousX,previousY=CigaretteButts.flightPosition(flight,flight.t)
-        local x,y=CigaretteButts.flightPosition(flight,flight.t+dt)
-        flight.hitSet = flight.hitSet or {}
-        for _, e in ipairs(self.enemies) do
-            if not flight.hitSet[e] then
-                if CombatGeometry.sweptCircleOverlapsTarget(previousX,previousY,x,y,24,e) then
-                    flight.hitSet[e] = true
-                    e.hp = e.hp - dmg
-                    e.visualHit = .14
-                    self:igniteEnemy(e,game,0)
+        if not flight.fallsOffMap then
+            local previousX,previousY=CigaretteButts.flightPosition(flight,flight.t)
+            local x,y=CigaretteButts.flightPosition(flight,flight.t+dt)
+            flight.hitSet = flight.hitSet or {}
+            for _, e in ipairs(self.enemies) do
+                if not flight.hitSet[e] then
+                    if CombatGeometry.sweptCircleOverlapsTarget(previousX,previousY,x,y,24,e) then
+                        flight.hitSet[e] = true
+                        e.hp = e.hp - dmg
+                        e.visualHit = .14
+                        self:igniteEnemy(e,game,0)
+                    end
                 end
             end
         end
