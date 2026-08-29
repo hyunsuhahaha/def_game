@@ -65,7 +65,7 @@ local definitions = {
     {id="dry_forest", track="spread", name="건조주의보 무시", desc="꽁초의 착화 확률이 레벨당 +6%p 높아지고(최대 75%), 붙은 불이 주변 나무로 더 빠르고 넓게 번집니다.", max=6, color={1,.5,.15}, job="fire"},
     {id="oil_drum", track="spread", name="라이터 기름 유출", desc="나무가 다 타버리면 레벨당 폭발 확률이 크게 올라(1렙 7.5%→5렙 63%), 6렙에서는 100% 확정 발동합니다.", max=6, color={1,.62,.1}, job="fire"},
     {id="straw_bale", track="spread", name="마른 건초더미 생성", desc="주기적으로 큰 건초더미를 둡니다. 꽁초가 닿으면 0.5초 뒤 불이 붙고, 레벨에 따라 넓어지는 화염 지대가 주변 나무와 적에게 지속 피해를 줍니다. 불이 옮겨붙어 다른 대상을 점화시키지는 않습니다.", max=6, color={.85,.72,.25}, job="fire"},
-    {id="smoke_ring", track="spread", name="도넛 강화 — 니코틴 농축", desc="SPACE로 쏘는 도넛 연기가 보이는 이동 궤적 전체를 넓게 타격합니다. 강화하면 재사용 대기시간이 줄고 피해·넉백·크기가 늘어납니다. 6레벨 완충 시 초농축 도넛이 발사됩니다.", max=6, color={1,.68,.2}, job="fire"},
+    {id="smoke_ring", track="spread", name="도넛 강화 — 니코틴 농축", desc="SPACE 도넛이 바닥 기울기와 분리된 둥근 연기로 날아가며, 보이는 외곽보다 후한 이동 궤적 판정으로 타격합니다. 강화하면 재사용 대기시간이 줄고 피해·넉백·크기가 늘어납니다. 6레벨 완충 시 초농축 도넛이 발사됩니다.", max=6, color={1,.68,.2}, job="fire"},
     -- 식탐력 (suppress) — 큰 포크로 찍고 마지막 한입까지 비운다 [비건 단체 회장 전용 + 공용]
     {id="fork_feast", track="suppress", name="대왕 포크", desc="기본 공격이 전방 다중 포크 찍기로 바뀝니다. 레벨마다 포크 피해와 사거리가 늘고, 이 타격으로 쓰러진 나무와 적은 끌어와 먹습니다.", max=6, color={.62,.92,.32}, job="toxic"},
     {id="buffet_fork", track="suppress", name="뷔페용 포크", desc="포크의 좌우 피격 폭과 동시에 찍는 대상 수가 늘어납니다. 6레벨에는 타격 순간 커다란 포크 잔상이 한 번 더 찍힙니다.", max=6, color={.48,.82,.66}, job="toxic"},
@@ -1896,10 +1896,13 @@ function ClearcutMode:updateSmokeRing(dt, game)
     -- 처음엔 작게 시작해서 날아갈수록 점점 커진다(실제 담배연기 도넛처럼).
     local grow = math.min(1, ring.traveled / ring.maxRange)
     ring.radius = ring.startRadius + (ring.maxRadius - ring.startRadius) * grow
-    -- The smoke atlas extends beyond the nominal ring and actors use a feet
-    -- anchor. Add body allowance and test the whole travelled segment so the
-    -- visible ring cannot skip a target between frames.
-    local hitRadius=ring.radius*1.05+(12+ring.radius*.3)
+    -- The ring is an upright billboard, so its circular screen silhouette is
+    -- intentionally independent from the pitched ground mesh.  Give the
+    -- entire outer puff band an additional forgiving envelope and sweep that
+    -- envelope over the full travelled segment so a visible crossing cannot
+    -- miss between frames.
+    local hitRadius=math.max(40,ring.radius*1.45+20)
+    ring.hitRadius=hitRadius
     for _, e in ipairs(self.enemies) do
         if not ring.hit[e] then
             local dx, dy = e.x - ring.x, e.y - ring.y
@@ -1946,6 +1949,7 @@ function ClearcutMode:drawSmokeRing(t)
     love.graphics.setLineWidth(2)
     love.graphics.setColor(.88, .87, .82, .3)
     love.graphics.circle("line", ring.x, ring.y, ring.radius)
+    love.graphics.setColor(1,1,1,1)
 end
 
 function ClearcutMode:updatePlague(dt, game)
@@ -5131,6 +5135,13 @@ function ClearcutMode:queueProjectedOverlay(game,t)
     queueUpright(queue,player.x,player.y,function()
         SupplementArt.drawUpright(self,game,t);self.traitFx:draw()
     end,player.y+.02,player.y)
+    local smokeRing=self.smokeRing
+    if smokeRing then
+        -- Moving smoke is an aerial billboard. Its centre follows the world
+        -- projection, but its X/Y scale stays uniform instead of inheriting
+        -- the tilted ground canvas.
+        queueUpright(queue,smokeRing.x,smokeRing.y,function()self:drawSmokeRing(t)end,smokeRing.y+.035,smokeRing.y)
+    end
     BruteForceArt.queue(self,queue,t)
     MoleClawArt.queue(self,queue,game.camera)
     local groundTime=self.smokerGroundTime
@@ -5205,8 +5216,8 @@ function ClearcutMode:drawWorldOverlay(game)
     local px, py = game.player.x + 14, game.player.y - 34
     if not projected and self.job=="toxic" then VeganForkArt.drawFx(self,game) end
     if self.job == "fire" then
-        SecondhandSmokeArt.draw(self);self:drawSmokeRing(t)
-        if not projected then self:drawHeldSmoker(game,t) end
+        SecondhandSmokeArt.draw(self)
+        if not projected then self:drawSmokeRing(t);self:drawHeldSmoker(game,t) end
     elseif self.job == "toxic" then
         if not projected then VeganForkArt.drawFork(self,game) end
     elseif self.job == "physical" then

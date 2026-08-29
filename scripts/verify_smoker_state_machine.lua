@@ -53,12 +53,13 @@ assert((emberX-mouthX)*facing>0,"smoker holds the cigarette backwards after repe
 -- sits outside the old radius and behind the ring's current point, but inside
 -- the path that was visibly crossed during this frame.
 local ringMode=ClearcutMode.new();ringMode.job="fire"
-local ringTarget={x=0,y=37,hp=50}
-local outsideRing={x=0,y=39.1,hp=50}
+local ringTarget={x=0,y=48,hp=50}
+local outsideRing={x=0,y=49.1,hp=50}
 ringMode.enemies={ringTarget,outsideRing};ringMode.smokeRing={x=0,y=0,vx=480,vy=0,radius=20,startRadius=20,maxRadius=20,dmg=10,knockback=100,maxRange=500,traveled=0,hit={}}
 ringMode:updateSmokeRing(.1,{world={nodes={}}})
 assert(ringTarget.hp==40 and ringTarget.knockTimer>0,"expanded swept smoke-ring hitbox missed a visible crossing")
 assert(outsideRing.hp==50,"smoke-ring hit beyond its visible outer puff")
+assert(ringMode.smokeRing.hitRadius==49,"upright smoke-ring generous envelope drifted")
 
 -- Use the real movement update order: movement first, then the smoking loop.
 local Player=require("src.player")
@@ -92,4 +93,4 @@ local board=CharacterTraitBoard.new(store,{}, {})
 local node=store:getNodes("physical")[#store:getNodes("physical")]
 assert(board:nodeLabel(node)==node.name,"node label and detail title use different names")
 
-print("SMOKER_STATE_AND_TRAIT_LABEL_OK autofire=held reload_cycle=repeat smoke_ring=expanded+swept")
+print("SMOKER_STATE_AND_TRAIT_LABEL_OK autofire=held reload_cycle=repeat smoke_ring=upright_billboard+generous_swept")

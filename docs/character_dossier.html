@@ -446,7 +446,7 @@ const TRAITS = {
   fire: {
     label: "흡연자", accent: "var(--c-fire)",
     tagline: "불씨 하나쯤은 자연이 알아서 처리하겠지.",
-    doctrine: "긴 흡연 준비 끝에 꽁초를 날려 넓은 숲을 연쇄 점화한다. SPACE로는 담배 연기로 도넛(스모크 링)을 만들어 캐릭터가 바라보는 방향으로 쏘아 보내(마우스 조준이 아님), 날아가는 고리에 닿는 나무와 적에게 피해를 주고(적은 넉백까지) 지나간다.",
+    doctrine: "긴 흡연 준비 끝에 꽁초를 날려 넓은 숲을 연쇄 점화한다. SPACE 도넛 연기는 캐릭터가 바라보는 방향으로 날아가는 공중 빌보드라 2.5D 바닥 기울기와 분리되어 항상 둥글게 보인다. 보이는 연기 외곽보다 후한 이동 궤적 판정으로 나무와 적을 타격하고 적을 밀어낸다.",
     nodes: [
       {id:"fire_nicotine",name:"니코틴 내성",short:"한 모금 더",desc:"흡연·투척 속도 +7%",max:3,costs:[18,32,50]},
       {id:"fire_filter",name:"장초 필터",short:"끝까지 태우기",desc:"꽁초 투척 사거리 +24",max:3,costs:[22,38,58],requires:[["fire_nicotine",1]]},
@@ -673,7 +673,7 @@ const SKILLS = {
       {id:"dry_forest",track:"spread",name:"건조주의보 무시",desc:"꽁초의 착화 확률이 레벨당 +6%p 높아지고(최대 75%), 붙은 불이 주변 나무로 더 빠르고 넓게 번집니다."},
       {id:"oil_drum",track:"spread",name:"라이터 기름 유출",desc:"나무가 다 타버리면 레벨당 폭발 확률이 크게 올라(1렙 7.5%→5렙 63%), 6렙에서는 100% 확정 발동합니다."},
       {id:"straw_bale",track:"spread",name:"마른 건초더미 생성",desc:"주기적으로 큰 건초더미를 둡니다. 꽁초가 닿으면 0.5초 뒤 불이 붙고, 레벨에 따라 넓어지는 화염 지대가 주변 나무와 적에게 지속 피해를 줍니다. 불이 옮겨붙어 다른 대상을 점화시키지는 않습니다."},
-      {id:"smoke_ring",track:"spread",name:"도넛 강화 — 니코틴 농축",desc:"SPACE로 쏘는 도넛 연기가 보이는 이동 궤적 전체를 넓게 타격합니다. 강화하면 재사용 대기시간이 줄고 피해·넉백·크기가 늘어납니다. 6레벨 완충 시 초농축 도넛이 발사됩니다."},
+      {id:"smoke_ring",track:"spread",name:"도넛 강화 — 니코틴 농축",desc:"SPACE로 쏘는 도넛 연기는 지면 기울기와 분리되어 둥근 종횡비를 유지하고, 보이는 외곽보다 후한 반경으로 프레임 사이 이동 궤적 전체를 타격합니다. 강화하면 재사용 대기시간이 줄고 피해·넉백·크기가 늘어납니다. 6레벨 완충 시 초농축 도넛이 발사됩니다."},
     ]
   },
   toxic: { label: TRAITS.toxic.label, accent: TRAITS.toxic.accent, tagline: TRAITS.toxic.tagline, doctrine: TRAITS.toxic.doctrine,

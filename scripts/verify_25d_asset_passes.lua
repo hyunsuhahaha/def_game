@@ -1,11 +1,11 @@
 package.path="./?.lua;./?/init.lua;"..package.path
-require("scripts.forest_render_fixture")
+local fixture=require("scripts.forest_render_fixture")
 
 local Mode=require("src.clearcut_mode")
 local mode=Mode.new()
 mode.job="fire"
 mode.smoking={phase="reload",t=.4,dur=1,fired=false}
-mode.smokeRing={x=130,y=180}
+mode.smokeRing={x=130,y=180,radius=42,traveled=90,maxRange=460}
 mode.secondhandSmokeClouds={{x=150,y=170,age=.2,life=2}}
 mode.minerClawFx={{x=80,y=210,angle=0,level=6,curveFlip=1,life=.2,maxLife=.3}}
 mode.minerClawMarks={{x=80,y=210,angle=0,level=6,curveFlip=1,life=2,maxLife=3}}
@@ -29,6 +29,18 @@ for i,item in ipairs(queue) do
     assert(item.ground~=true,"upright overlay leaked into the projected ground pass at "..i)
     assert(type(item.x)=="number" and type(item.anchorY)=="number" and type(item.draw)=="function","invalid billboard entry at "..i)
 end
+local ringQueued
+for _,item in ipairs(queue) do
+    if item.x==mode.smokeRing.x and item.y==mode.smokeRing.y then ringQueued=item;break end
+end
+assert(ringQueued and ringQueued.ground~=true,"smoke ring still inherits the projected ground tilt")
+fixture.reset();ringQueued.draw()
+local ringCircles=0
+for _,command in ipairs(fixture.commands)do if command.op=="ellipse"then
+    ringCircles=ringCircles+1
+    assert(math.abs(command.args[3]-command.args[4])<.001,"smoke-ring billboard lost its circular aspect")
+end end
+assert(ringCircles>0,"upright smoke ring was not rendered")
 local flightX,flightY=require("src.cigarette_butts").flightPosition(mode.molotovs[1])
 local flightQueued
 for _,item in ipairs(queue) do
@@ -41,6 +53,7 @@ assert(flightDrawn,"real cigarette flight failed on its first projected draw: ".
 local source=assert(io.open("src/clearcut_mode.lua","rb")):read("*a")
 for _,token in ipairs({
     "MoleClawArt.queue(self,queue,game.camera)","SecondhandSmokeArt.draw(self)",
+    "queueUpright(queue,smokeRing.x,smokeRing.y",
     "self:drawHeldSmoker(game,t)","drawBeeBody", "AttackPlants.drawProjectile",
     "if not projected then self:drawCigaretteProjectiles(t) end",
     "if not projected then self:drawCigaretteGroundEffects() end"
@@ -58,4 +71,4 @@ assert(source:find("SupplementArt.drawUpright(self,game,t)",1,true),"decorative 
 assert(source:find("BruteForceArt.queue(self,queue,t)",1,true),"moving number projectiles are not anchored individually")
 assert(source:find("VeganForkArt.queueFx(self,game,queue)",1,true),"fork impacts and consumed targets are not anchored individually")
 assert(source:find("PhilosopherArt.draw(self)",1,true),"sermon stream is not projected through its world target")
-print("ASSET_PASSES_25D_OK ground=burrow+butt+oil+puddles+combat_footprints upright=claw+cigarette+reload+bee+projectiles+props+threats")
+print("ASSET_PASSES_25D_OK ground=burrow+butt+oil+puddles+combat_footprints upright=smoke_ring+claw+cigarette+reload+bee+projectiles+props+threats")
