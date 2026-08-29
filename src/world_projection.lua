@@ -2,7 +2,7 @@
 -- Simulation stays in world coordinates; the complete world render is warped
 -- through this one projection so terrain, spacing, sprites and FX cannot drift
 -- into separate visual coordinate systems.
-local Projection={nearScale=.78,farScale=1.12,rows=56,overscanX=.38,overscanY=.38,horizonRatio=.285}
+local Projection={rows=56,overscanX=.38,overscanY=.38,horizonRatio=.285}
 local cache={}
 
 local function clamp(value,low,high)
@@ -10,10 +10,11 @@ local function clamp(value,low,high)
 end
 
 function Projection.factor(flatY,height,pitch)
-    pitch=pitch or .76
-    local groundY=height*.5+(flatY-height*.5)*pitch
-    local depth=clamp(groundY/height,0,1)
-    return Projection.nearScale+(Projection.farScale-Projection.nearScale)*depth
+    -- The ordinary 2.5D camera is intentionally affine. A depth-dependent
+    -- scale made every root, decal and floor texel grow and shrink as it moved
+    -- vertically across the screen, which read as a rippling floor. Strong
+    -- convergence belongs to the explicit skyview presentation mode only.
+    return 1
 end
 
 local function skyProject(flatX,flatY,width,height)
@@ -28,8 +29,8 @@ end
 function Projection.project(flatX,flatY,width,height,pitch,skyviewBlend)
     pitch=pitch or .76
     local perspective=Projection.factor(flatY,height,pitch)
-    local baseX=width*.5+(flatX-width*.5)*perspective
-    local baseY=height*.5+(flatY-height*.5)*pitch*perspective
+    local baseX=flatX
+    local baseY=height*.5+(flatY-height*.5)*pitch
     local blend=clamp(skyviewBlend or 0,0,1)
     if blend<=0 then return baseX,baseY,perspective end
     local skyX,skyY,skyScale=skyProject(flatX,flatY,width,height)
@@ -137,8 +138,13 @@ function Projection.drawBillboards(queue,camera)
     local zoom=camera.renderZoom or camera.zoom
     for _,item in ipairs(queue) do
         local anchorY=item.anchorY or item.y
-        item.screenX,item.screenY,item.screenScale=camera:worldToScreen(item.x,anchorY)
-        item.screenSort=(math.abs(item.y)>50000 and item.y or item.screenY)+(item.sortBias or 0)
+        local screenX,screenY,screenScale=camera:worldToScreen(item.x,anchorY)
+        -- Nearest-filtered upright sprites shimmer when their foot anchor
+        -- repeatedly crosses fractional screen pixels. Keep exact Y for depth
+        -- ordering, but rasterize the billboard anchor on the integer grid.
+        item.screenX,item.screenY=math.floor(screenX+.5),math.floor(screenY+.5)
+        item.screenScale=screenScale
+        item.screenSort=(math.abs(item.y)>50000 and item.y or screenY)+(item.sortBias or 0)
     end
     table.sort(queue,function(a,b) return a.screenSort<b.screenSort end)
     love.graphics.setBlendMode("alpha")

@@ -6,11 +6,9 @@ local width,height,pitch=1280,720,.76
 -- A disabled skyview must be bit-for-bit the pre-existing projection formula.
 for _,point in ipairs({{0,0},{640,360},{1100,650},{260,185}}) do
     local x,y,scale=Projection.project(point[1],point[2],width,height,pitch,0)
-    local groundY=height*.5+(point[2]-height*.5)*pitch
-    local depth=math.max(0,math.min(1,groundY/height))
-    local expectedScale=.78+(1.12-.78)*depth
-    assert(math.abs(x-(width*.5+(point[1]-width*.5)*expectedScale))<1e-8,"default X projection changed")
-    assert(math.abs(y-(height*.5+(point[2]-height*.5)*pitch*expectedScale))<1e-8,"default Y projection changed")
+    local expectedScale=1
+    assert(math.abs(x-point[1])<1e-8,"default X projection changed")
+    assert(math.abs(y-(height*.5+(point[2]-height*.5)*pitch))<1e-8,"default Y projection changed")
     assert(math.abs(scale-expectedScale)<1e-8,"default projection scale changed")
 end
 
