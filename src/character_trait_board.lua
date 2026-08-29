@@ -128,18 +128,26 @@ function CharacterTraitBoard:clampCamera()
     self.panY=clamp(self.panY,math.min(halfH,self.canvasH/2),math.max(self.canvasH-halfH,self.canvasH/2))
 end
 
-function CharacterTraitBoard:buyAt(x,y)
+function CharacterTraitBoard:selectAt(x,y)
     for _,box in ipairs(self.nodeBoxes) do
         if inside(box,x,y) then
             self.selectedNodeId=box.id
-            local ok,message=self.store:buy(box.id)
-            self.message,self.messageTime=message,2.5
-            self.messageKind=ok and "ok" or "blocked"
-            if ok then self:burst(box,box.node); self.blockedNode=nil
-            else self.blockedNode,self.blockedTime=box.id,.34 end
-            return ok and "bought" or "blocked"
+            return "selected"
         end
     end
+end
+
+function CharacterTraitBoard:buySelected()
+    local id=self.selectedNodeId
+    if not id then return end
+    local box
+    for _,b in ipairs(self.nodeBoxes) do if b.id==id then box=b; break end end
+    local ok,message=self.store:buy(id)
+    self.message,self.messageTime=message,2.5
+    self.messageKind=ok and "ok" or "blocked"
+    if ok and box then self:burst(box,box.node); self.blockedNode=nil
+    elseif not ok then self.blockedNode,self.blockedTime=id,.34 end
+    return ok and "bought" or "blocked"
 end
 
 function CharacterTraitBoard:update(dt)
@@ -160,7 +168,7 @@ function CharacterTraitBoard:update(dt)
             self.drag.lastX,self.drag.lastY=mx,my
             self:clampCamera()
         else
-            if not self.drag.moved and (self.drag.button or 1)==1 then self:buyAt(mx,my) end
+            if not self.drag.moved and (self.drag.button or 1)==1 then self:selectAt(mx,my) end
             self.drag=nil
         end
     else
@@ -204,6 +212,7 @@ function CharacterTraitBoard:mousepressed(x, y, button)
     for i, box in ipairs(self.tabBoxes) do
         if inside(box, x, y) then self:selectJob(jobOrder[i]); return "selected" end
     end
+    if button==1 and inside(self.buyButtonBox,x,y) then return self:buySelected() end
     if inside(self.resetViewBox,x,y) then
         self.panX,self.panY,self.zoom,self.panVX,self.panVY=820,950,.62,0,0
         return "reset_view"
@@ -332,9 +341,18 @@ function CharacterTraitBoard:drawCharacterDossier(x,y,w,h,job,focusNode)
     love.graphics.printf(focusNode.desc,x+28,detailY+46,w-54,"left")
     love.graphics.setColor(focusNode.color[1],focusNode.color[2],focusNode.color[3],.95)
     love.graphics.print("단계 "..level.." / "..focusNode.max,x+28,detailY+78)
-    local state=level>=focusNode.max and "연구 완료" or (ok and ("클릭하여 해금  ·  "..cost.." P") or reason)
-    love.graphics.setColor(ok and {1,.82,.38,1} or {.58,.63,.55,1})
-    love.graphics.printf(state,x+28,detailY+104,w-54,"left")
+    if level>=focusNode.max then
+        self.buyButtonBox=nil
+        love.graphics.setColor(.58,.63,.55,1)
+        love.graphics.printf("연구 완료",x+28,detailY+104,w-54,"left")
+    elseif ok then
+        self.buyButtonBox={x=x+28,y=detailY+100,w=w-56,h=32}
+        Frontend.button(self.buyButtonBox,"강화  ·  "..cost.." P",fonts.small,{primary=true,accent=focusNode.color})
+    else
+        self.buyButtonBox=nil
+        love.graphics.setColor(.58,.63,.55,1)
+        love.graphics.printf(reason,x+28,detailY+104,w-54,"left")
+    end
 end
 
 function CharacterTraitBoard:drawUnlockFx()
