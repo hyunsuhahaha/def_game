@@ -81,11 +81,13 @@ for frame=0,(FOREST_RENDER_CAPTURE and 5 or 0) do
     world:draw(player,mode)
     local bodies={}
     for _,draw in ipairs(fixture.commands) do
-        if draw.op=="draw" and draw.file:find("assets/enemies/arcade/",1,true) then bodies[#bodies+1]=draw end
+        if draw.op=="draw" and draw.file:find("assets/enemies/arcade/",1,true)
+            and not draw.file:find("regrowth-prism-rotation",1,true) then bodies[#bodies+1]=draw end
     end
     assert(#bodies==8,"world failed to queue every enemy exactly once")
     for bodyIndex,body in ipairs(fixture.commands) do
-        if body.op=="draw" and body.file:find("assets/enemies/arcade/",1,true) then
+        if body.op=="draw" and body.file:find("assets/enemies/arcade/",1,true)
+            and not body.file:find("regrowth-prism-rotation",1,true) then
             local enemy
             for _,e in ipairs(mode.enemies) do if catalog[e.kind].file==body.file then enemy=e end end
             for treeIndex,tree in ipairs(fixture.commands) do
@@ -98,12 +100,17 @@ for frame=0,(FOREST_RENDER_CAPTURE and 5 or 0) do
     local before=#bodies
     mode:drawWorldOverlay(game)
     bodies={}
-    for _,draw in ipairs(fixture.commands) do if draw.op=="draw" and draw.file:find("assets/enemies/arcade/",1,true) then bodies[#bodies+1]=draw end end
+    for _,draw in ipairs(fixture.commands) do
+        if draw.op=="draw" and draw.file:find("assets/enemies/arcade/",1,true)
+            and not draw.file:find("regrowth-prism-rotation",1,true) then bodies[#bodies+1]=draw end
+    end
     assert(#bodies==before,"overlay redrew enemy bodies over trees")
     if FOREST_RENDER_CAPTURE then fixture.save("docs/previews/forest-arcade-draws-"..frame..".json") end
 end
 assert(catalog.planter.file:find("planter%-forest%-atlas%-v3%.png") and catalog.planter.cell==256 and catalog.planter.width==68,"compact regrowth totem v3 is not wired")
 for _,id in ipairs({"forest","mangrove","madagascar","island"}) do
-    local spec=assert(catalog["planter_"..id]);assert(spec.width<=74 and spec.motion==2,"regional planter is oversized/static: "..id)
+    local spec=assert(catalog["planter_"..id])
+    assert(spec.width<=74 and spec.motion==0 and spec.prism and spec.prismRow~=nil,
+        "regional planter must keep a stable body and separated rotating prism: "..id)
 end
 print("FOREST_ARCADE_RUNTIME_OK species=8 trees=4 facing=both depth=shared shader=restored")

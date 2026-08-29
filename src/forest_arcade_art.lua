@@ -4,13 +4,22 @@ for kind,spec in pairs(require("src.biome_enemy_catalog")) do catalog[kind]=spec
 for kind,spec in pairs(require("src.attack_plant_catalog")) do catalog[kind]=spec end
 for kind,spec in pairs(require("src.biome_boss_catalog")) do catalog[kind]=spec end
 local Art = {}
-local assets, material
+local assets, material, prismImage, prismQuads
 Art.SIEGE_GROUND_SINK=36
 
 local function load()
     if assets then return end
     assets = {}
     material = love.graphics.newShader("assets/shaders/forest-arcade-light.glsl")
+    prismImage=love.graphics.newImage("assets/enemies/arcade/regrowth-prism-rotation-atlas-v1.png")
+    prismImage:setFilter("nearest","nearest")
+    prismQuads={}
+    for row=0,3 do
+        prismQuads[row+1]={}
+        for frame=0,23 do
+            prismQuads[row+1][frame+1]=love.graphics.newQuad(frame*64,row*64,64,64,prismImage:getDimensions())
+        end
+    end
     for kind, spec in pairs(catalog) do
         local image = love.graphics.newImage(spec.file)
         image:setFilter("nearest", "nearest")
@@ -84,6 +93,11 @@ function Art.pose(e, t)
         frame=10+math.min(2,math.floor((e.bossActionFrame or 0)*3))
     end
     if e.reaperState == "charging" then frame=8 end
+    -- The shrine body is intentionally stable. Its old six-frame idle cycle
+    -- advanced at 2.6 fps and read as hitching; only the dedicated 24-frame
+    -- centre prism rotates continuously now. Casting swaps once to a brighter
+    -- authored body pose without pumping the entire silhouette every tick.
+    if spec.prism then frame=e.planterCasting and 7 or 1 end
     local facing = e.facing or spec.facing
     local flip = (e.kind == "squirrel" or spec.biome or spec.directional) and facing/spec.facing or 1
     local scale = spec.width/spec.bodyWidth
@@ -105,6 +119,19 @@ function Art.pose(e, t)
         x=e.x+introX,y=footY+groundSink-bob-(e.hopHeight or 0)+introY,footY=footY,groundSink=groundSink,emergenceCutoff=emergenceCutoff,angle=lean,
         sx=scale*flip*(1+squash)*introSX,sy=scale*(1-squash)*introSY,height=spec.height*scale*introSY,
         alpha=e.entranceAlpha or 1,shadowScale=introSX}
+end
+
+local function drawPrism(e,pose,t)
+    local spec=pose.spec
+    if not spec.prism then return end
+    local clock=e.visualTime or t or 0
+    local fps=e.planterCasting and 24 or 20
+    local frame=math.floor(clock*fps+(e.seed or 0)*2)%24+1
+    local row=(spec.prismRow or 0)+1
+    local scale=(spec.prismWidth or 22)/64*(e.planterCasting and 1.06 or 1)
+    love.graphics.setColor(1,1,1,pose.alpha)
+    love.graphics.draw(prismImage,prismQuads[row][frame],pose.x,pose.y-(spec.prismYOffset or 30),0,
+        scale,scale,32,32)
 end
 
 function Art.drawBody(e, t)
@@ -129,6 +156,7 @@ function Art.drawBody(e, t)
         pose.sx,pose.sy,pose.spec.cell/2,pose.spec.foot)
     love.graphics.setShader(previous)
     if pose.spec.siege then drawSiegeSoilLip(e,pose) end
+    drawPrism(e,pose,t)
 end
 
 -- Draw a defeated enemy while another gameplay effect carries it. This keeps the
@@ -155,6 +183,7 @@ function Art.drawCarried(e, t, x, y, carryScale, angle)
     love.graphics.draw(asset.image, asset.frames[pose.frame], pose.x, pose.y, pose.angle,
         pose.sx, pose.sy, pose.spec.cell / 2, pose.spec.foot)
     love.graphics.setShader(previous)
+    drawPrism(e,pose,t)
     love.graphics.pop()
     e.x, e.y, e.moving = originalX, originalY, originalMoving
 end
