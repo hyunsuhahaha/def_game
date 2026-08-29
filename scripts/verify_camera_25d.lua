@@ -62,6 +62,7 @@ assert(game:find("WorldProjection.begin",1,true) and game:find("WorldProjection.
 assert(not game:find("CameraDepthArt",1,true),"screen-space foreground layer returned")
 assert(not projection:find("backdrop",1,true),"separate backdrop image returned")
 assert(projection:find("canvas",1,true) and projection:find("mesh",1,true),"terrain and actors do not share one projection")
+assert(projection:find('canvas:setFilter("linear","nearest",8)',1,true),"projected ground minification can shimmer while moving")
 assert(projection:find("love.graphics.scale(uniform,uniform)",1,true),"billboard sprite aspect ratio is not uniform")
 assert(game:find("WorldProjection.finish(self.camera)",1,true)<game:find("WorldProjection.drawBillboards",1,true),"billboards are drawn before projected ground")
 local world=assert(io.open("src/world.lua","rb")):read("*a")

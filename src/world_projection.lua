@@ -87,7 +87,13 @@ local function rebuild(width,height,pitch,skyviewBlend,skyPad)
     local padY=math.ceil(height*Projection.overscanY)
     local canvasW,canvasH=width+padX*2,height+padY*2
     local canvas=love.graphics.newCanvas(canvasW,canvasH,{format="rgba8",dpiscale=1})
-    canvas:setFilter("nearest","nearest")
+    -- The ground is continuously minified by the pseudo-perspective mesh.
+    -- Nearest minification chooses a different source texel at every tiny
+    -- camera step, making grass and floor decals crawl. Bilinear minification
+    -- plus anisotropy stabilizes that oblique surface; magnification remains
+    -- nearest so foreground pixel clusters stay crisp. Upright billboards are
+    -- rendered after this canvas and retain their own nearest filters.
+    canvas:setFilter("linear","nearest",8)
     local vertices=meshVertices(width,height,pitch,skyviewBlend,padX,padY,canvasW,canvasH)
     local mesh=love.graphics.newMesh(vertices,"triangles","dynamic")
     mesh:setTexture(canvas)
