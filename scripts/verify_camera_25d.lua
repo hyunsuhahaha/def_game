@@ -17,6 +17,15 @@ assert(math.abs(shakenX-expectedX)<.001 and math.abs(shakenY-expectedY)<.001,"bi
 local centerWorldX,centerWorldY=cam:screenToWorld(shakenX,shakenY)
 assert(math.abs(centerWorldX-cam.renderX)<.001 and math.abs(centerWorldY-cam.renderY)<.001,"shared shake broke pointer inverse")
 cam.shakeX,cam.shakeY=0,0
+local calm=Camera.new(500,400)
+calm.zoom,calm.renderZoom,calm.pitch,calm.perspective=.84,.84,.76,true
+calm.trauma=1
+calm:impulse(120,-80,.08,.08)
+calm:update(1/60,{x=560,y=420},{width=3200,height=2200,playBounds={x=0,y=0,w=3200,h=2200}})
+assert(calm.shakeX==0 and calm.shakeY==0,"2.5D procedural shake still moves the whole screen")
+assert(calm.roll==0,"2.5D roll still rocks the projected world")
+assert(math.abs(calm.renderX-calm.x)<=1.501 and math.abs(calm.renderY-calm.y)<=1.001,"2.5D inertia exceeds the calm envelope")
+assert(math.abs(calm.renderZoom-calm.zoom)<=.0076,"2.5D zoom kick exceeds the calm envelope")
 local topScale=Projection.factor(0,720,.76)
 local bottomScale=Projection.factor(720,720,.76)
 assert(topScale<.9 and bottomScale>1.05 and bottomScale>topScale,"perspective scale range drifted")
@@ -58,4 +67,4 @@ assert(game:find("WorldProjection.finish(self.camera)",1,true)<game:find("WorldP
 local world=assert(io.open("src/world.lua","rb")):read("*a")
 assert(world:find("self.billboardQueue",1,true) and world:find("item.ground",1,true),"ground and billboard passes are not separated")
 assert(game:find("self.camera.userZoom=userZoom",1,true) and game:find("self.camera.renderZoom=self.camera.zoom",1,true),"Ctrl+wheel 2.5D zoom missing")
-print(string.format("CAMERA_25D_OK pitch=.76 inverse=exact scale=%.2f..%.2f spacing=projected ground=warped billboards=uniform",topScale,bottomScale))
+print(string.format("CAMERA_25D_OK pitch=.76 inverse=exact scale=%.2f..%.2f shake=off roll=off recoil=1.5x1 billboards=uniform",topScale,bottomScale))

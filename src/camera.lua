@@ -73,17 +73,23 @@ end
 -- Short world-space camera direction.  It is deliberately small: pixel art
 -- keeps its grid while the foreground/background appear to carry momentum.
 function Camera:impulse(dx,dy,roll,zoom)
-    local perspectiveScale=self.perspective and .55 or 1
-    self.inertiaVX=self.inertiaVX+(dx or 0)
-    self.inertiaVY=self.inertiaVY+(dy or 0)
+    -- A full-screen mesh magnifies tiny camera impulses into visible wobble.
+    -- Keep impact energy in particles/actor animation and admit only a trace
+    -- of positional recoil to a projected camera.
+    local perspectiveScale=self.perspective and .08 or 1
+    self.inertiaVX=self.inertiaVX+(dx or 0)*perspectiveScale
+    self.inertiaVY=self.inertiaVY+(dy or 0)*perspectiveScale
     self.rollVelocity=self.rollVelocity+(roll or 0)*perspectiveScale
-    local zoomLimit=self.perspective and .055 or .12
+    local zoomLimit=self.perspective and .008 or .12
     self.zoomKick=clamp(self.zoomKick+(zoom or 0)*perspectiveScale,-zoomLimit,zoomLimit)
 end
 
 function Camera:updateShake(dt)
     self.shakeClock=(self.shakeClock or 0)+dt
-    local amplitude=(self.trauma or 0)^2*(self.perspective and 4 or 7)*(self.shakeScale or 0)
+    -- Projected ground and every billboard share this offset, so procedural
+    -- shake reads as violent whole-screen vibration in 2.5D. Disable that
+    -- displacement there; hit flashes, particles and sprites still react.
+    local amplitude=(self.trauma or 0)^2*(self.perspective and 0 or 7)*(self.shakeScale or 0)
     local clock=self.shakeClock
     local x=(math.sin(clock*13.1)+math.sin(clock*19.7+.8)*.38)*amplitude/1.38
     local y=(math.sin(clock*16.3+1.4)+math.sin(clock*23.2)*.32)*amplitude/1.32
@@ -157,7 +163,7 @@ function Camera:update(dt, target, world)
     end
     local targetDX,targetDY=targetX-(self.lastTargetX or targetX),targetY-(self.lastTargetY or targetY)
     self.lastTargetX,self.lastTargetY=targetX,targetY
-    local motionScale=self.perspective and .45 or 1
+    local motionScale=self.perspective and .08 or 1
     self.inertiaVX=self.inertiaVX-targetDX*.24*motionScale
     self.inertiaVY=self.inertiaVY-targetDY*.15*motionScale
     self.rollVelocity=self.rollVelocity+clamp(targetDX*-.000045*motionScale,-.0025,.0025)
@@ -168,15 +174,15 @@ function Camera:update(dt, target, world)
     self.inertiaX=(self.inertiaX+self.inertiaVX*dt)*math.exp(-dt*5.2)
     self.inertiaY=(self.inertiaY+self.inertiaVY*dt)*math.exp(-dt*5.2)
     self.rollVelocity=self.rollVelocity*math.exp(-dt*8)
-    local rollLimit=self.perspective and .006 or .018
+    local rollLimit=self.perspective and 0 or .018
     self.roll=clamp((self.roll+self.rollVelocity*dt)*math.exp(-dt*5.5),-rollLimit,rollLimit)
     self.zoomKick=self.zoomKick*math.exp(-dt*6.5)
-    local inertiaLimitX=self.perspective and 10 or 22
-    local inertiaLimitY=self.perspective and 7 or 14
+    local inertiaLimitX=self.perspective and 1.5 or 22
+    local inertiaLimitY=self.perspective and 1 or 14
     self.renderX=self.x+clamp(self.inertiaX,-inertiaLimitX,inertiaLimitX)
     self.renderY=self.y+clamp(self.inertiaY,-inertiaLimitY,inertiaLimitY)
     self.renderZoom=desiredZoom*(1+self.zoomKick)
-    self.trauma = math.max(0, self.trauma - dt * (self.perspective and 2.6 or 1.8))
+    self.trauma = math.max(0, self.trauma - dt * (self.perspective and 5.5 or 1.8))
     self:updateShake(dt)
 end
 
