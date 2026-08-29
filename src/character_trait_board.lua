@@ -450,7 +450,6 @@ function CharacterTraitBoard:draw()
 
     local mx,my=love.mouse.getPosition()
     self.nodeBoxes={}
-    local hoveredNode=nil
     local nodeScale=clamp(self.zoom,.68,1.18)
     for _,node in ipairs(nodes) do
         local cx,cy=self:nodePosition(graph,node)
@@ -459,7 +458,6 @@ function CharacterTraitBoard:draw()
             local box={id=node.id,node=node,cx=cx,cy=cy,x=cx-radius,y=cy-radius,w=radius*2,h=radius*2,scale=nodeScale}
             self.nodeBoxes[#self.nodeBoxes+1]=box
             local hovered=inside(box,mx,my) and not self.drag
-            if hovered then hoveredNode=node; self.selectedNodeId=node.id end
             local target=hovered and 1 or 0
             self.nodeHover[node.id]=(self.nodeHover[node.id] or 0)+(target-(self.nodeHover[node.id] or 0))*.22
             local ok=self.store:status(node.id)
@@ -508,7 +506,7 @@ function CharacterTraitBoard:draw()
     love.graphics.setColor(1,.9,.52,.72); love.graphics.rectangle("line",viewX,viewY,visibleW,visibleH)
 
     local focus=self.store:getNode(self.selectedNodeId) or nodes[1]
-    self:drawCharacterDossier(dossier.x,dossier.y,dossier.w,dossier.h,self.selectedJob,hoveredNode or focus)
+    self:drawCharacterDossier(dossier.x,dossier.y,dossier.w,dossier.h,self.selectedJob,focus)
     if self.messageTime>0 then
         local width=math.min(520,w*.46)
         love.graphics.setColor(.008,.02,.014,.96); love.graphics.rectangle("fill",w/2-width/2,h-54,width,38,7,7)
