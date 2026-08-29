@@ -129,23 +129,35 @@ local milestones = {
 }
 
 local enemyDefs = {
-    squirrel = {name="화난 다람쥐", hp=8, speed=155, damage=4, radius=13, color={.62,.38,.18}, hitCooldown=.85, reward=2},
-    boar = {name="가시 멧돼지", hp=30, speed=100, damage=9, radius=20, color={.4,.27,.19}, hitCooldown=1.1, reward=4},
-    turret = {name="버섯 포탑", hp=22, speed=0, damage=7, radius=18, color={.74,.34,.52}, ranged=true, range=300, fireInterval=1.9, reward=5},
-    ent = {name="엘더 트렌트", hp=260, speed=48, damage=16, radius=42, color={.33,.21,.12}, hitCooldown=1, boss=true,
+    squirrel = {name="화난 다람쥐", category="animal", hp=8, speed=155, damage=4, radius=13, color={.62,.38,.18}, hitCooldown=.85, reward=2},
+    boar = {name="가시 멧돼지", category="animal", hp=30, speed=100, damage=9, radius=20, color={.4,.27,.19}, hitCooldown=1.1, reward=4},
+    turret = {name="버섯 포탑", category="plant", hp=22, speed=0, damage=7, radius=18, color={.74,.34,.52}, ranged=true, range=300, fireInterval=1.9, reward=5},
+    ent = {name="엘더 트렌트", category="plant", hp=260, speed=48, damage=16, radius=42, color={.33,.21,.12}, hitCooldown=1, boss=true,
         slamInterval=3.2, slamRadius=110, slamDamage=20, reward=40},
-    worldtree = {name="세계수", hp=1900, speed=0, damage=0, radius=350, color={.26,.5,.22}, boss=true, finalBoss=true,immovable=true,
+    worldtree = {name="세계수", category="plant", hp=1900, speed=0, damage=0, radius=350, color={.26,.5,.22}, boss=true, finalBoss=true,immovable=true,
         slamInterval=4, slamRadius=330, slamDamage=18, summonInterval=6.5, reward=0},
-    reaper = {name="숲의 사신", hp=550, speed=118, damage=14, radius=24, color={.1,.03,.05}, hitCooldown=.65, reward=60},
-    vineSprout = {name="식충 덩굴괴수", hp=42, speed=0, damage=6, radius=27, color={.35,.65,.25}, ranged=true, thornAttack=true, range=360, fireInterval=1.55, reward=7, hitCooldown=1},
+    reaper = {name="숲의 사신", category="animal", hp=550, speed=118, damage=14, radius=24, color={.1,.03,.05}, hitCooldown=.65, reward=60},
+    vineSprout = {name="식충 덩굴괴수", category="plant", hp=42, speed=0, damage=6, radius=27, color={.35,.65,.25}, ranged=true, thornAttack=true, range=360, fireInterval=1.55, reward=7, hitCooldown=1},
     -- 직접 공격은 없지만, 주기적으로 주변에 쓰러진 나무를 되살린다 — 방치하면
     -- 애써 벤 자리가 다시 채워지니 먼저 처치하는 편이 이득인 "우선 처치" 유형.
-    planter = {name="숲의 재생 성소", hp=55, speed=0, damage=0, radius=24, color={.4,.78,.35}, hitCooldown=1, reward=9, plantInterval=7, plantRadius=190}
+    planter = {name="숲의 재생 성소", category="plant", hp=55, speed=0, damage=0, radius=24, color={.4,.78,.35}, hitCooldown=1, reward=9, plantInterval=7, plantRadius=190}
 }
 
 for kind,def in pairs(BiomeEnemies.definitions) do enemyDefs[kind]=def end
 for kind,def in pairs(AttackPlants.definitions) do enemyDefs[kind]=def end
 for kind,def in pairs(BiomeBosses.definitions) do enemyDefs[kind]=def end
+
+local enemyCategories={plant=true,animal=true}
+local ENEMY_BURN_DURATION,ENEMY_BURN_TICK=4,.5
+for kind,def in pairs(enemyDefs) do
+    assert(enemyCategories[def.category],"enemy definition requires plant/animal category: "..kind)
+end
+ClearcutMode.enemyDefinitions=enemyDefs
+ClearcutMode.enemyCategories=enemyCategories
+
+function ClearcutMode:enemyHasCategory(enemy,category)
+    return enemyCategories[category] and enemy and enemy.def and enemy.def.category==category or false
+end
 
 local function formatTime(value)
     value = math.max(0, math.floor(value))
@@ -699,18 +711,18 @@ function ClearcutMode:damageEnemiesInRadius(x, y, radius, damage, game)
     end
 end
 
-function ClearcutMode:igniteEnemy(e, game, depth)
-    if self.rainSuppressFire or e.burning or e.hp <= 0 then return end
-    e.burning, e.burnTimer, e.fireTickTimer, e.spreadDepth = true, 0, 0, depth or 0
+function ClearcutMode:igniteEnemy(e, game, depth, ignitedAt)
+    if self.rainSuppressFire or not self:enemyHasCategory(e,"plant") or e.burning or e.hp <= 0 then return false end
+    e.burning,e.burnTimer,e.fireTickTimer,e.spreadDepth=true,0,0,depth or 0
+    e.burnDuration,e.fireIgnitedAt=ENEMY_BURN_DURATION,ignitedAt or self.smokerGroundTime or 0
     game.world:igniteFx(e.x, e.y, false)
+    return true
 end
 
 function ClearcutMode:igniteEnemiesInRadius(x, y, radius, game, depth)
     if self.rainSuppressFire then return end
     for _, e in ipairs(self.enemies) do
-        if not e.burning then
-            if CombatGeometry.circleOverlapsTarget(x,y,radius,e) then self:igniteEnemy(e, game, depth) end
-        end
+        if not e.burning and CombatGeometry.circleOverlapsTarget(x,y,radius,e) then self:igniteEnemy(e, game, depth) end
     end
 end
 
@@ -911,6 +923,11 @@ function ClearcutMode:updateDisasters(dt, game)
                     if node.burning then
                         node.burning, node.burnTimer = false, nil
                         for _ = 1, 5 do game.world:addParticle(node.x + love.math.random(-14,14), node.y - 20 - love.math.random(0,18), {.8, .82, .84}, true, false) end
+                    end
+                end
+                for _,enemy in ipairs(self.enemies) do
+                    if enemy.burning then
+                        enemy.burning,enemy.burnTimer,enemy.fireTickTimer=false,nil,nil
                     end
                 end
                 game:setNotice("소나기 — 타오르던 불이 전부 꺼진다!", "food")
@@ -1389,6 +1406,7 @@ function ClearcutMode:updateStrawBales(dt, game)
             if bale.tickTimer <= 0 then
                 bale.tickTimer = .4
                 self:damageEnemiesInRadius(bale.x,bale.y,bale.radius,bale.damage,game)
+                self:igniteEnemiesInRadius(bale.x,bale.y,bale.radius,game,0)
                 -- 불씨를 옮겨붙이는 게 아니라, 반경 안의 나무를 곧바로 지속 피해로 태운다.
                 for _,node in ipairs(game.world.nodes) do
                     if node.rushTree and node.active then
@@ -1482,6 +1500,7 @@ function ClearcutMode:updateOilTrail(dt, game)
             if spot.tickTimer <= 0 then
                 spot.tickTimer = .4
                 self:damageEnemiesInRadius(spot.x, spot.y, 55, 4, game)
+                self:igniteEnemiesInRadius(spot.x,spot.y,55,game,0)
             end
             if now - spot.ignitedAt >= 5 then table.remove(self.oilTrail, i) end
         elseif now - spot.spawnedAt >= 6 then
@@ -1623,6 +1642,7 @@ function ClearcutMode:updateMolotovImpacts(dt, game)
                     flight.hitSet[e] = true
                     e.hp = e.hp - dmg
                     e.visualHit = .14
+                    self:igniteEnemy(e,game,0)
                 end
             end
         end
@@ -1676,6 +1696,35 @@ function ClearcutMode:updateSecondhandSmoke(dt, game)
     end
 end
 
+function ClearcutMode:updateBurningEnemies(dt,game)
+    if self.rainSuppressFire then
+        for _,e in ipairs(self.enemies) do
+            if e.burning then e.burning,e.burnTimer,e.fireTickTimer=false,nil,nil end
+        end
+        return
+    end
+    local damage=5+self:power("molotov")*3
+    for _,e in ipairs(self.enemies) do
+        if e.burning then
+            -- Enemy fire is one boolean state, never a stack. Additional fire
+            -- sources are ignored until this fixed lifetime ends.
+            local duration=e.burnDuration or ENEMY_BURN_DURATION
+            local activeDt=math.min(dt,math.max(0,duration-(e.burnTimer or 0)))
+            e.burnTimer=(e.burnTimer or 0)+activeDt
+            e.fireTickTimer=(e.fireTickTimer or 0)-activeDt
+            while e.fireTickTimer<-.000000001 and activeDt>0 do
+                e.fireTickTimer=e.fireTickTimer+ENEMY_BURN_TICK
+                e.hp=e.hp-damage
+                e.visualHit=.14
+                for _=1,3 do game.world:addParticle(e.x,e.y-12,{1,.35,.18},true,false) end
+            end
+            if e.burnTimer>=duration then
+                e.burning,e.burnTimer,e.fireTickTimer=false,nil,nil
+            end
+        end
+    end
+end
+
 function ClearcutMode:updateFire(dt, game)
     local molotovLevel = self:levelOf("molotov")
     if molotovLevel > 0 then
@@ -1725,21 +1774,7 @@ function ClearcutMode:updateFire(dt, game)
             end
         end
     end
-    local enemyBurnDamage = 5 + self:power("molotov") * 3
-    for _, e in ipairs(self.enemies) do
-        if e.burning then
-            e.burnTimer = e.burnTimer + dt
-            e.fireTickTimer = (e.fireTickTimer or 0) - dt
-            if e.fireTickTimer <= 0 then
-                e.fireTickTimer = .5
-                local falloff = .5 ^ (e.spreadDepth or 0)
-                e.hp = e.hp - enemyBurnDamage * falloff
-                e.visualHit = .14
-                for _ = 1, 3 do game.world:addParticle(e.x, e.y - 12, {1, .35, .18}, true, false) end
-            end
-            if e.burnTimer >= burnDuration then e.burning = false end
-        end
-    end
+    self:updateBurningEnemies(dt,game)
 end
 
 -- 흡연자 전용 SPACE 액션: 담배 연기로 도넛(스모크 링)을 만들어 입에서 앞으로 쏜다.
@@ -4927,6 +4962,10 @@ function ClearcutMode:queueWorldActors(queue,t)
     for _, value in ipairs(self.enemies) do
         local enemy=value
         queue[#queue+1]={x=enemy.x,y=ForestArt.footY(enemy),anchorY=enemy.y,draw=function() ForestArt.drawBody(enemy,t) end}
+        if enemy.burning then
+            queue[#queue+1]={x=enemy.x,y=ForestArt.footY(enemy)+.1,anchorY=enemy.y,
+                draw=function() CigaretteButtArt.drawEnemyFire(enemy,groundTime) end}
+        end
     end
     for _, value in ipairs(self.vineSpawns) do
         local sprout=value

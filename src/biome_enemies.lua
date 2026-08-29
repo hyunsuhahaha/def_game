@@ -1,10 +1,10 @@
 -- Regional fauna. Attack patterns are game fiction, not wildlife behaviour claims.
 local Enemies={}
 Enemies.definitions={
-    crocodile={name="늪지 바다악어",hp=40,speed=70,damage=12,radius=26,color={.30,.42,.20},hitCooldown=1.3,reward=7,biomeAttack=true},
-    angryLemur={name="화난 알락꼬리여우원숭이",hp=14,speed=170,damage=5,radius=15,color={.65,.66,.59},hitCooldown=.95,reward=3,biomeAttack=true},
-    marshCrab={name="늪지 집게게",hp=14,speed=90,damage=6,radius=15,color={.73,.34,.18},hitCooldown=1.1,reward=3},
-    shoreCrab={name="해변 집게게",hp=24,speed=95,damage=7,radius=17,color={.79,.40,.20},hitCooldown=1.1,reward=4},
+    crocodile={name="늪지 바다악어",category="animal",hp=40,speed=70,damage=12,radius=26,color={.30,.42,.20},hitCooldown=1.3,reward=7,biomeAttack=true},
+    angryLemur={name="화난 알락꼬리여우원숭이",category="animal",hp=14,speed=170,damage=5,radius=15,color={.65,.66,.59},hitCooldown=.95,reward=3,biomeAttack=true},
+    marshCrab={name="늪지 집게게",category="animal",hp=14,speed=90,damage=6,radius=15,color={.73,.34,.18},hitCooldown=1.1,reward=3},
+    shoreCrab={name="해변 집게게",category="animal",hp=24,speed=95,damage=7,radius=17,color={.79,.40,.20},hitCooldown=1.1,reward=4},
 }
 local replacements={
     mangrove={squirrel="marshCrab",boar="crocodile",turret="vineSprout"},

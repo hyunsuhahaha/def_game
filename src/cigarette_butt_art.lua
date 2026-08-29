@@ -91,6 +91,30 @@ function Art.drawTreeFire(node,time)
     fx(2,node.x,node.y-45,64,120,time,.6)
 end
 
+function Art.drawEnemyFire(enemy,time)
+    if not enemy.burning then return end
+    local radius=(enemy.def and enemy.def.radius) or 24
+    local age=math.max(0,time-(enemy.fireIgnitedAt or time))
+    local duration=enemy.burnDuration or 4
+    local grow=.35+.65*math.min(1,age/.35)
+    local fade=math.min(1,math.max(0,(duration-(enemy.burnTimer or 0))/.3))
+    local count=radius>=120 and 7 or (radius>=50 and 3 or 2)
+    local spread=math.min(245,radius*.72)
+    local flameW=math.min(105,math.max(30,radius*.62))*grow
+    local flameH=math.min(175,math.max(58,radius*1.05))*grow
+    for i=1,count do
+        local q=count==1 and 0 or (i-1)/(count-1)-.5
+        local lift=radius>=120 and ((i-1)%3)*68 or ((i-1)%2)*radius*.28
+        local x=enemy.x+q*spread*2
+        local y=enemy.y-lift+3
+        local phase=i*.71+(enemy.seed or 0)
+        fx(1,x,y,flameW*(.82+(i%3)*.09),flameH*(.82+(i%2)*.14),time+phase,fade)
+    end
+    local smokeWidth=math.min(280,math.max(56,radius*1.25))
+    local smokeHeight=math.min(300,math.max(105,radius*1.6))
+    fx(2,enemy.x,enemy.y-math.min(190,radius*.72),smokeWidth,smokeHeight,time+.4,.52*fade)
+end
+
 function Art.drawFlight(flight,time)
     local x,y,p=Butts.flightPosition(flight)
     local angle=(flight.landingAngle or .25)-(1-p)*math.pi*4

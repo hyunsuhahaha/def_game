@@ -1,11 +1,11 @@
 local Plants={}
 local Geometry=require("src.combat_geometry")
 Plants.definitions={
-    thornHunter={name="가시덩굴 사냥꾼",hp=46,speed=0,damage=8,radius=27,reward=7,plantAttack=true,range=350,attackInterval=2.4},
-    hammerBloom={name="망치 식인꽃",hp=68,speed=0,damage=15,radius=31,reward=9,plantAttack=true,range=205,attackInterval=3.0},
-    seedPod={name="폭발 씨앗 꼬투리",hp=38,speed=0,damage=5,radius=25,reward=7,plantAttack=true,range=390,attackInterval=2.8},
-    bambooCannon={name="대나무 압축포",hp=54,speed=0,damage=12,radius=28,reward=9,plantAttack=true,range=470,attackInterval=3.4},
-    resinSprayer={name="송진 분사목",hp=62,speed=0,damage=5,radius=30,reward=9,plantAttack=true,range=330,attackInterval=3.8},
+    thornHunter={name="가시덩굴 사냥꾼",category="plant",hp=46,speed=0,damage=8,radius=27,reward=7,plantAttack=true,range=350,attackInterval=2.4},
+    hammerBloom={name="망치 식인꽃",category="plant",hp=68,speed=0,damage=15,radius=31,reward=9,plantAttack=true,range=205,attackInterval=3.0},
+    seedPod={name="폭발 씨앗 꼬투리",category="plant",hp=38,speed=0,damage=5,radius=25,reward=7,plantAttack=true,range=390,attackInterval=2.8},
+    bambooCannon={name="대나무 압축포",category="plant",hp=54,speed=0,damage=12,radius=28,reward=9,plantAttack=true,range=470,attackInterval=3.4},
+    resinSprayer={name="송진 분사목",category="plant",hp=62,speed=0,damage=5,radius=30,reward=9,plantAttack=true,range=330,attackInterval=3.8},
 }
 
 local function aim(e,game)

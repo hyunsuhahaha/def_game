@@ -42,43 +42,54 @@ local function land(mode,flight,at)
     return butt
 end
 
-local function candidate(butt,nodes)
-    local target,nearest=nil,butt.radius*butt.radius+1
+local function candidate(butt,mode,nodes)
+    local target,targetKind,nearest=nil,nil,butt.radius*butt.radius+1
     for _,node in ipairs(nodes) do
         if node.rushTree and node.active and not node.burning and not node.cigaretteEmber then
             local distance=(node.x-butt.x)^2+(node.y-butt.y)^2
-            if distance<=butt.radius^2 and distance<nearest then target,nearest=node,distance end
+            if distance<=butt.radius^2 and distance<nearest then target,targetKind,nearest=node,"tree",distance end
         end
     end
-    return target,math.sqrt(nearest)
+    for _,enemy in ipairs(mode.enemies or {}) do
+        if enemy.def and enemy.def.category=="plant" and enemy.hp>0 and not enemy.burning and not enemy.cigaretteEmber then
+            local distance=(enemy.x-butt.x)^2+(enemy.y-butt.y)^2
+            if distance<=butt.radius^2 and distance<nearest then target,targetKind,nearest=enemy,"enemy",distance end
+        end
+    end
+    return target,targetKind,math.sqrt(nearest)
 end
 
 local function attempt(mode,butt,at,game)
     butt.attempts=butt.attempts+1; butt.lastAttemptAt=at
     butt.nextAttemptAt=at+Butts.interval
-    local target,distance=candidate(butt,game.world.nodes)
+    local target,targetKind,distance=candidate(butt,mode,game.world.nodes)
     if not target then return end
     local heat=1-.35*(at-butt.bornAt)/Butts.lifetime
     local chance=math.min(.75,Butts.baseChance+mode:levelOf("dry_forest")*.06)*heat*(1-.35*distance/butt.radius)
     if love.math.random()>=chance then return end
     local duration=.55+.25*distance/butt.radius
     local tipX,tipY=Butts.tip(butt,at)
-    local transfer={x=tipX,y=tipY,tx=target.x,ty=target.y,target=target,
+    local transfer={x=tipX,y=tipY,tx=target.x,ty=target.y,target=target,targetKind=targetKind,
         startAt=at,arrivesAt=at+duration,duration=duration,butt=butt}
-    target.cigaretteEmber=transfer -- reserve one tree, without marking it burning
+    target.cigaretteEmber=transfer -- reserve one eligible target without marking it burning
     butt.lastTransferAt=at
     mode.emberTransfers[#mode.emberTransfers+1]=transfer
 end
 
-local function arrive(mode,transfer,at)
+local function arrive(mode,transfer,at,game)
     local node=transfer.target
     local owned=node.cigaretteEmber==transfer
     release(transfer)
-    if not owned or mode.rainSuppressFire or not node.active or node.burning then return end
+    if not owned or mode.rainSuppressFire or node.burning then return end
     if (node.x-transfer.butt.x)^2+(node.y-transfer.butt.y)^2>transfer.butt.radius^2 then return end
-    node.burning,node.burnTimer,node.fireTickTimer=true,0,0
-    node.spreadDepth=0
-    node.cigaretteIgnitedAt=at
+    if transfer.targetKind=="enemy" then
+        if node.hp<=0 or not mode:igniteEnemy(node,game,0,at) then return end
+    else
+        if not node.active then return end
+        node.burning,node.burnTimer,node.fireTickTimer=true,0,0
+        node.spreadDepth=0
+        node.cigaretteIgnitedAt=at
+    end
     mode.emberArrivals[#mode.emberArrivals+1]={x=node.x,y=node.y,startAt=at,expiresAt=at+.65}
 end
 
@@ -117,7 +128,7 @@ function Butts.update(mode,dt,game)
                 end
             end
             if not event or at>finish+1e-9 then break end
-            if event=="arrive" then arrive(mode,object,at); table.remove(mode.emberTransfers,index)
+            if event=="arrive" then arrive(mode,object,at,game); table.remove(mode.emberTransfers,index)
             elseif event=="expire" then object.phase="cold"; object.extinguishedAt=at; object.coldUntil=at+Butts.coldLifetime
             else attempt(mode,object,at,game) end
         end

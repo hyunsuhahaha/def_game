@@ -1,11 +1,11 @@
 local Bosses={}
 
 Bosses.definitions={
-    stumpWarden={name="잘린 숲의 감시목",hp=680,speed=46,damage=13,radius=58,color={.58,.43,.20},hitCooldown=1,boss=true,finalBoss=true,biomeBoss=true,reward=0},
-    hollowOak={name="속빈 고목왕",hp=1250,speed=38,damage=18,radius=82,color={.52,.43,.22},hitCooldown=1,boss=true,finalBoss=true,biomeBoss=true,reward=0},
-    rootjaw={name="뿌리턱 악어왕",hp=1380,speed=54,damage=20,radius=88,color={.25,.52,.42},hitCooldown=1,boss=true,finalBoss=true,biomeBoss=true,reward=0},
-    baobabTyrant={name="바오밥 폭군",hp=1160,speed=72,damage=19,radius=70,color={.78,.48,.24},hitCooldown=.9,boss=true,finalBoss=true,biomeBoss=true,reward=0},
-    islandHermit={name="섬등 소라게",hp=1460,speed=48,damage=20,radius=80,color={.72,.38,.62},hitCooldown=1,boss=true,finalBoss=true,biomeBoss=true,reward=0},
+    stumpWarden={name="잘린 숲의 감시목",category="plant",hp=680,speed=46,damage=13,radius=58,color={.58,.43,.20},hitCooldown=1,boss=true,finalBoss=true,biomeBoss=true,reward=0},
+    hollowOak={name="속빈 고목왕",category="plant",hp=1250,speed=38,damage=18,radius=82,color={.52,.43,.22},hitCooldown=1,boss=true,finalBoss=true,biomeBoss=true,reward=0},
+    rootjaw={name="뿌리턱 악어왕",category="animal",hp=1380,speed=54,damage=20,radius=88,color={.25,.52,.42},hitCooldown=1,boss=true,finalBoss=true,biomeBoss=true,reward=0},
+    baobabTyrant={name="바오밥 폭군",category="plant",hp=1160,speed=72,damage=19,radius=70,color={.78,.48,.24},hitCooldown=.9,boss=true,finalBoss=true,biomeBoss=true,reward=0},
+    islandHermit={name="섬등 소라게",category="animal",hp=1460,speed=48,damage=20,radius=80,color={.72,.38,.62},hitCooldown=1,boss=true,finalBoss=true,biomeBoss=true,reward=0},
 }
 
 Bosses.byMap={beginner="stumpWarden",forest="hollowOak",mangrove="rootjaw",madagascar="baobabTyrant",island="islandHermit"}
