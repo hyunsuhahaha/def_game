@@ -38,6 +38,7 @@ local CombatGeometry = require("src.combat_geometry")
 local Maps = require("src.clearcut_maps")
 local Synergies = require("src.clearcut_synergies")
 local SkillBranches = require("src.clearcut_skill_branches")
+local SynergyUI = require("src.synergy_ui")
 
 local ClearcutMode = {}
 ClearcutMode.__index = ClearcutMode
@@ -5926,24 +5927,36 @@ local function drawOffscreenIndicators(self, game, fonts, w, h, t)
     end
 end
 
--- 세로 한 줄짜리 아이콘 스택. 텍스트 없이 아이콘 + 레벨 숫자만으로 지금까지
--- 찍은 스킬을 보여준다. 트랙별로 묶고, 그 안에서는 레벨 높은 순으로 정렬.
+-- 태그 엠블럼을 중심으로 단계, 레벨 잠금, 실제 기여 스킬을 읽는 상세 보드.
 local function drawSynergyTooltip(mode,def,count,x,y,fonts,screenW,screenH)
-    local w=350;local h=62+#def.thresholds*34
+    local owned={}
+    for id,level in pairs(mode.levels or {})do
+        if level>0 then for _,tag in ipairs(Synergies.tagsFor(id))do if tag==def.id then
+            local skill=mode:getUpgradeDefinition(id);owned[#owned+1]=skill and skill.name or id
+        end end end
+    end
+    table.sort(owned)
+    local w=414;local h=92+#def.thresholds*47+(#owned>0 and 34 or 0)
     x=math.min(x,screenW-w-12);y=math.min(y,screenH-h-12)
-    love.graphics.setColor(.025,.04,.035,.97);love.graphics.rectangle("fill",x,y,w,h,6,6)
-    love.graphics.setColor(def.color);love.graphics.setLineWidth(2);love.graphics.rectangle("line",x+.5,y+.5,w-1,h-1,6,6)
-    love.graphics.setFont(fonts.heading);love.graphics.setColor(1,.96,.84)
-    love.graphics.print(def.name.."  "..count,x+16,y+12)
+    SynergyUI.drawPanel(x,y,w,h,def.color,.98)
+    SynergyUI.drawEmblem(def.id,x+42,y+42,64,true)
+    love.graphics.setFont(fonts.heading);love.graphics.setColor(1,.96,.84);love.graphics.print(def.name,x+80,y+17)
+    love.graphics.setFont(fonts.small);love.graphics.setColor(def.color)
+    love.graphics.print("보유 "..count.." · 서로 다른 스킬로 활성화",x+80,y+48)
     love.graphics.setFont(fonts.small)
     for i,threshold in ipairs(def.thresholds)do
-        local active=Synergies.breakpointActive(mode,def.id,threshold,count);local yy=y+44+(i-1)*34
+        local active=Synergies.breakpointActive(mode,def.id,threshold,count);local yy=y+82+(i-1)*47
         local gate=def.minLevel and def.minLevel[threshold] or 1
-        love.graphics.setColor(active and def.color or {.42,.48,.44})
-        love.graphics.rectangle("fill",x+16,yy+2,28,22,4,4)
-        love.graphics.setColor(active and {1,1,.94} or {.66,.7,.67})
-        love.graphics.printf(tostring(threshold),x+16,yy+7,28,"center")
-        love.graphics.printf((gate>1 and "Lv."..gate.." · " or "")..def.text[threshold],x+54,yy+5,w-70,"left")
+        SynergyUI.drawBreakpoint(x+35,yy+18,38,threshold,active,fonts.small,def.color)
+        love.graphics.setColor(active and {1,.96,.82} or {.55,.60,.56})
+        love.graphics.print(active and "활성" or (count>=threshold and "레벨 대기" or "잠김"),x+64,yy+2)
+        love.graphics.setColor(active and {.86,.91,.84} or {.50,.54,.50})
+        love.graphics.printf((gate>1 and "Lv."..gate.." · " or "")..def.text[threshold],x+64,yy+20,w-80,"left")
+    end
+    if #owned>0 then
+        local yy=y+82+#def.thresholds*47
+        love.graphics.setColor(def.color[1],def.color[2],def.color[3],.24);love.graphics.line(x+18,yy,x+w-18,yy)
+        love.graphics.setColor(.68,.75,.68);love.graphics.printf("기여 스킬  "..table.concat(owned," · "),x+18,yy+10,w-36,"left")
     end
 end
 
@@ -5957,17 +5970,14 @@ function ClearcutMode:drawSkillTracker(fonts)
     end
     if #rows==0 then return end
     table.sort(rows,function(a,b)if a.tier~=b.tier then return a.tier>b.tier end;if a.count~=b.count then return a.count>b.count end;return a.def.id<b.def.id end)
-    local x0,y0,w,rowH,gap=16,254,112,34,4;local mx,my=love.mouse.getPosition();local hovered
+    local compact=love.graphics.getHeight()<650
+    local x0,y0,w,rowH,gap=16,compact and 168 or 254,compact and 140 or 148,compact and 40 or 48,compact and 3 or 5
+    local mx,my=love.mouse.getPosition();local hovered
     self.synergyBoxes={}
-    love.graphics.setColor(.025,.04,.035,.92);love.graphics.rectangle("fill",x0,y0,w,#rows*(rowH+gap)+gap,6,6)
     for i,row in ipairs(rows)do
-        local x,y=x0+4,y0+4+(i-1)*(rowH+gap);local def=row.def
-        local over=mx>=x and mx<=x+w-8 and my>=y and my<=y+rowH
-        self.synergyBoxes[i]={x=x,y=y,w=w-8,h=rowH,id=def.id}
-        love.graphics.setColor(def.color[1]*.18,def.color[2]*.18,def.color[3]*.18,over and 1 or .92)
-        love.graphics.rectangle("fill",x,y,w-8,rowH,4,4)
-        love.graphics.setColor(def.color);love.graphics.setLineWidth(over and 2 or 1)
-        love.graphics.rectangle("line",x+.5,y+.5,w-9,rowH-1,4,4)
+        local x,y=x0,y0+(i-1)*(rowH+gap);local def=row.def
+        local over=mx>=x and mx<=x+w and my>=y and my<=y+rowH
+        self.synergyBoxes[i]={x=x,y=y,w=w,h=rowH,id=def.id}
         local nextAt,nextLevel
         for _,threshold in ipairs(def.thresholds)do
             if not Synergies.breakpointActive(self,def.id,threshold,row.count)then
@@ -5976,11 +5986,16 @@ function ClearcutMode:drawSkillTracker(fonts)
         end
         local waitingLevel=nextAt and row.count>=nextAt and (self.level or 1)<nextLevel
         local progress=waitingLevel and math.min(1,(self.level or 1)/nextLevel) or (nextAt and math.min(1,row.count/nextAt) or 1)
-        love.graphics.setColor(def.color[1],def.color[2],def.color[3],.34);love.graphics.rectangle("fill",x+1,y+rowH-4,(w-10)*progress,3)
-        love.graphics.setFont(fonts.small);love.graphics.setColor(1,.96,.84)
-        love.graphics.print(def.name,x+9,y+10)
-        love.graphics.setColor(row.tier>0 and def.color or {.72,.76,.72})
-        love.graphics.printf(waitingLevel and ("Lv"..nextLevel) or (row.count.."/"..tostring(nextAt or row.count)),x+w-48,y+10,32,"right")
+        SynergyUI.drawPanel(x+18,y+3,w-18,rowH-6,def.color,over and .98 or .88)
+        SynergyUI.drawSocket(def.id,x+22,y+rowH/2,compact and 42 or 48,row.tier>0,1)
+        love.graphics.setFont(fonts.small);love.graphics.setColor(1,.96,.84);love.graphics.print(def.name,x+48,y+(compact and 4 or 8))
+        local countText=waitingLevel and ("Lv"..nextLevel) or (row.count.." / "..tostring(nextAt or row.count))
+        love.graphics.setColor(row.tier>0 and def.color or {.72,.76,.72});love.graphics.printf(countText,x+48,y+(compact and 20 or 25),48,"left")
+        for tierIndex,threshold in ipairs(def.thresholds)do
+            local active=Synergies.breakpointActive(self,def.id,threshold,row.count)
+            SynergyUI.drawBreakpoint(x+104+(tierIndex-1)*22,y+rowH-17,20,threshold,active,fonts.small,def.color)
+        end
+        love.graphics.setColor(def.color[1],def.color[2],def.color[3],.60);love.graphics.rectangle("fill",x+48,y+rowH-4,48*progress,2)
         if over then hovered=row end
     end
     if hovered then drawSynergyTooltip(self,hovered.def,hovered.count,x0+w+10,my-18,fonts,love.graphics.getWidth(),love.graphics.getHeight())end
@@ -6594,12 +6609,9 @@ function ClearcutMode:drawSelectionContent(game,fonts,w,h)
             local syn=Synergies.forTag(tag);local before,after=Synergies.previewCount(self,def.id,tag)
             local tagX=x+20+(tagIndex-1)*(tagW+tagGap);local threshold=Synergies.nextThreshold(tag,after)
             local activated=after>before and threshold and after>=threshold
-            love.graphics.setFont(fonts.small);love.graphics.setColor(syn.color[1],syn.color[2],syn.color[3],.22)
-            love.graphics.rectangle("fill",tagX,tagY,tagW,24,5,5);love.graphics.setColor(syn.color);love.graphics.setLineWidth(activated and 2.2 or 1.2)
-            love.graphics.rectangle("line",tagX+.5,tagY+.5,tagW-1,23,5,5);love.graphics.setColor(1,.96,.84)
             local countText=after==before and tostring(after)or(before.."→"..after)
-            love.graphics.printf(syn.name.." "..countText,tagX,tagY+6,tagW,"center")
-            if mx>=tagX and mx<=tagX+tagW and my>=tagY and my<=tagY+24 then synergyHover={def=syn,count=after}end
+            SynergyUI.drawBadge(syn,tagX,tagY,tagW,30,countText,activated or self:synergyTier(tag)>0,fonts.small)
+            if mx>=tagX and mx<=tagX+tagW and my>=tagY and my<=tagY+30 then synergyHover={def=syn,count=after}end
         end
         love.graphics.setColor(1,1,1,.17); love.graphics.line(x+22,descY-11,x+cardW-22,descY-11)
         local desc=selectionDescription(def)

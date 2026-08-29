@@ -76,8 +76,11 @@ local source=assert(io.open("src/clearcut_mode.lua","rb")):read("*a")
 assert(source:find("drawSynergyTooltip",1,true) and source:find("self.synergyBoxes",1,true),"hoverable synergy HUD missing")
 assert(source:find("Synergies.previewCount",1,true),"draft cards do not preview synergy count changes")
 assert(source:find("waitingLevel",1,true) and source:find('"Lv"..nextLevel',1,true),"HUD does not expose level-gated breakpoints")
+assert(source:find('require("src.synergy_ui")',1,true) and source:find("SynergyUI.drawBadge",1,true),"draft/HUD did not adopt icon-led synergy UI")
+local synergyUi=assert(io.open("src/synergy_ui.lua","rb")):read("*a")
+assert(synergyUi:find("synergy%-emblems%-pixel%-v1%.png") and synergyUi:find("synergy%-chrome%-pixel%-v1%.png"),"synergy atlas/chrome is not wired")
 local dossier=assert(io.open("docs/character_dossier.html","rb")):read("*a")
-assert(dossier:find("const SYNERGIES",1,true) and dossier:find("const SYNERGY_TAGS",1,true),"dossier has no synergy reference")
+assert(dossier:find("const SYNERGIES",1,true) and dossier:find("const SYNERGY_TAGS",1,true) and dossier:find("synergy%-emblems%-pixel%-v1%.png"),"dossier has no icon synergy reference")
 for id in pairs(seen)do assert(dossier:find(id..':[',1,true),"dossier is missing tags for "..id)end
 for skill in pairs(Branches.definitions)do assert(dossier:find(skill..':[',1,true),"dossier is missing branch choices for "..skill)end
 print("CLEARCUT_SYNERGIES_OK live_tags="..liveCount.." branches=6 hover=cards+HUD ignition=real pressure=2.65 mass_clear=queued")

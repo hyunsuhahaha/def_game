@@ -355,10 +355,16 @@
     white-space: nowrap;
   }
   .synergy-chip {
-    display:inline-block; margin:3px 5px 0 0; padding:3px 8px;
+    display:inline-flex; align-items:center; gap:5px; margin:3px 5px 0 0; padding:2px 8px 2px 3px;
     border:1px solid var(--syn); color:var(--syn); background:color-mix(in srgb,var(--syn) 12%,transparent);
     font-size:11px; font-weight:800; letter-spacing:.04em;
   }
+  .synergy-icon { width:28px; height:28px; flex:0 0 28px; image-rendering:pixelated;
+    background-image:url('../assets/ui/synergy-emblems-pixel-v1.png'); background-size:196px 28px; background-repeat:no-repeat; }
+  .synergy-momentum{background-position:0 0}.synergy-field{background-position:-28px 0}
+  .synergy-ignition{background-position:-56px 0}.synergy-growth{background-position:-84px 0}
+  .synergy-impact{background-position:-112px 0}.synergy-wild{background-position:-140px 0}
+  .synergy-harvest{background-position:-168px 0}
   .branch-list { margin-top:7px; color:var(--paper-dim); font-size:12px; line-height:1.6; }
   .req-none { color: var(--ink-dim); font-size: 11.5px; }
 
@@ -880,7 +886,7 @@ function renderSkillsPanel(job, q, jobKey) {
       const matches = !q || n.name.toLowerCase().includes(q) || n.desc.toLowerCase().includes(q);
       if (matches) visibleCount++;
       const isSignature = SIGNATURE[jobKey] === n.id;
-      const tags = (SYNERGY_TAGS[n.id] || []).map(id => `<span class="synergy-chip" style="--syn:${SYNERGIES[id].color}">${SYNERGIES[id].name}</span>`).join("");
+      const tags = (SYNERGY_TAGS[n.id] || []).map(id => `<span class="synergy-chip" style="--syn:${SYNERGIES[id].color}"><i class="synergy-icon synergy-${id}"></i>${SYNERGIES[id].name}</span>`).join("");
       const branches = SKILL_BRANCHES[n.id] ? `<div class="branch-list"><b>3레벨 전문화(택1)</b><br>${SKILL_BRANCHES[n.id].join("<br>")}</div>` : "";
       return `<tr class="${matches ? "" : "is-hidden"}">
         <td><span class="node-name">${n.name}${isSignature ? '<span class="signature-badge" style="--accent:'+job.accent+'">전직 시그니처</span>' : ""}</span><div>${tags}</div></td>
@@ -899,7 +905,7 @@ function renderSkillsPanel(job, q, jobKey) {
     </div>`;
   }).join("");
 
-  const synergyRows = Object.values(SYNERGIES).map(s => `<tr><td><span class="synergy-chip" style="--syn:${s.color}">${s.name}</span></td><td>${s.tiers.join("<br>")}</td></tr>`).join("");
+  const synergyRows = Object.entries(SYNERGIES).map(([id,s]) => `<tr><td><span class="synergy-chip" style="--syn:${s.color}"><i class="synergy-icon synergy-${id}"></i>${s.name}</span></td><td>${s.tiers.join("<br>")}</td></tr>`).join("");
   tiersHtml = `<div class="tier"><div class="tier-label">태그 시너지 · 서로 다른 보유 스킬 수로 활성화</div><div class="table-scroll"><table><colgroup><col style="width:22%"><col style="width:78%"></colgroup><thead><tr><th>태그</th><th>활성 구간</th></tr></thead><tbody>${synergyRows}</tbody></table></div></div>` + tiersHtml;
 
   const fusions = FUSIONS[jobKey] || [];
@@ -956,7 +962,7 @@ function renderAll() {
   document.getElementById("masthead-stamp").textContent = MODE_META[mode].stamp;
   document.getElementById("footer").textContent = mode === "traits"
     ? "src/character_traits.lua 기준 · 노드 순서는 선행 조건 깊이(단계) 순"
-    : "src/clearcut_mode.lua + clearcut_synergies.lua + clearcut_skill_branches.lua + clearcut_fusions.lua 기준 · 자동 스킬 피해는 저레벨 완만/6레벨 완성 · 시너지 2개는 Lv.6, 4개는 Lv.28부터 · 씨앗 지뢰/부메랑 도끼는 3레벨에 전문화 택1";
+    : "src/clearcut_mode.lua + clearcut_synergies.lua + synergy_ui.lua + clearcut_skill_branches.lua + clearcut_fusions.lua 기준 · 시너지 전용 64px 엠블럼 HUD/카드/호버 적용 · 자동 스킬 피해는 저레벨 완만/6레벨 완성 · 시너지 2개는 Lv.6, 4개는 Lv.28부터 · 씨앗 지뢰/부메랑 도끼는 3레벨에 전문화 택1";
   buildModeSwitch();
   buildTabs();
   renderPanel(document.getElementById("search").value);

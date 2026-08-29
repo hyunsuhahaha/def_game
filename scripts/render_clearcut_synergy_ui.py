@@ -1,6 +1,6 @@
 """Replay the real Lua synergy draft/HUD draw paths without opening a window."""
 from pathlib import Path
-from PIL import Image,ImageDraw,ImageFont
+from PIL import Image,ImageDraw,ImageFont,ImageChops
 import json,math
 from headless_lua import run
 ROOT=Path(__file__).resolve().parents[1];OUT=ROOT/'docs/previews'
@@ -34,19 +34,27 @@ def render_ui(path,size):
    draw.multiline_text((tx,y),text,font=font,fill=color,align=align,anchor='ma' if align=='center' else ('ra' if align=='right' else 'la'))
   elif kind=='draw':
    image=Image.open(ROOT/op['file']).convert('RGBA');x,y=args[:2]
+   quad=op.get('quad')
+   if quad:
+    qx,qy,qw,qh=map(round,quad[:4]);image=image.crop((qx,qy,qx+qw,qy+qh))
    sx=args[3] if len(args)>3 else 1;sy=args[4] if len(args)>4 else sx
    out=image.resize((max(1,round(image.width*abs(sx))),max(1,round(image.height*abs(sy)))),Image.Resampling.NEAREST)
-   canvas.alpha_composite(out,(round(x),round(y)))
+   if sx<0:out=out.transpose(Image.Transpose.FLIP_LEFT_RIGHT)
+   if sy<0:out=out.transpose(Image.Transpose.FLIP_TOP_BOTTOM)
+   rgb=ImageChops.multiply(out.convert('RGB'),Image.new('RGB',out.size,color[:3]))
+   alpha=out.getchannel('A').point(lambda a:a*color[3]//255);out=rgb.convert('RGBA');out.putalpha(alpha)
+   ox=args[5] if len(args)>5 else 0;oy=args[6] if len(args)>6 else 0
+   canvas.alpha_composite(out,(round(x-ox*abs(sx)),round(y-oy*abs(sy))))
  return canvas.convert('RGB')
 def main():
  run(ROOT/'scripts/verify_clearcut_synergies.lua')
  run(ROOT/'scripts/capture_clearcut_synergy_ui.lua')
  draft=render_ui(OUT/'clearcut-synergy-draft-ui-draws.json',(1280,720));hud=render_ui(OUT/'clearcut-synergy-hud-ui-draws.json',(520,520))
  branch=render_ui(OUT/'clearcut-synergy-branch-ui-draws.json',(1280,720))
- draft.save(OUT/'clearcut-synergy-draft-ui-v1.png');hud.save(OUT/'clearcut-synergy-hud-ui-v1.png');branch.save(OUT/'clearcut-synergy-branch-ui-v1.png')
+ draft.save(OUT/'clearcut-synergy-draft-ui-v2.png');hud.save(OUT/'clearcut-synergy-hud-ui-v2.png');branch.save(OUT/'clearcut-synergy-branch-ui-v2.png')
  canvas=Image.new('RGB',(1280,1280),(18,25,22));canvas.paste(draft,(0,0));canvas.paste(hud,(0,740))
  draw=ImageDraw.Draw(canvas);f=ImageFont.truetype(str(ROOT/'assets/font-korean-regular.ttf'),18)
  draw.text((540,780),'왼쪽 빌드 시너지 · 카드/행 마우스 오버 효과 설명',font=f,fill=(203,218,190))
- canvas.save(OUT/'clearcut-synergy-ui-v1.png')
+ canvas.save(OUT/'clearcut-synergy-ui-v2.png')
  print('CLEARCUT_SYNERGY_UI_RENDER_OK renderer=Pillow-command-replay shaders=0 window=none')
 if __name__=='__main__':main()
