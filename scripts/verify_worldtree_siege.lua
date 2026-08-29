@@ -137,4 +137,15 @@ assert(camera.mode=="default" and not camera.scriptedSkyviewBoss and camera.skyD
     "worldtree skyview did not return after the root landing")
 cameraMode:restoreWorldTreeCamera(cameraGame)
 assert(camera.userZoom==1 and math.abs(camera.zoom-.84)<.0001,"worldtree restore changed user zoom")
-print("WORLDTREE_SIEGE_OK fixed=true centered=playBounds sequence=sky_hold+slow_quake_rise+camera_return+combat duration=6.75 no_forced_zoom=true invulnerable=true grounded=36 attacks=v2_root+vine+slam+targeted_branch rectangle_fx=false")
+
+local zeroMode=ClearcutMode.new();zeroMode.mapId="forest";zeroMode.stage=2;zeroMode.remainingTrees=0
+zeroMode.mapWorld=cameraWorld;zeroMode.mapPlayer={x=1600,y=1000}
+zeroMode.forestZones={{id=1,coreAlive=true,secured=false,active=0}}
+zeroMode.enemies={{zoneCoreId=1,planterCasting=true,plantTimer=0}}
+local zeroGame={world=cameraWorld,player=zeroMode.mapPlayer,setNotice=function()end}
+assert(zeroMode:checkWorldTreeSpawn(zeroGame),"zero trees did not trigger the worldtree while a zone core survived")
+assert(zeroMode.worldTree and zeroMode.worldTreeSpawned and not zeroMode.forestZones[1].coreAlive and zeroMode.forestZones[1].secured,
+    "worldtree trigger still depended on secured zones")
+assert(not zeroMode.enemies[1].planterCasting and zeroMode.enemies[1].plantTimer==math.huge,
+    "surviving regrowth core was not made dormant during the boss transition")
+print("WORLDTREE_SIEGE_OK fixed=true centered=playBounds trigger=zero_trees sequence=sky_hold+slow_quake_rise+camera_return+combat duration=6.75 no_forced_zoom=true invulnerable=true grounded=36 attacks=v2_root+vine+slam+targeted_branch rectangle_fx=false")

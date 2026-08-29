@@ -561,6 +561,7 @@ function ClearcutMode:updateRegrowth(dt, game)
 end
 
 function ClearcutMode:regrowPulse(game)
+    if self.worldTreeSpawned then return end
     local available={}
     for _,zone in ipairs(self.forestZones or {}) do
         if zone.coreAlive and not zone.secured and zone.active<zone.initial then available[#available+1]=zone end
@@ -593,7 +594,7 @@ end
 -- 전체가 아니라 이 몹 주변에만 국한된다. 살려두면 계속 되풀이되니 먼저 잡는
 -- 편이 이득이라는 신호를 그대로 준다.
 function ClearcutMode:plantTreesNear(e, game)
-    if self.regrowSuppressed then return end
+    if self.regrowSuppressed or self.worldTreeSpawned then return end
     local radius = e.def.plantRadius or 190
     local candidates = {}
     for _, node in ipairs(game.world.nodes) do
@@ -1001,6 +1002,15 @@ end
 function ClearcutMode:spawnWorldTree(game)
     if self.worldTreeSpawned then return end
     self.worldTreeSpawned = true
+    -- Reaching zero living trees is the boss trigger. Any surviving zone core
+    -- becomes dormant immediately so it cannot undo the clear while the
+    -- world-tree entrance is playing.
+    for _,zone in ipairs(self.forestZones or {}) do
+        zone.coreAlive=false;zone.active=0;zone.secured=true
+    end
+    for _,enemy in ipairs(self.enemies) do
+        if enemy.zoneCoreId then enemy.planterCasting=false;enemy.plantTimer=math.huge end
+    end
     local finalStage=self.stage>=BiomeBosses.stageCap(self.mapId)
     local kind=finalStage and BiomeBosses.forMap(self.mapId) or "worldtree"
     local bounds=game.world.playBounds or {x=0,y=0,w=game.world.width,h=game.world.height}
@@ -1054,6 +1064,12 @@ function ClearcutMode:restoreWorldTreeCamera(game)
     game.camera.scriptedSkyviewBoss=nil
     if game.camera.setMode then game.camera:setMode(state.previousMode or "default",.6) end
     self.worldTreeCamera=nil
+end
+
+function ClearcutMode:checkWorldTreeSpawn(game)
+    if self.sandbox or self.worldTreeSpawned or self.remainingTrees>0 then return false end
+    self:spawnWorldTree(game)
+    return self.worldTreeSpawned
 end
 
 function ClearcutMode:spawnEnemyProjectile(e, game)
@@ -1407,10 +1423,7 @@ function ClearcutMode:updateEnemies(dt, game)
             table.remove(self.enemies, i)
         end
     end
-    local securedZones,totalZones=ForestZones.status(self)
-    if not self.sandbox and self.remainingTrees <= 0 and totalZones>0 and securedZones==totalZones and not self.worldTreeSpawned then
-        self:spawnWorldTree(game)
-    end
+    self:checkWorldTreeSpawn(game)
 end
 
 -- 담배꽁초가 나무에 처음 옮겨붙을 때 쓰는 불씨 궤적(emberTransfers/emberArrivals)과 똑같은
