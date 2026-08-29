@@ -2,7 +2,7 @@
 
 ## 화면 기준
 
-검수 화면은 [`previews/forest-tall-understory-v1.png`](previews/forest-tall-understory-v1.png)다. 온대 숲과 초심자의 숲에 적용한다.
+검수 화면은 [`previews/forest-tall-understory-v1.png`](previews/forest-tall-understory-v1.png)다. 활성 맵 중 온대 숲에 적용한다. 초심자용 배치는 미사용 자산으로 보관한다.
 
 - 거목은 90년대 애니메이션 배경 같은 성숙한 숲의 정서를 사용한다. 굵고 곧은 줄기가 화면 세로축을 만들고, 수관은 높은 곳에서 불규칙하게 갈라진다.
 - 둥근 잎송이를 포도·브로콜리처럼 반복하거나 귀여운 얼굴, 과장된 장식, 실사 질감을 넣지 않는다.

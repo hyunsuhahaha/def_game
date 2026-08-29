@@ -34,6 +34,7 @@ local BossEntrance = require("src.boss_entrance")
 local BossRewardPickup = require("src.boss_reward_pickup")
 local WorldTreeSiege = require("src.worldtree_siege")
 local CombatGeometry = require("src.combat_geometry")
+local Maps = require("src.clearcut_maps")
 
 local ClearcutMode = {}
 ClearcutMode.__index = ClearcutMode
@@ -350,7 +351,6 @@ end
 -- (기존 대비 약 1.6~2배).
 local treeHpByMapVariant = {
     forest = {7, 5, 4, 9},      -- 활엽수, 소나무, 자작나무, 단풍나무
-    beginner = {7, 5, 4, 9},    -- 초심자의 숲도 같은 4종
     mangrove = {9, 7, 4},       -- 맹그로브, 아비케니아, 니파야자
     madagascar = {14, 7, 4},    -- 바오밥(굵은 몸통), 타마린드, 코미포라
     island = {5, 7, 7},         -- 야자, 씨아몬드, 판다누스
@@ -366,9 +366,9 @@ function ClearcutMode:generateForest(game, target)
     local w, h = game.world.width, game.world.height
     local spawnX, spawnY = w / 2, h / 2
     local stage=self.stage or 1
-    -- 온대 숲 계열(기본/초심자)에서만 조림 사업 특성이 스테이지 진행에 비례해
+    -- 온대 숲에서만 조림 사업 특성이 스테이지 진행에 비례해
     -- 추가 나무를 심어준다. 다른 바이옴은 자기만의 나무 수 곡선을 유지한다.
-    local isDefaultForest = game.world.clearcutMap=="forest" or game.world.clearcutMap=="beginner"
+    local isDefaultForest = game.world.clearcutMap=="forest"
     if isDefaultForest then
         target = target + math.floor((self.permanentTraits.forestRestock or 0) * stage)
     end
@@ -376,16 +376,14 @@ function ClearcutMode:generateForest(game, target)
     local normalFloor=stage==1 and 98 or (stage==2 and 82 or (stage==3 and 70 or 60))
     local islandBase=stage==1 and 100 or (stage==2 and 85 or (stage==3 and 75 or 68))
     local islandFloor=stage==1 and 78 or (stage==2 and 68 or (stage==3 and 58 or (stage==4 and 48 or 42)))
-    local minSepBase = game.world.clearcutMap=="island" and islandBase or (game.world.clearcutMap=="beginner" and 165 or normalBase)
-    local minSepFloor = game.world.clearcutMap=="island" and islandFloor or (game.world.clearcutMap=="beginner" and 90 or normalFloor)
+    local minSepBase = game.world.clearcutMap=="island" and islandBase or normalBase
+    local minSepFloor = game.world.clearcutMap=="island" and islandFloor or normalFloor
     local attempts, minSep = 0, minSepBase
     -- 벌집은 나무 밀도에 그대로 비례시키면 첫 화면부터 수십 개가 보여
     -- 희귀 위험물이라는 의미가 사라진다. 스테이지별 확률과 상한을 함께 둔다.
     local hiveChance,hiveCap,hiveCount=.022,6,0
-    -- Large islands (and the beginner map's tighter world, which needs many relax cycles
-    -- to walk minSep down from its sparse starting value) need more land samples in later stages.
+    -- Large islands need more land samples in later stages.
     local attemptLimit=game.world.clearcutMap=="island" and math.max(40000,target*160)
-        or game.world.clearcutMap=="beginner" and math.max(60000,target*350)
         or math.max(36000,target*180)
     while #game.world.nodes < target and attempts < attemptLimit do
         attempts = attempts + 1
@@ -475,7 +473,7 @@ function ClearcutMode:advanceStage(game)
     game.camera.x, game.camera.y = game.player.x, game.player.y
     self:generateForest(game, require("src.clearcut_maps").treeTarget(self.mapId,self.stage))
     self:initForestZones(game)
-    game:setNotice("스테이지 " .. self.stage .. " — 숲이 더 거세게 반격한다!", "ore")
+    game:setNotice(Maps.stageCode(self.mapId,self.stage).." — 숲이 더 거세게 반격한다!", "ore")
     if game.camera then game.camera.trauma = math.min(1, game.camera.trauma + .3) end
     self.pending = self.pending + 1
     if #self:arcanaPool() > 0 then
@@ -762,6 +760,19 @@ function ClearcutMode:spawnWave(counts, game)
 end
 
 -- 타임어택의 동선을 가끔 방해하는 소수 스폰. 시간 압박이 주 난이도이므로 대군을 만들지 않는다.
+function ClearcutMode:timeSpawnPool()
+    -- 1-1 teaches movement and cutting before attack plants become common.
+    -- Duplicate animal entries are deliberate weights, kept visible for tuning/tests.
+    if self.mapId=="forest" and self.stage==1 then
+        if self.elapsed<90 then return {"squirrel","squirrel","boar","squirrel"} end
+        if self.elapsed<180 then return {"squirrel","boar","squirrel","vineSprout"} end
+        return {"squirrel","boar","vineSprout","turret"}
+    end
+    if self.elapsed<75 then return {"squirrel","vineSprout"} end
+    if self.elapsed<150 then return {"thornHunter","seedPod","vineSprout","turret"} end
+    return {"thornHunter","seedPod","hammerBloom","bambooCannon","resinSprayer","vineSprout"}
+end
+
 function ClearcutMode:updateTimeSpawner(dt, game)
     if self.sandbox then return end
     self.timeSpawnTimer = self.timeSpawnTimer - dt
@@ -770,8 +781,7 @@ function ClearcutMode:updateTimeSpawner(dt, game)
     local opening=self.elapsed<90 and 1 or (self.elapsed<180 and 2 or nil)
     self.timeSpawnTimer = opening==1 and 24 or (opening==2 and 20 or math.max(12,20-curse*1.2))
     local count = (not opening and curse>=2.6 and love.math.random()<.35) and 2 or 1
-    local pool = self.elapsed<75 and {"squirrel","vineSprout"} or {"thornHunter","seedPod","vineSprout","turret"}
-    if self.elapsed>=150 then pool={"thornHunter","seedPod","hammerBloom","bambooCannon","resinSprayer","vineSprout"} end
+    local pool = self:timeSpawnPool()
     for _ = 1, count do
         local kind = pool[love.math.random(#pool)]
         local a = love.math.random() * math.pi * 2
@@ -1218,7 +1228,7 @@ function ClearcutMode:onEnemyDefeated(e, game)
             if game.achievements and game.achievements.recordMapClear then game.achievements:recordMapClear(self.mapId) end
             self:finish(game,true)
         else
-            game:setNotice("스테이지 " .. self.stage .. " 클리어 — 세계수를 쓰러뜨렸다!", "food")
+            game:setNotice(Maps.stageCode(self.mapId,self.stage).." 클리어 — 세계수를 쓰러뜨렸다!", "food")
             self:advanceStage(game)
         end
     end
@@ -4035,7 +4045,7 @@ function ClearcutMode:finish(game, victory)
     local traitReward = math.max(1, math.floor(baseReward * (self.permanentTraits.reward or 1) + .5))
     if game.characterTraits then game.characterTraits:addCurrency(traitReward) end
     local zonesSecured,zonesTotal=ForestZones.status(self)
-    game.result={elapsed=math.floor(self.elapsed),wood=self.totalWood,trees=self.treesFelled,total=self.initialTrees,maxMulti=self.maxMulti,maxChain=self.maxChain,level=self.level,stage=self.stage,regrowPulses=self.regrowPulses,treesRevived=self.treesRevived,rootedCount=self.rootedCount,beeSwarms=self.beeSwarmsTriggered,victory=victory,kills=self.kills,zonesSecured=zonesSecured,zonesTotal=zonesTotal,traitEarned=traitReward,traitCurrency=game.characterTraits and game.characterTraits.data.currency or traitReward,mapId=self.mapId,operationName=BiomeBosses.operationName(self.mapId),bossName=self.operationBossName,failureReason=self.failureReason}
+    game.result={elapsed=math.floor(self.elapsed),wood=self.totalWood,trees=self.treesFelled,total=self.initialTrees,maxMulti=self.maxMulti,maxChain=self.maxChain,level=self.level,stage=self.stage,stageCode=Maps.stageCode(self.mapId,self.stage),regrowPulses=self.regrowPulses,treesRevived=self.treesRevived,rootedCount=self.rootedCount,beeSwarms=self.beeSwarmsTriggered,victory=victory,kills=self.kills,zonesSecured=zonesSecured,zonesTotal=zonesTotal,traitEarned=traitReward,traitCurrency=game.characterTraits and game.characterTraits.data.currency or traitReward,mapId=self.mapId,operationName=BiomeBosses.operationName(self.mapId),bossName=self.operationBossName,failureReason=self.failureReason}
     if game.achievements then game.achievements:recordRun(game.result) end
     game.mode="clearcut_results"
 end
@@ -5691,7 +5701,7 @@ function ClearcutMode:drawHUD(game,fonts)
     drawOffscreenIndicators(self, game, fonts, w, h, t)
     local remaining=self:stageTimeRemaining();local urgent=remaining<=60
     love.graphics.setFont(fonts.big);love.graphics.setColor(urgent and {1,.30,.18} or {1,.96,.82});love.graphics.print(formatTime(remaining),18,16)
-    love.graphics.setFont(fonts.micro or fonts.small);love.graphics.setColor(urgent and {1,.55,.30} or {.82,.84,.76});love.graphics.print("제한 시간 · 구역 "..self.stage.." · "..(jobNames[self.job]or"벌목꾼"),20,51)
+    love.graphics.setFont(fonts.micro or fonts.small);love.graphics.setColor(urgent and {1,.55,.30} or {.82,.84,.76});love.graphics.print("제한 시간 · "..Maps.stageCode(self.mapId,self.stage).." · "..(jobNames[self.job]or"벌목꾼"),20,51)
     love.graphics.setColor(.92,.90,.72);love.graphics.print(string.format("목재 %d   벌목 %d/%d",self.totalWood,self.treesFelled,self.initialTrees),20,71)
     local statusColor = (self.rootedTimer > 0 or self.beeSlow) and {1,.6,.35} or {.6,.72,.66}
     love.graphics.setColor(statusColor)
@@ -6374,7 +6384,7 @@ function ClearcutMode:drawResults(game,fonts)
     love.graphics.setFont(fonts.title);love.graphics.setColor(victory and{1,.87,.40}or{1,.37,.24})
     love.graphics.printf(victory and((r.operationName or"벌목 작전").." 완료")or"작업 중단",x,top,contentW,"center")
     love.graphics.setFont(fonts.micro or fonts.small);love.graphics.setColor(.72,.76,.68)
-    love.graphics.printf(victory and((r.bossName or"지역 보스").." 격파")or(r.failureReason=="timeout" and "제한 시간 초과 · 다음 구역 진입 실패" or "회수 기록"),x,top+48*scale,contentW,"center")
+    love.graphics.printf((r.stageCode or Maps.stageCode(r.mapId,r.stage)).." · "..(victory and((r.bossName or"지역 보스").." 격파")or(r.failureReason=="timeout" and "제한 시간 초과 · 다음 구역 진입 실패" or "회수 기록")),x,top+48*scale,contentW,"center")
     local ratio=(r.total or 0)>0 and(r.trees or 0)/(r.total or 1)or 0;local rank=victory and(ratio>=.95 and"S"or ratio>=.75 and"A"or"B")or(ratio>=.5 and"C"or"D")
     love.graphics.setColor(.35,.40,.34,.75);love.graphics.rectangle("fill",x,top+83*scale,contentW,2)
     love.graphics.setFont(fonts.big);love.graphics.setColor(victory and{1,.70,.18}or{1,.35,.24});love.graphics.printf(rank,x+contentW-70,top,70,"right")

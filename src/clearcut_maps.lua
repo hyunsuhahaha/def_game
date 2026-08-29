@@ -7,7 +7,6 @@ Maps.catalog={
     {id="mangrove",name="맹그로브 숲",region="벵골만 삼각주",globeLat=21.9,globeLon=89.1,subtitle="청록 물길 · 뿌리 · 물가의 게",desc="성긴 물가 55그루에서 시작해 지주뿌리 습지 전역으로 진입합니다.",short="55그루 물가에서 수로 전역으로.",trees=55,tree="mangrove",color={.26,.72,.65}},
     {id="madagascar",name="마다가스카르 숲",region="마다가스카르 서부",globeLat=-19.2,globeLon=46.7,subtitle="붉은 흙 · 바오밥 · 여우원숭이",desc="성긴 붉은 땅 50그루에서 시작해 바오밥 혼합림으로 전진합니다.",short="50그루 붉은 땅에서 내륙으로.",trees=50,tree="baobab",color={.85,.48,.28}},
     {id="island",name="무인도 전소",region="남태평양 외딴섬",globeLat=-17.6,globeLon=-149.5,subtitle="해변 상륙 · 혼합 야자림 · 앵무새",desc="상륙 구역 65그루부터 태우며 섬과 사방의 해안을 개방합니다.",short="65그루 해변에서 섬 전체로.",trees=65,tree="palm",color={.30,.70,.88}},
-    {id="beginner",name="초심자의 숲",region="중부 유럽 연습림",globeLat=49.2,globeLon=14.5,subtitle="좁은 개활지 · 듬성듬성한 나무",desc="처음 시작하기 좋은 좁고 여유로운 숲. 온대 숲과 같은 나무들이지만 훨씬 듬성듬성 나 있습니다.",short="좁고 나무가 듬성듬성한 초심자 숲.",trees=45,preview="forest",color={.62,.78,.42}},
 }
 local byId,images={},{}
 Maps.species={
@@ -15,11 +14,14 @@ Maps.species={
     madagascar={"baobab","tamarind","commiphora"},
     island={"palm","seaalmond","pandanus"},
 }
-for i,def in ipairs(Maps.catalog) do def.index=i;byId[def.id]=def end
+for i,def in ipairs(Maps.catalog) do def.index=i;def.chapter=i;byId[def.id]=def end
 function Maps.get(id) return byId[id] or Maps.catalog[1] end
+function Maps.stageCode(id,stage)
+    local def=Maps.get(id)
+    return string.format("%d-%d",def.chapter or def.index or 1,math.max(1,math.floor(stage or 1)))
+end
 function Maps.treeTarget(id,stage)
     local def=Maps.get(id)
-    if def.id=="beginner" then return def.trees+((stage or 1)-1)*16 end
     local targets={forest={60,130,220,320},mangrove={55,120,205,295},
         madagascar={50,115,195,285},island={65,145,260,380}}
     local list=targets[def.id] or targets.forest;stage=stage or 1
@@ -39,7 +41,6 @@ function Maps.configureStage(world,stage)
     stage=math.max(1,stage or 1);world.clearcutStage=stage
     local kind=world.clearcutMap=="island" and "island" or "normal"
     local size=stageSizes[kind][math.min(stage,4)]
-    if world.clearcutMap=="beginner" then size={world.width,world.height} end
     world.playBounds={x=(world.width-size[1])/2,y=(world.height-size[2])/2,w=size[1],h=size[2]}
     world.stageZoom=stage==1 and .84 or (stage==2 and .79 or (stage==3 and .75 or .72))
     -- Playable maps always use a following camera. A fixed overview used to
@@ -119,8 +120,6 @@ function Maps.configure(world,id)
     if def.id=="island" then
         world.width,world.height=Maps.island.width,Maps.island.height
         -- Includes crown overhang, beach, sea on every side, and room for the HUD.
-    elseif def.id=="beginner" then
-        world.width,world.height=1900,1200
     end
     Maps.configureStage(world,1)
     if Maps.species[def.id] then
@@ -143,7 +142,7 @@ function Maps.filterScenery(world)
     for _,list in ipairs({world.forestScenery.ground,world.forestScenery.actors}) do
         for i=#list,1,-1 do
             local p=list[i]
-            if not Maps.canPlant(world,p.x,p.y) or (p.kind=="leaves" and world.clearcutMap~="madagascar" and world.clearcutMap~="forest" and world.clearcutMap~="beginner") then table.remove(list,i) end
+            if not Maps.canPlant(world,p.x,p.y) or (p.kind=="leaves" and world.clearcutMap~="madagascar" and world.clearcutMap~="forest") then table.remove(list,i) end
         end
     end
 end

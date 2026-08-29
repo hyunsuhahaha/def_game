@@ -18,6 +18,9 @@ local Player=require("src.player")
 local Camera=require("src.camera")
 local Game=require("src.game")
 local traits=require("src.character_traits").new(true)
+assert(#Maps.catalog==4 and Maps.get("beginner").id=="forest","beginner map remains reachable or fallback is unsafe")
+assert(Maps.stageCode("forest",1)=="1-1" and Maps.stageCode("forest",4)=="1-4")
+assert(Maps.stageCode("mangrove",1)=="2-1" and Maps.stageCode("madagascar",4)=="3-4" and Maps.stageCode("island",4)=="4-4","chapter-stage codes are incorrect")
 local loader
 for i=1,30 do local name,value=debug.getupvalue(Game.new,i);if name=="loadClearcutSprites" then loader=value;break end end
 local sprites=assert(loader)()
@@ -40,6 +43,16 @@ for _,def in ipairs(Maps.catalog) do
     local m,w=g.clearcut,g.world
     assert(g.mode=="playing" and w.clearcutMap==def.id and m.mapId==def.id)
     assert(m.regrowGrace==35 and m.regrowInterval==12 and m.timeSpawnTimer==35)
+    if def.id=="forest" then
+        local function plantShare(elapsed)
+            m.elapsed=elapsed;local pool=m:timeSpawnPool();local plants=0
+            for _,kind in ipairs(pool)do if Mode.enemyDefinitions[kind].category=="plant"then plants=plants+1 end end
+            return plants,#pool
+        end
+        local p0,n0=plantShare(30);local p1,n1=plantShare(100);local p2,n2=plantShare(200)
+        assert(p0==0 and n0==4 and p1==1 and n1==4 and p2==2 and n2==4,"1-1 plant spawn weighting regressed")
+        m.elapsed=0
+    end
     local zoneCores=0
     for _,enemy in ipairs(m.enemies) do
         if enemy.zoneCoreId then
@@ -50,9 +63,7 @@ for _,def in ipairs(Maps.catalog) do
     assert(zoneCores>=1 and #m.forestZones==6,def.id.." zone cores missing")
     assert(m.berserkTimer==170 and m.vinePlantTimer==60 and m.disasterTimer==150)
     assert(#w.nodes==def.trees and m.remainingTrees==def.trees,def.id.." target underfilled: "..#w.nodes)
-    if def.id~="beginner" then
-        assert(w.playBounds.w<w.width or w.playBounds.h<w.height,"stage 1 starts at final map footprint")
-    end
+    assert(w.playBounds.w<w.width or w.playBounds.h<w.height,"stage 1 starts at final map footprint")
     local edgeX,edgeY=Maps.constrain(w,-99999,99999,75)
     assert(Maps.insidePlayable(w,edgeX,edgeY,75),def.id.." movement escaped stage bounds")
     g.camera:update(10,{x=99999,y=-99999},w)
@@ -71,7 +82,7 @@ for _,def in ipairs(Maps.catalog) do
         node.beehive=false
         speciesCounts[node.treeVariant]=(speciesCounts[node.treeVariant] or 0)+1
     end
-    if def.id~="forest" and def.id~="beginner" then
+    if def.id~="forest" then
         local paths={}
         for i=1,3 do
             assert((speciesCounts[i] or 0)>=3,def.id.." missing tree species "..i)
@@ -86,7 +97,7 @@ for _,def in ipairs(Maps.catalog) do
     local environment=w.biomeLife
     local counts={}
     for _,p in ipairs(environment.items) do counts[p.kind]=(counts[p.kind] or 0)+1;assert(not p.hp and not p.reward,"ambient entered combat") end
-    if def.id=="forest" or def.id=="beginner" then assert(#environment.items==0)
+    if def.id=="forest" then assert(#environment.items==0)
     elseif def.id=="mangrove" then assert(counts.crab==22 and not counts.parrot,"wrong regional wildlife")
     elseif def.id=="madagascar" then assert(counts.lemur>=2 and counts.traveller>=6)
     else assert(counts.parrot==12 and counts.crab==28) end
@@ -106,13 +117,13 @@ for _,def in ipairs(Maps.catalog) do
     local seen={}
     for _,e in ipairs(m.enemies) do
         seen[e.kind]=true
-        assert(e.kind~="squirrel" and e.kind~="boar" and e.kind~="turret" or def.id=="forest" or def.id=="beginner")
+        assert(e.kind~="squirrel" and e.kind~="boar" and e.kind~="turret" or def.id=="forest")
         if e.kind=="crocodile" then
             assert(Maps.channelDistance(e.x,e.y,w.width,w.height)<0,"croc must emerge from water")
             assert((e.x-g.player.x)^2+(e.y-g.player.y)^2>=260^2,"croc projected onto player")
         end
         local pose=Art.pose(e,0);assert(pose.spec.file)
-            if def.id~="forest" and def.id~="beginner" and e.kind~="vineSprout" then
+            if def.id~="forest" and e.kind~="vineSprout" then
             e.facing=-1;assert(Art.pose(e,0).sx<0);e.facing=1;assert(Art.pose(e,0).sx>0)
         end
     end
@@ -206,22 +217,20 @@ for _,def in ipairs(Maps.catalog) do
     local openingW,openingH,openingZoom=g.world.playBounds.w,g.world.playBounds.h,g.world.stageZoom
     g.clearcut:advanceStage(g)
     assert(g.clearcut.stage==2 and #g.world.nodes==Maps.treeTarget(def.id,2),def.id.." stage target lost")
-    if def.id~="beginner" then
-        assert(g.world.playBounds.w>openingW and g.world.playBounds.h>openingH and g.world.stageZoom<openingZoom,
-            def.id.." stage 2 did not expand the playable footprint")
-    end
-    for stage=3,5 do
+    assert(g.world.playBounds.w>openingW and g.world.playBounds.h>openingH and g.world.stageZoom<openingZoom,
+        def.id.." stage 2 did not expand the playable footprint")
+    for stage=3,4 do
         g.world.nodes={};g.clearcut.stage=stage;Maps.configureStage(g.world,stage)
         g.clearcut:generateForest(g,Maps.treeTarget(def.id,stage))
         assert(#g.world.nodes==Maps.treeTarget(def.id,stage),def.id.." stage "..stage.." underfilled "..#g.world.nodes)
-        if MAP_CAPTURE and stage==4 and def.id~="beginner" then
+        if MAP_CAPTURE and stage==4 then
             g.player.x,g.player.y=g.world.width/2,g.world.height/2
             g.camera.x,g.camera.y,g.camera.zoom=g.player.x,g.player.y,g.world.stageZoom
             fixture.time=.2;fixture.reset();g.camera:attach();g.world:draw(g.player,g.clearcut);g.clearcut:drawWorldOverlay(g);g.camera:detach()
             fixture.save("docs/previews/map-"..def.id.."-stage4-draws.json")
         end
     end
-    if def.id~="forest" and def.id~="beginner" then
+    if def.id~="forest" then
         for _,seed in ipairs({17,83,421}) do
             math.randomseed(seed);g.world.nodes={};g.clearcut.stage=1
             g.clearcut:generateForest(g,Maps.treeTarget(def.id,1))
@@ -304,7 +313,9 @@ end
 for _,size in ipairs({{960,540},{1280,720},{1920,1080}}) do
     width,height=unpack(size)
     local g=newGame();g:chooseClearcutCharacter(1)
+    if width==960 then g.clearcutMapFocus=5 end -- legacy focus from the removed beginner map
     fixture.reset();Select.draw(g)
+    assert(g.clearcutMapFocus>=1 and g.clearcutMapFocus<=#Maps.catalog,"removed map focus was not migrated")
     assert(#g.clearcutStageBoxes==4,"stage selector did not render four entries")
     local stageBox=g.clearcutStageBoxes[3].box
     assert(stageBox.x>=0 and stageBox.x+stageBox.w<=width and stageBox.y>=0 and stageBox.y+stageBox.h<=height,"stage selector escaped viewport")
@@ -319,7 +330,7 @@ for _,size in ipairs({{960,540},{1280,720},{1920,1080}}) do
     end
     Select.focus(g,3,true);local hidden=0
     local globe=require("src.stage_select_globe")
-    local routes=globe.routes(g,width,height);assert(#routes==4,"globe route count mismatch")
+    local routes=globe.routes(g,width,height);assert(#routes==3,"globe route count mismatch")
     for _,leg in ipairs(routes)do assert(#leg.points==20 and leg.from~=leg.to,"globe dotted route malformed")end
     for _,m in ipairs(globe.markers(g,width,height))do
         assert(m.r>=23,"landmark hit area regressed")
@@ -366,7 +377,7 @@ for _,def in ipairs(Maps.catalog)do
     assert(#g.clearcut.intro.debris>=20,"authored canopy debris did not burst")
     local swaying=0;for _,node in ipairs(g.world.nodes)do if math.abs(node.swayAngle or 0)>.001 then swaying=swaying+1 end end
     assert(swaying>0,"canopy did not react to flock launch")
-    if def.id~="forest" and def.id~="beginner" then
+    if def.id~="forest" then
         local startled=0;for _,p in ipairs(g.world.biomeLife.items)do if p.startle then startled=startled+1 end end
         assert(startled>0,def.id.." wildlife ignored arrival")
     end
@@ -386,5 +397,5 @@ local skipGame=newGame();skipGame:startClearcut("physical","forest");Game.keypre
 assert(not Intro.active(skipGame) and skipGame.clearcut.elapsed==0,"intro skip started combat early")
 local clickGame=newGame();clickGame:startClearcut("physical","forest");Game.mousepressed(clickGame,10,10,1)
 assert(not Intro.active(clickGame) and clickGame.clearcut.elapsed==0,"mouse intro skip started combat early")
-print("CLEARCUT_INTRO_V2_OK maps=5 quiet=frozen flock=14_clustered depth=3 debris=authored canopy=sway camera=impact wildlife=startled skip=space/click")
-print("CLEARCUT_MAPS_OK maps="..#Maps.catalog.." first_stage_trees="..totalTrees.." stages=1..5 pacing=opening_locked jobs="..#Mode.characters.." sea=bounded camera=all_sides retry=kept keyboard=ok mouse=ok")
+print("CLEARCUT_INTRO_V2_OK maps=4 quiet=frozen flock=14_clustered depth=3 debris=authored canopy=sway camera=impact wildlife=startled skip=space/click")
+print("CLEARCUT_MAPS_OK maps="..#Maps.catalog.." first_stage_trees="..totalTrees.." stages=1..4 pacing=opening_locked jobs="..#Mode.characters.." sea=bounded camera=all_sides retry=kept keyboard=ok mouse=ok")

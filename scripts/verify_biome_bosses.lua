@@ -1,8 +1,8 @@
 package.path="./?.lua;./?/init.lua;"..package.path
 love={math={random=function(a,b)if not a then return .5 elseif not b then return math.max(1,math.floor(a/2)) else return math.floor((a+b)/2)end end}}
 local B=require("src.biome_bosses")
-assert(B.stageCap("beginner")==3 and B.stageCap("forest")==4)
-local maps={beginner="stumpWarden",forest="hollowOak",mangrove="rootjaw",madagascar="baobabTyrant",island="islandHermit"}
+assert(B.stageCap("forest")==4 and B.stageCap("island")==4)
+local maps={forest="hollowOak",mangrove="rootjaw",madagascar="baobabTyrant",island="islandHermit"}
 for map,kind in pairs(maps)do assert(B.forMap(map)==kind and B.definitions[kind].biomeBoss and B.definitions[kind].finalBoss)end
 local mode={bossTelegraphs={},projectiles={},hits=0,damagePlayer=function(self)self.hits=self.hits+1 end}
 local game={player={x=180,y=0}}
@@ -14,4 +14,5 @@ end
 assert(#mode.bossTelegraphs>0 and (#mode.projectiles>0 or mode.hits>0),"boss attacks not emitted")
 local clearcut=assert(io.open("src/clearcut_mode.lua","rb")):read("*a")
 assert(clearcut:find("BiomeBosses.forMap",1,true) and clearcut:find("recordMapClear",1,true) and clearcut:find("operationFinalBoss",1,true),"operation runtime hooks missing")
-print("BIOME_BOSSES_OK maps=5 caps=3/4 telegraphs=locked ending=finite persistence=clear")
+assert(B.definitions.stumpWarden and not B.byMap.beginner,"unused beginner boss prototype must be preserved but unreachable")
+print("BIOME_BOSSES_OK maps=4 caps=4 telegraphs=locked ending=finite persistence=clear archived=stumpWarden")

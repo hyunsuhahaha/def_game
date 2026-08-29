@@ -79,7 +79,8 @@ end
 
 function Select.draw(game)
     local w,h=love.graphics.getDimensions();local f=game.fonts;local mx,my=love.mouse.getPosition();local t=love.timer.getTime();local compact=h<620
-    game.clearcutMapFocus=game.clearcutMapFocus or 1
+    -- Clamp hot-reloaded/legacy focus values that may still point at removed maps.
+    game.clearcutMapFocus=math.max(1,math.min(#Maps.catalog,game.clearcutMapFocus or 1))
     local focus=Maps.catalog[game.clearcutMapFocus];F.backdrop(w,h,focus.color,1)
     love.graphics.setFont(f.micro);love.graphics.setColor(focus.color);love.graphics.print("WORLD OPERATIONS",34,23)
     love.graphics.setFont(f.title);love.graphics.setColor(.97,.95,.85);love.graphics.print("작전 지역 선택",34,50)
@@ -110,12 +111,12 @@ function Select.draw(game)
     local selectedCap=Bosses.stageCap(focus.id)
     local selectedStage=Select.stageFor(game,game.clearcutMapFocus);game.selectedClearcutStage=selectedStage
     local sy=ry+rh-70;love.graphics.setColor(1,1,1,.08);love.graphics.line(rx+20,sy-12,rx+rw-20,sy-12)
-    love.graphics.setFont(f.micro);love.graphics.setColor(.46,.55,.49);love.graphics.print("진입 스테이지",rx+20,sy+2)
-    game.clearcutStageBoxes={};local buttonW=compact and 34 or 40;local gap=6;local startX=rx+132
+    love.graphics.setFont(f.micro);love.graphics.setColor(.46,.55,.49);love.graphics.print("진입 구역",rx+20,sy+2)
+    game.clearcutStageBoxes={};local buttonW=compact and 46 or 52;local gap=6;local startX=rx+112
     for stage=1,selectedCap do
         local box={x=startX+(stage-1)*(buttonW+gap),y=sy-4,w=buttonW,h=30}
         game.clearcutStageBoxes[#game.clearcutStageBoxes+1]={stage=stage,box=box}
-        F.button(box,tostring(stage),f.small,{primary=stage==selectedStage,accent=accent})
+        F.button(box,Maps.stageCode(focus.id,stage),f.small,{primary=stage==selectedStage,accent=accent})
     end
     local target=Maps.treeTarget(focus.id,selectedStage);local seconds=Maps.stageTimeLimit(focus.id,selectedStage)
     love.graphics.setFont(f.micro);love.graphics.setColor(.64,.71,.65);love.graphics.printf(string.format("선택 지역 목표 %d그루  ·  제한 %d분",target,math.floor(seconds/60)),rx+20,sy+33,rw-40,"right")
@@ -124,7 +125,7 @@ function Select.draw(game)
     love.graphics.setColor(.63,.72,.65);love.graphics.printf("표식 클릭: 즉시 선택  ·  숫자키: 해당 지역으로 회전",gl.cx-gl.r,gl.cy+gl.r+36,gl.r*2,"center")
     game.clearcutMapBackBox={x=w-180,y=30,w=146,h=38};game.clearcutMapConfirmBox={x=w-330,y=h-88,w=296,h=47}
     F.button(game.clearcutMapBackBox,"← 작업자",f.small,{accent=F.colors.teal});F.button(game.clearcutMapConfirmBox,"선택 지역으로 이동",f.body,{primary=true,key="ENT",align="left",accent=focus.color})
-    F.footer(w,h,"표식/1–6  지역 선택    ·    ↑↓  스테이지 선택    ·    드래그  회전    ·    휠  확대/축소    ·    ESC  작업자",f.small)
+    F.footer(w,h,"표식/1–4  지역 선택    ·    ↑↓  구역 선택    ·    드래그  회전    ·    휠  확대/축소    ·    ESC  작업자",f.small)
 end
 
 return Select

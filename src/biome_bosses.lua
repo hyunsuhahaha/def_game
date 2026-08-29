@@ -8,11 +8,12 @@ Bosses.definitions={
     islandHermit={name="섬등 소라게",category="animal",hp=1460,speed=48,damage=20,radius=80,color={.72,.38,.62},hitCooldown=1,boss=true,finalBoss=true,biomeBoss=true,reward=0},
 }
 
-Bosses.byMap={beginner="stumpWarden",forest="hollowOak",mangrove="rootjaw",madagascar="baobabTyrant",island="islandHermit"}
-Bosses.names={beginner="초심자 벌목 계약",forest="온대림 전면 철거",mangrove="수로 봉쇄 작전",madagascar="바오밥 회랑 진입",island="무인도 전소 작전"}
+-- stumpWarden is intentionally retained as an unused prototype asset/encounter.
+Bosses.byMap={forest="hollowOak",mangrove="rootjaw",madagascar="baobabTyrant",island="islandHermit"}
+Bosses.names={forest="온대림 전면 철거",mangrove="수로 봉쇄 작전",madagascar="바오밥 회랑 진입",island="무인도 전소 작전"}
 function Bosses.forMap(id)return Bosses.byMap[id] or Bosses.byMap.forest end
 function Bosses.operationName(id)return Bosses.names[id] or Bosses.names.forest end
-function Bosses.stageCap(id)return id=="beginner" and 3 or 4 end
+function Bosses.stageCap(id)return 4 end
 
 local function line(mode,x1,y1,x2,y2,width,delay,damage,tag)
     mode.bossTelegraphs[#mode.bossTelegraphs+1]={kind="line",x1=x1,y1=y1,x2=x2,y2=y2,halfWidth=width,phase="warn",timer=delay,warnDuration=delay,damage=damage,bossTag=tag}

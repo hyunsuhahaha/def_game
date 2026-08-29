@@ -21,7 +21,7 @@ assert(math.abs(rsx-sx)<.001 and math.abs(rsy-sy)<.001,"screenToWorld no longer 
 local Entrance=require("src.boss_entrance")
 local Bosses=require("src.biome_bosses")
 local profiles=Entrance.profiles();local seen={}
-local mapKinds={beginner="stumpWarden",forest="hollowOak",mangrove="rootjaw",madagascar="baobabTyrant",island="islandHermit"}
+local mapKinds={forest="hollowOak",mangrove="rootjaw",madagascar="baobabTyrant",island="islandHermit"}
 for map,kind in pairs(mapKinds) do
   local mode={}
   local def=Bosses.definitions[kind]
@@ -39,11 +39,11 @@ for map,kind in pairs(mapKinds) do
   seen[profiles[kind].row]=true
 end
 local rows=0 for _ in pairs(seen) do rows=rows+1 end
-assert(rows==5,"biomes do not have five distinct authored FX rows")
+assert(rows==4,"active biomes do not have four distinct authored FX rows")
 
 local clearcut=assert(io.open("src/clearcut_mode.lua","rb")):read("*a")
 local gameSource=assert(io.open("src/game.lua","rb")):read("*a")
 assert(clearcut:find("BossEntrance.start",1,true) and clearcut:find("BossEntrance.queue",1,true),"boss runtime hooks missing")
 assert(gameSource:find("updateBossEntrance",1,true) and gameSource:find("WorldProjection.finish",1,true),"combat freeze or projected world pass missing")
 assert(not clearcut:find("등장!",1,true),"generic boss entrance text returned")
-print("CINEMATIC_CAMERA_BOSS_INTRO_OK maps=5 world=projected input_inverse=roll+zoom combat_freeze=yes text_banner=none")
+print("CINEMATIC_CAMERA_BOSS_INTRO_OK maps=4 world=projected input_inverse=roll+zoom combat_freeze=yes text_banner=none")
