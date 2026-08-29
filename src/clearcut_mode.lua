@@ -406,20 +406,23 @@ function ClearcutMode:generateForest(game, target)
             if ndx*ndx + ndy*ndy < minSep*minSep then separated = false; break end
         end
         if clearSpawn and separated then
-            local beehive = hiveCount<hiveCap and love.math.random()<hiveChance
             local variantCount = math.max(1, #(game.world.images.treeVariants or {}))
             local treeVariant = Maps.treeVariant(game.world,x,y,#game.world.nodes+1)
                 or ForestScenery.treeVariant(x,y,w,h,self.stage,#game.world.nodes+1,variantCount)
             -- 다수종 조림 협약을 아직 안 찍었으면 온대 숲 계열은 기본 수종 하나만 자란다.
             if isDefaultForest and (self.permanentTraits.treeVariety or 0) <= 0 then treeVariant = 1 end
+            clearSpawn=Maps.insideTreeVisual(game.world,x,y,treeVariant)
             local hp = treeHpFor(game.world.clearcutMap, treeVariant)
             local treeIndex=#game.world.nodes+1
             -- A few mature canopy landmarks make the temperate maps read as a
             -- forest at camera scale. They remain ordinary objective trees:
             -- no hidden HP, reward, collision, or regrowth rule changes.
             local giantTree=isDefaultForest and treeVariant==1 and treeIndex%17==0
-            game.world.nodes[treeIndex] = {kind="tree",x=x,y=y,work=0,workTime=1,active=true,respawn=0,rushTree=true,rushHp=hp,rushMaxHp=hp,beehive=beehive,treeVariant=treeVariant,giantTree=giantTree}
-            if beehive then hiveCount=hiveCount+1;self.beehiveTotal=self.beehiveTotal+1 end
+            if clearSpawn then
+                local beehive = hiveCount<hiveCap and love.math.random()<hiveChance
+                game.world.nodes[treeIndex] = {kind="tree",x=x,y=y,work=0,workTime=1,active=true,respawn=0,rushTree=true,rushHp=hp,rushMaxHp=hp,beehive=beehive,treeVariant=treeVariant,giantTree=giantTree}
+                if beehive then hiveCount=hiveCount+1;self.beehiveTotal=self.beehiveTotal+1 end
+            end
         end
     end
     self.initialTrees, self.remainingTrees = #game.world.nodes, #game.world.nodes
@@ -741,7 +744,7 @@ function ClearcutMode:spawnEnemy(kind, x, y, opts)
     local def = enemyDefs[kind]
     if not def then return end
     x,y=BiomeEnemies.spawnPoint(self.mapWorld,self.mapPlayer,kind,x,y)
-    x,y=require("src.clearcut_maps").constrain(self.mapWorld,x,y,(def.radius or 20)+8)
+    x,y=require("src.clearcut_maps").constrain(self.mapWorld,x,y,math.max((def.radius or 20)+8,70))
     if def.category=="plant" and not def.boss and self.mapWorld then
         x,y=require("src.clearcut_maps").constrainGroundPlant(self.mapWorld,x,y)
     end

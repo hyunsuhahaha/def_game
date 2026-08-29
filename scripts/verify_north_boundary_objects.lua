@@ -22,21 +22,26 @@ for _,patch in ipairs(grass.patches)do
 end
 
 Scenery.generate(world,1)
-for _,prop in ipairs(world.forestScenery.actors)do
+for _,list in ipairs({world.forestScenery.ground,world.forestScenery.actors})do for _,prop in ipairs(list)do
+    assert(Maps.canPlant(world,prop.x,prop.y),"scenery prop escaped playable terrain")
     if prop.kind=="fern" then
         assert(Maps.insideGroundPlants(world,prop.x,prop.y,{left=135,right=135,top=220,bottom=120}),
             "scenery fern escaped its safe ground inset")
     end
-end
+end end
 
 local lifeWorld={width=3200,height=2000,clearcutMap="madagascar",nodes={},
     playBounds={x=400,y=300,w=2400,h=1400}}
 local life=BiomeLife.generate(lifeWorld,1)
 for _,item in ipairs(life.items)do
+    assert(Maps.insideSpawnTerrain(lifeWorld,item.x,item.y,28),"ambient wildlife spawned in panorama")
     if BiomeLife.catalog[item.kind].plant then
         assert(Maps.insideGroundPlants(lifeWorld,item.x,item.y),"ambient plant escaped the safe ground inset")
     end
 end
+life.items[#life.items+1]={kind="lemur",x=1600,y=world.playBounds.y-80,homeX=1600,homeY=0,phase=0,facing=1,scale=1}
+local lifeQueue={};BiomeLife.queue(lifeWorld,lifeQueue,nil)
+assert(#lifeQueue==#life.items-1,"render safety allowed off-terrain wildlife into panorama")
 
 local rooted=ClearcutMode.new();rooted.mapId="forest";rooted.mapWorld=world;rooted.mapPlayer={x=1600,y=1000}
 local plant=assert(rooted:spawnEnemy("vineSprout",world.playBounds.x-400,world.playBounds.y-400))

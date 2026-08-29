@@ -121,11 +121,14 @@ for _,def in ipairs(Maps.catalog) do
     end
     local environment=w.biomeLife
     local counts={}
-    for _,p in ipairs(environment.items) do counts[p.kind]=(counts[p.kind] or 0)+1;assert(not p.hp and not p.reward,"ambient entered combat") end
+    for _,p in ipairs(environment.items) do
+        counts[p.kind]=(counts[p.kind] or 0)+1;assert(not p.hp and not p.reward,"ambient entered combat")
+        assert(Maps.insideSpawnTerrain(w,p.x,p.y,20),def.id.." ambient spawned beyond playable terrain")
+    end
     if def.id=="forest" then assert(#environment.items==0)
-    elseif def.id=="mangrove" then assert(counts.crab==22 and not counts.parrot,"wrong regional wildlife")
+    elseif def.id=="mangrove" then assert((counts.crab or 0)>=12 and not counts.parrot,"wrong regional wildlife")
     elseif def.id=="madagascar" then assert(counts.lemur>=2 and counts.traveller>=6)
-    else assert(counts.parrot==12 and counts.crab==28) end
+    else assert((counts.parrot or 0)>=8 and not counts.lemur,"wrong regional wildlife") end
     math.randomseed(173);local expected=math.random();math.randomseed(173)
     Life.generate(w,1);assert(math.random()==expected,"ambient consumes combat RNG")
     for i,p in ipairs(w.biomeLife.items) do local q=environment.items[i];assert(p.x==q.x and p.y==q.y and p.phase==q.phase) end
@@ -142,6 +145,7 @@ for _,def in ipairs(Maps.catalog) do
     local seen={}
     for _,e in ipairs(m.enemies) do
         seen[e.kind]=true
+        assert(Maps.insideSpawnTerrain(w,e.x,e.y,69),def.id.." enemy spawned outside terrain")
         assert(e.kind~="squirrel" and e.kind~="boar" and e.kind~="turret" or def.id=="forest")
         if e.kind=="crocodile" then
             assert(Maps.channelDistance(e.x,e.y,w.width,w.height)<0,"croc must emerge from water")
@@ -166,6 +170,13 @@ for _,def in ipairs(Maps.catalog) do
     assert(#m.enemies==1 and m.enemies[1].elite)
     m.enemies={}
     if def.tree then assert(w.images.treeVariants[1].path:find(def.tree,1,true)) end
+    if def.id=="madagascar" then
+        assert(w.treeVisual.variantScale[1]==2.5 and w.treeVisual.variantShadow[1]>=2,
+            "baobab did not receive its 2.5x grounded visual scale")
+        for _,node in ipairs(w.nodes) do if node.treeVariant==1 then
+            assert(Maps.insideTreeVisual(w,node.x,node.y,1),"enlarged baobab crown can escape the terrain")
+        end end
+    end
     if def.id=="island" then
         assert(Maps.island.radiusX*Maps.island.radiusY>=4*650*330,"island land area was not expanded")
         assert(def.trees==65 and Maps.treeTarget(def.id,2)==145,"island opening progression lost")

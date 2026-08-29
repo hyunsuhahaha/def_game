@@ -6,6 +6,7 @@ local ForestFloor = require("src.forest_floor")
 local ForestLighting = require("src.forest_lighting")
 local TreeDestruction = require("src.tree_destruction")
 local RegrowthCastArt = require("src.regrowth_cast_art")
+local ClearcutMaps = require("src.clearcut_maps")
 World.__index = World
 
 local buildingDefs = require("src.buildings")
@@ -1481,7 +1482,8 @@ function World:draw(player, actorSource)
     end} end
     if not self.hideBase then queue[#queue + 1] = {x=self.wall.x or self.width*.5,y = self.wall.y, draw = function() self:drawWall(player) end} end
     for _, n in ipairs(self.nodes) do
-        if n.active or n.kind == "plot" or n.rushTree then
+        if (n.active or n.kind == "plot" or n.rushTree)
+            and (not self.clearcutMap or ClearcutMaps.insideSpawnTerrain(self,n.x,n.y,0)) then
             local node = n
             local sortY = node.kind == "quarry" and (node.y - self.quarryVisual.frontBias) or node.kind == "tree" and (node.y - self.treeVisual.frontBias) or node.y
             queue[#queue + 1] = {x=node.x,y = sortY,anchorY=node.y, draw = function()

@@ -69,6 +69,7 @@ function Scenery.generate(world,stage)
         return false
     end
     local function add(kind,x,y,zone,scaleOverride)
+        if not Maps.canPlant(world,x,y) then return end
         if Scenery.isOpen(x,y,w,h) then return end
         if kind=="fern" and not Maps.insideGroundPlants(world,x,y,{left=135,right=135,top=220,bottom=120}) then return end
         local def=Scenery.catalog[kind]
@@ -139,13 +140,15 @@ local function draw(prop,player)
 end
 
 function Scenery.drawGround(world)
-    for _,prop in ipairs(world.forestScenery and world.forestScenery.ground or {}) do draw(prop) end
+    for _,prop in ipairs(world.forestScenery and world.forestScenery.ground or {}) do
+        if Maps.canPlant(world,prop.x,prop.y) then draw(prop) end
+    end
 end
 
 function Scenery.queue(world,queue,player)
     for _,entry in ipairs(world.forestScenery and world.forestScenery.actors or {}) do
         local prop=entry
-        if prop.kind~="fern" or Maps.insideGroundPlants(world,prop.x,prop.y,{left=135,right=135,top=220,bottom=120}) then
+        if Maps.canPlant(world,prop.x,prop.y) and (prop.kind~="fern" or Maps.insideGroundPlants(world,prop.x,prop.y,{left=135,right=135,top=220,bottom=120})) then
             queue[#queue+1]={x=prop.x,y=prop.y,draw=function() draw(prop,player) end}
         end
     end

@@ -29,6 +29,7 @@ function Life.generate(world,stage)
     local w,h=world.width,world.height
     local function add(kind,x,y)
         local def=Life.catalog[kind]
+        if not Maps.insideSpawnTerrain(world,x,y,28) then return false end
         if def.plant and not Maps.insideGroundPlants(world,x,y) then return false end
         data.items[#data.items+1]={kind=kind,x=x,y=y,homeX=x,homeY=y,phase=random()*6.283,
             facing=random()<.5 and -1 or 1,scale=.88+random()*.24,air=def.air}
@@ -91,6 +92,7 @@ function Life.update(world,dt)
             p.x,p.y=Maps.constrain(world,p.x,p.y,12)
             p.facing=math.cos(a)>=0 and 1 or -1
         end
+        p.x,p.y=Maps.constrain(world,p.x,p.y,28)
     end
 end
 function Life.startle(world,x,y,radius)
@@ -125,7 +127,8 @@ function Life.queue(world,queue,player)
     local data=world.biomeLife;if not data then return end
     for _,p in ipairs(data.items) do
         local entry=p
-        if not Life.catalog[p.kind].plant or Maps.insideGroundPlants(world,p.x,p.y) then
+        if Maps.insideSpawnTerrain(world,p.x,p.y,20)
+            and (not Life.catalog[p.kind].plant or Maps.insideGroundPlants(world,p.x,p.y)) then
             queue[#queue+1]={x=p.x,y=p.air and 100000+p.y or p.y,anchorY=p.y,draw=function() draw(entry,data.time,player) end}
         end
     end

@@ -91,6 +91,22 @@ function Maps.insidePlayable(world,x,y,margin)
     return x>=b.x+margin and x<=b.x+b.w-margin and y>=b.y+margin and y<=b.y+b.h-margin
 end
 
+-- Spawned actors and props must remain on the playable ground. cameraBounds
+-- deliberately extends into the northern panorama, so it is never a valid
+-- spawn boundary.
+function Maps.insideSpawnTerrain(world,x,y,margin)
+    return Maps.insidePlayable(world,x,y,margin or 0)
+end
+
+function Maps.insideTreeVisual(world,x,y,variant)
+    if world and world.clearcutMap=="madagascar" and variant==1 then
+        -- The 2.5x baobab crown needs a larger northern reserve while its foot
+        -- stays at the unchanged gameplay coordinate.
+        return Maps.insideGroundPlants(world,x,y,{left=150,right=150,top=240,bottom=140})
+    end
+    return Maps.insidePlayable(world,x,y,110)
+end
+
 -- Ground plants are foot-anchored billboards. Keeping only their anchor inside
 -- playBounds still lets their crown poke over the northern ridge, so plants
 -- share an asymmetric visual reserve. The other edges also retain a quieter
@@ -203,8 +219,13 @@ function Maps.configure(world,id)
             end
             world.images.treeVariants[#world.images.treeVariants+1]=images[name]
         end
-        world.treeVisual.variantScale=def.id=="island" and {.78,.82,.86} or {1,.95,.92}
-        world.treeVisual.variantShadow={.8,1,1.05}
+        if def.id=="island" then
+            world.treeVisual.variantScale={.78,.82,.86};world.treeVisual.variantShadow={.8,1,1.05}
+        elseif def.id=="madagascar" then
+            world.treeVisual.variantScale={2.5,.95,.92};world.treeVisual.variantShadow={2.05,1,1.05}
+        else
+            world.treeVisual.variantScale={1,.95,.92};world.treeVisual.variantShadow={.8,1,1.05}
+        end
     end
 end
 function Maps.filterScenery(world)

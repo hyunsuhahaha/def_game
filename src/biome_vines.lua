@@ -132,12 +132,16 @@ function Vines.queue(world,queue,player,time)
     if not data then return end
     for _,value in ipairs(data.attached) do local entry=value
         local node=entry.node
-        queue[#queue+1]={x=node.x,y=node.y+.02,anchorY=node.y,sortBias=.02,
-            draw=function() drawAttached(entry,data.profile,time) end}
+        if Maps.insideSpawnTerrain(world,node.x,node.y,0) then
+            queue[#queue+1]={x=node.x,y=node.y+.02,anchorY=node.y,sortBias=.02,
+                draw=function() drawAttached(entry,data.profile,time) end}
+        end
     end
     for _,value in ipairs(data.ground) do local patch=value
-        queue[#queue+1]={x=patch.x,y=patch.y,anchorY=patch.y,
-            draw=function() drawGround(patch,data.profile,player) end}
+        if Maps.canPlant(world,patch.x,patch.y) then
+            queue[#queue+1]={x=patch.x,y=patch.y,anchorY=patch.y,
+                draw=function() drawGround(patch,data.profile,player) end}
+        end
     end
 end
 
