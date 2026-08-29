@@ -222,7 +222,48 @@ function Game:consumeTestNextRunLevels()
     local count=math.max(0,math.floor(self.testLevelsNextRun or 0))
     if count<=0 then return 0 end
     self.testLevelsNextRun=0
-    return self:grantTestLevels(count)
+    self:grantTestLevels(count)
+    self:autoResolvePendingUpgrades()
+    return count
+end
+
+-- 테스트 메뉴로 예약된 "다음 런 시작 레벨" 지급은 3택 화면을 20번 직접 눌러야 해서
+-- 번거로우므로, 매 픽마다 무작위로 하나를 자동 선택해 즉시 소진한다.
+function Game:autoResolvePendingUpgrades()
+    if self.clearcut then
+        local c=self.clearcut
+        local guard=0
+        while (c.pending>0 or c.selectionKind=="fusion" or c.selectionKind=="arcana") and guard<200 do
+            guard=guard+1
+            if c.selectionKind=="fusion" then
+                c:chooseFusion(1,self)
+            elseif c.selectionKind=="arcana" then
+                if c.arcanaChoices and #c.arcanaChoices>0 then c:chooseArcana(love.math.random(#c.arcanaChoices),self)
+                else c.selectionKind="upgrade" end
+            else
+                c:rollChoices()
+                if not c.choices or #c.choices==0 then break end
+                c:choose(love.math.random(#c.choices),self)
+            end
+        end
+        c.choices, c.choiceBoxes, c.specialCard = {}, {}, nil
+    end
+    if self.rush then
+        local r=self.rush
+        while r.pending>0 do
+            r:rollChoices()
+            if not r.choices or #r.choices==0 then break end
+            r:choose(love.math.random(#r.choices),self)
+        end
+        r.choices={}
+    end
+    while self.pendingLevels>0 do
+        self.upgrades:rollChoices(self)
+        local choices=self.upgrades.choices
+        if not choices or #choices==0 then break end
+        if self.upgrades:choose(love.math.random(#choices),self) then self.pendingLevels=math.max(0,self.pendingLevels-1)
+        else break end
+    end
 end
 
 function Game:openTestOptions(returnMode)
@@ -248,7 +289,7 @@ function Game:useTestOption(index)
         else self.testGrantNextRun=true; self.testMessage="다음 런 자원 1,000,000개 지급을 예약했습니다." end
     elseif index==3 then
         if activeRun then self:grantTestLevels(10); self.testMessage="현재 런 레벨 +10을 지급했습니다. 메뉴를 닫으면 3택이 시작됩니다."
-        else self.testLevelsNextRun=20; self.testMessage="다음 런 시작 레벨 +20을 예약했습니다. 한 번만 적용됩니다." end
+        else self.testLevelsNextRun=20; self.testMessage="다음 런 시작 레벨 +20을 예약했습니다. 강화는 무작위로 자동 선택됩니다." end
     elseif index==4 then
         if self.testResetArmed and self.testResetTime>0 then self.progression:reset();self.characterTraits:reset();self.achievements:reset();self.testResetArmed=false;self.testMessage="영구 재화·특성·업적 기록을 초기화했습니다."
         else self.testResetArmed,self.testResetTime=true,4; self.testMessage="초기화하려면 4초 안에 버튼을 한 번 더 누르세요." end
