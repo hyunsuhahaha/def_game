@@ -135,12 +135,11 @@ function Game:resetRun()
         local slot = self.world:firstAvailableTurretSlot()
         if slot then self.world:addBuilding("autocannon_turret", slot.x, slot.y, slot.index) end
     end
-    if self.testGrantNextRun then self:grantTestRunResources(); self.testGrantNextRun = false end
-    if (self.testLevelsNextRun or 0) > 0 then self:grantTestLevels(self.testLevelsNextRun); self.testLevelsNextRun = 0 end
+    self:consumeTestNextRunResources()
 end
 
 function Game:startRun()
-    self:resetRun(); self.mode = "playing"; self:setNotice("작전 시작 — 자원을 생산해 거점을 지키세요", "core")
+    self:resetRun(); self:consumeTestNextRunLevels(); self.mode = "playing"; self:setNotice("작전 시작 — 자원을 생산해 거점을 지키세요", "core")
     if self.pendingLevels > 0 then self.upgrades:rollChoices(self); self.mode = "upgrade" end
 end
 
@@ -148,7 +147,9 @@ function Game:startRush()
     self:resetRun()
     self.rush=RushMode.new()
     self.rush:setup(self)
+    self:consumeTestNextRunLevels()
     self.mode="playing"
+    if self.rush.pending>0 then self.rush:rollChoices();self.mode="rush_upgrade" end
 end
 
 function Game:startClearcut(characterId, mapId, stage)
@@ -163,12 +164,14 @@ function Game:startClearcut(characterId, mapId, stage)
     self.selectedClearcutStage=stage
     self.player:setClearcutSprite(self.clearcutSprites[characterId] or self.clearcutSprites.physical, characterId)
     self.clearcut:setup(self)
+    self:consumeTestNextRunLevels()
     self.selectedClearcutStage=self.clearcut.stage
     -- The simulation remains top-down world space. Rendering and pointer input
     -- share one nonlinear projection that narrows both axes into the distance.
     self:enableClearcutPerspective()
     self.mode="playing"
     ClearcutIntro.begin(self)
+    if self.clearcut.pending>0 then self.clearcut:openUpgradeChoices(self) end
 end
 function Game:setNotice(text, kind) self.notice, self.noticeKind, self.noticeTime = text, kind or "core", 2.2 end
 
@@ -194,9 +197,32 @@ function Game:grantTestRunResources()
     self.food, self.ore, self.wood, self.stone, self.seeds = self.food + 1000000, self.ore + 1000000, self.wood + 1000000, self.stone + 1000000, self.seeds + 1000000
 end
 
+function Game:consumeTestNextRunResources()
+    if not self.testGrantNextRun then return false end
+    self.testGrantNextRun=false
+    self:grantTestRunResources()
+    return true
+end
+
 function Game:grantTestLevels(count)
     count = math.max(1, math.floor(count or 10))
+    local track=self.clearcut or self.rush
+    if track then
+        for _=1,count do
+            track.level,track.pending=track.level+1,track.pending+1
+            track.xpNext=math.floor(10+(track.level-1)*6.5)
+        end
+        return count
+    end
     for _ = 1, count do self:addRunXP(math.max(0, self.runXPNext - self.runXP)) end
+    return count
+end
+
+function Game:consumeTestNextRunLevels()
+    local count=math.max(0,math.floor(self.testLevelsNextRun or 0))
+    if count<=0 then return 0 end
+    self.testLevelsNextRun=0
+    return self:grantTestLevels(count)
 end
 
 function Game:openTestOptions(returnMode)
@@ -206,18 +232,23 @@ end
 function Game:closeTestOptions()
     local target=self.testReturnMode or "lobby"
     self.mode=target
-    if target=="playing" and self.pendingLevels>0 then self.upgrades:rollChoices(self); self.mode="upgrade" end
+    if target=="playing" then
+        if self.clearcut and self.clearcut.pending>0 then self.clearcut:openUpgradeChoices(self)
+        elseif self.rush and self.rush.pending>0 then self.rush:rollChoices();self.mode="rush_upgrade"
+        elseif self.pendingLevels>0 then self.upgrades:rollChoices(self);self.mode="upgrade" end
+    end
 end
 
 function Game:useTestOption(index)
+    local activeRun=self.testReturnMode=="playing" or self.testReturnMode=="upgrade" or self.testReturnMode=="rush_upgrade" or self.testReturnMode=="clearcut_upgrade"
     if index==1 then
         self.progression:addCurrency(1000000); self.testMessage="유산 부품 1,000,000개를 지급했습니다."
     elseif index==2 then
-        if self.testReturnMode=="playing" or self.testReturnMode=="upgrade" then self:grantTestRunResources(); self.testMessage="현재 런 자원을 각각 1,000,000개 지급했습니다."
+        if activeRun then self:grantTestRunResources(); self.testMessage="현재 런 자원을 각각 1,000,000개 지급했습니다."
         else self.testGrantNextRun=true; self.testMessage="다음 런 자원 1,000,000개 지급을 예약했습니다." end
     elseif index==3 then
-        if self.testReturnMode=="playing" or self.testReturnMode=="upgrade" then self:grantTestLevels(10); self.testMessage="생산 레벨 10회분을 지급했습니다. 메뉴를 닫으면 3택이 시작됩니다."
-        else self.testLevelsNextRun=(self.testLevelsNextRun or 0)+10; self.testMessage="다음 런 생산 레벨 +10을 예약했습니다." end
+        if activeRun then self:grantTestLevels(10); self.testMessage="현재 런 레벨 +10을 지급했습니다. 메뉴를 닫으면 3택이 시작됩니다."
+        else self.testLevelsNextRun=20; self.testMessage="다음 런 시작 레벨 +20을 예약했습니다. 한 번만 적용됩니다." end
     elseif index==4 then
         if self.testResetArmed and self.testResetTime>0 then self.progression:reset();self.characterTraits:reset();self.achievements:reset();self.testResetArmed=false;self.testMessage="영구 재화·특성·업적 기록을 초기화했습니다."
         else self.testResetArmed,self.testResetTime=true,4; self.testMessage="초기화하려면 4초 안에 버튼을 한 번 더 누르세요." end
@@ -1433,7 +1464,8 @@ function Game:drawTestOptions()
     local bx=w/2-290
     UI.button(bx,220,580,58,"유산 부품 +1,000,000",true,f.heading)
     UI.button(bx,300,580,58,"런 자원 각 +1,000,000  (식량·광석·목재·돌)",true,f.body)
-    UI.button(bx,380,580,58,"생산 레벨 +10  (런 강화 3택 테스트)",true,f.body)
+    local activeRun=self.testReturnMode=="playing" or self.testReturnMode=="upgrade" or self.testReturnMode=="rush_upgrade" or self.testReturnMode=="clearcut_upgrade"
+    UI.button(bx,380,580,58,activeRun and "현재 런 레벨 +10  (강화 3택 테스트)" or "다음 런 시작 레벨 +20  (1회 적용)",true,f.body)
     UI.button(bx,460,580,58,self.testResetArmed and "정말 초기화 — 다시 클릭" or "영구 재화·특성 초기화",true,f.body)
     UI.button(bx,550,580,46,"돌아가기  [F10 / ESC]",true,f.body)
     love.graphics.setColor(self.testResetArmed and {1,.42,.25} or {.68,.82,.76}); love.graphics.printf(self.testMessage or "",w/2-315,525,630,"center")

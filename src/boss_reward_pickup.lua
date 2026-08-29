@@ -29,7 +29,20 @@ function Rewards.update(mode,game)
         local dx,dy=game.player.x-pickup.x,game.player.y-pickup.y
         if dx*dx+dy*dy<=52*52 then
             pickup.collected=true
-            for _,drop in ipairs(game.world.drops or{}) do drop.magnet=true end
+            local drops=game.world.drops or{}
+            local farthest=1
+            for _,drop in ipairs(drops) do
+                local ddx,ddy=game.player.x-drop.x,game.player.y-drop.y
+                farthest=math.max(farthest,math.sqrt(ddx*ddx+ddy*ddy))
+            end
+            for order,drop in ipairs(drops) do
+                local ddx,ddy=game.player.x-drop.x,game.player.y-drop.y
+                local distance=math.sqrt(ddx*ddx+ddy*ddy)
+                drop.magnet=true
+                drop.bossMagnet=true
+                drop.magnetPullAge=0
+                drop.magnetDelay=.18+(distance/farthest)*.30+((order-1)%4)*.018
+            end
             if mode.traitFx then mode.traitFx:emit("refund",game.player.x,game.player.y,{particles=14}) end
             game:setNotice("자석 획득 — 떨어진 자원을 전부 회수한다!","ore")
             table.remove(mode.bossMagnetPickups,index)

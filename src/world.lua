@@ -325,8 +325,17 @@ function World:updateDrops(dt, game)
         local dx, dy = player.x - drop.x, player.y - drop.y
         local distance = math.sqrt(dx * dx + dy * dy)
         if drop.height <= (chopper and 18 or 0) and distance <= pickupRadius and cargoSpace(player) > 0 then drop.magnet = true end
-        if drop.magnet then
-            local pull = math.min(1, dt * pickupSpeed)
+        local pulling=drop.magnet
+        if pulling and (drop.magnetDelay or 0)>0 then
+            drop.magnetDelay=math.max(0,drop.magnetDelay-dt)
+            pulling=false
+        end
+        if pulling then
+            drop.magnetPullAge=(drop.magnetPullAge or 0)+dt
+            local ramp=math.min(1,drop.magnetPullAge/.55)
+            ramp=ramp*ramp*(3-2*ramp)
+            local speed=drop.bossMagnet and pickupSpeed*(.16+ramp*1.05) or pickupSpeed
+            local pull = 1-math.exp(-dt*speed)
             drop.x, drop.y = drop.x + dx * pull, drop.y + dy * pull
             drop.height = drop.height + (10 - drop.height) * pull
             if distance <= 26 then
