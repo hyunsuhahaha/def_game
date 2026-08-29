@@ -711,7 +711,7 @@ function Game:wheelmoved(x, y)
     if not (love.keyboard.isDown("lctrl") or love.keyboard.isDown("rctrl")) then return end
     local factor = y > 0 and 1.1 or 1 / 1.1
     if self.clearcut and self.camera.perspective then
-        local userZoom=math.max(.68,math.min(1.6,(self.camera.userZoom or 1)*factor))
+        local userZoom=math.max(.52,math.min(1.6,(self.camera.userZoom or 1)*factor))
         self.camera.userZoom=userZoom
         local baseZoom=self.world.stageZoom or self.camera.zoom
         if self.world.overviewBounds then

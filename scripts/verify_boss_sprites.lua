@@ -41,7 +41,9 @@ for i,kind in ipairs(kinds) do
     local radius,hp=e.def.radius,e.hp
     local pose=Art.pose(e,.35)
     ClearcutMode.drawEnemy(e,.35)
-    local draw=fixture.commands[#fixture.commands]
+    local draw
+    for j=#fixture.commands,1,-1 do if fixture.commands[j].file==catalog[kind].file then draw=fixture.commands[j];break end end
+    assert(draw,"runtime sprite draw missing")
     assert(draw.file==catalog[kind].file and draw.filter=="nearest","wrong runtime asset or filtering")
     assert(draw.args[7]==catalog[kind].foot,"foot anchor drift")
     assert(draw.shader=="assets/shaders/forest-arcade-light.glsl","material shader not used")

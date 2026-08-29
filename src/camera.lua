@@ -137,7 +137,11 @@ function Camera:update(dt, target, world)
         local edge=math.min(1,(focus.duration-focus.time)/.28,focus.time/.38)
         desiredZoom=self.zoom*(1+(focus.zoom-1)*math.max(0,edge))
     end
-    local b=world.playBounds or {x=0,y=0,w=world.width,h=world.height}
+    -- The world-tree siege deliberately reveals beyond the current stage
+    -- pocket. Fit against the authored world, otherwise perspective fitting
+    -- silently cancels the scripted zoom-out.
+    local b=self.scriptedWideView and {x=0,y=0,w=world.width,h=world.height}
+        or world.playBounds or {x=0,y=0,w=world.width,h=world.height}
     local leftExtent,topExtent,rightExtent,bottomExtent
     if self.perspective then
         local baseLeft,baseTop,baseRight,baseBottom=perspectiveExtents(self,w,h,1)

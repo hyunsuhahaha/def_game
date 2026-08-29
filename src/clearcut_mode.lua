@@ -1004,7 +1004,8 @@ function ClearcutMode:spawnWorldTree(game)
         local camera=game.camera
         if camera then
             local from=camera.userZoom or 1
-            self.worldTreeCamera={from=from,target=math.min(from,.68),t=0,duration=.8}
+            self.worldTreeCamera={from=from,target=math.min(from,.52),t=0,duration=.8}
+            camera.scriptedWideView=true
             if camera.focus then camera:focus((self.worldTree.x+game.player.x)*.5,(self.worldTree.y+game.player.y)*.5-60,1.25,.92) end
         end
     end
@@ -1030,10 +1031,14 @@ end
 
 function ClearcutMode:restoreWorldTreeCamera(game)
     local state=self.worldTreeCamera
-    if not state or not game.camera then self.worldTreeCamera=nil;return end
+    if not state or not game.camera then
+        if game.camera then game.camera.scriptedWideView=nil end
+        self.worldTreeCamera=nil;return
+    end
     game.camera.userZoom=state.from
     game.camera.zoom=(game.world.stageZoom or game.camera.zoom)*state.from
     game.camera.renderZoom=game.camera.zoom
+    game.camera.scriptedWideView=nil
     self.worldTreeCamera=nil
 end
 

@@ -13,6 +13,8 @@ local e=mode:spawnEnemy("worldtree",1600,850)
 assert(e and e.def.immovable and e.def.speed==0 and e.def.radius==350,"worldtree is not a fixed large target")
 assert(catalog.worldtree.siege and catalog.worldtree.cell==1024 and catalog.worldtree.width==820,"siege atlas catalog drift")
 local x,y=e.x,e.y
+local groundedPose=Art.pose(e,0)
+assert(groundedPose.groundSink==36 and groundedPose.y==groundedPose.footY+36,"worldtree roots were not sunk into the ground")
 e.knockTimer=1;e.knockVX=500;e.airborneT=.2;e.airborneDuration=1;e.airbornePeak=80
 Siege.updateBoss(mode,e,.1,{world=mode.mapWorld})
 assert(e.x==x and e.y==y and not e.knockTimer and not e.airborneT,"fixed worldtree moved")
@@ -50,8 +52,15 @@ Siege.updateDebris(missMode,.1,{player={x=700,y=700},camera={trauma=0}})
 assert(missDamage==0,"branch damaged player outside visible footprint")
 
 fixture.reset();Art.drawBody(e,0)
-local draw=fixture.commands[#fixture.commands]
+local draw
+for i=#fixture.commands,1,-1 do if fixture.commands[i].file then draw=fixture.commands[i];break end end
 assert(draw.file==catalog.worldtree.file and draw.filter=="nearest","runtime did not draw siege atlas with nearest")
+local shadows,soilLip=0,false
+for _,command in ipairs(fixture.commands)do
+    if command.op=="ellipse" then shadows=shadows+1;assert(command.args[3]<=142,"worldtree shadow expanded beyond root contact")end
+    if command.op=="polygon" then soilLip=true end
+end
+assert(shadows==3 and soilLip,"worldtree grounding shadow/soil lip missing")
 local game={world=mode.mapWorld,player=mode.mapPlayer,setNotice=function()end}
 local before=#mode.enemies
 mode:spawnWorldTreeGuards(e,game)
@@ -63,9 +72,16 @@ cameraMode.mapWorld=cameraWorld;cameraMode.mapPlayer={x=1600,y=1100}
 local camera={userZoom=1,zoom=.84,renderZoom=.84,trauma=0,focus=function(self,x,y,duration,zoom)self.focused={x=x,y=y,duration=duration,zoom=zoom}end}
 local cameraGame={world=cameraWorld,player=cameraMode.mapPlayer,camera=camera,setNotice=function()end}
 cameraMode:spawnWorldTree(cameraGame)
-assert(cameraMode.worldTreeCamera and camera.focused,"worldtree did not start wide-view transition")
+assert(cameraMode.worldTreeCamera and camera.focused and camera.scriptedWideView,"worldtree did not start wide-view transition")
 cameraMode:updateWorldTreeCamera(.8,cameraGame)
-assert(math.abs(camera.userZoom-.68)<.0001 and math.abs(camera.zoom-.84*.68)<.0001,"worldtree did not use ctrl-wheel zoom path")
+assert(math.abs(camera.userZoom-.52)<.0001 and math.abs(camera.zoom-.84*.52)<.0001,"worldtree did not use ctrl-wheel zoom path")
+local Camera=require("src.camera")
+love.graphics.getDimensions=function()return 1280,720 end
+local stageWorld={width=3200,height=2000,playBounds={x=400,y=300,w=2400,h=1400}}
+local narrow=Camera.new(1600,1000);narrow.perspective=true;narrow.pitch=.86;narrow.zoom=.84*.52;narrow.userZoom=.52
+local wide=Camera.new(1600,1000);wide.perspective=true;wide.pitch=.86;wide.zoom=.84*.52;wide.userZoom=.52;wide.scriptedWideView=true
+narrow:update(.1,{x=1600,y=1000},stageWorld);wide:update(.1,{x=1600,y=1000},stageWorld)
+assert(wide.renderZoom<narrow.renderZoom,"stage fit still cancelled the worldtree view expansion")
 cameraMode:restoreWorldTreeCamera(cameraGame)
-assert(camera.userZoom==1 and math.abs(camera.zoom-.84)<.0001,"worldtree view did not restore user zoom")
-print("WORLDTREE_SIEGE_OK fixed=true atlas=1024 display=820 stages=4 leaves=62 branches=2 guards=plants zoom=.68_restore")
+assert(camera.userZoom==1 and math.abs(camera.zoom-.84)<.0001 and not camera.scriptedWideView,"worldtree view did not restore user zoom")
+print("WORLDTREE_SIEGE_OK fixed=true grounded=36 contact_shadow=root_lobes atlas=1024 display=820 stages=4 leaves=62 branches=2 guards=plants zoom=.52_restore")

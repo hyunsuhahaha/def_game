@@ -5,6 +5,7 @@ for kind,spec in pairs(require("src.attack_plant_catalog")) do catalog[kind]=spe
 for kind,spec in pairs(require("src.biome_boss_catalog")) do catalog[kind]=spec end
 local Art = {}
 local assets, material
+Art.SIEGE_GROUND_SINK=36
 
 local function load()
     if assets then return end
@@ -23,6 +24,30 @@ local function load()
 end
 
 function Art.footY(e) return e.y + e.def.radius * .65 end
+
+local function drawSiegeShadow(e,pose)
+    -- Root contact, not a canopy-sized oval: broad soft ellipses made the
+    -- massive tree read as a hovering billboard. These short lobes sit only
+    -- under the weight-bearing root clusters.
+    local y=pose.footY+7
+    love.graphics.setColor(.055,.052,.024,.34*pose.alpha)
+    love.graphics.ellipse("fill",e.x,y,142*pose.shadowScale,21*pose.shadowScale)
+    love.graphics.setColor(.07,.062,.026,.27*pose.alpha)
+    love.graphics.ellipse("fill",e.x-188*pose.shadowScale,y-3,104*pose.shadowScale,13*pose.shadowScale)
+    love.graphics.ellipse("fill",e.x+190*pose.shadowScale,y-2,108*pose.shadowScale,14*pose.shadowScale)
+end
+
+local function drawSiegeSoilLip(e,pose)
+    -- A small foreground soil lip hides the lowest root pixels, making the
+    -- trunk look planted into the world instead of pasted on top of it.
+    local x,y=e.x,pose.footY+8
+    love.graphics.setColor(.20,.16,.065,.82*pose.alpha)
+    love.graphics.polygon("fill",x-116,y-5,x-75,y-13,x-28,y-8,x+18,y-14,x+70,y-8,x+118,y-2,x+92,y+10,x+36,y+13,x-22,y+11,x-82,y+9)
+    love.graphics.setColor(.36,.28,.10,.66*pose.alpha)
+    love.graphics.rectangle("fill",x-78,y-7,34,4);love.graphics.rectangle("fill",x+25,y-9,46,4)
+    love.graphics.setColor(.10,.09,.035,.48*pose.alpha)
+    love.graphics.rectangle("fill",x-42,y+7,52,4);love.graphics.rectangle("fill",x+54,y+5,29,3)
+end
 
 function Art.pose(e, t)
     local spec = assert(catalog[e.kind], "unknown forest art: " .. tostring(e.kind))
@@ -61,8 +86,10 @@ function Art.pose(e, t)
     local squash = spec.siege and 0 or recoil*.045
     local introX,introY=e.entranceOffsetX or 0,e.entranceOffsetY or 0
     local introSX,introSY=e.entranceScaleX or 1,e.entranceScaleY or 1
+    local footY=Art.footY(e)
+    local groundSink=spec.siege and Art.SIEGE_GROUND_SINK or 0
     return {spec=spec,frame=frame,flip=flip,scale=scale,
-        x=e.x+introX,y=Art.footY(e)-bob-(e.hopHeight or 0)+introY,footY=Art.footY(e),angle=lean,
+        x=e.x+introX,y=footY+groundSink-bob-(e.hopHeight or 0)+introY,footY=footY,groundSink=groundSink,angle=lean,
         sx=scale*flip*(1+squash)*introSX,sy=scale*(1-squash)*introSY,height=spec.height*scale*introSY,
         alpha=e.entranceAlpha or 1,shadowScale=introSX}
 end
@@ -71,8 +98,10 @@ function Art.drawBody(e, t)
     load()
     local pose=Art.pose(e,t)
     local asset=assets[e.kind]
-    love.graphics.setColor(.08,.07,.035,.28*pose.alpha)
-    love.graphics.ellipse("fill",e.x,pose.footY,pose.spec.width*.40*pose.shadowScale,math.max(3,pose.spec.width*.105*pose.shadowScale))
+    if pose.spec.siege then drawSiegeShadow(e,pose) else
+        love.graphics.setColor(.08,.07,.035,.28*pose.alpha)
+        love.graphics.ellipse("fill",e.x,pose.footY,pose.spec.width*.40*pose.shadowScale,math.max(3,pose.spec.width*.105*pose.shadowScale))
+    end
     local previous=love.graphics.getShader()
     love.graphics.setShader(material)
     material:send("hurt",math.min(1,(e.visualHit or 0)/.14))
@@ -82,6 +111,7 @@ function Art.drawBody(e, t)
     love.graphics.draw(asset.image,asset.frames[pose.frame],pose.x,pose.y,pose.angle,
         pose.sx,pose.sy,pose.spec.cell/2,pose.spec.foot)
     love.graphics.setShader(previous)
+    if pose.spec.siege then drawSiegeSoilLip(e,pose) end
 end
 
 -- Draw a defeated enemy while another gameplay effect carries it. This keeps the
@@ -123,7 +153,7 @@ function Art.drawHealth(e,t)
     local alpha=e.entranceAlpha or 1
     if alpha<=.05 then return end
     local w=math.max(e.def.radius*2.2,pose.spec.width*.85)
-    local x,y=math.floor(e.x-w/2),math.floor(pose.footY-(e.hopHeight or 0)-pose.height-9)
+    local x,y=math.floor(e.x-w/2),math.floor(pose.y-pose.height-9)
     local pct=math.max(0,math.min(1,e.hp/e.maxHp))
     love.graphics.setColor(.14,.10,.07,.95*alpha); love.graphics.rectangle("fill",x-1,y-1,w+2,6)
     love.graphics.setColor(.9,.3,.19,alpha); love.graphics.rectangle("fill",x,y,math.floor(w*pct),4)
