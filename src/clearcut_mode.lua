@@ -280,7 +280,13 @@ function ClearcutMode:growth(id)
     return math.min(1,(self:power(id)/levelCurve[7])^1.35)
 end
 function ClearcutMode:skillArea(id)return Synergies.areaMultiplier(self,id)end
-function ClearcutMode:skillDamage(id)return Synergies.damageMultiplier(self,id)end
+-- Automatic skills keep their full visual footprint from rank one, but their
+-- damage matures with rank. This prevents collecting many one-point skills
+-- from producing the completed-build clear speed in the opening minutes.
+function ClearcutMode:skillDamage(id)
+    local growth=self:growth(id)
+    return Synergies.damageMultiplier(self,id)*(.20+(growth^1.5)*.80)
+end
 function ClearcutMode:autoSkillCooldown(id)
     local value=Synergies.cooldownMultiplier(self)
     if id=="bat_swarm" or id=="crow_strike" then value=value*Synergies.wildCooldownMultiplier(self) end
@@ -2836,7 +2842,7 @@ function ClearcutMode:updateBatSwarm(dt, game)
     for i = #self.bats, count + 1, -1 do self.bats[i] = nil end
     local orbitRadius = 78 + growth * 45
     local targetRange = 360 + growth * 180
-    local dmg = (.9 + growth * 3.1)*self:skillDamage("bat_swarm")
+    local dmg = (.35 + growth * 3.65)*self:skillDamage("bat_swarm")
     local atan2=math.atan2 or math.atan
     local function alive(target)
         return target and ((target.rushTree and target.active) or (not target.rushTree and target.hp and target.hp>0))
@@ -2908,7 +2914,7 @@ function ClearcutMode:updateBatSwarm(dt, game)
     selected.state="dive";selected.moveT=0;selected.moveDur=.22+math.min(.16,math.sqrt((target.x-selected.x)^2+(target.y-selected.y)^2)/1500)
     selected.startX,selected.startY=selected.x,selected.y
     selected.target=target;selected.targetX=target.x;selected.targetY=target.y-(target.rushTree and 42 or 12)
-    self.batAttackTimer=(1.1-growth*.45)*self:autoSkillCooldown("bat_swarm")
+    self.batAttackTimer=(1.8-growth*1.15)*self:autoSkillCooldown("bat_swarm")
 end
 
 function ClearcutMode:updateThornAura(dt, game)
@@ -2917,9 +2923,9 @@ function ClearcutMode:updateThornAura(dt, game)
     self.auraTimer = (self.auraTimer or 0) - dt
     if self.auraTimer > 0 then return end
     local growth=self:growth("thorn_aura")
-    self.auraTimer = (2.2-growth*1.2)*self:autoSkillCooldown("thorn_aura")*Synergies.tickMultiplier(self)
+    self.auraTimer = (3.4-growth*2.4)*self:autoSkillCooldown("thorn_aura")*Synergies.tickMultiplier(self)
     local radius = (120 + growth*215)*self:skillArea("thorn_aura")
-    local dmg = (1 + growth*3)*self:skillDamage("thorn_aura")
+    local dmg = (.35 + growth*3.65)*self:skillDamage("thorn_aura")
     for _, node in ipairs(game.world.nodes) do
         if node.rushTree and node.active then
             local dx, dy = node.x - game.player.x, node.y - game.player.y
@@ -2946,7 +2952,7 @@ function ClearcutMode:updateCrowStrike(dt, game)
     self.crowTimer = (self.crowTimer or 0) - dt
     if self.crowTimer > 0 then return end
     local growth=self:growth("crow_strike")
-    self.crowTimer = (5-growth*3.6)*self:autoSkillCooldown("crow_strike")
+    self.crowTimer = (7-growth*5.6)*self:autoSkillCooldown("crow_strike")
     local range = 620
     -- 공용 스킬은 무조건 몬스터부터 노린다: 사거리 안에 적이 있으면 나무는 아예 후보에서 뺀다.
     local best, bestD2 = nil, -1
@@ -2956,7 +2962,7 @@ function ClearcutMode:updateCrowStrike(dt, game)
         if d2 <= range*range and d2 > bestD2 then best, bestD2 = e, d2 end
     end
     if not best then return end
-    local dmg = (3.5 + growth*30.5)*self:skillDamage("crow_strike")
+    local dmg = (1.5 + growth*32.5)*self:skillDamage("crow_strike")
     local radius = (35 + growth*80)*self:skillArea("crow_strike")
     if best.rushTree then
         best.rushHp = (best.rushHp or best.rushMaxHp) - dmg
@@ -2983,7 +2989,7 @@ function ClearcutMode:updateVineWhip(dt, game)
     self.whipTimer = (self.whipTimer or 0) - dt
     if self.whipTimer > 0 then return end
     local growth=self:growth("vine_whip")
-    self.whipTimer = (7-growth*3.5)*self:autoSkillCooldown("vine_whip")
+    self.whipTimer = (9-growth*5.5)*self:autoSkillCooldown("vine_whip")
     local range = (260+growth*330)*self:skillArea("vine_whip")
     -- 조준 방향은 몬스터를 우선한다: 사거리 안에 적이 있으면 나무는 후보에서 뺀다.
     local nearest, nearestD2 = nil, range * range
@@ -2996,7 +3002,7 @@ function ClearcutMode:updateVineWhip(dt, game)
     local atan2 = math.atan2 or math.atan
     local angle
     angle = atan2(nearest.y - game.player.y, nearest.x - game.player.x)
-    local dmg = (2.25+growth*15.75)*self:skillDamage("vine_whip")
+    local dmg = (.8+growth*17.2)*self:skillDamage("vine_whip")
     local cone = .75
     for _, node in ipairs(game.world.nodes) do
         if node.rushTree and node.active then
@@ -3096,7 +3102,7 @@ function ClearcutMode:updateBoomerangAxe(dt, game)
     local growth=self:growth("boomerang_axe")
     local branch=self:skillBranch("boomerang_axe")
     local branchCooldown=branch=="rapid_return" and .65 or 1
-    self.boomerangTimer = (3.2-growth*2)*self:autoSkillCooldown("boomerang_axe")*branchCooldown
+    self.boomerangTimer = (5.4-growth*4.2)*self:autoSkillCooldown("boomerang_axe")*branchCooldown
     local target,bestD2=nil,math.huge
     for _,enemy in ipairs(self.enemies)do
         if enemy.hp and enemy.hp>0 then local dx,dy=enemy.x-game.player.x,enemy.y-game.player.y;local d2=dx*dx+dy*dy;if d2<bestD2 then target,bestD2=enemy,d2 end end
@@ -3109,7 +3115,7 @@ function ClearcutMode:updateBoomerangAxe(dt, game)
     local speed=480*Synergies.projectileSpeedMultiplier(self)*(branch=="rapid_return" and 1.55 or 1)
     self.boomerangs[#self.boomerangs+1] = {
         x=game.player.x, y=game.player.y, dx=math.cos(a), dy=math.sin(a),
-        traveled=0,maxDist=200+growth*244,phase="out",hitSet={},dmg=(2+growth*12.2)*damage,
+        traveled=0,maxDist=200+growth*244,phase="out",hitSet={},dmg=(.75+growth*13.45)*damage,
         radius=(64+growth*24)*area,angle=a,target=target,speed=speed,branch=branch,ricochets=0
     }
 end
@@ -3167,7 +3173,7 @@ function ClearcutMode:updateSeedMine(dt, game)
     self.seedTimer = (self.seedTimer or 0) - dt
     if self.seedTimer > 0 then return end
     local growth=self:growth("seed_mine")
-    self.seedTimer = (4-growth*2.4)*self:autoSkillCooldown("seed_mine")
+    self.seedTimer = (6.4-growth*4.8)*self:autoSkillCooldown("seed_mine")
     local target,bestD2=nil,math.huge
     for _,enemy in ipairs(self.enemies)do
         if enemy.hp and enemy.hp>0 then local dx,dy=enemy.x-game.player.x,enemy.y-game.player.y;local d2=dx*dx+dy*dy;if d2<bestD2 then target,bestD2=enemy,d2 end end
@@ -3178,7 +3184,7 @@ function ClearcutMode:updateSeedMine(dt, game)
     local r=math.min(160,math.sqrt(bestD2))
     local branch=self:skillBranch("seed_mine")
     local radius=(110+growth*185)*self:skillArea("seed_mine")*(branch=="heavy_mine" and 1.42 or 1)
-    local damage=(2.5+growth*18.3)*self:skillDamage("seed_mine")*(branch=="heavy_mine" and 1.35 or 1)
+    local damage=(1+growth*19.8)*self:skillDamage("seed_mine")*(branch=="heavy_mine" and 1.35 or 1)
     self.seeds[#self.seeds+1] = {
         x=game.player.x + math.cos(a) * r, y=game.player.y + math.sin(a) * r,
         fuse=1.1,maxFuse=1.1,radius=radius,dmg=damage,target=target,branch=branch
@@ -3197,10 +3203,10 @@ function ClearcutMode:updateChainLightning(dt, game)
     self.lightningTimer = (self.lightningTimer or 0) - dt
     if self.lightningTimer > 0 then return end
     local growth=self:growth("chain_lightning")
-    self.lightningTimer = (4.5-growth*2.7)*self:autoSkillCooldown("chain_lightning")
+    self.lightningTimer = (7-growth*5.2)*self:autoSkillCooldown("chain_lightning")
     local jumps = 2+math.floor(growth*5+.0001)
     local hopRange = 260
-    local dmg = (1.75+growth*12.45)*self:skillDamage("chain_lightning")
+    local dmg = (.8+growth*13.4)*self:skillDamage("chain_lightning")
     local visited = {}
     local cx, cy = game.player.x, game.player.y
     local points = {{x=cx, y=cy}}
@@ -4226,7 +4232,10 @@ function ClearcutMode:hitTree(primary, game)
     local wideLevel = self:levelOf("wide_blade")
     local widePower = self:power("wide_blade")
     local radius = 75 + widePower * 45 + self.permanentTraits.area
-    local targetCount = 1 + self:powerCount("wide_blade") * 2 + math.floor(self.permanentTraits.extraTargets)
+    -- The first card establishes multi-hit without handing out the old
+    -- three-target clear immediately. Extra targets accelerate mainly at 4..6.
+    local wideTargets=wideLevel>0 and math.max(1,math.floor(widePower*1.25)) or 0
+    local targetCount = 1 + wideTargets + math.floor(self.permanentTraits.extraTargets)
     self:damageEnemiesInRadius(primary.x, primary.y, radius, 9 + self:power("berserker") * 2, game)
     if wideLevel >= 6 and love.math.random() < .15 then self:megaCleave(primary, game) end
     local candidates={}
@@ -5919,7 +5928,7 @@ end
 
 -- 세로 한 줄짜리 아이콘 스택. 텍스트 없이 아이콘 + 레벨 숫자만으로 지금까지
 -- 찍은 스킬을 보여준다. 트랙별로 묶고, 그 안에서는 레벨 높은 순으로 정렬.
-local function drawSynergyTooltip(def,count,x,y,fonts,screenW,screenH)
+local function drawSynergyTooltip(mode,def,count,x,y,fonts,screenW,screenH)
     local w=350;local h=62+#def.thresholds*34
     x=math.min(x,screenW-w-12);y=math.min(y,screenH-h-12)
     love.graphics.setColor(.025,.04,.035,.97);love.graphics.rectangle("fill",x,y,w,h,6,6)
@@ -5928,12 +5937,13 @@ local function drawSynergyTooltip(def,count,x,y,fonts,screenW,screenH)
     love.graphics.print(def.name.."  "..count,x+16,y+12)
     love.graphics.setFont(fonts.small)
     for i,threshold in ipairs(def.thresholds)do
-        local active=count>=threshold;local yy=y+44+(i-1)*34
+        local active=Synergies.breakpointActive(mode,def.id,threshold,count);local yy=y+44+(i-1)*34
+        local gate=def.minLevel and def.minLevel[threshold] or 1
         love.graphics.setColor(active and def.color or {.42,.48,.44})
         love.graphics.rectangle("fill",x+16,yy+2,28,22,4,4)
         love.graphics.setColor(active and {1,1,.94} or {.66,.7,.67})
         love.graphics.printf(tostring(threshold),x+16,yy+7,28,"center")
-        love.graphics.printf(def.text[threshold],x+54,yy+5,w-70,"left")
+        love.graphics.printf((gate>1 and "Lv."..gate.." · " or "")..def.text[threshold],x+54,yy+5,w-70,"left")
     end
 end
 
@@ -5958,16 +5968,22 @@ function ClearcutMode:drawSkillTracker(fonts)
         love.graphics.rectangle("fill",x,y,w-8,rowH,4,4)
         love.graphics.setColor(def.color);love.graphics.setLineWidth(over and 2 or 1)
         love.graphics.rectangle("line",x+.5,y+.5,w-9,rowH-1,4,4)
-        local nextAt=Synergies.nextThreshold(def.id,row.count)
-        local progress=nextAt and math.min(1,row.count/nextAt) or 1
+        local nextAt,nextLevel
+        for _,threshold in ipairs(def.thresholds)do
+            if not Synergies.breakpointActive(self,def.id,threshold,row.count)then
+                nextAt=threshold;nextLevel=def.minLevel and def.minLevel[threshold] or 1;break
+            end
+        end
+        local waitingLevel=nextAt and row.count>=nextAt and (self.level or 1)<nextLevel
+        local progress=waitingLevel and math.min(1,(self.level or 1)/nextLevel) or (nextAt and math.min(1,row.count/nextAt) or 1)
         love.graphics.setColor(def.color[1],def.color[2],def.color[3],.34);love.graphics.rectangle("fill",x+1,y+rowH-4,(w-10)*progress,3)
         love.graphics.setFont(fonts.small);love.graphics.setColor(1,.96,.84)
         love.graphics.print(def.name,x+9,y+10)
         love.graphics.setColor(row.tier>0 and def.color or {.72,.76,.72})
-        love.graphics.printf(row.count.."/"..tostring(nextAt or row.count),x+w-48,y+10,32,"right")
+        love.graphics.printf(waitingLevel and ("Lv"..nextLevel) or (row.count.."/"..tostring(nextAt or row.count)),x+w-48,y+10,32,"right")
         if over then hovered=row end
     end
-    if hovered then drawSynergyTooltip(hovered.def,hovered.count,x0+w+10,my-18,fonts,love.graphics.getWidth(),love.graphics.getHeight())end
+    if hovered then drawSynergyTooltip(self,hovered.def,hovered.count,x0+w+10,my-18,fonts,love.graphics.getWidth(),love.graphics.getHeight())end
 end
 
 function ClearcutMode:drawHUD(game,fonts)
@@ -6691,7 +6707,7 @@ function ClearcutMode:drawSelectionContent(game,fonts,w,h)
         UI.button(bx+btnW+btnGap,by,btnW,btnH,self.banishArmed and "배니시할 카드 선택" or string.format("배니시 (목재 %d)",self:banishCost()),canBanish,fonts.small,mx,my)
     end
     Fusions.drawProgress(self,fonts,w,h)
-    if synergyHover then drawSynergyTooltip(synergyHover.def,synergyHover.count,mx+18,my+18,fonts,w,h)end
+    if synergyHover then drawSynergyTooltip(self,synergyHover.def,synergyHover.count,mx+18,my+18,fonts,w,h)end
 end
 
 function ClearcutMode:choiceAt(x,y)

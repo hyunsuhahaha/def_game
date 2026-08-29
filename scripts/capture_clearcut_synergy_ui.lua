@@ -15,7 +15,7 @@ local function font(path,size)
 end
 local regular="assets/font-korean-regular.ttf";local bold="assets/font-korean-bold.ttf"
 local fonts={micro=font(regular,12),small=font(regular,14),body=font(regular,18),heading=font(bold,20),title=font(bold,32),big=font(bold,28)}
-local mode=Mode.new();mode.job="fire";mode.levels={thorn_aura=1,bat_swarm=1,molotov=1}
+local mode=Mode.new();mode.job="fire";mode.level=12;mode.levels={thorn_aura=1,bat_swarm=1,molotov=1}
 mode.choices={mode:getUpgradeDefinition("seed_mine"),mode:getUpgradeDefinition("boomerang_axe"),mode:getUpgradeDefinition("crow_strike")}
 mode.totalWood=120;mode.pending=1;mode.choicesRevealAt=-2;mode.selectionKind="upgrade"
 local game={mode="clearcut_upgrade",setNotice=function()end}

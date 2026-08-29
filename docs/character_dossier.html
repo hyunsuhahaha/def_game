@@ -732,13 +732,13 @@ const SKILLS = {
 
 /* 런 중 태그 시너지. 같은 스킬의 레벨을 여러 번 올려도 태그 수는 1회만 센다. */
 const SYNERGIES = {
-  wild:{name:"야생",color:"#b885dc",tiers:["2: 박쥐·까마귀 공격 주기 -22%, 피해 +18%"]},
-  growth:{name:"생장",color:"#7ad152",tiers:["2: 생장 스킬 범위 +14%, 12그루마다 발아 파동","4: 발아 파동이 7그루마다 더 넓고 강하게 발생"]},
-  momentum:{name:"기동",color:"#6bc7eb",tiers:["2: 공용 자동 스킬 주기 -10%, 투사체 속도 +10%","4: 공용 자동 스킬 주기 -25%, 투사체 속도 +25%"]},
-  field:{name:"장판",color:"#a8b85f",tiers:["2: 장판 태그 공용 스킬 범위 +12%","4: 범위 +28%, 지속 피해 주기 -28%"]},
-  impact:{name:"강타",color:"#ff943d",tiers:["2: 공용 자동 스킬 피해 +12%, 12그루마다 벌목 충격파","4: 공용 자동 스킬 피해 +28%, 충격파가 7그루마다 강화"]},
-  ignition:{name:"점화",color:"#ff5c1f",tiers:["2: 불씨 전이 확률 +18%, 범위 +14%","4: 불씨 전이 확률 +38%, 범위 +32%"]},
-  harvest:{name:"수확",color:"#ebc74d",tiers:["2: 목재 경험치 +12%","4: 목재 경험치 +28%"]},
+  wild:{name:"야생",color:"#b885dc",tiers:["2 · Lv.6: 박쥐·까마귀 공격 주기 -22%, 피해 +18%"]},
+  growth:{name:"생장",color:"#7ad152",tiers:["2 · Lv.6: 생장 스킬 범위 +14%, 12그루마다 발아 파동","4 · Lv.28: 발아 파동이 7그루마다 더 넓고 강하게 발생"]},
+  momentum:{name:"기동",color:"#6bc7eb",tiers:["2 · Lv.6: 공용 자동 스킬 주기 -10%, 투사체 속도 +10%","4 · Lv.28: 공용 자동 스킬 주기 -25%, 투사체 속도 +25%"]},
+  field:{name:"장판",color:"#a8b85f",tiers:["2 · Lv.6: 장판 태그 공용 스킬 범위 +12%","4 · Lv.28: 범위 +28%, 지속 피해 주기 -28%"]},
+  impact:{name:"강타",color:"#ff943d",tiers:["2 · Lv.6: 공용 자동 스킬 피해 +12%, 12그루마다 벌목 충격파","4 · Lv.28: 공용 자동 스킬 피해 +28%, 충격파가 7그루마다 강화"]},
+  ignition:{name:"점화",color:"#ff5c1f",tiers:["2 · Lv.6: 불씨 전이 확률 +18%, 범위 +14%","4 · Lv.28: 불씨 전이 확률 +38%, 범위 +32%"]},
+  harvest:{name:"수확",color:"#ebc74d",tiers:["2 · Lv.6: 목재 경험치 +12%","4 · Lv.28: 목재 경험치 +28%"]},
 };
 const SYNERGY_TAGS = {
   wide_blade:["impact","momentum"],berserker:["momentum","impact"],shockwave:["impact","field"],
@@ -956,7 +956,7 @@ function renderAll() {
   document.getElementById("masthead-stamp").textContent = MODE_META[mode].stamp;
   document.getElementById("footer").textContent = mode === "traits"
     ? "src/character_traits.lua 기준 · 노드 순서는 선행 조건 깊이(단계) 순"
-    : "src/clearcut_mode.lua + clearcut_synergies.lua + clearcut_skill_branches.lua + clearcut_fusions.lua 기준 · 스킬은 6레벨 · 태그는 서로 다른 보유 스킬 수 · 씨앗 지뢰/부메랑 도끼는 3레벨에 전문화 택1";
+    : "src/clearcut_mode.lua + clearcut_synergies.lua + clearcut_skill_branches.lua + clearcut_fusions.lua 기준 · 자동 스킬 피해는 저레벨 완만/6레벨 완성 · 시너지 2개는 Lv.6, 4개는 Lv.28부터 · 씨앗 지뢰/부메랑 도끼는 3레벨에 전문화 택1";
   buildModeSwitch();
   buildTabs();
   renderPanel(document.getElementById("search").value);

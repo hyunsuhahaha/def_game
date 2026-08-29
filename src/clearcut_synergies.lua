@@ -18,19 +18,19 @@ Synergies.skillTags={
 }
 
 Synergies.definitions={
-    {id="wild",name="야생",color={.72,.52,.86},thresholds={2},
+    {id="wild",name="야생",color={.72,.52,.86},thresholds={2},minLevel={[2]=6},
         text={[2]="박쥐·까마귀의 공격 주기 -22%, 피해 +18%"}},
-    {id="growth",name="생장",color={.48,.82,.32},thresholds={2,4},
+    {id="growth",name="생장",color={.48,.82,.32},thresholds={2,4},minLevel={[2]=6,[4]=28},
         text={[2]="생장 스킬 범위 +14%, 12그루마다 발아 파동",[4]="발아 파동이 7그루마다 더 넓고 강하게 발생"}},
-    {id="momentum",name="기동",color={.42,.78,.92},thresholds={2,4},
+    {id="momentum",name="기동",color={.42,.78,.92},thresholds={2,4},minLevel={[2]=6,[4]=28},
         text={[2]="공용 자동 스킬 주기 -10%, 투사체 속도 +10%",[4]="공용 자동 스킬 주기 -25%, 투사체 속도 +25%"}},
-    {id="field",name="장판",color={.66,.72,.38},thresholds={2,4},
+    {id="field",name="장판",color={.66,.72,.38},thresholds={2,4},minLevel={[2]=6,[4]=28},
         text={[2]="장판 태그 공용 스킬 범위 +12%",[4]="범위 +28%, 지속 피해 주기 -28%"}},
-    {id="impact",name="강타",color={1,.58,.24},thresholds={2,4},
+    {id="impact",name="강타",color={1,.58,.24},thresholds={2,4},minLevel={[2]=6,[4]=28},
         text={[2]="공용 자동 스킬 피해 +12%, 12그루마다 벌목 충격파",[4]="공용 자동 스킬 피해 +28%, 충격파가 7그루마다 강화"}},
-    {id="ignition",name="점화",color={1,.36,.12},thresholds={2,4},
+    {id="ignition",name="점화",color={1,.36,.12},thresholds={2,4},minLevel={[2]=6,[4]=28},
         text={[2]="불씨 전이 확률 +18%, 범위 +14%",[4]="불씨 전이 확률 +38%, 범위 +32%"}},
-    {id="harvest",name="수확",color={.92,.78,.30},thresholds={2,4},
+    {id="harvest",name="수확",color={.92,.78,.30},thresholds={2,4},minLevel={[2]=6,[4]=28},
         text={[2]="목재 경험치 +12%",[4]="목재 경험치 +28%"}},
 }
 
@@ -53,7 +53,9 @@ function Synergies.tier(mode,id)
     local counts=Synergies.counts(mode);mode.synergyCounts=counts
     local count=counts[id] or 0
     local tier=0;local def=byId[id]
-    if def then for _,threshold in ipairs(def.thresholds)do if count>=threshold then tier=threshold end end end
+    if def then for _,threshold in ipairs(def.thresholds)do
+        if count>=threshold and (mode.level or 1)>=(def.minLevel and def.minLevel[threshold] or 1) then tier=threshold end
+    end end
     return tier,count
 end
 
@@ -68,6 +70,11 @@ function Synergies.nextThreshold(id,count)
     local def=byId[id];if not def then return nil end
     for _,threshold in ipairs(def.thresholds)do if threshold>count then return threshold end end
     return def.thresholds[#def.thresholds]
+end
+function Synergies.breakpointActive(mode,id,threshold,count)
+    local def=byId[id];if not def then return false end
+    return (count or Synergies.counts(mode)[id] or 0)>=threshold
+        and (mode.level or 1)>=(def.minLevel and def.minLevel[threshold] or 1)
 end
 
 function Synergies.cooldownMultiplier(mode)

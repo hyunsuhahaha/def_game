@@ -22,12 +22,15 @@ local liveCount=0;for _ in pairs(seen)do liveCount=liveCount+1 end
 assert(liveCount==32,"live skill tag audit did not cover every definition: "..liveCount)
 assert(not Synergies.skillTags.spore_cloud,"removed spore cloud returned through synergy data")
 mode.levels={bat_swarm=1,crow_strike=6,seed_mine=2,thorn_aura=1}
+mode.level=8
 local counts=Synergies.refresh(mode)
 assert(counts.wild==2 and counts.growth==2 and counts.momentum==2,"unique-skill trait count is wrong")
 assert(mode:synergyTier("wild")==2 and mode:synergyTier("growth")==2)
 
-local ignition=Mode.new();ignition.levels={molotov=1,dry_forest=1,oil_drum=1,straw_bale=1}
+local ignition=Mode.new();ignition.level=30;ignition.levels={molotov=1,dry_forest=1,oil_drum=1,straw_bale=1}
 assert(Synergies.ignitionChanceMultiplier(ignition)==1.38 and Synergies.ignitionRadiusMultiplier(ignition)==1.32,"ignition tier is display-only")
+local gated=Mode.new();gated.level=8;gated.levels=ignition.levels
+assert(gated:synergyTier("ignition")==2,"four-piece payoff opened before late-run level gate")
 
 -- Rank three interrupts the ordinary draft with an unskippable specialization.
 local branchMode=Mode.new();branchMode.levels.seed_mine=2;branchMode.choices={branchMode:getUpgradeDefinition("seed_mine")};branchMode.pending=1
@@ -72,6 +75,7 @@ assert(#burst.friendlyGrowthBursts>=2,"capstone synergies did not schedule clear
 local source=assert(io.open("src/clearcut_mode.lua","rb")):read("*a")
 assert(source:find("drawSynergyTooltip",1,true) and source:find("self.synergyBoxes",1,true),"hoverable synergy HUD missing")
 assert(source:find("Synergies.previewCount",1,true),"draft cards do not preview synergy count changes")
+assert(source:find("waitingLevel",1,true) and source:find('"Lv"..nextLevel',1,true),"HUD does not expose level-gated breakpoints")
 local dossier=assert(io.open("docs/character_dossier.html","rb")):read("*a")
 assert(dossier:find("const SYNERGIES",1,true) and dossier:find("const SYNERGY_TAGS",1,true),"dossier has no synergy reference")
 for id in pairs(seen)do assert(dossier:find(id..':[',1,true),"dossier is missing tags for "..id)end

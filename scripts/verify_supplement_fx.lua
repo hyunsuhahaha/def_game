@@ -1,4 +1,4 @@
--- Behavior and rendering contracts for the eight shared skills. No game window.
+-- Behavior and rendering contracts for the seven shared skills. No game window.
 package.path="./?.lua;./?/init.lua;"..package.path
 local fixture=require("scripts.forest_render_fixture")
 local Mode=require("src.clearcut_mode")
@@ -13,28 +13,29 @@ local function setup(id,nodes,enemies)
 end
 -- 레벨→파워 곡선 재설계(만렙 3→6) 반영: 1레벨의 실질 파워는 power(1)=.5 (옛 선형값 1의 절반).
 local openingGrowth=(.5/5.6)^1.35
+local openingDamageRamp=.20+(openingGrowth^1.5)*.80
 -- One bat periodically dives at one target. Monsters always outrank nearer trees.
 local a,b=tree(80),tree(500);local e=enemy(260)
 local m,g=setup("bat_swarm",{a,b},{e});m:updateBatSwarm(0,g)
 assert(#m.bats==1 and m.bats[1].state=="dive" and m.bats[1].target==e)
 near(a.rushHp,1000);near(e.hp,1000)
 m:updateBatSwarm(.4,g)
-near(e.hp,1000-(.9+openingGrowth*3.1));near(a.rushHp,1000)
+near(e.hp,1000-(.35+openingGrowth*3.65)*openingDamageRamp);near(a.rushHp,1000)
 assert(m.bats[1].state=="return" and #m.supplementImpacts==1 and m.supplementImpacts[1].kind=="bat")
 -- Aura ticks at its real radius, not the visible fringe.
 a,b=tree(120+openingGrowth*215-.1),tree(120+openingGrowth*215+.1);m,g=setup("thorn_aura",{a,b});m:updateThornAura(0,g)
-near(m.auraRadius,120+openingGrowth*215);assert(m.auraRadius>2*(55+openingGrowth*103));assert(m.auraPulse==1);near(a.rushHp,1000-(1+openingGrowth*3));near(b.rushHp,1000)
-m:updateThornAura(.2,g);near(a.rushHp,1000-(1+openingGrowth*3))
+near(m.auraRadius,120+openingGrowth*215);assert(m.auraRadius>2*(55+openingGrowth*103));assert(m.auraPulse==1);near(a.rushHp,1000-(.35+openingGrowth*3.65)*openingDamageRamp);near(b.rushHp,1000)
+m:updateThornAura(.2,g);near(a.rushHp,1000-(.35+openingGrowth*3.65)*openingDamageRamp)
 -- Crow chooses the farthest valid target, not the nearest or an out-of-range one.
 a,b=tree(100),tree(510);e=enemy(600);local out=enemy(621)
 m,g=setup("crow_strike",{a,b},{e,out});m:updateCrowStrike(0,g)
-near(e.hp,1000-(3.5+openingGrowth*30.5));near(a.rushHp,1000);near(b.rushHp,1000);near(out.hp,1000)
+near(e.hp,1000-(1.5+openingGrowth*32.5)*openingDamageRamp);near(a.rushHp,1000);near(b.rushHp,1000);near(out.hp,1000)
 assert(#m.crowFx==1 and m.crowFx[1].x==600);near(m.crowFx[1].angle,0)
 m:updateCrowStrike(.33,g);assert(#m.crowFx==0)
 -- Nearest monster direction, cone exclusion, snapshot origin: moving cannot drag a hit.
 a,b=tree(0,250),tree(270,0);e=enemy(0,200);m,g=setup("vine_whip",{a,b},{e});m:updateVineWhip(0,g)
-near(a.rushHp,1000-(2.25+openingGrowth*15.75));near(b.rushHp,1000);near(m.whipFx[1].angle,math.pi/2)
-near(e.hp,1000-(2.25+openingGrowth*15.75))
+near(a.rushHp,1000-(.8+openingGrowth*17.2)*openingDamageRamp);near(b.rushHp,1000);near(m.whipFx[1].angle,math.pi/2)
+near(e.hp,1000-(.8+openingGrowth*17.2)*openingDamageRamp)
 assert(m.whipFx[1].range>2*(125+openingGrowth*155))
 g.player.x=77;assert(m.whipFx[1].x==0 and m.whipFx[1].y==0)
 m:updateVineWhip(.23,g);assert(#m.whipFx==0)
@@ -75,7 +76,7 @@ a,b=tree(90),tree(300);local e1,e2=enemy(90),enemy(300);out=enemy(900)
 m,g=setup("chain_lightning",{a,b},{e1,e2,out});m:updateChainLightning(0,g)
 local points=m.lightningFx[1].points;assert(#points==3)
 for i,x in ipairs({0,90,300}) do assert(points[i].x==x) end
-near(a.rushHp,1000);near(b.rushHp,1000);near(e1.hp,1000-(1.75+openingGrowth*12.45));near(e2.hp,1000-(1.75+openingGrowth*12.45));near(out.hp,1000)
+near(a.rushHp,1000);near(b.rushHp,1000);near(e1.hp,1000-(.8+openingGrowth*13.4)*openingDamageRamp);near(e2.hp,1000-(.8+openingGrowth*13.4)*openingDamageRamp);near(out.hp,1000)
 m:updateChainLightning(.26,g);assert(#m.lightningFx==0)
 -- Bounded transient storage / all events age out, including a long update.
 for i=1,100 do Art.impact(m,"seed",i,0,70) end
