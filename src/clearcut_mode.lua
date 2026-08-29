@@ -1009,17 +1009,13 @@ function ClearcutMode:spawnWorldTree(game)
         WorldTreeSiege.startEmergence(self,self.worldTree,game)
         local camera=game.camera
         if camera then
-            local from=camera.userZoom or 1
-            self.worldTreeCamera={from=from,target=math.min(from,.52),t=0,duration=.8,
-                previousMode=camera.mode or "default",skyReturnStarted=false,zoomDone=false}
-            camera.scriptedWideView=true
-            camera.allowWideUserZoom=true
+            self.worldTreeCamera={previousMode=camera.mode or "default",skyReturnStarted=false}
             camera.scriptedSkyviewBoss=true
             if camera.setMode then camera:setMode("skyview",.7) end
             -- Put the root below screen centre. In skyview the intact crown can
             -- then cross the horizon and occupy the sky, making its authored
             -- 960-unit height legible without changing world coordinates.
-            if camera.focus then camera:focus(self.worldTree.x,self.worldTree.y-280,3.35,.96) end
+            if camera.focus then camera:focus(self.worldTree.x,self.worldTree.y-280,7.2,.96) end
         end
     end
     self.operationFinalBoss=finalStage
@@ -1033,36 +1029,25 @@ end
 function ClearcutMode:updateWorldTreeCamera(dt,game)
     local state=self.worldTreeCamera
     if not state or not game.camera then return end
-    if not state.zoomDone then
-        state.t=math.min(state.duration,state.t+dt)
-        local p=state.t/state.duration;p=p*p*(3-2*p)
-        local userZoom=state.from+(state.target-state.from)*p
-        game.camera.userZoom=userZoom
-        game.camera.zoom=(game.world.stageZoom or game.camera.zoom)*userZoom
-        game.camera.renderZoom=game.camera.zoom
-        if state.t>=state.duration then state.zoomDone=true end
-    end
     local emergence=self.worldTreeEmergence
-    local emergenceP=emergence and emergence.t/emergence.duration or 1
-    if not state.skyReturnStarted and emergenceP>=.88 then
+    if emergence and emergence.phase=="return" and not state.skyReturnStarted then
         state.skyReturnStarted=true
         game.camera.scriptedSkyviewBoss=nil
-        if game.camera.setMode then game.camera:setMode(state.previousMode or "default",.7) end
+        if game.camera.setMode then game.camera:setMode(state.previousMode or "default",emergence.returnDuration or .8) end
+    end
+    if emergence and emergence.phase=="return" and state.skyReturnStarted
+        and (game.camera.skyviewBlend or 0)<=.01 then
+        emergence.cameraReturned=true
     end
 end
 
 function ClearcutMode:restoreWorldTreeCamera(game)
     local state=self.worldTreeCamera
     if not state or not game.camera then
-        if game.camera then game.camera.scriptedWideView=nil;game.camera.scriptedSkyviewBoss=nil;game.camera.allowWideUserZoom=nil end
+        if game.camera then game.camera.scriptedSkyviewBoss=nil end
         self.worldTreeCamera=nil;return
     end
-    game.camera.userZoom=state.from
-    game.camera.zoom=(game.world.stageZoom or game.camera.zoom)*state.from
-    game.camera.renderZoom=game.camera.zoom
-    game.camera.scriptedWideView=nil
     game.camera.scriptedSkyviewBoss=nil
-    game.camera.allowWideUserZoom=nil
     if game.camera.setMode then game.camera:setMode(state.previousMode or "default",.6) end
     self.worldTreeCamera=nil
 end

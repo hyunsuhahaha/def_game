@@ -87,21 +87,23 @@ assert(attackMode.bossTelegraphs[1].worldTreeAttack=="rootSlam" and attackMode.b
 local cameraMode=ClearcutMode.new();cameraMode.mapId="forest";cameraMode.stage=1
 local cameraWorld={width=3200,height=2200,stageZoom=.84,playBounds={x=400,y=300,w=2400,h=1400}}
 cameraMode.mapWorld=cameraWorld;cameraMode.mapPlayer={x=720,y=520}
-local camera={userZoom=1,zoom=.84,renderZoom=.84,trauma=0,mode="default",skyviewTarget=0,
+local camera={userZoom=1,zoom=.84,renderZoom=.84,trauma=0,mode="default",skyviewTarget=0,skyviewBlend=1,
     focus=function(self,x,y,duration,zoom)self.focused={x=x,y=y,duration=duration,zoom=zoom}end,
     setMode=function(self,mode,duration)self.mode=mode;self.skyviewTarget=mode=="skyview" and 1 or 0;self.skyDuration=duration end}
 local cameraGame={world=cameraWorld,player=cameraMode.mapPlayer,camera=camera,setNotice=function()end}
 cameraMode:spawnWorldTree(cameraGame)
-assert(cameraMode.worldTreeCamera and camera.focused and camera.scriptedWideView and camera.allowWideUserZoom,"worldtree did not start zoom-out transition")
-assert(camera.mode=="skyview" and camera.scriptedSkyviewBoss and camera.focused.y==720 and camera.focused.duration==3.35,
+assert(cameraMode.worldTreeCamera and camera.focused and not camera.scriptedWideView and not camera.allowWideUserZoom,"worldtree changed camera zoom fitting")
+assert(camera.mode=="skyview" and camera.scriptedSkyviewBoss and camera.focused.y==720 and camera.focused.duration==7.2,
     "worldtree did not open and frame the skyview height reveal")
 local rising=cameraMode.worldTree
 assert(rising.x==1600 and rising.y==1000,"worldtree did not spawn at the playable-map center")
 assert(cameraMode.worldTreeEmergence and rising.worldTreeEmerging and rising.entranceOffsetY==1720,"worldtree emergence did not start underground")
-assert(cameraMode.worldTreeEmergence.duration==3.35 and rising.worldTreeEmergenceProgress==0,"cinematic emergence timing drift")
+assert(cameraMode.worldTreeEmergence.duration==6.75 and cameraMode.worldTreeEmergence.phase=="skyLead" and rising.worldTreeEmergenceProgress==0,"cinematic sky-first timing drift")
 rising.hp=rising.maxHp-100
 Siege.updateBoss(cameraMode,rising,.4,cameraGame)
-assert(rising.hp==rising.maxHp and rising.entranceOffsetY<1720 and rising.worldTreeEmergenceProgress>0,"emergence rise or invulnerability regressed")
+assert(rising.hp==rising.maxHp and rising.entranceOffsetY==1720 and rising.worldTreeEmergenceProgress==0,"tree became visible before sky hold")
+Siege.updateBoss(cameraMode,rising,.8,cameraGame);Siege.updateBoss(cameraMode,rising,.5,cameraGame)
+assert(rising.entranceOffsetY<1720 and rising.worldTreeEmergenceProgress>0,"slow rise did not start after sky hold")
 fixture.reset();Art.drawBody(rising,0)
 local intact,warped=0,false
 for _,command in ipairs(fixture.commands)do
@@ -112,31 +114,26 @@ for _,command in ipairs(fixture.commands)do
 end
 assert(intact==1 and warped,"worldtree emergence did not preserve and continuously bend one intact sprite")
 fixture.reset();local emergenceQueue={};Siege.queue(cameraMode,emergenceQueue)
-assert(#emergenceQueue==2,"worldtree crack and foreground dirt layers missing")
+assert(#emergenceQueue>=1,"worldtree authored emergence layer missing")
 for _,entry in ipairs(emergenceQueue)do entry.draw()end
-local fxDraw=false for _,command in ipairs(fixture.commands)do if command.file and command.file:find("boss%-entrance%-fx")then fxDraw=true end end
+local fxDraw=false for _,command in ipairs(fixture.commands)do
+    if command.file and command.file:find("worldtree%-emergence%-atlas%-v2")then fxDraw=true end
+    assert(command.op~="rectangle","runtime rectangle leaked into worldtree emergence FX")
+end
 assert(fxDraw,"authored root-crack emergence FX was not drawn")
 cameraMode:updateWorldTreeCamera(.8,cameraGame)
-assert(math.abs(camera.userZoom-.52)<.0001 and math.abs(camera.zoom-.84*.52)<.0001,"worldtree did not use the normal Ctrl+wheel zoom floor")
-camera.userZoom=.8;camera.zoom=.84*.8;cameraMode:updateWorldTreeCamera(.1,cameraGame)
-assert(camera.userZoom==.8 and math.abs(camera.zoom-.84*.8)<.0001,"worldtree camera locked out user zoom control")
-local Camera=require("src.camera")
-love.graphics.getDimensions=function()return 1280,720 end
-local stageWorld={width=3200,height=2000,playBounds={x=400,y=300,w=2400,h=1400}}
-local narrow=Camera.new(1600,1000);narrow.perspective=true;narrow.pitch=.86;narrow.zoom=.84*.52;narrow.userZoom=.52
-local wide=Camera.new(1600,1000);wide.perspective=true;wide.pitch=.86;wide.zoom=.84*.52;wide.userZoom=.52;wide.scriptedWideView=true;wide.allowWideUserZoom=true
-narrow:update(.1,{x=1600,y=1000},stageWorld);wide:update(.1,{x=1600,y=1000},stageWorld)
-assert(wide.renderZoom<narrow.renderZoom,"stage fit still cancelled the worldtree view expansion")
-assert(math.abs(wide.renderZoom-.84*.52)<.0001,"worldtree camera fitting cancelled the user-style zoom-out")
+assert(camera.userZoom==1 and math.abs(camera.zoom-.84)<.0001,"worldtree changed the user's zoom")
 local emergenceState=cameraMode.worldTreeEmergence
-for _=1,12 do Siege.updateBoss(cameraMode,rising,.25,cameraGame) end
+for _=1,22 do Siege.updateBoss(cameraMode,rising,.2,cameraGame);cameraMode:updateWorldTreeCamera(.2,cameraGame) end
+assert(cameraMode.worldTreeEmergence and cameraMode.worldTreeEmergence.phase=="return" and camera.mode=="default","camera did not return after the full rise")
+assert(rising.worldTreeEmerging,"combat unlocked before camera return")
+camera.skyviewBlend=0;cameraMode:updateWorldTreeCamera(.1,cameraGame);Siege.updateBoss(cameraMode,rising,.1,cameraGame)
 assert(not cameraMode.worldTreeEmergence and not rising.worldTreeEmerging and not rising.entranceOffsetY,"worldtree emergence did not settle")
 assert(emergenceState.crownBreach and emergenceState.trunkImpact and emergenceState.canopyBurst and emergenceState.impact,
     "worldtree emergence beats did not all fire")
-assert(#(cameraMode.worldTreeDebris or {})==22,"canopy opening did not shed authored leaves")
-cameraMode:updateWorldTreeCamera(.1,cameraGame)
-assert(camera.mode=="default" and not camera.scriptedSkyviewBoss and camera.skyDuration==.7,
+assert(#(cameraMode.worldTreeDebris or {})>22,"authored soil and leaf debris did not replace generic particles")
+assert(camera.mode=="default" and not camera.scriptedSkyviewBoss and camera.skyDuration==.8,
     "worldtree skyview did not return after the root landing")
 cameraMode:restoreWorldTreeCamera(cameraGame)
-assert(camera.userZoom==1 and math.abs(camera.zoom-.84)<.0001 and not camera.scriptedWideView and not camera.allowWideUserZoom,"worldtree view did not restore user zoom")
-print("WORLDTREE_SIEGE_OK fixed=true centered=playBounds emergence=intact_warp+crown+root_impact duration=3.35 no_cut_section=true invulnerable=true grounded=36 contact_shadow=root_lobes atlas=1024 display=1050 radius=420 attacks=root+vine+slam+targeted_branch stages=4 leaves=62 branches=2 guards=plants zoom=.52_user_control_restore")
+assert(camera.userZoom==1 and math.abs(camera.zoom-.84)<.0001,"worldtree restore changed user zoom")
+print("WORLDTREE_SIEGE_OK fixed=true centered=playBounds sequence=sky_hold+slow_quake_rise+camera_return+combat duration=6.75 no_forced_zoom=true invulnerable=true grounded=36 attacks=v2_root+vine+slam+targeted_branch rectangle_fx=false")

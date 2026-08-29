@@ -15,7 +15,7 @@ branch.impactAge=.2;Art.drawBranchImpact(branch,1.2)
 local draws=0;local rows={}
 for _,command in ipairs(fixture.commands)do if command.file and command.file:find("worldtree%-attacks%-atlas")then
     draws=draws+1;assert(command.filter=="nearest","worldtree attack atlas lost nearest filtering")
-    rows[math.floor(command.quad[2]/256)]=true
+    rows[math.floor(command.quad[2]/384)]=true
 end end
 assert(draws==6 and rows[0] and rows[1] and rows[2] and rows[3] and rows[4],"worldtree attack rows were not all rendered")
-print("WORLDTREE_ATTACK_ART_OK atlas=1536x1280 rows=root+vine+slam+branch+impact frames=6 geometry=matched")
+print("WORLDTREE_ATTACK_ART_OK atlas=2304x1920 rows=root+vine+slam+branch+impact frames=6 geometry=matched")

@@ -25,6 +25,8 @@
 
 전용 FX는 `assets/fx/boss-entrance/boss-entrance-fx-atlas-pixel-v1.png`의 256px 셀, 6프레임×5행 아틀라스다. 이펙트는 보스 몸체와 같은 깊이 큐에서 지면 뒤/파편 앞 레이어로 나뉜다.
 
+세계수 공성 보스는 이 공용 등장 FX를 사용하지 않는다. 사용자 줌을 유지한 채 SKYVIEW를 먼저 1.15초 보여 주고, 전용 `512×384` 6프레임 균열·흙판·수액광 아틀라스와 함께 4.8초 동안 상승한 뒤, 0.8초 기본 시점 복귀가 끝나야 전투가 열린다. 자세한 계약과 프레임 보드는 [`WORLDTREE_SIEGE_BOSS.md`](WORLDTREE_SIEGE_BOSS.md)에 있다.
+
 ## 실제 화면 검수
 
 - [온대 숲 등장 애니메이션](previews/boss-entrance-forest-v1.gif)

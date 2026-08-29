@@ -9,16 +9,17 @@ local function load()
     debrisImage:setFilter("nearest","nearest")
     debrisQuads={}
     for i=0,7 do debrisQuads[i+1]=love.graphics.newQuad(i*96,0,96,96,debrisImage:getDimensions()) end
-    emergenceImage=love.graphics.newImage("assets/fx/boss-entrance/boss-entrance-fx-atlas-pixel-v1.png")
+    emergenceImage=love.graphics.newImage("assets/fx/worldtree/worldtree-emergence-atlas-v2.png")
     emergenceImage:setFilter("nearest","nearest")
     emergenceQuads={}
-    for frame=0,5 do emergenceQuads[frame+1]=love.graphics.newQuad(frame*256,0,256,256,emergenceImage:getDimensions()) end
+    for frame=0,5 do emergenceQuads[frame+1]=love.graphics.newQuad(frame*512,0,512,384,emergenceImage:getDimensions()) end
 end
 
 local function smooth(p)p=math.max(0,math.min(1,p));return p*p*(3-2*p)end
 
 function Siege.startEmergence(mode,e,game)
-    mode.worldTreeEmergence={boss=e,t=0,duration=3.35,crownBreach=false,trunkImpact=false,canopyBurst=false,impact=false}
+    mode.worldTreeEmergence={boss=e,t=0,phaseT=0,phase="skyLead",skyLead=1.15,riseDuration=4.8,
+        returnDuration=.8,duration=6.75,crownBreach=false,trunkImpact=false,canopyBurst=false,impact=false}
     e.worldTreeEmerging=true;e.worldTreeGrounded=true;e.worldTreeEmergenceProgress=0
     e.entranceAlpha=0;e.entranceOffsetY=1720;e.entranceScaleX=.86;e.entranceScaleY=.92
     e.moving=false
@@ -30,11 +31,15 @@ local function cameraBeat(game,vertical,trauma)
     game.camera.trauma=math.min(.42,(game.camera.trauma or 0)+trauma)
 end
 
-local function dirtBurst(game,e,count,spread,color)
-    if not (game.world and game.world.addParticle) then return end
+local function dirtBurst(mode,e,count,spread)
+    mode.worldTreeDebris=mode.worldTreeDebris or {}
     for i=1,count do
         local side=i%2==0 and -1 or 1
-        game.world:addParticle(e.x+side*(36+love.math.random()*spread),e.y+e.def.radius*.65-love.math.random()*18,color,true,false)
+        local life=.7+love.math.random()*.5
+        mode.worldTreeDebris[#mode.worldTreeDebris+1]={kind="soil",frame=5+(i%4),x=e.x+side*(36+love.math.random()*spread),
+            y=e.y+e.def.radius*.65-love.math.random()*18,h=8+love.math.random()*38,vh=65+love.math.random()*145,
+            vx=side*(24+love.math.random()*105),vy=-8+love.math.random()*16,angle=love.math.random()*6.28,
+            spin=(-1+love.math.random()*2)*7,life=life,scale=.62+love.math.random()*.48,color={.72,.54,.28}}
     end
 end
 
@@ -53,36 +58,43 @@ function Siege.updateEmergence(mode,dt,game)
     if not state then return false end
     local e=state.boss
     if not e or e.hp<=0 then mode.worldTreeEmergence=nil;return false end
-    state.t=math.min(state.duration,state.t+dt)
-    local p=state.t/state.duration
-    local rise=smooth((p-.04)/.84)
+    state.t=math.min(state.duration+.4,state.t+dt)
+    state.phaseT=state.phaseT+dt
+    if state.phase=="skyLead" and state.phaseT>=state.skyLead then
+        state.phase,state.phaseT="rise",0
+    elseif state.phase=="rise" and state.phaseT>=state.riseDuration then
+        state.phase,state.phaseT="return",0
+    end
+    local riseP=state.phase=="skyLead" and 0 or math.min(1,state.phaseT/state.riseDuration)
+    if state.phase=="return" then riseP=1 end
+    local rise=smooth(riseP)
     e.worldTreeEmerging=true;e.hp=e.maxHp;e.visualHit=0;e.visualAttack=0;e.moving=false
-    e.worldTreeEmergenceProgress=p
+    e.worldTreeEmergenceProgress=riseP
     e.entranceOffsetY=(1-rise)*1720
-    e.entranceAlpha=math.min(1,math.max(0,(p-.025)*14))
-    e.entranceScaleX=.86+smooth((p-.04)/.66)*.14+math.sin(p*math.pi)*.035
-    e.entranceScaleY=.92+rise*.08+math.sin(p*math.pi)*.022
-    if p>=.26 and not state.crownBreach then
+    e.entranceAlpha=riseP<=0 and 0 or math.min(1,riseP*7)
+    e.entranceScaleX=.86+rise*.14+math.sin(riseP*math.pi)*.028
+    e.entranceScaleY=.92+rise*.08+math.sin(riseP*math.pi)*.018
+    if riseP>=.18 and not state.crownBreach then
         state.crownBreach=true
-        cameraBeat(game,22,.055)
-        dirtBurst(game,e,10,150,{.46,.31,.12})
+        cameraBeat(game,12,.025)
+        dirtBurst(mode,e,12,150)
     end
-    if p>=.58 and not state.trunkImpact then
+    if riseP>=.52 and not state.trunkImpact then
         state.trunkImpact=true
-        cameraBeat(game,34,.075)
-        dirtBurst(game,e,14,220,{.55,.36,.13})
+        cameraBeat(game,16,.035)
+        dirtBurst(mode,e,18,220)
     end
-    if p>=.42 and not state.canopyBurst then
+    if riseP>=.36 and not state.canopyBurst then
         state.canopyBurst=true
         canopyBurst(mode,e)
-        cameraBeat(game,18,.035)
+        cameraBeat(game,9,.018)
     end
-    if p>=.89 and not state.impact then
+    if riseP>=.92 and not state.impact then
         state.impact=true
-        cameraBeat(game,56,.14)
-        dirtBurst(game,e,28,280,{.58,.39,.16})
+        cameraBeat(game,22,.055)
+        dirtBurst(mode,e,34,280)
     end
-    if state.t>=state.duration then
+    if state.phase=="return" and (state.cameraReturned or state.phaseT>=state.returnDuration+.2) then
         e.worldTreeEmerging=false;e.worldTreeEmergenceProgress=nil
         e.entranceAlpha,e.entranceOffsetY,e.entranceScaleX,e.entranceScaleY=nil,nil,nil,nil
         e.slamTimer=e.def.slamInterval;e.summonTimer=e.def.summonInterval
@@ -117,9 +129,7 @@ function Siege.spawnDamageDebris(mode,e,stage,game)
             length=length,halfWidth=stage==3 and 42 or 36,fallTime=0,fallDuration=1.18,
             sourceX=e.x,sourceY=e.y,damage=stage==3 and 28 or 24}
     end
-    if game.world and game.world.addParticle then
-        for i=1,10+stage*4 do game.world:addParticle(e.x+(love.math.random()-.5)*180,e.y-love.math.random()*35,{.63,.39,.16},true,false) end
-    end
+    dirtBurst(mode,e,10+stage*4,180)
 end
 
 function Siege.updateBoss(mode,e,dt,game)
@@ -165,13 +175,15 @@ function Siege.updateDebris(mode,dt,game)
                     mode:damagePlayer(d.damage or 24,game)
                 end
                 if game and game.camera then game.camera.trauma=math.min(1,(game.camera.trauma or 0)+.12) end
-                if game and game.world and game.world.addParticle then
-                    for n=1,26 do
-                        local along=(love.math.random()-.5)*(d.length or 310)
-                        local side=(love.math.random()-.5)*(d.halfWidth or 36)
-                        local c,s=math.cos(d.angle),math.sin(d.angle)
-                        game.world:addParticle(d.x+c*along-s*side,d.y+s*along+c*side,{.61,.39,.14},true,false)
-                    end
+                for n=1,26 do
+                    local along=(love.math.random()-.5)*(d.length or 310)
+                    local side=(love.math.random()-.5)*(d.halfWidth or 36)
+                    local c,s=math.cos(d.angle),math.sin(d.angle)
+                    local life=.55+love.math.random()*.45
+                    mode.worldTreeDebris[#mode.worldTreeDebris+1]={kind=n%3==0 and "leaf" or "soil",frame=n%3==0 and 1+n%4 or 5+n%4,
+                        x=d.x+c*along-s*side,y=d.y+s*along+c*side,h=4+love.math.random()*20,vh=55+love.math.random()*120,
+                        vx=(love.math.random()-.5)*110,vy=(love.math.random()-.5)*35,angle=love.math.random()*6.28,
+                        spin=(love.math.random()-.5)*10,life=life,scale=.55+love.math.random()*.4,color=n%3==0 and nil or {.72,.54,.28}}
                 end
             else
                 d.vh=math.abs(d.vh)*(d.kind=="branch" and .08 or .2);d.spin=d.spin*.35
@@ -187,31 +199,12 @@ function Siege.queue(mode,queue)
         local e=emergence.boss
         local groundY=e.y+e.def.radius*.65
         queue[#queue+1]={x=e.x,y=groundY-.2,anchorY=e.y,draw=function()
-            load();local p=emergence.t/emergence.duration
-            local frame=math.max(1,math.min(6,math.floor(p*7)+1))
-            local alpha=math.min(1,p*5,(1-p)*7+.18)
+            load();local p=emergence.phase=="skyLead" and math.min(1,emergence.phaseT/emergence.skyLead)*.18
+                or (emergence.phase=="rise" and math.min(1,emergence.phaseT/emergence.riseDuration) or 1)
+            local frame=math.max(1,math.min(6,1+math.floor(p*6)))
+            local alpha=emergence.phase=="skyLead" and p*.75 or math.min(1,.48+p*1.4)
             love.graphics.setColor(1,1,1,alpha)
-            love.graphics.draw(emergenceImage,emergenceQuads[frame],e.x,groundY+14,0,2.85,1.72,128,190)
-        end}
-        queue[#queue+1]={x=e.x,y=groundY+.25,anchorY=e.y,draw=function()
-            local p=emergence.t/emergence.duration
-            local rootBurst=math.max(0,1-math.abs(p-.26)/.13)*.62
-            local trunkBurst=math.max(0,1-math.abs(p-.58)/.13)*.78
-            local finalBurst=math.max(0,1-math.abs(p-.89)/.16)
-            local curtain=math.max(0,math.min(1,(p-.14)/.12,(.94-p)/.12))*.48
-            local burst=math.max(rootBurst,trunkBurst,finalBurst,curtain)
-            if burst<=0 then return end
-            for i=1,22 do
-                local side=i%2==0 and -1 or 1
-                local lane=math.floor((i-1)/2)
-                local px=e.x+side*(42+lane*30)
-                local py=groundY+8-math.sin((i*.73)%3.14)*68*burst+(i%4)*5
-                local size=3+(i%4)*2
-                love.graphics.setColor(.10,.07,.025,.68*burst)
-                love.graphics.rectangle("fill",math.floor(px-size-1),math.floor(py-size),size*2+2,size*2+1)
-                love.graphics.setColor(i%3==0 and {.72,.48,.18,.94*burst} or {.43,.28,.09,.92*burst})
-                love.graphics.rectangle("fill",math.floor(px-size+1),math.floor(py-size+1),size*2-1,size*2-2)
-            end
+            love.graphics.draw(emergenceImage,emergenceQuads[frame],e.x,groundY+22,0,1.9,1.48,256,306)
         end}
     end
     for _,value in ipairs(mode.worldTreeDebris or {}) do local d=value
@@ -225,8 +218,8 @@ function Siege.queue(mode,queue)
             end}
         end
         queue[#queue+1]={x=d.x,y=d.y+.15,anchorY=d.y,draw=function()
-            load();local alpha=math.min(1,d.life*2)
-            love.graphics.setColor(1,1,1,alpha)
+            load();local alpha=math.min(1,d.life*2);local c=d.color or {1,1,1}
+            love.graphics.setColor(c[1],c[2],c[3],alpha)
             if d.kind=="branch" then AttackArt.drawFallingBranch(d,love.timer.getTime())
             else
                 local scale=.38*(d.scale or 1)
