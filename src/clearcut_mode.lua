@@ -2169,15 +2169,24 @@ function ClearcutMode:updateFireAttack(dt, game, heldOverride)
         self:hurlMolotovAt(smoking.tx, smoking.ty, game)
         self.actionAudit.cigaretteFlick = self.actionAudit.cigaretteFlick + 1
         self.streak, self.lastHitAt = self.streak + 1, self.elapsed
+        self.cartonAmmo = math.max(0, (self.cartonAmmo or self.cartonSize or 20) - 1)
         fired = true
     end
     if smoking.t >= smoking.dur then self:startSmoking(game) end
     return fired
 end
 
+-- 흡연자는 한 보루(20개비) 단위로 탄창을 관리한다. 남아있는 동안은 기존과 똑같이
+-- 담배 한 개비 필 때마다의 짧은 "재장전"만 반복되지만, 다 피우면 새 보루를 뜯어야
+-- 하므로 훨씬 긴 재장전이 한 번 끼고 그 다음 다시 가득 찬 채로 시작한다.
 function ClearcutMode:startSmoking(game)
+    self.cartonSize = self.cartonSize or 20
+    if self.cartonAmmo == nil then self.cartonAmmo = self.cartonSize end
     local speed = (game.tools.axe.speed or 1) * game.player.gather * self.permanentTraits.attackSpeed
-    self.smoking = {phase="reload",t=0,dur=math.max(.75,1.25/speed),loaded=false,fired=false,smokeEmitted=false}
+    local newCarton = self.cartonAmmo <= 0
+    local dur = newCarton and math.max(2.4, 4.4 / speed) or math.max(.75, 1.25 / speed)
+    self.smoking = {phase="reload",t=0,dur=dur,loaded=false,fired=false,smokeEmitted=false,newCarton=newCarton}
+    if newCarton then self.cartonAmmo = self.cartonSize end
     if game.player.setClearcutAction then game.player:setClearcutAction(0) end
 end
 
@@ -4653,13 +4662,19 @@ function ClearcutMode:drawSmokerReloadBar(game)
         dx = dx + dash + gap
     end
 
-    -- 움직이는 막대
+    -- 움직이는 막대. 새 보루를 뜯는 중이면 색을 다르게 해서 평소 재장전과 구분한다.
     local barW = px * 3
     local barX = math.floor(x + charge * (w - barW))
     love.graphics.setColor(0, 0, 0, 1)
     love.graphics.rectangle("fill", barX - px, y - capH / 2 - px, barW + px * 2, capH + px * 2)
-    love.graphics.setColor(1, .68, .26, 1)
+    if smoking.newCarton then love.graphics.setColor(1, .35, .32, 1) else love.graphics.setColor(1, .68, .26, 1) end
     love.graphics.rectangle("fill", barX, y - capH / 2, barW, capH)
+
+    if smoking.newCarton then
+        love.graphics.setFont((game.fonts and game.fonts.small) or love.graphics.getFont())
+        love.graphics.setColor(1, .55, .5, 1)
+        love.graphics.printf("새 보루 개봉 중...", x - 40, y - capH / 2 - 18, w + 80, "center")
+    end
 end
 
 -- 철학자 전용: "끝없는 설교"가 소모하는 침 게이지. 리로드 바와 달리 이건 잔량을 그대로
@@ -5937,6 +5952,34 @@ function ClearcutMode:drawHUD(game,fonts)
         love.graphics.setColor(.035,.045,.035,.9); love.graphics.rectangle("fill",w/2-150,h-52,300,30,7,7)
         love.graphics.setColor(ready and {.94,.76,.28,1} or {.72,.65,.52,1})
         love.graphics.printf(text,w/2-146,h-45,292,"center")
+
+        -- 보루 잔량: 화면 오른쪽 가장자리에 세로 게이지 + 개수로 표시.
+        -- 다 떨어져서 새 보루를 뜯는 동안엔 게이지가 붉게 바뀌고 "보루 교체" 라벨이 뜬다.
+        local ammoMax=self.cartonSize or 20
+        local ammo=math.max(0,math.min(ammoMax,self.cartonAmmo or ammoMax))
+        local reloadingCarton=self.smoking and self.smoking.phase=="reload" and self.smoking.newCarton
+        local abw,abh=64,150
+        local abx,aby=w-16-abw,h/2-abh/2
+        love.graphics.setColor(.03,.035,.03,.9); love.graphics.rectangle("fill",abx,aby,abw,abh,8,8)
+        love.graphics.setColor(1,.6,.24,.6); love.graphics.rectangle("line",abx+.5,aby+.5,abw-1,abh-1,8,8)
+        local iconDef=ClearcutMode.icons.cigarette
+        if iconDef then drawPixelGrid(iconDef.rows,iconDef.palette,abx+abw/2,aby+22,3) end
+        local gaugeX,gaugeY,gaugeW,gaugeH=abx+18,aby+40,abw-36,abh-56
+        love.graphics.setColor(0,0,0,.5); love.graphics.rectangle("fill",gaugeX,gaugeY,gaugeW,gaugeH,3,3)
+        local ratio=ammoMax>0 and ammo/ammoMax or 0
+        local fillH=math.floor(gaugeH*ratio)
+        if reloadingCarton then love.graphics.setColor(1,.32,.28,1)
+        elseif ratio<=.2 then love.graphics.setColor(1,.42,.2,1)
+        else love.graphics.setColor(1,.7,.28,1) end
+        love.graphics.rectangle("fill",gaugeX,gaugeY+gaugeH-fillH,gaugeW,fillH,3,3)
+        love.graphics.setFont(fonts.body); love.graphics.setColor(1,.94,.86,1)
+        love.graphics.printf(tostring(ammo),abx,aby+abh-30,abw,"center")
+        love.graphics.setFont(fonts.small); love.graphics.setColor(.8,.78,.7,.85)
+        love.graphics.printf("/ "..ammoMax,abx,aby+abh-14,abw,"center")
+        if reloadingCarton then
+            love.graphics.setFont(fonts.small); love.graphics.setColor(1,.5,.45,.9+math.sin(t*8)*.1)
+            love.graphics.printf("보루 교체",abx-10,aby-20,abw+20,"center")
+        end
     end
     if self.job=="philosopher" then
         local ready=(self.revivalCooldown or 0)<=0 and (self.revivalTimer or 0)<=0
