@@ -60,7 +60,26 @@ for _,def in ipairs(Maps.catalog) do
             assert(Maps.canPlant(w,enemy.x,enemy.y),def.id.." zone core spawned outside walkable forest")
         end
     end
-    assert(zoneCores>=1 and #m.forestZones==6,def.id.." zone cores missing")
+    assert(zoneCores==Maps.regrowthCoreCount(def.id,1) and #m.forestZones==6,def.id.." zone core progression mismatch")
+    local stats=Maps.regrowthTotemStats(def.id,1,false)
+    local lateStats=Maps.regrowthTotemStats(def.id,4,false)
+    assert(stats.plantCount==3 and lateStats.plantCount==6 and lateStats.plantInterval<stats.plantInterval,
+        def.id.." late-stage regeneration power did not grow")
+    for _,enemy in ipairs(m.enemies) do if enemy.zoneCoreId then
+        assert(enemy.maxHp>=stats.hp-.01 and enemy.maxHp>20*5,def.id.." sanctum is not substantially tougher than a tree")
+        assert(enemy.artKey==stats.artKey,def.id.." regional sanctum art missing")
+    end end
+    local expectedBossTotems=Maps.worldTreeTotemCount(def.id,1)
+    m.enemies={};m.worldTree={x=w.width/2,y=w.height/2}
+    m:spawnWorldTreeTotems(g)
+    assert(#m.enemies==expectedBossTotems,def.id.." world-tree totem count mismatch")
+    for _,enemy in ipairs(m.enemies) do
+        local bossStats=Maps.regrowthTotemStats(def.id,1,true)
+        assert(enemy.worldTreeTotem and enemy.maxHp>=bossStats.hp-.01 and enemy.artKey==bossStats.artKey
+            and enemy.def.plantCount==4,
+            def.id.." world-tree totem tuning missing")
+    end
+    m.enemies={};m.worldTree=nil
     assert(m.berserkTimer==170 and m.vinePlantTimer==60 and m.disasterTimer==150)
     assert(#w.nodes==def.trees and m.remainingTrees==def.trees,def.id.." target underfilled: "..#w.nodes)
     assert(w.playBounds.w<w.width or w.playBounds.h<w.height,"stage 1 starts at final map footprint")

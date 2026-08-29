@@ -1,0 +1,42 @@
+{
+  "forest": {
+    "file": "assets\\enemies\\arcade\\planter-forest-atlas-v3.png",
+    "source": "assets/enemies/concepts/regrowth-sanctum-model-v2.png",
+    "worldWidth": 68,
+    "cell": 256,
+    "foot": 248,
+    "bodyWidth": 182,
+    "height": 190,
+    "frames": 12
+  },
+  "mangrove": {
+    "file": "assets\\enemies\\arcade\\planter-mangrove-atlas-v3.png",
+    "source": "assets/enemies/concepts/regrowth-mangrove-model-v3.png",
+    "worldWidth": 70,
+    "cell": 256,
+    "foot": 248,
+    "bodyWidth": 176,
+    "height": 190,
+    "frames": 12
+  },
+  "madagascar": {
+    "file": "assets\\enemies\\arcade\\planter-madagascar-atlas-v3.png",
+    "source": "assets/enemies/concepts/regrowth-madagascar-model-v3.png",
+    "worldWidth": 72,
+    "cell": 256,
+    "foot": 248,
+    "bodyWidth": 190,
+    "height": 190,
+    "frames": 12
+  },
+  "island": {
+    "file": "assets\\enemies\\arcade\\planter-island-atlas-v3.png",
+    "source": "assets/enemies/concepts/regrowth-island-model-v3.png",
+    "worldWidth": 74,
+    "cell": 256,
+    "foot": 248,
+    "bodyWidth": 190,
+    "height": 164,
+    "frames": 12
+  }
+}

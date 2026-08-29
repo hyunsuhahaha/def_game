@@ -8,8 +8,8 @@ from PIL import Image
 
 ROOT = Path(__file__).resolve().parents[1]
 MODEL = ROOT / "assets/enemies/concepts/regrowth-sanctum-model-v2.png"
-ATLAS = ROOT / "assets/enemies/arcade/planter-atlas-v2.png"
-REPORT = ROOT / "docs/previews/regrowth-sanctum-v2-build.json"
+ATLAS = ROOT / "assets/enemies/arcade/planter-forest-atlas-v3.png"
+REPORT = ROOT / "docs/previews/regrowth-totems-v3-build.json"
 CAST_FX = ROOT / "assets/fx/regrowth-cast-atlas-v3.png"
 
 
@@ -30,9 +30,13 @@ def main():
     assert len({frame.tobytes() for frame in frames[6:]}) >= 3, "casting row is visually static"
     assert len({frame.tobytes() for frame in frames}) >= 9, "atlas has too little pose variation"
     data = json.loads(REPORT.read_text(encoding="utf-8"))
-    assert data["frames"] == 12 and data["colors"] == colors
+    assert data["forest"]["frames"] == 12 and data["forest"]["worldWidth"] == 68
+    for name,width in {"forest":68,"mangrove":70,"madagascar":72,"island":74}.items():
+        path=ROOT/data[name]["file"]
+        assert path.exists() and Image.open(path).size==(1536,512)
+        assert data[name]["worldWidth"]==width and data[name]["bodyWidth"]<=190
     catalog = (ROOT / "src/forest_arcade_catalog.lua").read_text(encoding="utf-8")
-    assert 'planter-atlas-v2.png' in catalog and 'cell=256' in catalog and "Placeholder art" not in catalog
+    assert 'planter-forest-atlas-v3.png' in catalog and 'planter-island-atlas-v3.png' in catalog and 'cell=256' in catalog and "Placeholder art" not in catalog
     runtime = (ROOT / "src/clearcut_mode.lua").read_text(encoding="utf-8")
     assert "e.planterCasting" in runtime and 'e.kind == "planter"' in runtime
     cast = np.asarray(Image.open(CAST_FX).convert("RGBA"))

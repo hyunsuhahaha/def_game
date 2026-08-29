@@ -52,7 +52,8 @@ local function drawSiegeSoilLip(e,pose)
 end
 
 function Art.pose(e, t)
-    local spec = assert(catalog[e.kind], "unknown forest art: " .. tostring(e.kind))
+    local artKey=e.artKey or e.kind
+    local spec = assert(catalog[artKey], "unknown forest art: " .. tostring(artKey))
     local clock = e.visualTime or t or 0
     local moving = e.moving and e.def.speed > 0
     local cycle = clock * (moving and 11 or 4) + (e.seed or 0)
@@ -109,7 +110,7 @@ end
 function Art.drawBody(e, t)
     load()
     local pose=Art.pose(e,t)
-    local asset=assets[e.kind]
+    local asset=assets[e.artKey or e.kind]
     if pose.spec.siege then drawSiegeShadow(e,pose) else
         love.graphics.setColor(.08,.07,.035,.28*pose.alpha)
         love.graphics.ellipse("fill",e.x,pose.footY,pose.spec.width*.40*pose.shadowScale,math.max(3,pose.spec.width*.105*pose.shadowScale))
@@ -137,7 +138,7 @@ function Art.drawCarried(e, t, x, y, carryScale, angle)
     local originalX, originalY, originalMoving = e.x, e.y, e.moving
     e.x, e.y, e.moving = 0, 0, false
     local pose = Art.pose(e, t)
-    local asset = assets[e.kind]
+    local asset = assets[e.artKey or e.kind]
     local previous = love.graphics.getShader()
     love.graphics.push("all")
     love.graphics.translate(math.floor(x + .5), math.floor(y + .5))

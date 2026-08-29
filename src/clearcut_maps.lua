@@ -20,6 +20,35 @@ function Maps.stageCode(id,stage)
     local def=Maps.get(id)
     return string.format("%d-%d",def.chapter or def.index or 1,math.max(1,math.floor(stage or 1)))
 end
+
+-- Regeneration pressure grows by chapter and stage.  Only the sanctums get
+-- tougher; ordinary trees keep their short time-to-cut so late builds can
+-- still knock down whole patches at once.
+local regrowthCoreCounts={
+    forest={1,2,3,4},mangrove={2,3,4,5},madagascar={3,4,5,6},island={4,5,6,6},
+}
+local worldTreeTotemCounts={
+    forest={0,0,0,0},mangrove={1,1,2,2},madagascar={1,2,2,3},island={2,2,3,4},
+}
+local regrowthBaseHp={forest=120,mangrove=165,madagascar=215,island=270}
+local regrowthNames={forest="숲의 재생 프리즘",mangrove="조수의 재생 프리즘",
+    madagascar="홍토의 재생 프리즘",island="산호의 재생 프리즘"}
+function Maps.regrowthCoreCount(id,stage)
+    local list=regrowthCoreCounts[Maps.get(id).id] or regrowthCoreCounts.forest
+    return list[math.max(1,math.min(4,stage or 1))]
+end
+function Maps.worldTreeTotemCount(id,stage)
+    local list=worldTreeTotemCounts[Maps.get(id).id] or worldTreeTotemCounts.forest
+    return list[math.max(1,math.min(4,stage or 1))]
+end
+function Maps.regrowthTotemStats(id,stage,bossPhase)
+    local mapId=Maps.get(id).id;stage=math.max(1,math.min(4,stage or 1))
+    local hp=regrowthBaseHp[mapId]*(1+(stage-1)*.34)*(bossPhase and 1.55 or 1)
+    return {hp=math.floor(hp+.5),name=regrowthNames[mapId],artKey="planter_"..mapId,
+        plantInterval=bossPhase and math.max(7.5,10.5-stage*.55) or math.max(10,14-stage*.65),
+        plantRadius=bossPhase and 310 or 230,
+        plantCount=math.min(6,2+stage+(bossPhase and 1 or 0))}
+end
 function Maps.treeTarget(id,stage)
     local def=Maps.get(id)
     local targets={forest={60,130,220,320},mangrove={55,120,205,295},

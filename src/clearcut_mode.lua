@@ -142,7 +142,7 @@ local enemyDefs = {
     vineSprout = {name="식충 덩굴괴수", category="plant", hp=42, speed=0, damage=6, radius=27, color={.35,.65,.25}, ranged=true, thornAttack=true, range=360, fireInterval=1.55, reward=7, hitCooldown=1},
     -- 직접 공격은 없지만, 주기적으로 주변에 쓰러진 나무를 되살린다 — 방치하면
     -- 애써 벤 자리가 다시 채워지니 먼저 처치하는 편이 이득인 "우선 처치" 유형.
-    planter = {name="숲의 재생 성소", category="plant", hp=55, speed=0, damage=0, radius=24, color={.4,.78,.35}, hitCooldown=1, reward=9, plantInterval=7, plantRadius=190}
+    planter = {name="숲의 재생 프리즘", category="plant", hp=55, speed=0, damage=0, radius=19, color={.4,.78,.35}, hitCooldown=1, reward=9, plantInterval=7, plantRadius=190}
 }
 
 for kind,def in pairs(BiomeEnemies.definitions) do enemyDefs[kind]=def end
@@ -435,14 +435,22 @@ end
 function ClearcutMode:initForestZones(game)
     self.forestZones=ForestZones.build(game.world,game.world.nodes);self.zonesSecured=0
     if self.sandbox then return end
+    local coreTarget=Maps.regrowthCoreCount(self.mapId,self.stage)
+    local priority={2,5,1,6,3,4}
+    local selected={}
+    for i=1,math.min(coreTarget,#priority) do selected[priority[i]]=true end
+    local stats=Maps.regrowthTotemStats(self.mapId,self.stage,false)
     for _,zone in ipairs(self.forestZones) do
         if zone.initial>0 then
-            local coreX,coreY=ForestZones.corePosition(game.world,zone,game.world.nodes,require("src.clearcut_maps").canPlant)
-            local core=self:spawnEnemy("planter",coreX,coreY,{hpMul=1.45+(self.stage-1)*.18})
+            zone.coreAlive=selected[zone.id] or false
+            if selected[zone.id] then
+            local coreX,coreY=ForestZones.corePosition(game.world,zone,game.world.nodes,Maps.canPlant)
+            local core=self:spawnEnemy("planter",coreX,coreY,{hpMul=stats.hp/enemyDefs.planter.hp,artKey=stats.artKey})
             if core then
                 local def={};for k,v in pairs(core.def) do def[k]=v end
-                def.name=zone.name.." 재생핵";def.plantInterval=14;def.plantRadius=235;def.reward=12
+                def.name=stats.name;def.plantInterval=stats.plantInterval;def.plantRadius=stats.plantRadius;def.plantCount=stats.plantCount;def.reward=12
                 core.def=def;core.zoneCoreId=zone.id;core.plantTimer=8+zone.id*.7;zone.coreEntity=core
+            end
             end
         end
     end
@@ -594,18 +602,18 @@ end
 -- 전체가 아니라 이 몹 주변에만 국한된다. 살려두면 계속 되풀이되니 먼저 잡는
 -- 편이 이득이라는 신호를 그대로 준다.
 function ClearcutMode:plantTreesNear(e, game)
-    if self.regrowSuppressed or self.worldTreeSpawned then return end
+    if self.regrowSuppressed or (self.worldTreeSpawned and not e.worldTreeTotem) then return end
     local radius = e.def.plantRadius or 190
     local candidates = {}
     for _, node in ipairs(game.world.nodes) do
-        if node.rushTree and not node.active and not node.sterile and ForestZones.canRegrow(self,node) and (not e.zoneCoreId or node.forestZone==e.zoneCoreId) then
+        if node.rushTree and not node.active and not node.sterile and (e.worldTreeTotem or ForestZones.canRegrow(self,node)) and (not e.zoneCoreId or node.forestZone==e.zoneCoreId) then
             local dx, dy = node.x - e.x, node.y - e.y
             if dx*dx + dy*dy <= radius*radius then candidates[#candidates+1] = node end
         end
     end
     if #candidates == 0 then return end
     for i = #candidates, 2, -1 do local j = love.math.random(i); candidates[i], candidates[j] = candidates[j], candidates[i] end
-    local count = math.min(3, #candidates)
+    local count = math.min(e.def.plantCount or 3, #candidates)
     for i = 1, count do
         local node = candidates[i]
         node.active, node.rushHp = true, node.rushMaxHp
@@ -746,10 +754,31 @@ function ClearcutMode:spawnEnemy(kind, x, y, opts)
         speedMul = (1 + (curse - 1) * .22) * (opts.speedMul or 1),
         dmgMul = (1 + (curse - 1) * .35) * (opts.dmgMul or 1),
         elite = opts.elite,
+        artKey = opts.artKey,
+        worldTreeTotem = opts.worldTreeTotem,
     }
     self.enemies[#self.enemies + 1] = e
     if def.boss then self.activeBoss = e end
     return e
+end
+
+function ClearcutMode:spawnWorldTreeTotems(game)
+    local count=Maps.worldTreeTotemCount(self.mapId,self.stage)
+    if count<=0 then return end
+    local stats=Maps.regrowthTotemStats(self.mapId,self.stage,true)
+    local radius=count==1 and 470 or 520
+    for i=1,count do
+        local a=-math.pi*.5+(i-1)*math.pi*2/count
+        local x,y=self.worldTree.x+math.cos(a)*radius,self.worldTree.y+math.sin(a)*radius*.62
+        x,y=Maps.constrainGroundPlant(game.world,x,y,{left=180,right=180,top=260,bottom=170})
+        local core=self:spawnEnemy("planter",x,y,{hpMul=stats.hp/enemyDefs.planter.hp,
+            artKey=stats.artKey,worldTreeTotem=true})
+        if core then
+            local def={};for k,v in pairs(core.def) do def[k]=v end
+            def.name=stats.name;def.plantInterval=stats.plantInterval;def.plantRadius=stats.plantRadius;def.plantCount=stats.plantCount;def.reward=18
+            core.def=def;core.plantTimer=5.5+i*.7
+        end
+    end
 end
 
 function ClearcutMode:spawnWave(counts, game)
@@ -1020,6 +1049,7 @@ function ClearcutMode:spawnWorldTree(game)
         self.worldTree.fixedX,self.worldTree.fixedY=self.worldTree.x,self.worldTree.y
         self.worldTree.worldTreeDamageStage=0
         WorldTreeSiege.startEmergence(self,self.worldTree,game)
+        self:spawnWorldTreeTotems(game)
         local camera=game.camera
         if camera then
             self.worldTreeCamera={previousMode=camera.mode or "default",skyReturnStarted=false}
