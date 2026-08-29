@@ -5,7 +5,8 @@
 ## 화면 구성
 
 - 화면 높이의 28.5%를 지평선으로 사용한다.
-- `assets/scenery/skyview/`의 맑은 하늘, 먼 산, 먼 숲, 안개를 분리된 고밀도 픽셀 레이어로 그린다.
+- `assets/scenery/skyview/*-sun-skyview-pixel-v2.png`에서 현재 지역에 맞는 2172×448 고밀도 픽셀 파노라마를 고른다. 온대 계곡·맹그로브 삼각주·마다가스카르 고원·무인도 해양의 원경이 일반 북쪽 파노라마와 같은 형태·팔레트로 이어진다.
+- 화면 왼쪽 위에는 안전 여백 안의 밝은 태양 원반, 단계형 코로나, 끊어진 픽셀 광선이 보인다. 구름 가장자리와 강·수로·바다에는 따뜻한 역광과 반사가 들어가되 렌즈 플레어 원이나 반투명 벡터 도형은 사용하지 않는다.
 - 실제 월드 지면 메시의 상단은 지평선 아래로 제한한다. 지면의 Y 간격은 `u^1.22` 곡선으로 멀수록 압축되어 지평선으로 수렴한다.
 - 캐릭터·나무·몬스터·공중 FX는 투영된 발점 위에 균일 배율 빌보드로 그려 종횡비가 변하지 않는다.
 - `Camera:setMode("skyview", duration)`과 `Camera:setMode("default", duration)`으로 호출한다. 전환 시간은 0.4~0.8초로 제한되고 기본값은 0.6초다. 따라서 라운드 시작, 보스 등장, 스킬 연출에서 같은 API를 재사용할 수 있다.
@@ -21,10 +22,13 @@
 - 나무·캐릭터·몬스터 빌보드는 정밀 Y값으로 깊이 정렬한 뒤 실제 발점만 정수 화면 픽셀에 고정해 상하 이동 중 외곽선 떨림을 막는다.
 - 연습장을 나가거나 새 런을 시작하면 새 카메라의 기본 모드는 `default`다.
 
+## 아트 제작 기록 v2
+
+내장 이미지 생성 도구로 기존 지역별 북쪽 파노라마를 각각 스타일 참조 삼아 제작했다. 공통 프롬프트는 “현재 게임의 고밀도 카툰 픽셀 파노라마, 3:1 저시점 SKYVIEW, 상단 42~45%의 쨍한 청록 하늘, 왼쪽 위의 금백색 태양 원반·단계형 코로나·끊어진 광선, 따뜻하게 빛나는 불규칙 구름 가장자리, 하단의 지역별 원경과 어두운 수관 접속부, 인물·UI·문자 없음, 실사·블러·3D·벡터·렌즈 플레어 금지”이며 지역 식별 요소만 온대 계곡·맹그로브 수로·붉은 고원·열대 해양으로 교체했다. 결과는 2172×448로 재구성하고 디더링 없는 192색 고정 팔레트로 정리했다. 구형 `sky-clear/horizon-* v1` 레이어는 보존하지만 런타임에서 사용하지 않는다.
+
 ## 검증
 
 ```powershell
-python scripts/build_skyview_assets.py
 python scripts/verify_skyview_assets.py
-python scripts/headless_lua.py scripts/verify_skyview.lua scripts/verify_camera_25d.lua
+python scripts/headless_lua.py scripts/verify_skyview.lua scripts/verify_skyview_sun.lua scripts/verify_camera_25d.lua
 ```

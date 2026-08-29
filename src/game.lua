@@ -1349,7 +1349,7 @@ function Game:draw()
     local introActive=ClearcutIntro.active(self);local worldActors=self.clearcut;if introActive then worldActors=nil end
     love.graphics.clear(.08, .11, .12)
     local projected=self.clearcut and self.camera.perspective
-    if projected then SkyView.draw(self.camera);NorthBackdrop.drawBack(self.camera,self.world) end
+    if projected then SkyView.draw(self.camera,self.world);NorthBackdrop.drawBack(self.camera,self.world) end
     local renderW,renderH
     if projected then renderW,renderH=WorldProjection.begin(self.camera) end
     self.world.deferBillboards=projected

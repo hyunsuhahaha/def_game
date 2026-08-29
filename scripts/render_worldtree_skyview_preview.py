@@ -16,17 +16,10 @@ def cover_width(image, bottom):
 
 
 canvas = Image.new("RGBA", (W, H), (83, 151, 208, 255))
-sky = load("assets/scenery/skyview/sky-clear-pixel-v1.png")
-sky_scale = max(W / sky.width, 337 / sky.height)
+sky = load("assets/scenery/skyview/forest-sun-skyview-pixel-v2.png")
+sky_scale = max(W / sky.width, (HORIZON + 52) / sky.height)
 sky = sky.resize((round(sky.width * sky_scale), round(sky.height * sky_scale)), Image.Resampling.NEAREST)
 canvas.alpha_composite(sky, ((W - sky.width) // 2, 0))
-
-for name, bottom in (
-    ("horizon-mountains-pixel-v1.png", HORIZON + 7),
-    ("horizon-forest-pixel-v1.png", HORIZON + 9),
-):
-    layer, pos = cover_width(load("assets/scenery/skyview/" + name), bottom)
-    canvas.alpha_composite(layer, pos)
 
 # Perspective ground: distant rows are sampled more densely and become broader
 # toward the foreground. This is a static verification board, while runtime
@@ -45,10 +38,6 @@ for y in range(ground.height):
 shade = Image.new("RGBA", ground.size, (28, 43, 19, 34))
 ground = Image.alpha_composite(ground, shade)
 canvas.alpha_composite(ground, (0, HORIZON))
-
-mist, mist_pos = cover_width(load("assets/scenery/skyview/horizon-mist-pixel-v1.png"), HORIZON + 31)
-mist.putalpha(mist.getchannel("A").point(lambda value: round(value * .82)))
-canvas.alpha_composite(mist, mist_pos)
 
 draw = ImageDraw.Draw(canvas, "RGBA")
 tree_foot = (760, 680)
@@ -73,6 +62,6 @@ draw = ImageDraw.Draw(canvas, "RGBA")
 draw.ellipse((player_foot[0] - 17, player_foot[1] - 5, player_foot[0] + 17, player_foot[1] + 6), fill=(18, 23, 10, 110))
 canvas.alpha_composite(smoker, (round(player_foot[0] - smoker.width / 2), round(player_foot[1] - 190 * player_scale)))
 
-path = ROOT / "docs/previews/worldtree-skyview-height-v1.png"
+path = ROOT / "docs/previews/worldtree-skyview-height-v2.png"
 canvas.convert("RGB").save(path)
 print(path)
