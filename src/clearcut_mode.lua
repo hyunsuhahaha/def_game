@@ -1252,7 +1252,7 @@ function ClearcutMode:openChest(game)
 end
 
 function ClearcutMode:updateEnemies(dt, game)
-    WorldTreeSiege.updateDebris(self,dt)
+    WorldTreeSiege.updateDebris(self,dt,game)
     for i = #self.enemies, 1, -1 do
         local e = self.enemies[i]
         local def = e.def

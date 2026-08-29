@@ -1,5 +1,6 @@
 local Siege={}
 local debrisImage,debrisQuads
+local CombatGeometry=require("src.combat_geometry")
 
 local function load()
     if debrisImage then return end
@@ -26,7 +27,8 @@ function Siege.spawnDamageDebris(mode,e,stage,game)
     if stage>=2 then
         local side=stage==2 and -1 or 1
         mode.worldTreeDebris[#mode.worldTreeDebris+1]={kind="branch",frame=5+stage%4,x=e.x+side*145,y=e.y-10,h=390,vh=45,
-            vx=side*95,vy=28,angle=side*.25,spin=side*2.4,life=2.4,scale=stage==3 and 1.25 or 1}
+            vx=side*95,vy=28,angle=side*.25,spin=side*2.4,life=2.4,scale=stage==3 and 1.25 or 1,
+            damage=stage==3 and 28 or 24}
     end
     if game.world and game.world.addParticle then
         for i=1,10+stage*4 do game.world:addParticle(e.x+(love.math.random()-.5)*180,e.y-love.math.random()*35,{.63,.39,.16},true,false) end
@@ -45,21 +47,52 @@ function Siege.updateBoss(mode,e,dt,game)
     e.worldTreeDamageStage=stage
 end
 
-function Siege.updateDebris(mode,dt)
+local function branchHitsPlayer(d,player)
+    local length=82*(d.scale or 1)
+    local halfWidth=18*(d.scale or 1)
+    local dx,dy=math.cos(d.angle)*length*.5,math.sin(d.angle)*length*.5
+    return CombatGeometry.segmentDistanceSquared(player.x,player.y,d.x-dx,d.y-dy,d.x+dx,d.y+dy)
+        <=(halfWidth+CombatGeometry.PLAYER_RADIUS)^2
+end
+
+function Siege.updateDebris(mode,dt,game)
     mode.worldTreeDebris=mode.worldTreeDebris or {}
     for i=#mode.worldTreeDebris,1,-1 do
         local d=mode.worldTreeDebris[i]
         d.life=d.life-dt;d.x=d.x+d.vx*dt;d.y=d.y+d.vy*dt
         d.vx=d.vx*math.exp(-1.1*dt);d.vy=d.vy*math.exp(-1.6*dt)
+        local previousH=d.h
         d.h=d.h+d.vh*dt;d.vh=d.vh-(d.kind=="branch" and 720 or 430)*dt
         d.angle=d.angle+d.spin*dt
-        if d.h<0 then d.h=0;d.vh=math.abs(d.vh)*(d.kind=="branch" and .08 or .2);d.spin=d.spin*.35 end
+        if d.h<=0 then
+            d.h=0
+            if d.kind=="branch" and previousH>0 and not d.landed then
+                d.landed=true;d.vx,d.vy,d.vh,d.spin=0,0,0,0
+                if game and game.player and branchHitsPlayer(d,game.player) then
+                    d.hitPlayer=true
+                    mode:damagePlayer(d.damage or 24,game)
+                end
+                if game and game.camera then game.camera.trauma=math.min(1,(game.camera.trauma or 0)+.12) end
+            else
+                d.vh=math.abs(d.vh)*(d.kind=="branch" and .08 or .2);d.spin=d.spin*.35
+            end
+        end
         if d.life<=0 then table.remove(mode.worldTreeDebris,i) end
     end
 end
 
 function Siege.queue(mode,queue)
     for _,value in ipairs(mode.worldTreeDebris or {}) do local d=value
+        if d.kind=="branch" and not d.landed then
+            queue[#queue+1]={y=-180000+d.y*.001,ground=true,draw=function()
+                local pulse=.65+math.sin((d.life or 0)*14)*.15
+                love.graphics.push();love.graphics.translate(d.x,d.y);love.graphics.rotate(d.angle)
+                love.graphics.setColor(.15,.08,.025,.48);love.graphics.ellipse("fill",0,0,45*(d.scale or 1),18*(d.scale or 1))
+                love.graphics.setColor(1,.55,.18,pulse);love.graphics.setLineWidth(2)
+                love.graphics.ellipse("line",0,0,45*(d.scale or 1),18*(d.scale or 1));love.graphics.setLineWidth(1)
+                love.graphics.pop()
+            end}
+        end
         queue[#queue+1]={x=d.x,y=d.y+.15,anchorY=d.y,draw=function()
             load();local alpha=math.min(1,d.life*2)
             love.graphics.setColor(1,1,1,alpha)

@@ -29,6 +29,26 @@ local branches=0
 for _,d in ipairs(mode.worldTreeDebris) do if d.kind=="branch" then branches=branches+1 end end
 assert(branches==2,"both large branch falls were not emitted")
 
+local impactMode=ClearcutMode.new()
+local damageTaken=0
+function impactMode:damagePlayer(amount) damageTaken=damageTaken+amount end
+impactMode.worldTreeDebris={{kind="branch",frame=6,x=200,y=200,h=1,vh=-50,vx=0,vy=0,
+    angle=0,spin=0,life=2,scale=1,damage=24}}
+local impactGame={player={x=220,y=200},camera={trauma=0}}
+Siege.updateDebris(impactMode,.1,impactGame)
+assert(damageTaken==24 and impactMode.worldTreeDebris[1].landed and impactMode.worldTreeDebris[1].hitPlayer,
+    "falling branch impact did not damage player")
+Siege.updateDebris(impactMode,.1,impactGame)
+assert(damageTaken==24,"landed branch dealt repeated damage")
+
+local missMode=ClearcutMode.new()
+local missDamage=0
+function missMode:damagePlayer(amount) missDamage=missDamage+amount end
+missMode.worldTreeDebris={{kind="branch",frame=6,x=500,y=500,h=1,vh=-50,vx=0,vy=0,
+    angle=0,spin=0,life=2,scale=1,damage=24}}
+Siege.updateDebris(missMode,.1,{player={x=700,y=700},camera={trauma=0}})
+assert(missDamage==0,"branch damaged player outside visible footprint")
+
 fixture.reset();Art.drawBody(e,0)
 local draw=fixture.commands[#fixture.commands]
 assert(draw.file==catalog.worldtree.file and draw.filter=="nearest","runtime did not draw siege atlas with nearest")
