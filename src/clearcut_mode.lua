@@ -33,6 +33,7 @@ local BiomeBosses = require("src.biome_bosses")
 local BossEntrance = require("src.boss_entrance")
 local BossRewardPickup = require("src.boss_reward_pickup")
 local WorldTreeSiege = require("src.worldtree_siege")
+local WorldTreeAttackArt = require("src.worldtree_attack_art")
 local CombatGeometry = require("src.combat_geometry")
 local Maps = require("src.clearcut_maps")
 
@@ -135,8 +136,8 @@ local enemyDefs = {
     turret = {name="버섯 포탑", category="plant", hp=22, speed=0, damage=7, radius=18, color={.74,.34,.52}, ranged=true, range=300, fireInterval=1.9, reward=5},
     ent = {name="엘더 트렌트", category="plant", hp=260, speed=48, damage=16, radius=42, color={.33,.21,.12}, hitCooldown=1, boss=true,
         slamInterval=3.2, slamRadius=110, slamDamage=20, reward=40},
-    worldtree = {name="세계수", category="plant", hp=1900, speed=0, damage=0, radius=350, color={.26,.5,.22}, boss=true, finalBoss=true,immovable=true,
-        slamInterval=4, slamRadius=330, slamDamage=18, summonInterval=6.5, reward=0},
+    worldtree = {name="세계수", category="plant", hp=1900, speed=0, damage=0, radius=420, color={.26,.5,.22}, boss=true, finalBoss=true,immovable=true,
+        slamInterval=4, slamRadius=420, slamDamage=18, summonInterval=6.5, reward=0},
     reaper = {name="숲의 사신", category="animal", hp=550, speed=118, damage=14, radius=24, color={.1,.03,.05}, hitCooldown=.65, reward=60},
     vineSprout = {name="식충 덩굴괴수", category="plant", hp=42, speed=0, damage=6, radius=27, color={.35,.65,.25}, ranged=true, thornAttack=true, range=360, fireInterval=1.55, reward=7, hitCooldown=1},
     -- 직접 공격은 없지만, 주기적으로 주변에 쓰러진 나무를 되살린다 — 방치하면
@@ -1012,6 +1013,7 @@ function ClearcutMode:spawnWorldTree(game)
             self.worldTreeCamera={from=from,target=math.min(from,.52),t=0,duration=.8,
                 previousMode=camera.mode or "default",skyReturnStarted=false,zoomDone=false}
             camera.scriptedWideView=true
+            camera.allowWideUserZoom=true
             camera.scriptedSkyviewBoss=true
             if camera.setMode then camera:setMode("skyview",.7) end
             -- Put the root below screen centre. In skyview the intact crown can
@@ -1052,7 +1054,7 @@ end
 function ClearcutMode:restoreWorldTreeCamera(game)
     local state=self.worldTreeCamera
     if not state or not game.camera then
-        if game.camera then game.camera.scriptedWideView=nil;game.camera.scriptedSkyviewBoss=nil end
+        if game.camera then game.camera.scriptedWideView=nil;game.camera.scriptedSkyviewBoss=nil;game.camera.allowWideUserZoom=nil end
         self.worldTreeCamera=nil;return
     end
     game.camera.userZoom=state.from
@@ -1060,6 +1062,7 @@ function ClearcutMode:restoreWorldTreeCamera(game)
     game.camera.renderZoom=game.camera.zoom
     game.camera.scriptedWideView=nil
     game.camera.scriptedSkyviewBoss=nil
+    game.camera.allowWideUserZoom=nil
     if game.camera.setMode then game.camera:setMode(state.previousMode or "default",.6) end
     self.worldTreeCamera=nil
 end
@@ -1145,7 +1148,9 @@ function ClearcutMode:updateProjectiles(dt, game)
 end
 
 function ClearcutMode:bossSlam(e, game)
-    self.bossTelegraphs[#self.bossTelegraphs + 1] = {x = e.x, y = e.y, radius = e.def.slamRadius, phase = "warn", timer = .75, damage = e.def.slamDamage * (e.dmgMul or 1)}
+    self.bossTelegraphs[#self.bossTelegraphs + 1] = {x = e.x, y = e.y, radius = e.def.slamRadius, phase = "warn",
+        timer = e.kind=="worldtree" and 1 or .75, warnDuration=e.kind=="worldtree" and 1 or .75,
+        damage = e.def.slamDamage * (e.dmgMul or 1),worldTreeAttack=e.kind=="worldtree" and "rootSlam" or nil}
 end
 
 -- 세계수 전용 패턴 1: 플레이어 주변에 여러 지점 동시 예열 후 뿌리가 솟구침 (제자리 회피만으론 못 피함)
@@ -1157,7 +1162,7 @@ function ClearcutMode:worldTreeRootSpikes(e, game)
         local r = 70 + love.math.random() * 190
         self.bossTelegraphs[#self.bossTelegraphs + 1] = {
             x = game.player.x + math.cos(a) * r, y = game.player.y + math.sin(a) * r,
-            radius = 48, phase = "warn", timer = .8, damage = dmg,
+            radius = 62, phase = "warn", timer = .8, warnDuration=.8, damage = dmg,worldTreeAttack="rootBurst",
         }
     end
     game:setNotice("뿌리가 솟구친다!", "ore")
@@ -1169,10 +1174,11 @@ function ClearcutMode:worldTreeVineWhip(e, game)
     local dist = math.sqrt(dx*dx + dy*dy)
     if dist <= 0 then return end
     local nx, ny = dx / dist, dy / dist
-    local reach = 420
+    local start=e.def.radius*.58
+    local reach = 620
     self.bossTelegraphs[#self.bossTelegraphs + 1] = {
-        kind = "line", x1 = e.x, y1 = e.y, x2 = e.x + nx * reach, y2 = e.y + ny * reach,
-        halfWidth = 46, phase = "warn", timer = .65, damage = 16 * (e.dmgMul or 1),
+        kind = "line", x1 = e.x+nx*start, y1 = e.y+ny*start, x2 = e.x + nx * reach, y2 = e.y + ny * reach,
+        halfWidth = 64, phase = "warn", timer = .72,warnDuration=.72, damage = 16 * (e.dmgMul or 1),worldTreeAttack="vineWhip",
     }
     game:setNotice("덩굴 채찍이 날아온다!", "ore")
 end
@@ -1203,7 +1209,8 @@ function ClearcutMode:spawnWorldTreeGuards(e,game)
     for i=1,count do
         local a=(i/count)*math.pi*2+(e.seed or 0)
         local kind=i%2==0 and "turret" or "vineSprout"
-        self:spawnEnemy(kind,e.x+math.cos(a)*(250+love.math.random()*80),e.y+math.sin(a)*(150+love.math.random()*70),{hpMul=1.25,dmgMul=1.12})
+        local distance=480+love.math.random()*120
+        self:spawnEnemy(kind,e.x+math.cos(a)*distance,e.y+math.sin(a)*distance,{hpMul=1.25,dmgMul=1.12})
     end
     game:setNotice("세계수의 뿌리와 원거리 식물이 솟아난다!","ore")
 end
@@ -4997,7 +5004,7 @@ function ClearcutMode:queueWorldActors(queue,t)
     end
     for _, value in ipairs(self.enemies) do
         local enemy=value
-        queue[#queue+1]={x=enemy.x,y=ForestArt.footY(enemy),anchorY=enemy.y,draw=function() ForestArt.drawBody(enemy,t) end}
+        queue[#queue+1]={x=enemy.x,y=ForestArt.footY(enemy),anchorY=enemy.y,sortBias=.001,draw=function() ForestArt.drawBody(enemy,t) end}
         if enemy.burning then
             queue[#queue+1]={x=enemy.x,y=ForestArt.footY(enemy)+.1,anchorY=enemy.y,
                 draw=function() CigaretteButtArt.drawEnemyFire(enemy,groundTime) end}
@@ -5177,7 +5184,9 @@ function ClearcutMode:queueProjectedOverlay(game,t)
         end)
     end
     for _,value in ipairs(self.bossTelegraphs) do local tel=value
-        if tel.kind~="line" and tel.phase~="warn" and (tel.rootQuake or tel.branchFall or tel.plantKind) then
+        if tel.phase~="warn" and tel.worldTreeAttack=="rootBurst" then
+            queueUpright(queue,tel.x,tel.y,function()WorldTreeAttackArt.draw(tel,t)end)
+        elseif tel.kind~="line" and tel.phase~="warn" and (tel.rootQuake or tel.branchFall or tel.plantKind) then
             queueUpright(queue,tel.x,tel.y,function()AttackPlants.drawTelegraph(tel)end)
         end
     end
@@ -5386,7 +5395,9 @@ function ClearcutMode:drawWorldOverlay(game)
     if not projected then self:drawCigaretteProjectiles(t) end
     if not projected then self:drawCigaretteGroundEffects() end
     for _, tel in ipairs(self.bossTelegraphs) do
-        if tel.kind == "line" then
+        if tel.worldTreeAttack then
+            if not (projected and tel.phase~="warn" and tel.worldTreeAttack=="rootBurst") then WorldTreeAttackArt.draw(tel,t) end
+        elseif tel.kind == "line" then
             if tel.phase == "warn" then
                 local pulse = 1 - math.max(0, tel.timer) / .65
                 love.graphics.setLineWidth((tel.halfWidth or 40) * 2 * pulse); love.graphics.setColor(1, .3, .15, .3)

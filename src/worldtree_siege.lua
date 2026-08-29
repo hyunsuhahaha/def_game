@@ -1,6 +1,7 @@
 local Siege={}
 local debrisImage,debrisQuads,emergenceImage,emergenceQuads
 local CombatGeometry=require("src.combat_geometry")
+local AttackArt=require("src.worldtree_attack_art")
 
 local function load()
     if debrisImage then return end
@@ -19,7 +20,7 @@ local function smooth(p)p=math.max(0,math.min(1,p));return p*p*(3-2*p)end
 function Siege.startEmergence(mode,e,game)
     mode.worldTreeEmergence={boss=e,t=0,duration=3.35,crownBreach=false,trunkImpact=false,canopyBurst=false,impact=false}
     e.worldTreeEmerging=true;e.worldTreeGrounded=true;e.worldTreeEmergenceProgress=0
-    e.entranceAlpha=0;e.entranceOffsetY=1320;e.entranceScaleX=.86;e.entranceScaleY=.92
+    e.entranceAlpha=0;e.entranceOffsetY=1720;e.entranceScaleX=.86;e.entranceScaleY=.92
     e.moving=false
 end
 
@@ -57,7 +58,7 @@ function Siege.updateEmergence(mode,dt,game)
     local rise=smooth((p-.04)/.84)
     e.worldTreeEmerging=true;e.hp=e.maxHp;e.visualHit=0;e.visualAttack=0;e.moving=false
     e.worldTreeEmergenceProgress=p
-    e.entranceOffsetY=(1-rise)*1320
+    e.entranceOffsetY=(1-rise)*1720
     e.entranceAlpha=math.min(1,math.max(0,(p-.025)*14))
     e.entranceScaleX=.86+smooth((p-.04)/.66)*.14+math.sin(p*math.pi)*.035
     e.entranceScaleY=.92+rise*.08+math.sin(p*math.pi)*.022
@@ -106,10 +107,15 @@ function Siege.spawnDamageDebris(mode,e,stage,game)
             angle=love.math.random()*6.28,spin=(-1+love.math.random()*2)*5,life=2.2+love.math.random()*1.2}
     end
     if stage>=2 then
-        local side=stage==2 and -1 or 1
-        mode.worldTreeDebris[#mode.worldTreeDebris+1]={kind="branch",frame=5+stage%4,x=e.x+side*145,y=e.y-10,h=390,vh=45,
-            vx=side*95,vy=28,angle=side*.25,spin=side*2.4,life=2.4,scale=stage==3 and 1.25 or 1,
-            damage=stage==3 and 28 or 24}
+        local player=game and game.player
+        local targetX,targetY=player and player.x or e.x,player and player.y or e.y+e.def.radius
+        local fromX,fromY=targetX-e.x,targetY-e.y
+        local angle=math.atan2(fromY,fromX)
+        local length=stage==3 and 350 or 310
+        mode.worldTreeDebris[#mode.worldTreeDebris+1]={kind="branch",frame=5+stage%4,x=targetX,y=targetY,h=560,vh=-54,
+            vx=0,vy=0,angle=angle,spin=(stage==2 and -1 or 1)*.32,life=2.35,scale=1,
+            length=length,halfWidth=stage==3 and 42 or 36,fallTime=0,fallDuration=1.18,
+            sourceX=e.x,sourceY=e.y,damage=stage==3 and 28 or 24}
     end
     if game.world and game.world.addParticle then
         for i=1,10+stage*4 do game.world:addParticle(e.x+(love.math.random()-.5)*180,e.y-love.math.random()*35,{.63,.39,.16},true,false) end
@@ -132,8 +138,8 @@ function Siege.updateBoss(mode,e,dt,game)
 end
 
 local function branchHitsPlayer(d,player)
-    local length=82*(d.scale or 1)
-    local halfWidth=18*(d.scale or 1)
+    local length=d.length or 310
+    local halfWidth=d.halfWidth or 36
     local dx,dy=math.cos(d.angle)*length*.5,math.sin(d.angle)*length*.5
     return CombatGeometry.segmentDistanceSquared(player.x,player.y,d.x-dx,d.y-dy,d.x+dx,d.y+dy)
         <=(halfWidth+CombatGeometry.PLAYER_RADIUS)^2
@@ -143,6 +149,8 @@ function Siege.updateDebris(mode,dt,game)
     mode.worldTreeDebris=mode.worldTreeDebris or {}
     for i=#mode.worldTreeDebris,1,-1 do
         local d=mode.worldTreeDebris[i]
+        if d.kind=="branch" and not d.landed then d.fallTime=(d.fallTime or 0)+dt end
+        if d.kind=="branch" and d.landed then d.impactAge=(d.impactAge or 0)+dt end
         d.life=d.life-dt;d.x=d.x+d.vx*dt;d.y=d.y+d.vy*dt
         d.vx=d.vx*math.exp(-1.1*dt);d.vy=d.vy*math.exp(-1.6*dt)
         local previousH=d.h
@@ -157,6 +165,14 @@ function Siege.updateDebris(mode,dt,game)
                     mode:damagePlayer(d.damage or 24,game)
                 end
                 if game and game.camera then game.camera.trauma=math.min(1,(game.camera.trauma or 0)+.12) end
+                if game and game.world and game.world.addParticle then
+                    for n=1,26 do
+                        local along=(love.math.random()-.5)*(d.length or 310)
+                        local side=(love.math.random()-.5)*(d.halfWidth or 36)
+                        local c,s=math.cos(d.angle),math.sin(d.angle)
+                        game.world:addParticle(d.x+c*along-s*side,d.y+s*along+c*side,{.61,.39,.14},true,false)
+                    end
+                end
             else
                 d.vh=math.abs(d.vh)*(d.kind=="branch" and .08 or .2);d.spin=d.spin*.35
             end
@@ -201,19 +217,21 @@ function Siege.queue(mode,queue)
     for _,value in ipairs(mode.worldTreeDebris or {}) do local d=value
         if d.kind=="branch" and not d.landed then
             queue[#queue+1]={y=-180000+d.y*.001,ground=true,draw=function()
-                local pulse=.65+math.sin((d.life or 0)*14)*.15
-                love.graphics.push();love.graphics.translate(d.x,d.y);love.graphics.rotate(d.angle)
-                love.graphics.setColor(.15,.08,.025,.48);love.graphics.ellipse("fill",0,0,45*(d.scale or 1),18*(d.scale or 1))
-                love.graphics.setColor(1,.55,.18,pulse);love.graphics.setLineWidth(2)
-                love.graphics.ellipse("line",0,0,45*(d.scale or 1),18*(d.scale or 1));love.graphics.setLineWidth(1)
-                love.graphics.pop()
+                AttackArt.drawBranchWarning(d,love.timer.getTime())
+            end}
+        elseif d.kind=="branch" and d.landed then
+            queue[#queue+1]={y=-180000+d.y*.001,ground=true,draw=function()
+                AttackArt.drawBranchImpact(d,love.timer.getTime())
             end}
         end
         queue[#queue+1]={x=d.x,y=d.y+.15,anchorY=d.y,draw=function()
             load();local alpha=math.min(1,d.life*2)
             love.graphics.setColor(1,1,1,alpha)
-            local scale=(d.kind=="branch" and .92 or .38)*(d.scale or 1)
-            love.graphics.draw(debrisImage,debrisQuads[d.frame],d.x,d.y-d.h,d.angle,scale,scale,48,48)
+            if d.kind=="branch" then AttackArt.drawFallingBranch(d,love.timer.getTime())
+            else
+                local scale=.38*(d.scale or 1)
+                love.graphics.draw(debrisImage,debrisQuads[d.frame],d.x,d.y-d.h,d.angle,scale,scale,48,48)
+            end
         end}
     end
 end

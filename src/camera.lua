@@ -149,7 +149,9 @@ function Camera:update(dt, target, world)
         -- Keep ordinary landscape views inside the current stage. A severe
         -- aspect mismatch (notably a tall portrait window) would require a
         -- huge zoom and a fixed midpoint, so preserve the authored zoom there.
-        if w>=h or fitZoom<=desiredZoom*1.25 then desiredZoom=math.max(desiredZoom,fitZoom) end
+        if not self.allowWideUserZoom and (w>=h or fitZoom<=desiredZoom*1.25) then
+            desiredZoom=math.max(desiredZoom,fitZoom)
+        end
         leftExtent,topExtent,rightExtent,bottomExtent=perspectiveExtents(self,w,h,desiredZoom)
     else
         leftExtent,rightExtent=w/(2*desiredZoom),w/(2*desiredZoom)

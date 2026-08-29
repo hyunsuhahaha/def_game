@@ -31,10 +31,10 @@ local function drawSiegeShadow(e,pose)
     -- under the weight-bearing root clusters.
     local y=pose.footY+7
     love.graphics.setColor(.055,.052,.024,.34*pose.alpha)
-    love.graphics.ellipse("fill",e.x,y,142*pose.shadowScale,21*pose.shadowScale)
+    love.graphics.ellipse("fill",e.x,y,185*pose.shadowScale,25*pose.shadowScale)
     love.graphics.setColor(.07,.062,.026,.27*pose.alpha)
-    love.graphics.ellipse("fill",e.x-188*pose.shadowScale,y-3,104*pose.shadowScale,13*pose.shadowScale)
-    love.graphics.ellipse("fill",e.x+190*pose.shadowScale,y-2,108*pose.shadowScale,14*pose.shadowScale)
+    love.graphics.ellipse("fill",e.x-242*pose.shadowScale,y-3,134*pose.shadowScale,16*pose.shadowScale)
+    love.graphics.ellipse("fill",e.x+245*pose.shadowScale,y-2,138*pose.shadowScale,17*pose.shadowScale)
 end
 
 local function drawSiegeSoilLip(e,pose)
@@ -42,8 +42,8 @@ local function drawSiegeSoilLip(e,pose)
     -- trunk look planted into the world instead of pasted on top of it.
     local x,y=e.x,pose.footY+8
     love.graphics.setColor(.20,.16,.065,.82*pose.alpha)
-    love.graphics.rectangle("fill",x-116,y-3,234,12)
-    love.graphics.rectangle("fill",x-80,y-10,164,8)
+    love.graphics.rectangle("fill",x-148,y-3,300,12)
+    love.graphics.rectangle("fill",x-102,y-10,210,8)
     love.graphics.rectangle("fill",x-28,y-14,62,5)
     love.graphics.setColor(.36,.28,.10,.66*pose.alpha)
     love.graphics.rectangle("fill",x-78,y-7,34,4);love.graphics.rectangle("fill",x+25,y-9,46,4)

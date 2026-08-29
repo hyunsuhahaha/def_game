@@ -58,7 +58,7 @@ draw.ellipse((tree_foot[0] + 88, tree_foot[1] - 7, tree_foot[0] + 212, tree_foot
 
 atlas = load("assets/enemies/arcade/worldtree-siege-atlas-v1.png")
 tree = atlas.crop((0, 0, 1024, 1024))
-tree_scale = .667
+tree_scale = .52 * (1050 / 639)
 tree = tree.resize((round(tree.width * tree_scale), round(tree.height * tree_scale)), Image.Resampling.NEAREST)
 tree_x = round(tree_foot[0] - 512 * tree_scale)
 tree_y = round(tree_foot[1] - 992 * tree_scale)

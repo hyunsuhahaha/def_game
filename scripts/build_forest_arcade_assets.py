@@ -105,7 +105,7 @@ def main():
     show=siege.crop((0,0,1024,1024)).resize((240,240),Image.Resampling.NEAREST)
     inspection.paste(show,(300,582),show);pen.text((300,564),'worldtree siege',fill=(234,219,182))
     catalog.append('    planter={file="assets/enemies/arcade/planter-atlas-v2.png",cell=256,foot=248,width=90,bodyWidth=233,height=243,motion=2,facing=1},')
-    catalog.append('    worldtree={file="assets/enemies/arcade/worldtree-siege-atlas-v1.png",cell=1024,foot=992,width=820,bodyWidth=639,height=960,motion=2,facing=1,siege=true},')
+    catalog.append('    worldtree={file="assets/enemies/arcade/worldtree-siege-atlas-v1.png",cell=1024,foot=992,width=1050,bodyWidth=639,height=960,motion=2,facing=1,siege=true},')
     catalog.append('}')
     (ROOT/'src/forest_arcade_catalog.lua').write_text('\n'.join(catalog)+'\n',encoding='utf-8')
     (ROOT/'docs/previews/forest-arcade-v3-build.json').write_text(json.dumps(report,indent=2),encoding='utf-8')

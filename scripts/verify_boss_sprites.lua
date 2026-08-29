@@ -90,7 +90,7 @@ for frame=0,(FOREST_RENDER_CAPTURE and 5 or 0) do
             for _,e in ipairs(mode.enemies) do if catalog[e.kind].file==body.file then enemy=e end end
             for treeIndex,tree in ipairs(fixture.commands) do
                 if tree.op=="draw" and tree.file:find("-tree-cartoon-v3.png",1,true) then
-                    assert((treeIndex<bodyIndex)==(tree.args[2]<Art.footY(enemy)),"tree/monster depth order reversed")
+                    assert((treeIndex<bodyIndex)==(tree.args[2]<=Art.footY(enemy)),"tree/monster depth order reversed")
                 end
             end
         end

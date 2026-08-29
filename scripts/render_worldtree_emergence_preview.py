@@ -9,7 +9,7 @@ ground = Image.open(ROOT / "assets/forest-ground-tile-v1.png").convert("RGB")
 
 PANEL_W, PANEL_H = 300, 390
 CELL, FOOT = 1024, 992
-SCALE = .34
+SCALE = .42
 PROGRESS = (.06, .24, .40, .59, .77, .96)
 
 
@@ -47,10 +47,10 @@ def warped_intact_tree(cell, p, cutoff):
 
 def paste_intact_tree(panel, cell, p):
     rise = smooth((p - .04) / .84)
-    lift = (1 - rise) * 1320
+    lift = (1 - rise) * 1720
     scale_x = .86 + smooth((p - .04) / .66) * .14 + math.sin(p * math.pi) * .035
     scale_y = .92 + rise * .08 + math.sin(p * math.pi) * .022
-    atlas_to_world = 820 / 639
+    atlas_to_world = 1050 / 639
     cutoff = max(0, min(.94, FOOT / CELL - (36 + lift) / (CELL * atlas_to_world * scale_y)))
     part = warped_intact_tree(cell, p, cutoff)
     authored_scale_x = SCALE * scale_x

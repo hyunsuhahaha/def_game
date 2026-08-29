@@ -7,5 +7,5 @@ return {
     ent={file="assets/enemies/arcade/ent-atlas-v3.png",cell=256,foot=248,width=140,bodyWidth=238,height=240,motion=2,facing=1},
     reaper={file="assets/enemies/arcade/reaper-atlas-v3.png",cell=160,foot=152,width=75,bodyWidth=119,height=144,motion=2,facing=1},
     planter={file="assets/enemies/arcade/planter-atlas-v2.png",cell=256,foot=248,width=90,bodyWidth=233,height=243,motion=2,facing=1},
-    worldtree={file="assets/enemies/arcade/worldtree-siege-atlas-v1.png",cell=1024,foot=992,width=820,bodyWidth=639,height=960,motion=2,facing=1,siege=true},
+    worldtree={file="assets/enemies/arcade/worldtree-siege-atlas-v1.png",cell=1024,foot=992,width=1050,bodyWidth=639,height=960,motion=2,facing=1,siege=true},
 }
