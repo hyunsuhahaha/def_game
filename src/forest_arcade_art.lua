@@ -30,8 +30,13 @@ function Art.pose(e, t)
     local moving = e.moving and e.def.speed > 0
     local cycle = clock * (moving and 11 or 4) + (e.seed or 0)
     local frame = moving and (math.floor(cycle)%6+1) or (spec.motion==2 and math.floor(cycle*.65)%6+1 or 1)
+    if spec.siege then
+        local pct=math.max(0,e.hp)/math.max(1,e.maxHp)
+        local stage=pct>.75 and 0 or (pct>.50 and 1 or (pct>.25 and 2 or 3))
+        frame=stage*3+(math.floor(clock*2.2)%3)+1
+    end
     local recoil = math.min(1, (e.visualAttack or 0)/.24)
-    if recoil > 0 then frame = 10 + math.min(2, math.floor((1-recoil)*3)) end
+    if recoil > 0 and not spec.siege then frame = 10 + math.min(2, math.floor((1-recoil)*3)) end
     if e.plantState=="windup" then
         frame=7+math.min(2,math.floor((1-math.max(0,e.plantTimer)/(e.windupDuration or .62))*3))
     elseif e.plantState=="recover" then
@@ -51,8 +56,9 @@ function Art.pose(e, t)
     local scale = spec.width/spec.bodyWidth
     local bob = moving and math.abs(math.sin(cycle*math.pi/3))*1.3 or 0
     local lean = moving and math.sin(cycle*math.pi/3)*.025 or 0
+    if spec.siege then bob,lean=0,0 end
     if e.reaperState == "dashing" then lean=-facing*.13 end
-    local squash = recoil*.045
+    local squash = spec.siege and 0 or recoil*.045
     local introX,introY=e.entranceOffsetX or 0,e.entranceOffsetY or 0
     local introSX,introSY=e.entranceScaleX or 1,e.entranceScaleY or 1
     return {spec=spec,frame=frame,flip=flip,scale=scale,

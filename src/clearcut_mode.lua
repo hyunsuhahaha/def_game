@@ -32,6 +32,7 @@ local ForestZones = require("src.forest_zones")
 local BiomeBosses = require("src.biome_bosses")
 local BossEntrance = require("src.boss_entrance")
 local BossRewardPickup = require("src.boss_reward_pickup")
+local WorldTreeSiege = require("src.worldtree_siege")
 local CombatGeometry = require("src.combat_geometry")
 
 local ClearcutMode = {}
@@ -120,11 +121,11 @@ local arcanaDefs = {
 }
 
 local milestones = {
-    {pct=10, text="\"숲이 당신의 존재를 알아챈 것 같다...\"", wave={squirrel=2}},
-    {pct=30, text="다람쥐들이 사방으로 도망치기 시작한다.", wave={squirrel=2, boar=1}},
+    {pct=10, text="숲 가장자리에서 작은 움직임이 감지된다.", wave={squirrel=1}},
+    {pct=30, text="뿌리들이 벌목로를 막기 시작한다.", wave={vineSprout=1}},
     {pct=50, text="숲의 절반이 사라졌다.", wave={squirrel=1}, boss="ent"},
-    {pct=70, text="숲이... 이상할 정도로 조용해졌다.", wave={boar=2, turret=1}},
-    {pct=90, text="거의 다 왔다. 마지막 나무들이 보인다.", wave={squirrel=2, boar=1, turret=1}}
+    {pct=70, text="공격 식물이 남은 숲을 둘러싼다.", wave={turret=1,vineSprout=1}},
+    {pct=90, text="마지막 나무들이 뿌리 방어를 펼친다.", wave={vineSprout=2,turret=1}}
 }
 
 local enemyDefs = {
@@ -133,8 +134,8 @@ local enemyDefs = {
     turret = {name="버섯 포탑", hp=22, speed=0, damage=7, radius=18, color={.74,.34,.52}, ranged=true, range=300, fireInterval=1.9, reward=5},
     ent = {name="엘더 트렌트", hp=260, speed=48, damage=16, radius=42, color={.33,.21,.12}, hitCooldown=1, boss=true,
         slamInterval=3.2, slamRadius=110, slamDamage=20, reward=40},
-    worldtree = {name="세계수", hp=950, speed=0, damage=0, radius=92, color={.26,.5,.22}, boss=true, finalBoss=true,
-        slamInterval=4, slamRadius=150, slamDamage=18, summonInterval=7, reward=0},
+    worldtree = {name="세계수", hp=1900, speed=0, damage=0, radius=350, color={.26,.5,.22}, boss=true, finalBoss=true,immovable=true,
+        slamInterval=4, slamRadius=330, slamDamage=18, summonInterval=6.5, reward=0},
     reaper = {name="숲의 사신", hp=550, speed=118, damage=14, radius=24, color={.1,.03,.05}, hitCooldown=.65, reward=60},
     vineSprout = {name="식충 덩굴괴수", hp=42, speed=0, damage=6, radius=27, color={.35,.65,.25}, ranged=true, thornAttack=true, range=360, fireInterval=1.55, reward=7, hitCooldown=1},
     -- 직접 공격은 없지만, 주기적으로 주변에 쓰러진 나무를 되살린다 — 방치하면
@@ -179,7 +180,7 @@ function ClearcutMode.new()
         actionAudit={physicalImpact=0,cigaretteFlick=0,veganFork=0,veganConsume=0,developerRemote=0},
         hp=100, maxHp=100, invulnTimer=0, dead=false,
         enemies={}, projectiles={}, bossTelegraphs={}, resinPuddles={}, waveFired={}, worldTreeSpawned=false, readyToFinish=false, activeBoss=nil,operationFinalBoss=false,operationBossName=nil,kills=0,
-        chests={}, bossMagnetPickups={}, chestPending=false, molotovShots=0, wildburstTimer=10, plagued={}, dodges=0,
+        chests={}, bossMagnetPickups={}, worldTreeDebris={}, chestPending=false, molotovShots=0, wildburstTimer=10, plagued={}, dodges=0,
         timeSpawnTimer=35, eliteTimer=200, reaperSpawned=false,
         stage=1, stageBossHpMul=1, stageElapsed=0, stageTimeLimit=stageTimeLimit(1), failureReason=nil,
         berserkState="idle", berserkTimer=170, berserkCycleCount=0, berserkTreeTimer=0, berserkKillsStart=0, berserkFlashNodes={},
@@ -451,7 +452,7 @@ function ClearcutMode:advanceStage(game)
     self.enemies, self.projectiles, self.bossTelegraphs, self.resinPuddles = {}, {}, {}, {}
     -- Boss magnets survive the immediate world-tree stage handoff; otherwise
     -- the reward would be deleted on the same frame it dropped.
-    self.rootHazards, self.bees, self.molotovs, self.chests, self.plagued = {}, {}, {}, {}, {}
+    self.rootHazards, self.bees, self.molotovs, self.chests, self.plagued, self.worldTreeDebris = {}, {}, {}, {}, {}, {}
     self.secondhandSmokeClouds={}
     self.eternalFields,self.revivalChorusShots,self.revivalChorusImpacts={},{},{}
     self.veganForkImpacts,self.veganConsumeFx,self.veganHaste={},{},0
@@ -476,6 +477,7 @@ function ClearcutMode:advanceStage(game)
 end
 
 function ClearcutMode:update(dt, game)
+    self:updateWorldTreeCamera(dt,game)
     if self.dead then return end
     require("src.biome_life").update(game.world,dt)
     ForestUnderstory.update(game.world,game.player,dt,game)
@@ -756,9 +758,8 @@ function ClearcutMode:updateTimeSpawner(dt, game)
     local opening=self.elapsed<90 and 1 or (self.elapsed<180 and 2 or nil)
     self.timeSpawnTimer = opening==1 and 24 or (opening==2 and 20 or math.max(12,20-curse*1.2))
     local count = (not opening and curse>=2.6 and love.math.random()<.35) and 2 or 1
-    local pool = {"squirrel", "squirrel", "boar"}
-    if self.elapsed>=75 then pool[#pool+1]="thornHunter";pool[#pool+1]="seedPod" end
-    if self.elapsed>=150 then pool[#pool+1]="hammerBloom";pool[#pool+1]="bambooCannon";pool[#pool+1]="resinSprayer" end
+    local pool = self.elapsed<75 and {"squirrel","vineSprout"} or {"thornHunter","seedPod","vineSprout","turret"}
+    if self.elapsed>=150 then pool={"thornHunter","seedPod","hammerBloom","bambooCannon","resinSprayer","vineSprout"} end
     for _ = 1, count do
         local kind = pool[love.math.random(#pool)]
         local a = love.math.random() * math.pi * 2
@@ -969,13 +970,44 @@ function ClearcutMode:spawnWorldTree(game)
     self.worldTreeSpawned = true
     local finalStage=self.stage>=BiomeBosses.stageCap(self.mapId)
     local kind=finalStage and BiomeBosses.forMap(self.mapId) or "worldtree"
-    self.worldTree=self:spawnEnemy(kind,game.player.x,game.player.y-280,{hpMul=finalStage and 1 or self.stageBossHpMul,dmgMul=1+(self.stage-1)*.22})
+    self.worldTree=self:spawnEnemy(kind,game.player.x,game.player.y-250,{hpMul=finalStage and 1 or self.stageBossHpMul,dmgMul=1+(self.stage-1)*.22})
+    if self.worldTree and kind=="worldtree" then
+        self.worldTree.fixedX,self.worldTree.fixedY=self.worldTree.x,self.worldTree.y
+        self.worldTree.worldTreeDamageStage=0
+        local camera=game.camera
+        if camera then
+            local from=camera.userZoom or 1
+            self.worldTreeCamera={from=from,target=math.min(from,.68),t=0,duration=.8}
+            if camera.focus then camera:focus((self.worldTree.x+game.player.x)*.5,(self.worldTree.y+game.player.y)*.5-60,1.25,.92) end
+        end
+    end
     self.operationFinalBoss=finalStage
     if finalStage then
         BossEntrance.start(self,self.worldTree,game)
     elseif game.camera then
         game.camera.trauma=math.min(1,game.camera.trauma+.5)
     end
+end
+
+function ClearcutMode:updateWorldTreeCamera(dt,game)
+    local state=self.worldTreeCamera
+    if not state or state.done or not game.camera then return end
+    state.t=math.min(state.duration,state.t+dt)
+    local p=state.t/state.duration;p=p*p*(3-2*p)
+    local userZoom=state.from+(state.target-state.from)*p
+    game.camera.userZoom=userZoom
+    game.camera.zoom=(game.world.stageZoom or game.camera.zoom)*userZoom
+    game.camera.renderZoom=game.camera.zoom
+    if state.t>=state.duration then state.done=true end
+end
+
+function ClearcutMode:restoreWorldTreeCamera(game)
+    local state=self.worldTreeCamera
+    if not state or not game.camera then self.worldTreeCamera=nil;return end
+    game.camera.userZoom=state.from
+    game.camera.zoom=(game.world.stageZoom or game.camera.zoom)*state.from
+    game.camera.renderZoom=game.camera.zoom
+    self.worldTreeCamera=nil
 end
 
 function ClearcutMode:spawnEnemyProjectile(e, game)
@@ -1093,6 +1125,7 @@ end
 
 -- 세계수 종합 AI: 기존 슬램·소환에 더해 뿌리 폭발/덩굴 채찍을 번갈아 쓰고, 체력 35% 이하부터는 격노해서 더 자주 공격한다
 function ClearcutMode:updateWorldTreeAI(e, dt, game)
+    WorldTreeSiege.updateBoss(self,e,dt,game)
     e.rootSpikeTimer = (e.rootSpikeTimer or 3) - dt
     e.vineWhipTimer = (e.vineWhipTimer or 5.5) - dt
     e.enraged = e.hp <= e.maxHp * .35
@@ -1109,6 +1142,16 @@ function ClearcutMode:updateWorldTreeAI(e, dt, game)
         e.vineWhipTimer = e.enraged and 3.4 or 5.5
         self:worldTreeVineWhip(e, game)
     end
+end
+
+function ClearcutMode:spawnWorldTreeGuards(e,game)
+    local count=e.enraged and 3 or 2
+    for i=1,count do
+        local a=(i/count)*math.pi*2+(e.seed or 0)
+        local kind=i%2==0 and "turret" or "vineSprout"
+        self:spawnEnemy(kind,e.x+math.cos(a)*(250+love.math.random()*80),e.y+math.sin(a)*(150+love.math.random()*70),{hpMul=1.25,dmgMul=1.12})
+    end
+    game:setNotice("세계수의 뿌리와 원거리 식물이 솟아난다!","ore")
 end
 
 function ClearcutMode:updateBossTelegraphs(dt, game)
@@ -1151,6 +1194,7 @@ function ClearcutMode:onEnemyDefeated(e, game)
         end
     end
     if e == self.worldTree then
+        self:restoreWorldTreeCamera(game)
         if self.operationFinalBoss then
             self.operationBossName=e.def.name
             game:setNotice(BiomeBosses.operationName(self.mapId).." 완료 — "..e.def.name.." 격파!","food")
@@ -1208,6 +1252,7 @@ function ClearcutMode:openChest(game)
 end
 
 function ClearcutMode:updateEnemies(dt, game)
+    WorldTreeSiege.updateDebris(self,dt)
     for i = #self.enemies, 1, -1 do
         local e = self.enemies[i]
         local def = e.def
@@ -1217,7 +1262,9 @@ function ClearcutMode:updateEnemies(dt, game)
         e.visualAttack = math.max(0, (e.visualAttack or 0) - dt)
         e.hitTimer = math.max(0, e.hitTimer - dt)
         local airborneThisFrame=false
-        if e.airborneT then
+        if def.immovable then
+            WorldTreeSiege.updateBoss(self,e,0,game)
+        elseif e.airborneT then
             airborneThisFrame=true
             local airborneStep=math.min(dt,e.airborneDuration-e.airborneT)
             e.airborneT=math.min(e.airborneDuration,e.airborneT+airborneStep)
@@ -1291,7 +1338,7 @@ function ClearcutMode:updateEnemies(dt, game)
             e.summonTimer = e.summonTimer - dt
             if e.summonTimer <= 0 then
                 e.summonTimer = def.summonInterval
-                self:spawnWave({squirrel = 1}, game)
+                if e.kind=="worldtree" then self:spawnWorldTreeGuards(e,game) else self:spawnWave({squirrel = 1}, game) end
             end
         end
         if def.plantInterval and not airborneThisFrame then
@@ -4848,6 +4895,7 @@ function ClearcutMode:queueWorldActors(queue,t)
     BossEntrance.queue(self,queue)
     PhilosopherFusionArt.queue(self,queue)
     RevivalCrowdArt.queue(self,queue)
+    WorldTreeSiege.queue(self,queue)
     for _,value in ipairs(self.burrowTracks) do
         local mark=value
         queue[#queue+1]={y=-200000+mark.y*.001,ground=true,draw=function() MoleBurrowArt.draw(mark) end}

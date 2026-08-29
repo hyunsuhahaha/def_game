@@ -21,13 +21,12 @@ TREES = [
 ]
 # Keep species identity and small arcade proportions. Width is visual only.
 ENEMIES = [
-    ('squirrel',0,0,128,33,1,['b96b25','d08b32','764326','efbd61','cc4824','573121','2a251e','87734b']),
-    ('boar',1,0,128,49,1,['806043','a17b55','4d392b','e2cba2','cf5b2e','483e30','312921','786c57']),
-    ('turret',2,0,128,43,2,['95546f','ba7390','64394f','d9b97e','a58355','574333','392c30','9c8770']),
-    ('vineSprout',3,0,160,57,2,['9e4829','ca6630','e4ad45','637334','899047','3c4d28','613b29','302e20']),
-    ('ent',0,1,256,108,2,['73803a','9e9c4c','48572b','80603c','aa824b','513f2d','e7b549','39332a']),
-    ('worldtree',1,1,320,202,2,['76853e','a1a153','4b5f2e','856642','b28a50','59462e','edbd50','383b28']),
-    ('reaper',2,1,160,58,2,['695762','8c737a','433947','332f37','c64a30','e28a45','504b4e','24252b']),
+    ('squirrel',0,0,128,43,1,['b96b25','d08b32','764326','efbd61','cc4824','573121','2a251e','87734b']),
+    ('boar',1,0,128,64,1,['806043','a17b55','4d392b','e2cba2','cf5b2e','483e30','312921','786c57']),
+    ('turret',2,0,128,56,2,['95546f','ba7390','64394f','d9b97e','a58355','574333','392c30','9c8770']),
+    ('vineSprout',3,0,160,74,2,['9e4829','ca6630','e4ad45','637334','899047','3c4d28','613b29','302e20']),
+    ('ent',0,1,256,140,2,['73803a','9e9c4c','48572b','80603c','aa824b','513f2d','e7b549','39332a']),
+    ('reaper',2,1,160,75,2,['695762','8c737a','433947','332f37','c64a30','e28a45','504b4e','24252b']),
 ]
 
 def bounds(source, cell, key):
@@ -94,11 +93,19 @@ def main():
                 left,top=i*280,10
                 show=preview.resize((size[0],size[1]),Image.Resampling.NEAREST)
             else:
-                left,top=(i%4)*280,280+(i//4)*280
+                preview_index=6 if name=='reaper' else i
+                left,top=(preview_index%4)*280,280+(preview_index//4)*280
                 show=preview.resize((240,240),Image.Resampling.NEAREST)
             inspection.paste(show,(left+20,top+22),show); pen.text((left+20,top+4),name,fill=(234,219,182))
             lut.release()
         texture.release()
+    siege_file='assets/enemies/arcade/worldtree-siege-atlas-v1.png'
+    siege=Image.open(ROOT/siege_file).convert('RGBA')
+    report.append(dict(id='worldtree',category='enemies',file=siege_file,size=siege.size,colors=len(siege.getcolors(siege.width*siege.height) or []),frames=12,foot=992,bbox=siege.crop((0,0,1024,1024)).getbbox()))
+    show=siege.crop((0,0,1024,1024)).resize((240,240),Image.Resampling.NEAREST)
+    inspection.paste(show,(300,582),show);pen.text((300,564),'worldtree siege',fill=(234,219,182))
+    catalog.append('    planter={file="assets/enemies/arcade/planter-atlas-v2.png",cell=256,foot=248,width=90,bodyWidth=233,height=243,motion=2,facing=1},')
+    catalog.append('    worldtree={file="assets/enemies/arcade/worldtree-siege-atlas-v1.png",cell=1024,foot=992,width=820,bodyWidth=639,height=960,motion=2,facing=1,siege=true},')
     catalog.append('}')
     (ROOT/'src/forest_arcade_catalog.lua').write_text('\n'.join(catalog)+'\n',encoding='utf-8')
     (ROOT/'docs/previews/forest-arcade-v3-build.json').write_text(json.dumps(report,indent=2),encoding='utf-8')

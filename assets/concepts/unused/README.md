@@ -16,4 +16,4 @@
 
 - `worldtree-siege-rejected-v1.png`: 뿌리가 과도하고 중앙이 마법 제단처럼 보여 미채택.
 - `worldtree-siege-rejected-v2.png`: 자연 거목 방향의 두 번째 검토안. 최종 세계수 디자인으로 채택되지 않음.
-
+- `worldtree-siege-alpha-halo-source-rejected-v3.png`: 투명 배경에 갈색 광이 남아 런타임 수관 사이로 새어 나온 제작 원본. 키 컬러 v4로 교체됨.
