@@ -1203,9 +1203,13 @@ function World:drawForestGround(player,actorSource)
             ForestLighting.drawGround(self)
             return
         end
+        local topReveal=self.cameraTopReveal or 0
+        -- Start on an even pair of 768px mirrored tiles so the established
+        -- in-map texture phase at y=0 stays byte-for-byte visually unchanged.
+        local tileTop=topReveal>0 and -math.ceil(topReveal/1536)*1536 or 0
         love.graphics.setColor(.29,.35,.14,1)
-        love.graphics.rectangle("fill",0,0,self.width,self.height)
-        drawMirroredTiled(self.images.forestGround,0,0,self.width,self.height,768,.14)
+        love.graphics.rectangle("fill",0,-topReveal,self.width,self.height+topReveal)
+        drawMirroredTiled(self.images.forestGround,0,tileTop,self.width,self.height-tileTop,768,.14)
         ForestFloor.drawGround(self,player,actorSource)
         ForestScenery.drawGround(self)
         ForestLighting.drawGround(self)

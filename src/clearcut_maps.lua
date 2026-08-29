@@ -42,6 +42,12 @@ function Maps.configureStage(world,stage)
     local kind=world.clearcutMap=="island" and "island" or "normal"
     local size=stageSizes[kind][math.min(stage,4)]
     world.playBounds={x=(world.width-size[1])/2,y=(world.height-size[2])/2,w=size[1],h=size[2]}
+    -- Movement remains inside playBounds, but the camera may look past the
+    -- northern edge. This keeps an upward-moving player framed naturally and
+    -- exposes continuous forest instead of pinning the view to an invisible wall.
+    world.cameraTopReveal=900
+    world.cameraBounds={x=world.playBounds.x,y=world.playBounds.y-world.cameraTopReveal,
+        w=world.playBounds.w,h=world.playBounds.h+world.cameraTopReveal}
     world.stageZoom=stage==1 and .84 or (stage==2 and .79 or (stage==3 and .75 or .72))
     -- Playable maps always use a following camera. A fixed overview used to
     -- strand the player vertically on the final island stage.
@@ -154,7 +160,8 @@ function Maps.drawGround(world,time)
     local previous=love.graphics.getShader()
     shader:send("worldSize",{world.width,world.height})
     shader:send("islandRadii",{Maps.island.radiusX,Maps.island.radiusY})
-    local ox,oy,sw,sh=0,0,world.width,world.height
+    local topReveal=world.cameraTopReveal or 0
+    local ox,oy,sw,sh=0,-topReveal,world.width,world.height+topReveal
     if def.id=="island" then ox,oy,sw,sh=-world.width,-world.height,world.width*3,world.height*3 end
     shader:send("terrainOrigin",{ox,oy});shader:send("terrainSize",{sw,sh})
     shader:send("biome",def.index-1)

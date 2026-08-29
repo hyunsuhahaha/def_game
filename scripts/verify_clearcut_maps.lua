@@ -68,9 +68,15 @@ for _,def in ipairs(Maps.catalog) do
     assert(Maps.insidePlayable(w,edgeX,edgeY,75),def.id.." movement escaped stage bounds")
     g.camera:update(10,{x=99999,y=-99999},w)
     local viewL,viewT,viewR,viewB=g.camera:visibleBounds()
-    assert(viewL>=w.playBounds.x-.01 and viewT>=w.playBounds.y-.01
+    assert(w.cameraTopReveal==900 and w.cameraBounds.y==w.playBounds.y-900,
+        def.id.." northern camera reveal bounds missing")
+    assert(viewL>=w.playBounds.x-.01 and viewT>=w.cameraBounds.y-.01
         and viewR<=w.playBounds.x+w.playBounds.w+.01 and viewB<=w.playBounds.y+w.playBounds.h+.01,
-        def.id.." camera escaped stage bounds")
+        def.id.." camera escaped visual bounds")
+    g.camera.x,g.camera.y=w.width/2,w.playBounds.y+75
+    for _=1,120 do g.camera:update(1/60,{x=w.width/2,y=w.playBounds.y+75},w) end
+    local _,northView= g.camera:visibleBounds()
+    assert(northView<w.playBounds.y-80,def.id.." camera did not reveal terrain beyond the northern movement edge")
     assert(not w.overviewBounds,def.id.." playable map unexpectedly fixed the camera")
     local followStartY=w.height/2;g.camera.x,g.camera.y=w.width/2,followStartY
     g.camera:update(.75,{x=w.width/2,y=followStartY+math.min(620,w.playBounds.h*.25)},w)

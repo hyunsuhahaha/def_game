@@ -36,6 +36,12 @@ local dx=cam:worldToScreen(600,650)
 assert(math.abs((dx-cx)-(bx-ax))<.001,"ordinary 2.5D X spacing changes with screen depth")
 local left,top,right,bottom=cam:visibleBounds()
 assert(left<right and top<bottom,"projected visible bounds invalid")
+local northWorld={width=3200,height=2000,playBounds={x=400,y=300,w=2400,h=1400},
+    cameraBounds={x=400,y=-600,w=2400,h=2300}}
+local north=Camera.new(1600,375);north.zoom,north.renderZoom,north.pitch,north.perspective=.84,.84,.76,true
+for _=1,120 do north:update(1/60,{x=1600,y=375},northWorld) end
+local _,northTop=north:visibleBounds()
+assert(northTop<northWorld.playBounds.y,"camera did not show beyond the northern play boundary")
 -- Portrait windows expose the projection's asymmetric vertical footprint:
 -- considerably more world is visible above the camera than below it. Camera
 -- clamping must use four independent extents or the player can leave the view.

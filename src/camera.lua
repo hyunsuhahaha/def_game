@@ -141,7 +141,7 @@ function Camera:update(dt, target, world)
     -- pocket. Fit against the authored world, otherwise perspective fitting
     -- silently cancels the scripted zoom-out.
     local b=self.scriptedWideView and {x=0,y=0,w=world.width,h=world.height}
-        or world.playBounds or {x=0,y=0,w=world.width,h=world.height}
+        or world.cameraBounds or world.playBounds or {x=0,y=0,w=world.width,h=world.height}
     local leftExtent,topExtent,rightExtent,bottomExtent
     if self.perspective then
         local baseLeft,baseTop,baseRight,baseBottom=perspectiveExtents(self,w,h,1)
