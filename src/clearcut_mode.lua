@@ -4669,12 +4669,6 @@ function ClearcutMode:drawSmokerReloadBar(game)
     love.graphics.rectangle("fill", barX - px, y - capH / 2 - px, barW + px * 2, capH + px * 2)
     if smoking.newCarton then love.graphics.setColor(1, .35, .32, 1) else love.graphics.setColor(1, .68, .26, 1) end
     love.graphics.rectangle("fill", barX, y - capH / 2, barW, capH)
-
-    if smoking.newCarton then
-        love.graphics.setFont((game.fonts and game.fonts.small) or love.graphics.getFont())
-        love.graphics.setColor(1, .55, .5, 1)
-        love.graphics.printf("새 보루 개봉 중...", x - 40, y - capH / 2 - 18, w + 80, "center")
-    end
 end
 
 -- 철학자 전용: "끝없는 설교"가 소모하는 침 게이지. 리로드 바와 달리 이건 잔량을 그대로
@@ -5957,7 +5951,6 @@ function ClearcutMode:drawHUD(game,fonts)
         -- 배경 패널 없이 아이콘만 떠 있게 해서 화면을 가리지 않는다.
         local ammoMax=self.cartonSize or 20
         local ammo=math.max(0,math.min(ammoMax,self.cartonAmmo or ammoMax))
-        local reloadingCarton=self.smoking and self.smoking.phase=="reload" and self.smoking.newCarton
         local colX=w-26
         local top,bottom=140,h-70
         local avail=math.max(60,bottom-top)
@@ -5971,10 +5964,6 @@ function ClearcutMode:drawHUD(game,fonts)
             love.graphics.setColor(0,0,0,.5)
             love.graphics.circle("fill",colX,iy,pitch*.34)
             if iconDef then drawPixelGrid(iconDef.rows,iconDef.palette,colX,iy,px) end
-        end
-        if reloadingCarton then
-            love.graphics.setFont(fonts.small); love.graphics.setColor(1,.5,.45,.9+math.sin(t*8)*.1)
-            love.graphics.printf("보루 교체",colX-70,startY-24,140,"center")
         end
     end
     if self.job=="philosopher" then
