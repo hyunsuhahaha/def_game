@@ -115,7 +115,9 @@ function Projection.begin(camera)
     end
     cache.previousCanvas=love.graphics.getCanvas()
     love.graphics.setCanvas({cache.canvas,stencil=true})
-    love.graphics.clear(.08,.11,.12,1)
+    -- Keep the canvas transparent outside authored terrain. This allows the
+    -- north panorama to show through without turning it into simulated ground.
+    love.graphics.clear(0,0,0,0)
     return cache.canvasW,cache.canvasH
 end
 

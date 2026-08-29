@@ -60,6 +60,7 @@ local graphics={
     setColor=function(r,g,b,a) color=type(r)=="table" and {r[1],r[2],r[3],r[4] or 1} or {r,g,b,a or 1} end,
     setLineWidth=function(w) lineWidth=w end,
     setLineStyle=function() end,setScissor=function()end,setBlendMode=function(mode) assert(mode=="alpha" or mode=="add") end,
+    stencil=function(fn)fn()end,setStencilTest=function()end,
     setFont=function(font) currentFont=font end,
     print=function(value,x,y) emit({op="text",text=tostring(value),file=currentFont.path,size=currentFont.size,args={x,y,0},align="left"}) end,
     printf=function(value,x,y,width,align) emit({op="text",text=tostring(value),file=currentFont.path,size=currentFont.size,args={x,y,width},align=align}) end,

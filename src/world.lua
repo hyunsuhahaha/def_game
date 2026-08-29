@@ -1197,22 +1197,27 @@ end
 
 function World:drawForestGround(player,actorSource)
     if self.arcadeForest then
+        local clipped=self.northBackdrop and self.playBounds
+        if clipped then
+            love.graphics.stencil(function()
+                love.graphics.rectangle("fill",0,self.playBounds.y,self.width,self.height-self.playBounds.y)
+            end,"replace",1)
+            love.graphics.setStencilTest("greater",0)
+        end
         if require("src.clearcut_maps").drawGround(self) then
             ForestFloor.drawGround(self,player,actorSource)
             ForestScenery.drawGround(self)
             ForestLighting.drawGround(self)
+            if clipped then love.graphics.setStencilTest() end
             return
         end
-        local topReveal=self.cameraTopReveal or 0
-        -- Start on an even pair of 768px mirrored tiles so the established
-        -- in-map texture phase at y=0 stays byte-for-byte visually unchanged.
-        local tileTop=topReveal>0 and -math.ceil(topReveal/1536)*1536 or 0
         love.graphics.setColor(.29,.35,.14,1)
-        love.graphics.rectangle("fill",0,-topReveal,self.width,self.height+topReveal)
-        drawMirroredTiled(self.images.forestGround,0,tileTop,self.width,self.height-tileTop,768,.14)
+        love.graphics.rectangle("fill",0,0,self.width,self.height)
+        drawMirroredTiled(self.images.forestGround,0,0,self.width,self.height,768,.14)
         ForestFloor.drawGround(self,player,actorSource)
         ForestScenery.drawGround(self)
         ForestLighting.drawGround(self)
+        if clipped then love.graphics.setStencilTest() end
         return
     end
     love.graphics.setColor(.36, .53, .13, 1)

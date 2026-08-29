@@ -13,6 +13,7 @@ local ClearcutMode = require("src.clearcut_mode")
 local ClearcutIntro = require("src.clearcut_intro")
 local WorldProjection = require("src.world_projection")
 local SkyView = require("src.skyview")
+local NorthBackdrop = require("src.north_backdrop")
 local CharacterTraits = require("src.character_traits")
 local CharacterTraitBoard = require("src.character_trait_board")
 local CharacterStory = require("src.character_story")
@@ -1348,7 +1349,7 @@ function Game:draw()
     local introActive=ClearcutIntro.active(self);local worldActors=self.clearcut;if introActive then worldActors=nil end
     love.graphics.clear(.08, .11, .12)
     local projected=self.clearcut and self.camera.perspective
-    if projected then SkyView.draw(self.camera) end
+    if projected then SkyView.draw(self.camera);NorthBackdrop.drawBack(self.camera,self.world) end
     local renderW,renderH
     if projected then renderW,renderH=WorldProjection.begin(self.camera) end
     self.world.deferBillboards=projected
@@ -1402,6 +1403,7 @@ function Game:draw()
     self.camera:detach()
     if projected then
         WorldProjection.finish(self.camera)
+        NorthBackdrop.drawRidge(self.camera,self.world)
         WorldProjection.drawBillboards(self.world.billboardQueue,self.camera)
         self.world.billboardQueue=nil
     end
