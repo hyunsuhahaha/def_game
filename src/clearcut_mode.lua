@@ -1088,6 +1088,25 @@ function ClearcutMode:updateWorldTreeCamera(dt,game)
     end
 end
 
+-- The world-tree reveal is a real gameplay freeze, not merely invulnerability
+-- on the boss. Only its authored rise, debris and camera transition advance;
+-- enemies, projectiles, hazards, player attacks, cooldowns and the stage clock
+-- remain on the exact frame where the forest reached zero trees.
+function ClearcutMode:updateWorldTreeEmergence(dt,game)
+    local state=self.worldTreeEmergence
+    if not state then return false end
+    local boss=state.boss
+    if boss and boss.hp>0 then
+        boss.visualTime=(boss.visualTime or 0)+dt
+        WorldTreeSiege.updateBoss(self,boss,dt,game)
+    end
+    self:updateWorldTreeCamera(dt,game)
+    WorldTreeSiege.updateDebris(self,dt,game)
+    -- Freeze the completion frame too. Ordinary simulation resumes on the
+    -- following update, after the camera has fully returned.
+    return true
+end
+
 function ClearcutMode:restoreWorldTreeCamera(game)
     local state=self.worldTreeCamera
     if not state or not game.camera then

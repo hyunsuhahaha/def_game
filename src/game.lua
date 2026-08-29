@@ -375,6 +375,10 @@ function Game:update(dt)
         self.camera:update(dt,self.player,self.world)
         return
     end
+    if self.clearcut and self.clearcut:updateWorldTreeEmergence(dt,self) then
+        self.camera:update(dt,self.player,self.world)
+        return
+    end
     self.noticeTime = math.max(0, self.noticeTime - dt)
     local wx, wy = self.camera:screenToWorld(love.mouse.getPosition())
     self.hoverNode, self.hoverWall, self.hoverBuilding = self.world:findNodeAt(wx, wy), self.world:isWallAt(wx, wy), self.world:buildingAt(wx, wy)
@@ -511,6 +515,7 @@ function Game:keypressed(key)
     if key == "escape" and self.placingBuilding then self.placingBuilding = nil; self:setNotice("건설을 취소했습니다", "core"); return end
     if key == "escape" and self.mode == "playing" then self.paused = true; return end
     if key == "escape" then self.mode = "lobby"; return end
+    if self.clearcut and self.clearcut.worldTreeEmergence then return end
     if self.ended and (key == "r" or key == "return") then self:startRun(); return end
     if key == "p" and self.runType~="rush" and self.runType~="clearcut" then self:prestigeRun(); return end
     if self.runType=="clearcut" then
@@ -533,6 +538,7 @@ end
 
 function Game:keyreleased(key)
     if ClearcutIntro.active(self) then return end
+    if self.clearcut and self.clearcut.worldTreeEmergence then return end
     if key=="space" and self.runType=="clearcut" and self.clearcut then
         self.clearcut:releaseSmokeRingCharge(self)
     end
@@ -709,6 +715,7 @@ function Game:mousepressed(x, y, button)
         return
     end
     if self.ended then return end
+    if self.clearcut and self.clearcut.worldTreeEmergence then return end
     if self.clearcut and self.clearcut.sandbox and button==1 and self:sandboxPanelClick(x, y) then return end
     if self.runType=="rush" or self.runType=="clearcut" then
         -- 벌목 러시/숲 전멸 모드는 개별 나무를 클릭하지 않는다. 버튼을 누르는 동안
@@ -780,6 +787,7 @@ function Game:wheelmoved(x, y)
     if self.mode=="character_traits" then self.characterTraitBoard:wheelmoved(x,y); return end
     if self.mode=="achievements" then self.achievementBoard:wheelmoved(x,y); return end
     if self.mode=="clearcut_map_select" then local mx,my=love.mouse.getPosition();require("src.clearcut_map_select").wheelmoved(self,mx,my,y);return end
+    if self.clearcut and self.clearcut.worldTreeEmergence then return end
     if self.mode ~= "playing" or y == 0 then return end
     if not (love.keyboard.isDown("lctrl") or love.keyboard.isDown("rctrl")) then return end
     local factor = y > 0 and 1.1 or 1 / 1.1

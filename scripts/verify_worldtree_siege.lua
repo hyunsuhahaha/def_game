@@ -100,6 +100,25 @@ assert(camera.focused.y==rising.y-80 and camera.focused.zoom==.96,"worldtree eme
 assert(rising.x==1600 and rising.y==1000,"worldtree did not spawn at the playable-map center")
 assert(cameraMode.worldTreeEmergence and rising.worldTreeEmerging and rising.entranceOffsetY==1720,"worldtree emergence did not start underground")
 assert(cameraMode.worldTreeEmergence.duration==6.75 and cameraMode.worldTreeEmergence.phase=="skyLead" and rising.worldTreeEmergenceProgress==0,"cinematic sky-first timing drift")
+-- The reveal owns a dedicated update path. A squirrel already touching the
+-- player and an in-flight projectile must remain on the exact same frame.
+local bystander=cameraMode:spawnEnemy("squirrel",cameraGame.player.x,cameraGame.player.y)
+bystander.hitTimer=0;bystander.visualTime=3.25
+cameraMode.projectiles={{x=111,y=222,vx=90,vy=0,life=2,damage=99,hitRadius=5}}
+cameraMode.elapsed=17
+local playerX,playerY=cameraGame.player.x,cameraGame.player.y
+assert(cameraMode:updateWorldTreeEmergence(.2,cameraGame),"worldtree reveal did not enter its isolated update path")
+assert(bystander.x==playerX and bystander.y==playerY and bystander.hitTimer==0 and bystander.visualTime==3.25,
+    "nearby squirrel advanced or attacked during worldtree emergence")
+assert(cameraMode.projectiles[1].x==111 and cameraMode.projectiles[1].life==2 and cameraMode.elapsed==17,
+    "projectile or stage clock advanced during worldtree emergence")
+assert(cameraMode.worldTreeEmergence.t>.19 and rising.visualTime>.19,"worldtree animation did not advance during the freeze")
+local gameSource=assert(io.open("src/game.lua","rb")):read("*a")
+local freezeAt=assert(gameSource:find("updateWorldTreeEmergence%(dt,self%)"))
+assert(freezeAt<assert(gameSource:find("self%.time = math%.max",freezeAt))
+    and freezeAt<assert(gameSource:find("self%.player:update",freezeAt))
+    and freezeAt<assert(gameSource:find("self%.clearcut:update",freezeAt)),
+    "game-level worldtree freeze runs after ordinary combat simulation")
 rising.hp=rising.maxHp-100
 Siege.updateBoss(cameraMode,rising,.4,cameraGame)
 assert(rising.hp==rising.maxHp and rising.entranceOffsetY==1720 and rising.worldTreeEmergenceProgress==0,"tree became visible before sky hold")
