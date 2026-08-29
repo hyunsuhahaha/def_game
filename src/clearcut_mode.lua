@@ -149,11 +149,8 @@ local function formatTime(value)
     return string.format("%02d:%02d", math.floor(value / 60), value % 60)
 end
 
-local stageTimeLimits = {360, 420, 480, 600}
-local greatForestTimeLimits = {600, 720, 840, 960}
 local function stageTimeLimit(stage,mapId)
-    local limits=mapId=="greatforest" and greatForestTimeLimits or stageTimeLimits
-    return limits[math.min(math.max(1,stage or 1),#limits)]
+    return require("src.clearcut_maps").stageTimeLimit(mapId,stage)
 end
 
 function ClearcutMode.new()
@@ -297,8 +294,10 @@ function ClearcutMode:setup(game)
     if game.world.useArcadeForest then game.world:useArcadeForest() end
     local Maps=require("src.clearcut_maps")
     self.mapId=Maps.get(self.mapId).id
+    self.stage=math.max(1,math.min(BiomeBosses.stageCap(self.mapId),self.stage or 1))
     self.stageElapsed,self.stageTimeLimit,self.failureReason=0,stageTimeLimit(self.stage,self.mapId),nil
     Maps.configure(game.world,self.mapId)
+    Maps.configureStage(game.world,self.stage)
     self.mapWorld=game.world
     self.mapPlayer=game.player
     local w, h = game.world.width, game.world.height
@@ -319,7 +318,9 @@ function ClearcutMode:setup(game)
     self.maxHp = self.maxHp + (self.permanentTraits.maxHp or 0)
     self.hp = self.maxHp
     self.reviveCharges = math.floor(self.permanentTraits.reviveCharges or 0)
-    self:generateForest(game, Maps.treeTarget(self.mapId,1))
+    self.stageBossHpMul=1+(self.stage-1)*.55
+    self.regrowInterval=self.stage==1 and 12 or (self.stage==2 and 9 or 7)
+    self:generateForest(game, Maps.treeTarget(self.mapId,self.stage))
     self:initForestZones(game)
     local notice=Maps.get(self.mapId).name.." — 마우스를 누른 채 나무 근처로 이동하세요"
     if self.job=="miner" then notice=Maps.get(self.mapId).name.." — 좌클릭 할퀴기 · SPACE/우클릭 잠복" end

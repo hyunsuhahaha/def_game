@@ -28,6 +28,11 @@ function Maps.treeTarget(id,stage)
     if stage<=#list then return list[stage] end
     return math.min(def.id=="island" and 520 or 500,list[#list]+(stage-#list)*(def.id=="island" and 120 or 85))
 end
+function Maps.stageTimeLimit(id,stage)
+    local limits=id=="greatforest" and {600,720,840,960} or {360,420,480,600}
+    stage=math.max(1,math.min(#limits,stage or 1))
+    return limits[stage]
+end
 local stageSizes={
     normal={{2400,1400},{2800,1700},{3050,1900},{3200,2000}},
     island={{2200,1400},{2800,1750},{3150,2000},{3400,2200}},

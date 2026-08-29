@@ -151,15 +151,19 @@ function Game:startRush()
     self.mode="playing"
 end
 
-function Game:startClearcut(characterId, mapId)
+function Game:startClearcut(characterId, mapId, stage)
     mapId=mapId or (self.clearcut and self.clearcut.mapId) or self.selectedClearcutMap or "forest"
+    stage=stage or (self.clearcut and self.clearcut.stage) or self.selectedClearcutStage or 1
     self:resetRun()
     self.clearcut=ClearcutMode.new()
     self.clearcut.job = characterId
     self.clearcut.mapId=require("src.clearcut_maps").get(mapId).id
+    self.clearcut.stage=stage
     self.selectedClearcutMap=self.clearcut.mapId
+    self.selectedClearcutStage=stage
     self.player:setClearcutSprite(self.clearcutSprites[characterId] or self.clearcutSprites.physical, characterId)
     self.clearcut:setup(self)
+    self.selectedClearcutStage=self.clearcut.stage
     -- The simulation remains top-down world space. Rendering and pointer input
     -- share one nonlinear projection that narrows both axes into the distance.
     self:enableClearcutPerspective()
@@ -363,13 +367,15 @@ function Game:keypressed(key)
         if key=="escape" then self.mode="clearcut_select"
         elseif key=="return" or key=="kpenter" or key=="space" then self:chooseClearcutMap(self.clearcutMapFocus or 1)
         elseif tonumber(key) and tonumber(key)>=1 and tonumber(key)<=mapCount then select.focus(self,tonumber(key),false)
+        elseif key=="up" or key=="w" then select.setStage(self,(self.selectedClearcutStage or 1)+1)
+        elseif key=="down" or key=="s" then select.setStage(self,(self.selectedClearcutStage or 1)-1)
         elseif key=="left" or key=="a" then select.focus(self,((self.clearcutMapFocus or 1)-2)%mapCount+1,false)
         elseif key=="right" or key=="d" then select.focus(self,(self.clearcutMapFocus or 1)%mapCount+1,false) end
         return
     end
     if self.mode == "clearcut_briefing" then
         if key=="escape" then self.mode="clearcut_map_select"
-        elseif key=="return" or key=="kpenter" or key=="space" then self:startClearcut(self.pendingClearcutCharacter,self.selectedClearcutMap) end
+        elseif key=="return" or key=="kpenter" or key=="space" then self:startClearcut(self.pendingClearcutCharacter,self.selectedClearcutMap,self.selectedClearcutStage) end
         return
     end
     if self.mode == "clearcut_select" then
@@ -556,13 +562,13 @@ function Game:mousepressed(x, y, button)
         if button==1 then
             if Frontend.inside(self.clearcutMapConfirmBox,x,y) then self:chooseClearcutMap(self.clearcutMapFocus or 1);return
             elseif Frontend.inside(self.clearcutMapBackBox,x,y) then self.mode="clearcut_select";return end
-            require("src.clearcut_map_select").mousepressed(self,x,y,button)
+            if require("src.clearcut_map_select").mousepressed(self,x,y,button)=="stage"then return end
         end
         return
     end
     if self.mode=="clearcut_briefing" then
         if button==1 then
-            if Frontend.inside(self.clearcutBriefingStartBox,x,y) then self:startClearcut(self.pendingClearcutCharacter,self.selectedClearcutMap)
+            if Frontend.inside(self.clearcutBriefingStartBox,x,y) then self:startClearcut(self.pendingClearcutCharacter,self.selectedClearcutMap,self.selectedClearcutStage)
             elseif Frontend.inside(self.clearcutBriefingBackBox,x,y) then self.mode="clearcut_map_select" end
         end
         return
@@ -1215,6 +1221,7 @@ function Game:chooseClearcutMap(index)
     local def=require("src.clearcut_maps").catalog[index]
     if not def or not self.pendingClearcutCharacter then return end
     self.selectedClearcutMap=def.id
+    self.selectedClearcutStage=math.max(1,math.min(require("src.biome_bosses").stageCap(def.id),self.selectedClearcutStage or 1))
     self.mode="clearcut_briefing"
 end
 
@@ -1236,8 +1243,9 @@ function Game:drawClearcutBriefing()
     local img=self.briefingPreview; local iw,ih=img:getDimensions(); local bx,by,bw,bh=x+18,y+18,leftW-28,ph-36; local sc=math.max(bw/iw,bh/ih)
     love.graphics.setScissor(bx,by,bw,bh); love.graphics.setColor(1,1,1,1); love.graphics.draw(img,bx+bw/2,by+bh/2,0,sc,sc,iw/2,ih/2)
     for i=0,15 do local t=i/15; love.graphics.setColor(.008,.02,.016,t*.78); love.graphics.rectangle("fill",bx+bw-150+t*150,by,150/15+1,bh) end
-    love.graphics.setScissor(); Frontend.badge("1구역",bx+16,by+16,86,f.small,accent)
-    local rx=x+leftW+18; Frontend.label("벌목 계약서  /  1·"..cap.."단계",rx,y+24,f.micro,accent)
+    local selectedStage=math.max(1,math.min(cap,self.selectedClearcutStage or 1))
+    love.graphics.setScissor(); Frontend.badge(selectedStage.."구역",bx+16,by+16,86,f.small,accent)
+    local rx=x+leftW+18; Frontend.label("벌목 계약서  /  "..selectedStage.."·"..cap.."단계",rx,y+24,f.micro,accent)
     love.graphics.setFont(f.big); love.graphics.setColor(.98,.96,.86); love.graphics.print(def.name,rx,y+57)
     love.graphics.setFont(f.body); love.graphics.setColor(.65,.73,.67); love.graphics.printf(def.subtitle.."\n"..def.desc.."\n최종 목표: "..Bosses.definitions[Bosses.forMap(def.id)].name.." 격파",rx,y+98,pw-leftW-50,"left")
     local dividerY=y+(compact and 150 or 176); love.graphics.setColor(1,1,1,.09); love.graphics.line(rx,dividerY,x+pw-24,dividerY)

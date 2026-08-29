@@ -18,7 +18,27 @@ local function loadLandmarks()
 end
 
 function Select.update(game,dt)Globe.update(game,dt)end
-function Select.focus(game,index,snap)Globe.focus(game,index,snap)end
+local function stageCapFor(index)
+    local def=Maps.catalog[index]or Maps.catalog[1]
+    return Bosses.stageCap(def.id)
+end
+function Select.stageFor(game,index)
+    local cap=stageCapFor(index or game.clearcutMapFocus or 1)
+    return math.max(1,math.min(cap,game.selectedClearcutStage or 1))
+end
+function Select.setStage(game,stage)
+    game.selectedClearcutStage=math.max(1,math.min(stageCapFor(game.clearcutMapFocus or 1),stage or 1))
+end
+function Select.focus(game,index,snap)
+    Globe.focus(game,index,snap)
+    Select.setStage(game,game.selectedClearcutStage or 1)
+end
+function Select.stageAt(x,y,game)
+    for _,entry in ipairs(game.clearcutStageBoxes or{})do
+        local box=entry.box
+        if x>=box.x and x<=box.x+box.w and y>=box.y and y<=box.y+box.h then return entry.stage end
+    end
+end
 function Select.at(x,y,game)
     if not game then return nil end
     return Globe.at(game,x,y,love.graphics.getWidth(),love.graphics.getHeight())
@@ -28,7 +48,10 @@ function Select.boxes(w,h,game)
     for _,m in ipairs(Globe.markers(game,w,h))do if m.visible then boxes[#boxes+1]={x=m.x-m.r,y=m.y-m.r,w=m.r*2,h=m.r*2,index=m.index}end end
     return boxes
 end
-function Select.mousepressed(game,x,y,button)return Globe.mousepressed(game,x,y,button,love.graphics.getWidth(),love.graphics.getHeight())end
+function Select.mousepressed(game,x,y,button)
+    if button==1 then local stage=Select.stageAt(x,y,game);if stage then Select.setStage(game,stage);return "stage"end end
+    return Globe.mousepressed(game,x,y,button,love.graphics.getWidth(),love.graphics.getHeight())
+end
 function Select.mousemoved(game,x,y,dx,dy)return Globe.mousemoved(game,x,y,dx,dy,love.graphics.getWidth(),love.graphics.getHeight())end
 function Select.mousereleased(game,x,y,button)return Globe.mousereleased(game,x,y,button,love.graphics.getWidth(),love.graphics.getHeight())end
 function Select.wheelmoved(game,x,y,delta)return Globe.wheelmoved(game,x,y,delta,love.graphics.getWidth(),love.graphics.getHeight())end
@@ -84,15 +107,24 @@ function Select.draw(game)
         local rows={{"최종 표적",boss.name},{"작전 좌표",string.format("%.1f° %s  ·  %.1f° %s",math.abs(def.globeLat),def.globeLat>=0 and "N" or "S",math.abs(def.globeLon),def.globeLon>=0 and "E" or "W")},{"진입 순서","외곽 벌목 → 생태계 반격 → 지역 보스"}}
         for i,row in ipairs(rows)do local y=detailY+34+(i-1)*38;love.graphics.setFont(f.micro);love.graphics.setColor(.45,.54,.48);love.graphics.print(row[1],rx+20,y);love.graphics.setFont(f.small);love.graphics.setColor(i==1 and accent or F.colors.ivory);love.graphics.print(row[2],rx+142,y-2)end
     end
-    local sy=ry+rh-72;love.graphics.setColor(1,1,1,.08);love.graphics.line(rx+20,sy-12,rx+rw-20,sy-12)
-    local stats={{"초기 수목",def.trees.."그루"},{"작전 단계",cap.."단계"},{"현장 상태",cleared and "철수로 확보" or "미완료"}}
-    for i,s in ipairs(stats)do local sx=rx+20+(i-1)*(rw-40)/3;love.graphics.setFont(f.micro);love.graphics.setColor(.46,.55,.49);love.graphics.print(s[1],sx,sy);love.graphics.setFont(f.small);love.graphics.setColor(i==1 and accent or F.colors.ivory);love.graphics.print(s[2],sx,sy+23)end
+    local selectedCap=Bosses.stageCap(focus.id)
+    local selectedStage=Select.stageFor(game,game.clearcutMapFocus);game.selectedClearcutStage=selectedStage
+    local sy=ry+rh-70;love.graphics.setColor(1,1,1,.08);love.graphics.line(rx+20,sy-12,rx+rw-20,sy-12)
+    love.graphics.setFont(f.micro);love.graphics.setColor(.46,.55,.49);love.graphics.print("진입 스테이지",rx+20,sy+2)
+    game.clearcutStageBoxes={};local buttonW=compact and 34 or 40;local gap=6;local startX=rx+132
+    for stage=1,selectedCap do
+        local box={x=startX+(stage-1)*(buttonW+gap),y=sy-4,w=buttonW,h=30}
+        game.clearcutStageBoxes[#game.clearcutStageBoxes+1]={stage=stage,box=box}
+        F.button(box,tostring(stage),f.small,{primary=stage==selectedStage,accent=accent})
+    end
+    local target=Maps.treeTarget(focus.id,selectedStage);local seconds=Maps.stageTimeLimit(focus.id,selectedStage)
+    love.graphics.setFont(f.micro);love.graphics.setColor(.64,.71,.65);love.graphics.printf(string.format("선택 지역 목표 %d그루  ·  제한 %d분",target,math.floor(seconds/60)),rx+20,sy+33,rw-40,"right")
 
     love.graphics.setFont(f.micro);love.graphics.setColor(.42,.52,.47);love.graphics.print("DRAG  360° ROTATE  ·  WHEEL  "..math.floor(Globe.stateFor(game).zoom*100+.5).."%",gl.cx-gl.r,gl.cy+gl.r+18)
     love.graphics.setColor(.63,.72,.65);love.graphics.printf("표식 클릭: 즉시 선택  ·  숫자키: 해당 지역으로 회전",gl.cx-gl.r,gl.cy+gl.r+36,gl.r*2,"center")
     game.clearcutMapBackBox={x=w-180,y=30,w=146,h=38};game.clearcutMapConfirmBox={x=w-330,y=h-88,w=296,h=47}
     F.button(game.clearcutMapBackBox,"← 작업자",f.small,{accent=F.colors.teal});F.button(game.clearcutMapConfirmBox,"선택 지역으로 이동",f.body,{primary=true,key="ENT",align="left",accent=focus.color})
-    F.footer(w,h,"마우스 드래그  회전    ·    휠  확대/축소    ·    표식 클릭  지역 선택    ·    1–6  지역 찾기    ·    ESC  작업자",f.small)
+    F.footer(w,h,"표식/1–6  지역 선택    ·    ↑↓  스테이지 선택    ·    드래그  회전    ·    휠  확대/축소    ·    ESC  작업자",f.small)
 end
 
 return Select

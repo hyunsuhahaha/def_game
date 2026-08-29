@@ -291,12 +291,25 @@ end
 do
     local g=newGame();g:chooseClearcutCharacter(1);Game.keypressed(g,"6")
     assert(g.clearcutMapFocus==6,"sixth map numeric shortcut missing")
+    Game.keypressed(g,"up");Game.keypressed(g,"up");Game.keypressed(g,"up")
+    assert(g.selectedClearcutStage==4,"map-select stage keyboard control missing")
     Game.keypressed(g,"return")
     assert(g.mode=="clearcut_briefing" and g.selectedClearcutMap=="greatforest","great forest briefing was not selectable")
+    Game.keypressed(g,"return")
+    assert(g.clearcut.stage==4 and g.selectedClearcutStage==4,"selected stage was not passed into gameplay")
+    assert(#g.world.nodes==Maps.treeTarget("greatforest",4) and g.clearcut.stageTimeLimit==Maps.stageTimeLimit("greatforest",4),"selected stage objective/time mismatch")
+    assert(g.world.playBounds.w==7200 and g.world.playBounds.h==4600,"selected final stage footprint mismatch")
+    g:startClearcut("physical");assert(g.clearcut.stage==4,"retry lost selected starting stage")
 end
 for _,size in ipairs({{960,540},{1280,720},{1920,1080}}) do
     width,height=unpack(size)
     local g=newGame();g:chooseClearcutCharacter(1)
+    fixture.reset();Select.draw(g)
+    assert(#g.clearcutStageBoxes==4,"stage selector did not render four entries")
+    local stageBox=g.clearcutStageBoxes[3].box
+    assert(stageBox.x>=0 and stageBox.x+stageBox.w<=width and stageBox.y>=0 and stageBox.y+stageBox.h<=height,"stage selector escaped viewport")
+    Game.mousepressed(g,stageBox.x+stageBox.w/2,stageBox.y+stageBox.h/2,1)
+    assert(g.selectedClearcutStage==3 and g.mode=="clearcut_map_select","stage selector mouse input changed screens")
     for i=1,#Maps.catalog do
         Select.focus(g,i,true)
         local found
