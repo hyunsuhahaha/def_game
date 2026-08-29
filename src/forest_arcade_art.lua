@@ -42,7 +42,9 @@ local function drawSiegeSoilLip(e,pose)
     -- trunk look planted into the world instead of pasted on top of it.
     local x,y=e.x,pose.footY+8
     love.graphics.setColor(.20,.16,.065,.82*pose.alpha)
-    love.graphics.polygon("fill",x-116,y-5,x-75,y-13,x-28,y-8,x+18,y-14,x+70,y-8,x+118,y-2,x+92,y+10,x+36,y+13,x-22,y+11,x-82,y+9)
+    love.graphics.rectangle("fill",x-116,y-3,234,12)
+    love.graphics.rectangle("fill",x-80,y-10,164,8)
+    love.graphics.rectangle("fill",x-28,y-14,62,5)
     love.graphics.setColor(.36,.28,.10,.66*pose.alpha)
     love.graphics.rectangle("fill",x-78,y-7,34,4);love.graphics.rectangle("fill",x+25,y-9,46,4)
     love.graphics.setColor(.10,.09,.035,.48*pose.alpha)
@@ -88,8 +90,13 @@ function Art.pose(e, t)
     local introSX,introSY=e.entranceScaleX or 1,e.entranceScaleY or 1
     local footY=Art.footY(e)
     local groundSink=spec.siege and Art.SIEGE_GROUND_SINK or 0
+    local emergenceCutoff=1
+    if spec.siege then
+        local belowGround=groundSink+(e.entranceOffsetY or 0)
+        emergenceCutoff=math.max(0,math.min(.999,spec.foot/spec.cell-belowGround/(spec.cell*scale*introSY)))
+    end
     return {spec=spec,frame=frame,flip=flip,scale=scale,
-        x=e.x+introX,y=footY+groundSink-bob-(e.hopHeight or 0)+introY,footY=footY,groundSink=groundSink,angle=lean,
+        x=e.x+introX,y=footY+groundSink-bob-(e.hopHeight or 0)+introY,footY=footY,groundSink=groundSink,emergenceCutoff=emergenceCutoff,angle=lean,
         sx=scale*flip*(1+squash)*introSX,sy=scale*(1-squash)*introSY,height=spec.height*scale*introSY,
         alpha=e.entranceAlpha or 1,shadowScale=introSX}
 end
@@ -107,6 +114,7 @@ function Art.drawBody(e, t)
     material:send("hurt",math.min(1,(e.visualHit or 0)/.14))
     material:send("elite",e.elite and 1 or 0)
     material:send("plague",e.plagueMarked and 1 or 0)
+    material:send("emergenceCutoff",pose.emergenceCutoff or 1)
     love.graphics.setColor(1,1,1,pose.alpha)
     love.graphics.draw(asset.image,asset.frames[pose.frame],pose.x,pose.y,pose.angle,
         pose.sx,pose.sy,pose.spec.cell/2,pose.spec.foot)
@@ -131,6 +139,7 @@ function Art.drawCarried(e, t, x, y, carryScale, angle)
     material:send("hurt", 0)
     material:send("elite", e.elite and 1 or 0)
     material:send("plague", 0)
+    material:send("emergenceCutoff",1)
     love.graphics.setColor(1, 1, 1, 1)
     love.graphics.draw(asset.image, asset.frames[pose.frame], pose.x, pose.y, pose.angle,
         pose.sx, pose.sy, pose.spec.cell / 2, pose.spec.foot)
@@ -149,6 +158,7 @@ function Art.drawSprout(x,y,grow,t)
 end
 
 function Art.drawHealth(e,t)
+    if e.worldTreeEmerging then return end
     local pose=Art.pose(e,t)
     local alpha=e.entranceAlpha or 1
     if alpha<=.05 then return end

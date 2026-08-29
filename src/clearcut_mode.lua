@@ -1001,6 +1001,7 @@ function ClearcutMode:spawnWorldTree(game)
     if self.worldTree and kind=="worldtree" then
         self.worldTree.fixedX,self.worldTree.fixedY=self.worldTree.x,self.worldTree.y
         self.worldTree.worldTreeDamageStage=0
+        WorldTreeSiege.startEmergence(self,self.worldTree,game)
         local camera=game.camera
         if camera then
             local from=camera.userZoom or 1
@@ -1294,8 +1295,9 @@ function ClearcutMode:updateEnemies(dt, game)
         e.visualAttack = math.max(0, (e.visualAttack or 0) - dt)
         e.hitTimer = math.max(0, e.hitTimer - dt)
         local airborneThisFrame=false
+        local worldTreeEmerging=false
         if def.immovable then
-            WorldTreeSiege.updateBoss(self,e,0,game)
+            worldTreeEmerging=WorldTreeSiege.updateBoss(self,e,dt,game)
         elseif e.airborneT then
             airborneThisFrame=true
             local airborneStep=math.min(dt,e.airborneDuration-e.airborneT)
@@ -1358,15 +1360,15 @@ function ClearcutMode:updateEnemies(dt, game)
                 self:spawnThornProjectile(e, game)
             end
         end
-        if e.kind == "worldtree" and not airborneThisFrame then self:updateWorldTreeAI(e, dt, game) end
-        if def.slamInterval and not airborneThisFrame then
+        if e.kind == "worldtree" and not airborneThisFrame and not worldTreeEmerging then self:updateWorldTreeAI(e, dt, game) end
+        if def.slamInterval and not airborneThisFrame and not worldTreeEmerging then
             e.slamTimer = e.slamTimer - dt
             if e.slamTimer <= 0 then
                 e.slamTimer = def.slamInterval
                 self:bossSlam(e, game)
             end
         end
-        if def.summonInterval and not airborneThisFrame then
+        if def.summonInterval and not airborneThisFrame and not worldTreeEmerging then
             e.summonTimer = e.summonTimer - dt
             if e.summonTimer <= 0 then
                 e.summonTimer = def.summonInterval
