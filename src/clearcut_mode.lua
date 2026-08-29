@@ -5954,33 +5954,25 @@ function ClearcutMode:drawHUD(game,fonts)
         love.graphics.printf(text,w/2-146,h-45,292,"center")
 
         -- 보루 잔량: 화면 오른쪽 가장자리에 남은 개비 수만큼 아이콘을 하나씩 세로로 쌓아 보여준다.
-        -- 다 떨어져서 새 보루를 뜯는 동안엔 칸이 전부 빈 채로 깜빡이고 "보루 교체" 라벨이 뜬다.
+        -- 배경 패널 없이 아이콘만 떠 있게 해서 화면을 가리지 않는다.
         local ammoMax=self.cartonSize or 20
         local ammo=math.max(0,math.min(ammoMax,self.cartonAmmo or ammoMax))
         local reloadingCarton=self.smoking and self.smoking.phase=="reload" and self.smoking.newCarton
-        local colX=w-30
+        local colX=w-26
         local top,bottom=140,h-70
         local avail=math.max(60,bottom-top)
-        local pitch=math.min(26,avail/ammoMax)
+        local pitch=math.min(22,avail/ammoMax)
         local colH=pitch*ammoMax
         local startY=top+(avail-colH)/2
-        love.graphics.setColor(.02,.025,.02,.72)
-        love.graphics.rectangle("fill",colX-16,startY-6,32,colH+12,8,8)
         local iconDef=ClearcutMode.icons.cigarette
         local px=math.max(1.2,pitch/9)
-        for i=1,ammoMax do
+        for i=1,ammo do
             local iy=startY+(i-1)*pitch+pitch/2
-            local filled=i<=ammo
-            love.graphics.setColor(0,0,0,filled and .4 or .22)
-            love.graphics.rectangle("fill",colX-13,iy-pitch/2+1,26,pitch-2,3,3)
-            if filled and iconDef then
-                love.graphics.setColor(1,1,1,1)
-                drawPixelGrid(iconDef.rows,iconDef.palette,colX,iy,px)
-            end
+            love.graphics.setColor(0,0,0,.5)
+            love.graphics.circle("fill",colX,iy,pitch*.34)
+            if iconDef then drawPixelGrid(iconDef.rows,iconDef.palette,colX,iy,px) end
         end
         if reloadingCarton then
-            love.graphics.setColor(1,.32,.28,.35+math.sin(t*8)*.15)
-            love.graphics.rectangle("fill",colX-16,startY-6,32,colH+12,8,8)
             love.graphics.setFont(fonts.small); love.graphics.setColor(1,.5,.45,.9+math.sin(t*8)*.1)
             love.graphics.printf("보루 교체",colX-70,startY-24,140,"center")
         end
