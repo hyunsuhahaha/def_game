@@ -5,6 +5,7 @@ local BiomeVines = require("src.biome_vines")
 local ForestFloor = require("src.forest_floor")
 local ForestLighting = require("src.forest_lighting")
 local TreeDestruction = require("src.tree_destruction")
+local RegrowthCastArt = require("src.regrowth_cast_art")
 World.__index = World
 
 local buildingDefs = require("src.buildings")
@@ -249,6 +250,10 @@ end
 function World:updateEffects(dt, game)
     self.harvestChainTime = math.max(0, self.harvestChainTime - dt)
     for _, node in ipairs(self.nodes) do
+        if node.treeEmergence then
+            node.treeEmergence.t=node.treeEmergence.t+dt
+            if node.treeEmergence.t>=node.treeEmergence.duration then node.treeEmergence=nil end
+        end
         node.hitFlash = math.max(0, (node.hitFlash or 0) - dt)
         node.hitShake = math.max(0, (node.hitShake or 0) - dt)
         if node.kind == "tree" then
@@ -1504,8 +1509,23 @@ function World:draw(player, actorSource)
                 elseif node.kind == "tree" then
                     local visual = self.treeVisual
                     local treeImage, variantScale, shadowScale = treeRenderSpec(self, node)
-                    love.graphics.setColor(0, 0, 0, visual.shadowAlpha)
-                    love.graphics.ellipse("fill", node.x + visual.shadowX, node.y + visual.shadowY, visual.shadowRx * shadowScale, visual.shadowRy)
+                    local growScale,growAngle,growAlpha=1,node.swayAngle or 0,1
+                    local emergence=node.treeEmergence
+                    if emergence then
+                        if emergence.t<0 then growScale,growAlpha=.56,0
+                        else
+                            local raw=math.max(0,math.min(1,emergence.t/emergence.duration))
+                            RegrowthCastArt.drawTreeEmergence(node,raw)
+                            local rise=math.max(0,math.min(1,(raw-.12)/.72))
+                            local ease=rise*rise*(3-2*rise)
+                            growScale=.56+ease*.44+math.sin(math.min(1,rise)*math.pi)*.065
+                            growAngle=(node.swayAngle or 0)+math.sin(rise*math.pi*3)*(1-rise)*.035*(emergence.direction or 1)
+                            growAlpha=math.max(0,math.min(1,raw/.16))
+                        end
+                    end
+                    love.graphics.setColor(0, 0, 0, visual.shadowAlpha*growAlpha)
+                    love.graphics.ellipse("fill", node.x + visual.shadowX, node.y + visual.shadowY,
+                        visual.shadowRx * shadowScale * (.38+growScale*.62), visual.shadowRy*growScale)
                     if node.berserkFlash and node.berserkFlash > 0 then
                         local bft = love.timer.getTime()
                         local bpulse = .5 + math.sin(bft * 14) * .5
@@ -1519,7 +1539,10 @@ function World:draw(player, actorSource)
                             love.graphics.line(node.x, node.y + 6, node.x + math.cos(ang) * reach, node.y + 6 + math.sin(ang) * reach * .5)
                         end
                     end
-                    groundedRotated(treeImage, node.x + ox, node.y + oy, visual.scale * variantScale * bump, node.swayAngle or 0)
+                    love.graphics.setColor(1,1,1,growAlpha)
+                    love.graphics.draw(treeImage,node.x+ox,node.y+oy,growAngle,
+                        visual.scale*variantScale*bump*growScale,visual.scale*variantScale*bump*growScale,
+                        treeImage:getWidth()/2,treeImage:getHeight()*.91)
                     if node.burning then
                         if actorSource and actorSource.drawCigaretteTreeFire then
                             actorSource:drawCigaretteTreeFire(node)

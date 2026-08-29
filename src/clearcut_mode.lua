@@ -574,6 +574,7 @@ function ClearcutMode:regrowPulse(game)
         local node = candidates[i]
         node.active, node.rushHp = true, node.rushMaxHp
         node.burning, node.fallT, node.uprooted, node.damageStage = nil, nil, nil, nil
+        node.treeEmergence={t=-((i-1)*.09),duration=.95,direction=i%2==0 and -1 or 1,source="regrow"}
         self.remainingTrees = self.remainingTrees + 1
     end
     ForestZones.refresh(self,zone.id)
@@ -607,6 +608,7 @@ function ClearcutMode:plantTreesNear(e, game)
         local node = candidates[i]
         node.active, node.rushHp = true, node.rushMaxHp
         node.burning, node.fallT, node.uprooted, node.damageStage = nil, nil, nil, nil
+        node.treeEmergence={t=-((i-1)*.09),duration=.95,direction=i%2==0 and -1 or 1,source="planter"}
         self.remainingTrees = self.remainingTrees + 1
     end
     self.treesRevived = self.treesRevived + count
@@ -5135,7 +5137,7 @@ function ClearcutMode:queueProjectedOverlay(game,t)
             for i=1,5 do local a=t*14+i*1.3;drawBeeBody(swarm.x+math.cos(a)*(8+i),swarm.y+math.sin(a*1.7)*(6+i*.4),a,t*34+i*2,1.30) end
         end)
     end
-    for _,node in ipairs(game.world.nodes) do if node.rushTree and node.active and node.beehive then
+    for _,node in ipairs(game.world.nodes) do if node.rushTree and node.active and node.beehive and not node.treeEmergence then
         -- 나무와 같은 발 좌표를 쓰더라도 반드시 수관보다 뒤에 그려지도록
         -- 고정 sort bias를 둔다. 동일 키 table.sort의 프레임별 깜빡임을 막는다.
         queueUpright(queue,node.x,node.y,function()drawBeehive(node.x,node.y-150,t)end,node.y+.08,node.y)

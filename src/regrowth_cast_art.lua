@@ -28,4 +28,15 @@ function RegrowthCastArt.draw(enemy)
     love.graphics.pop()
 end
 
+function RegrowthCastArt.drawTreeEmergence(node,progress)
+    load()
+    progress=math.max(0,math.min(.999,progress or 0))
+    local frame=math.floor(progress*6)+1
+    local pulse=1+math.sin(progress*math.pi)*.09
+    love.graphics.push("all")
+    love.graphics.setColor(1,1,1,.72+math.sin(progress*math.pi)*.24)
+    love.graphics.draw(image,quads[frame],math.floor(node.x+.5),math.floor(node.y+9.5),0,.46*pulse,.46*pulse,128,248)
+    love.graphics.pop()
+end
+
 return RegrowthCastArt
