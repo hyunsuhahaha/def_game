@@ -36,6 +36,8 @@ local WorldTreeSiege = require("src.worldtree_siege")
 local WorldTreeAttackArt = require("src.worldtree_attack_art")
 local CombatGeometry = require("src.combat_geometry")
 local Maps = require("src.clearcut_maps")
+local Synergies = require("src.clearcut_synergies")
+local SkillBranches = require("src.clearcut_skill_branches")
 
 local ClearcutMode = {}
 ClearcutMode.__index = ClearcutMode
@@ -98,6 +100,7 @@ local definitions = {
 }
 
 local upgradeById = {}
+Synergies.attach(definitions)
 for _, def in ipairs(definitions) do upgradeById[def.id] = def end
 local recoveryChoice = {id="field_rest",name="현장 휴식",track="suppress",color={.4,.9,.6},
     desc="모든 남은 스킬을 마스터했습니다. 체력을 20 회복하고 계속합니다.",recovery=true}
@@ -174,6 +177,7 @@ function ClearcutMode.new()
     return setmetatable({
         sandbox=false,
         levels={}, choices={}, level=1, xp=0, xpNext=10, pending=0,
+        skillBranches={},synergyCounts={},branchChoiceSkill=nil,branchChoices={},
         totalWood=0, treesFelled=0, elapsed=0, initialTrees=0, remainingTrees=0,
         maxMulti=1, maxChain=0, axeCooldown=0, axeRange=150, milestoneFired={},
         regrowTimer=0, regrowGrace=35, regrowInterval=12, regrowPulses=0, treesRevived=0, regrowFlash=0,
@@ -212,12 +216,16 @@ function ClearcutMode.new()
         reviveCharges=0,
         vinePlantTimer=60, vineSpawns={},
         disasterState="idle", disasterTimer=150, disasterType=nil, rainSuppressFire=false, quakeShakes={},
+        sproutFields={},friendlyGrowthBursts={},synergyFellCounters={},
         offscreenPulse=0,
         traitFx=TraitFx.new()
     }, ClearcutMode)
 end
 
 function ClearcutMode:levelOf(id) return self.levels[id] or 0 end
+function ClearcutMode:synergyTier(id)return Synergies.tier(self,id)end
+function ClearcutMode:skillTags(id)return Synergies.tagsFor(id)end
+function ClearcutMode:skillBranch(id)return self.skillBranches and self.skillBranches[id]end
 function ClearcutMode:getUpgradeDefinition(id) return upgradeById[id] end
 
 -- 스킬 연습장 전용: 현재 직업이 실제로 쓸 수 있는 스킬(직업 전용 + 공용) 전체를 나열한다.
@@ -234,6 +242,7 @@ function ClearcutMode:sandboxSetLevel(id, delta)
     local def = upgradeById[id]
     if not def then return end
     self.levels[id] = math.max(0, math.min(def.max, self:levelOf(id) + delta))
+    Synergies.refresh(self)
 end
 
 -- 융합 스킬은 정상적으로는 재료 두 스킬을 만렙 찍고 3택 카드 화면에서 확정 획득해야
@@ -270,9 +279,25 @@ end
 function ClearcutMode:growth(id)
     return math.min(1,(self:power(id)/levelCurve[7])^1.35)
 end
+function ClearcutMode:skillArea(id)return Synergies.areaMultiplier(self,id)end
+function ClearcutMode:skillDamage(id)return Synergies.damageMultiplier(self,id)end
+function ClearcutMode:autoSkillCooldown(id)
+    local value=Synergies.cooldownMultiplier(self)
+    if id=="bat_swarm" or id=="crow_strike" then value=value*Synergies.wildCooldownMultiplier(self) end
+    return value
+end
 function ClearcutMode:pickupRadius() return 165 + self:power("magnet") * 95 + (self.permanentTraits.pickupRadius or 0) end
 function ClearcutMode:pickupSpeed() return 15 + self:power("magnet") * 4 end
 function ClearcutMode:destructionPct() return self.initialTrees > 0 and math.min(100, (1 - self.remainingTrees / self.initialTrees) * 100) or 0 end
+-- Late runs become an escalating tug-of-war: stronger builds erase patches in
+-- seconds while surviving regeneration cores refill them faster. Ordinary tree
+-- HP never scales here, so the payoff remains mass felling rather than sponges.
+function ClearcutMode:forestPressure()
+    local stage=math.max(1,self.stage or 1)
+    local level=math.max(1,self.level or 1)
+    local elapsed=math.max(0,self.stageElapsed or self.elapsed or 0)
+    return math.min(2.65,1+(stage-1)*.12+math.max(0,level-8)*.035+math.max(0,elapsed-150)/900)
+end
 -- 뱀서라이크식 단일 난이도 다이얼: 진행도와 무관하게 순수 경과시간으로만 오른다 (농성 방지)
 function ClearcutMode:curseLevel() return 1 + (self.elapsed / 60) ^ 1.25 * .16 * (self.curseBoostMul or 1) end
 -- 광폭화 라운드 중 스폰/물량 배율: 경고 단계부터 서서히 조여오다 광란 단계에서 폭증한다
@@ -463,6 +488,7 @@ end
 function ClearcutMode:advanceStage(game)
     CigaretteButts.reset(self)
     self.supplementImpacts, self.crowFx, self.whipFx, self.lightningFx = {}, {}, {}, {}
+    self.sproutFields,self.friendlyGrowthBursts={},{}
     self.stage = self.stage + 1
     self.stageElapsed,self.stageTimeLimit=0,stageTimeLimit(self.stage,self.mapId)
     self.timeSpawnTimer,self.eliteTimer=18,240
@@ -566,7 +592,7 @@ function ClearcutMode:updateRegrowth(dt, game)
     if self.regrowSuppressed then return end
     if self.elapsed < self.regrowGrace then return end
     self.regrowTimer = self.regrowTimer + dt
-    if self.regrowTimer < self.regrowInterval then return end
+    if self.regrowTimer < self.regrowInterval/self:forestPressure() then return end
     self.regrowTimer = 0
     self:regrowPulse(game)
 end
@@ -582,7 +608,8 @@ function ClearcutMode:regrowPulse(game)
     local candidates=ForestZones.candidates(self,zone)
     if #candidates == 0 then return end
     for i = #candidates, 2, -1 do local j = love.math.random(i); candidates[i], candidates[j] = candidates[j], candidates[i] end
-    local count=math.min(#candidates,math.min(3,1+math.floor(self.elapsed/210)))
+    local pressure=self:forestPressure()
+    local count=math.min(#candidates,math.min(8,1+math.floor(self.elapsed/180)+math.floor((pressure-1)*2.4)))
     for i = 1, count do
         local node = candidates[i]
         node.active, node.rushHp = true, node.rushMaxHp
@@ -616,7 +643,8 @@ function ClearcutMode:plantTreesNear(e, game)
     end
     if #candidates == 0 then return end
     for i = #candidates, 2, -1 do local j = love.math.random(i); candidates[i], candidates[j] = candidates[j], candidates[i] end
-    local count = math.min(e.def.plantCount or 3, #candidates)
+    local pressure=self:forestPressure()
+    local count = math.min(math.ceil((e.def.plantCount or 3)*(1+(pressure-1)*.55)), #candidates)
     for i = 1, count do
         local node = candidates[i]
         node.active, node.rushHp = true, node.rushMaxHp
@@ -1465,7 +1493,7 @@ function ClearcutMode:updateEnemies(dt, game)
             e.planterCasting = e.plantTimer <= 1.5
             if e.planterCasting then e.visualAttack = math.max(e.visualAttack,.24) end
             if e.plantTimer <= 0 then
-                e.plantTimer = def.plantInterval
+                e.plantTimer = def.plantInterval/self:forestPressure()
                 e.planterCasting = false
                 self:plantTreesNear(e, game)
             end
@@ -1855,8 +1883,8 @@ function ClearcutMode:updateFire(dt, game)
     end
     local dryLevel = self:levelOf("dry_forest")
     local dryPower = self:power("dry_forest")
-    local spreadChancePerSec = .12 + dryPower * .14 + self.permanentTraits.spreadChance
-    local spreadRadius = 130 + dryPower * 45
+    local spreadChancePerSec = (.12 + dryPower * .14 + self.permanentTraits.spreadChance) * Synergies.ignitionChanceMultiplier(self)
+    local spreadRadius = (130 + dryPower * 45) * Synergies.ignitionRadiusMultiplier(self)
     local burnDuration = math.max(2.2, (3.6 - dryPower * .35) / self.permanentTraits.burnSpeed)
     self:updateStrawBales(dt, game)
     self:updateOilTrail(dt, game)
@@ -2748,6 +2776,7 @@ end
 -- 공용 보조 스킬 7종과 직업 전용 스킬. 시각 이벤트는 전투 시간으로만 진행한다.
 function ClearcutMode:updateSupplementSkills(dt, game)
     SupplementArt.update(self,dt)
+    self:updateSynergyBursts(dt,game)
     self:updateBatSwarm(dt, game)
     self:updateThornAura(dt, game)
     self:updateCrowStrike(dt, game)
@@ -2757,6 +2786,42 @@ function ClearcutMode:updateSupplementSkills(dt, game)
     self:updateChainLightning(dt, game)
     self:updateBruteForce(dt, game)
     if self.auraPulse then self.auraPulse = math.max(0, self.auraPulse - dt * 2.2) end
+end
+
+function ClearcutMode:updateSynergyBursts(dt,game)
+    self.friendlyGrowthBursts=self.friendlyGrowthBursts or {}
+    for i=#self.friendlyGrowthBursts,1,-1 do
+        local burst=self.friendlyGrowthBursts[i];burst.life=burst.life-dt
+        if not burst.applied then
+            burst.applied=true
+            for _,node in ipairs(game.world.nodes)do
+                if node.rushTree and node.active then local dx,dy=node.x-burst.x,node.y-burst.y
+                    if dx*dx+dy*dy<=burst.radius*burst.radius then
+                        node.rushHp=(node.rushHp or node.rushMaxHp)-burst.damage;game.world:impactNode(node,game,true)
+                        if node.rushHp<=0 then self:fellTree(node,game)end
+                    end
+                end
+            end
+            self:damageEnemiesInRadius(burst.x,burst.y,burst.radius,burst.damage*1.8,game)
+        end
+        if burst.life<=0 then table.remove(self.friendlyGrowthBursts,i)end
+    end
+end
+
+function ClearcutMode:recordSynergyFell(node)
+    self.synergyFellCounters=self.synergyFellCounters or {}
+    local function add(tag,needed,radius,damage)
+        self.synergyFellCounters[tag]=(self.synergyFellCounters[tag] or 0)+1
+        if self.synergyFellCounters[tag]>=needed then
+            self.synergyFellCounters[tag]=self.synergyFellCounters[tag]-needed
+            self.friendlyGrowthBursts[#self.friendlyGrowthBursts+1]={x=node.x,y=node.y,radius=radius,
+                damage=damage,life=.48,maxLife=.48,kind=tag}
+        end
+    end
+    local growth=self:synergyTier("growth")
+    local impact=self:synergyTier("impact")
+    if growth>=2 then add("growth",growth>=4 and 7 or 12,growth>=4 and 180 or 132,(growth>=4 and 3.5 or 2.2)+math.min(8,self.level*.18))end
+    if impact>=2 then add("impact",impact>=4 and 7 or 12,impact>=4 and 150 or 116,(impact>=4 and 4.5 or 2.8)+math.min(9,self.level*.20))end
 end
 
 function ClearcutMode:updateBatSwarm(dt, game)
@@ -2771,7 +2836,7 @@ function ClearcutMode:updateBatSwarm(dt, game)
     for i = #self.bats, count + 1, -1 do self.bats[i] = nil end
     local orbitRadius = 78 + growth * 45
     local targetRange = 360 + growth * 180
-    local dmg = .9 + growth * 3.1
+    local dmg = (.9 + growth * 3.1)*self:skillDamage("bat_swarm")
     local atan2=math.atan2 or math.atan
     local function alive(target)
         return target and ((target.rushTree and target.active) or (not target.rushTree and target.hp and target.hp>0))
@@ -2843,7 +2908,7 @@ function ClearcutMode:updateBatSwarm(dt, game)
     selected.state="dive";selected.moveT=0;selected.moveDur=.22+math.min(.16,math.sqrt((target.x-selected.x)^2+(target.y-selected.y)^2)/1500)
     selected.startX,selected.startY=selected.x,selected.y
     selected.target=target;selected.targetX=target.x;selected.targetY=target.y-(target.rushTree and 42 or 12)
-    self.batAttackTimer=1.1-growth*.45
+    self.batAttackTimer=(1.1-growth*.45)*self:autoSkillCooldown("bat_swarm")
 end
 
 function ClearcutMode:updateThornAura(dt, game)
@@ -2852,9 +2917,9 @@ function ClearcutMode:updateThornAura(dt, game)
     self.auraTimer = (self.auraTimer or 0) - dt
     if self.auraTimer > 0 then return end
     local growth=self:growth("thorn_aura")
-    self.auraTimer = 2.2-growth*1.2
-    local radius = 120 + growth*215
-    local dmg = 1 + growth*3
+    self.auraTimer = (2.2-growth*1.2)*self:autoSkillCooldown("thorn_aura")*Synergies.tickMultiplier(self)
+    local radius = (120 + growth*215)*self:skillArea("thorn_aura")
+    local dmg = (1 + growth*3)*self:skillDamage("thorn_aura")
     for _, node in ipairs(game.world.nodes) do
         if node.rushTree and node.active then
             local dx, dy = node.x - game.player.x, node.y - game.player.y
@@ -2881,7 +2946,7 @@ function ClearcutMode:updateCrowStrike(dt, game)
     self.crowTimer = (self.crowTimer or 0) - dt
     if self.crowTimer > 0 then return end
     local growth=self:growth("crow_strike")
-    self.crowTimer = 5-growth*3.6
+    self.crowTimer = (5-growth*3.6)*self:autoSkillCooldown("crow_strike")
     local range = 620
     -- 공용 스킬은 무조건 몬스터부터 노린다: 사거리 안에 적이 있으면 나무는 아예 후보에서 뺀다.
     local best, bestD2 = nil, -1
@@ -2891,8 +2956,8 @@ function ClearcutMode:updateCrowStrike(dt, game)
         if d2 <= range*range and d2 > bestD2 then best, bestD2 = e, d2 end
     end
     if not best then return end
-    local dmg = 3.5 + growth*30.5
-    local radius = 35 + growth*80
+    local dmg = (3.5 + growth*30.5)*self:skillDamage("crow_strike")
+    local radius = (35 + growth*80)*self:skillArea("crow_strike")
     if best.rushTree then
         best.rushHp = (best.rushHp or best.rushMaxHp) - dmg
         game.world:impactNode(best, game, true)
@@ -2918,8 +2983,8 @@ function ClearcutMode:updateVineWhip(dt, game)
     self.whipTimer = (self.whipTimer or 0) - dt
     if self.whipTimer > 0 then return end
     local growth=self:growth("vine_whip")
-    self.whipTimer = 7-growth*3.5
-    local range = 260+growth*330
+    self.whipTimer = (7-growth*3.5)*self:autoSkillCooldown("vine_whip")
+    local range = (260+growth*330)*self:skillArea("vine_whip")
     -- 조준 방향은 몬스터를 우선한다: 사거리 안에 적이 있으면 나무는 후보에서 뺀다.
     local nearest, nearestD2 = nil, range * range
     for _, e in ipairs(self.enemies) do
@@ -2931,7 +2996,7 @@ function ClearcutMode:updateVineWhip(dt, game)
     local atan2 = math.atan2 or math.atan
     local angle
     angle = atan2(nearest.y - game.player.y, nearest.x - game.player.x)
-    local dmg = 2.25+growth*15.75
+    local dmg = (2.25+growth*15.75)*self:skillDamage("vine_whip")
     local cone = .75
     for _, node in ipairs(game.world.nodes) do
         if node.rushTree and node.active then
@@ -2960,9 +3025,9 @@ end
 function ClearcutMode:updateBoomerangAxe(dt, game)
     local level = self:levelOf("boomerang_axe")
     self.boomerangs = self.boomerangs or {}
-    local speed = 480
     for i = #self.boomerangs, 1, -1 do
         local b = self.boomerangs[i]
+        local speed=b.speed or 480
         local previousX,previousY=b.x,b.y
         local remove, turning = false, false
         b.trail=b.trail or {}
@@ -3004,6 +3069,19 @@ function ClearcutMode:updateBoomerangAxe(dt, game)
                         SupplementArt.impact(self,"axe",e.x,e.y,hitRadius)
                         e.hp = e.hp - b.dmg
                         e.visualHit = .14
+                        if b.phase=="out" and b.branch=="ricochet_axe" and (b.ricochets or 0)<3 then
+                            local nextTarget,nextD2=nil,340*340
+                            for _,candidate in ipairs(self.enemies)do
+                                if candidate~=e and candidate.hp and candidate.hp>0 and not b.hitSet[candidate]then
+                                    local dx,dy=candidate.x-b.x,candidate.y-b.y;local d2=dx*dx+dy*dy
+                                    if d2<nextD2 then nextTarget,nextD2=candidate,d2 end
+                                end
+                            end
+                            if nextTarget then
+                                local dx,dy=nextTarget.x-b.x,nextTarget.y-b.y;local dist=math.sqrt(dx*dx+dy*dy)
+                                b.dx,b.dy=dx/dist,dy/dist;b.target=nextTarget;b.ricochets=(b.ricochets or 0)+1
+                            end
+                        end
                     end
                 end
             end
@@ -3016,7 +3094,9 @@ function ClearcutMode:updateBoomerangAxe(dt, game)
     self.boomerangTimer = (self.boomerangTimer or 0) - dt
     if self.boomerangTimer > 0 then return end
     local growth=self:growth("boomerang_axe")
-    self.boomerangTimer = 3.2-growth*2
+    local branch=self:skillBranch("boomerang_axe")
+    local branchCooldown=branch=="rapid_return" and .65 or 1
+    self.boomerangTimer = (3.2-growth*2)*self:autoSkillCooldown("boomerang_axe")*branchCooldown
     local target,bestD2=nil,math.huge
     for _,enemy in ipairs(self.enemies)do
         if enemy.hp and enemy.hp>0 then local dx,dy=enemy.x-game.player.x,enemy.y-game.player.y;local d2=dx*dx+dy*dy;if d2<bestD2 then target,bestD2=enemy,d2 end end
@@ -3024,16 +3104,36 @@ function ClearcutMode:updateBoomerangAxe(dt, game)
     if not target then self.boomerangTimer=.15;return end
     local atan2=math.atan2 or math.atan
     local a=atan2(target.y-game.player.y,target.x-game.player.x)
+    local area=self:skillArea("boomerang_axe")*(branch=="broad_axe" and 1.45 or 1)
+    local damage=self:skillDamage("boomerang_axe")*(branch=="broad_axe" and 1.18 or 1)
+    local speed=480*Synergies.projectileSpeedMultiplier(self)*(branch=="rapid_return" and 1.55 or 1)
     self.boomerangs[#self.boomerangs+1] = {
         x=game.player.x, y=game.player.y, dx=math.cos(a), dy=math.sin(a),
-        traveled=0,maxDist=200+growth*244,phase="out",hitSet={},dmg=2+growth*12.2,
-        radius=64+growth*24,angle=a,target=target
+        traveled=0,maxDist=200+growth*244,phase="out",hitSet={},dmg=(2+growth*12.2)*damage,
+        radius=(64+growth*24)*area,angle=a,target=target,speed=speed,branch=branch,ricochets=0
     }
 end
 
 function ClearcutMode:updateSeedMine(dt, game)
     local level = self:levelOf("seed_mine")
     self.seeds = self.seeds or {}
+    self.sproutFields=self.sproutFields or {}
+    for i=#self.sproutFields,1,-1 do
+        local field=self.sproutFields[i];field.life=field.life-dt;field.timer=field.timer-dt
+        if field.timer<=0 then
+            field.timer=.62*Synergies.tickMultiplier(self)
+            for _,node in ipairs(game.world.nodes)do
+                if node.rushTree and node.active then local dx,dy=node.x-field.x,node.y-field.y
+                    if dx*dx+dy*dy<=field.radius*field.radius then
+                        node.rushHp=(node.rushHp or node.rushMaxHp)-field.dmg;game.world:impactNode(node,game,false)
+                        if node.rushHp<=0 then self:fellTree(node,game)end
+                    end
+                end
+            end
+            self:damageEnemiesInRadius(field.x,field.y,field.radius,field.dmg,game)
+        end
+        if field.life<=0 then table.remove(self.sproutFields,i)end
+    end
     for i = #self.seeds, 1, -1 do
         local s = self.seeds[i]
         s.fuse = s.fuse - dt
@@ -3051,6 +3151,15 @@ function ClearcutMode:updateSeedMine(dt, game)
             end
             self:damageEnemiesInRadius(s.x, s.y, radius, s.dmg, game)
             SupplementArt.impact(self,"seed",s.x,s.y,radius)
+            if s.branch=="scatter_mine" and not s.mini then
+                for n=1,6 do local a=(n-1)/6*math.pi*2
+                    self.seeds[#self.seeds+1]={x=s.x+math.cos(a)*58,y=s.y+math.sin(a)*42,
+                        fuse=.24+n*.035,maxFuse=.45,radius=radius*.42,dmg=s.dmg*.38,mini=true}
+                end
+            elseif s.branch=="sprout_mine" and not s.mini then
+                self.sproutFields[#self.sproutFields+1]={x=s.x,y=s.y,radius=radius*.58,dmg=s.dmg*.22,
+                    life=4,maxLife=4,timer=.08}
+            end
             table.remove(self.seeds, i)
         end
     end
@@ -3058,7 +3167,7 @@ function ClearcutMode:updateSeedMine(dt, game)
     self.seedTimer = (self.seedTimer or 0) - dt
     if self.seedTimer > 0 then return end
     local growth=self:growth("seed_mine")
-    self.seedTimer = 4-growth*2.4
+    self.seedTimer = (4-growth*2.4)*self:autoSkillCooldown("seed_mine")
     local target,bestD2=nil,math.huge
     for _,enemy in ipairs(self.enemies)do
         if enemy.hp and enemy.hp>0 then local dx,dy=enemy.x-game.player.x,enemy.y-game.player.y;local d2=dx*dx+dy*dy;if d2<bestD2 then target,bestD2=enemy,d2 end end
@@ -3067,9 +3176,12 @@ function ClearcutMode:updateSeedMine(dt, game)
     local atan2=math.atan2 or math.atan
     local a=atan2(target.y-game.player.y,target.x-game.player.x)
     local r=math.min(160,math.sqrt(bestD2))
+    local branch=self:skillBranch("seed_mine")
+    local radius=(110+growth*185)*self:skillArea("seed_mine")*(branch=="heavy_mine" and 1.42 or 1)
+    local damage=(2.5+growth*18.3)*self:skillDamage("seed_mine")*(branch=="heavy_mine" and 1.35 or 1)
     self.seeds[#self.seeds+1] = {
         x=game.player.x + math.cos(a) * r, y=game.player.y + math.sin(a) * r,
-        fuse=1.1,maxFuse=1.1,radius=110+growth*185,dmg=2.5+growth*18.3,target=target
+        fuse=1.1,maxFuse=1.1,radius=radius,dmg=damage,target=target,branch=branch
     }
 end
 
@@ -3085,10 +3197,10 @@ function ClearcutMode:updateChainLightning(dt, game)
     self.lightningTimer = (self.lightningTimer or 0) - dt
     if self.lightningTimer > 0 then return end
     local growth=self:growth("chain_lightning")
-    self.lightningTimer = 4.5-growth*2.7
+    self.lightningTimer = (4.5-growth*2.7)*self:autoSkillCooldown("chain_lightning")
     local jumps = 2+math.floor(growth*5+.0001)
     local hopRange = 260
-    local dmg = 1.75+growth*12.45
+    local dmg = (1.75+growth*12.45)*self:skillDamage("chain_lightning")
     local visited = {}
     local cx, cy = game.player.x, game.player.y
     local points = {{x=cx, y=cy}}
@@ -3824,7 +3936,7 @@ function ClearcutMode:onWood(amount, game)
     amount = amount * (self.woodGainMul or 1)
     self.totalWood = self.totalWood + amount
     game.wood = self.totalWood
-    local xpMult = 1 + self:power("forced_growth") * .4
+    local xpMult = (1 + self:power("forced_growth") * .4)*Synergies.woodXpMultiplier(self)
     self.xp = self.xp + amount * xpMult
     while self.xp >= self.xpNext do
         self.xp = self.xp - self.xpNext
@@ -3969,8 +4081,27 @@ function ClearcutMode:chooseFusion(index,game)
     return true
 end
 
+function ClearcutMode:openBranchChoice(skill,game)
+    self.branchChoiceSkill=skill
+    self.branchChoices=SkillBranches.forSkill(skill) or {}
+    self.selectionKind="branch";self.specialCard=nil;self.banishArmed=false;self.choiceBoxes={}
+    self.choicesRevealAt=love.timer.getTime();game.mode="clearcut_upgrade"
+end
+
+function ClearcutMode:chooseBranch(index,game)
+    local def=self.branchChoices and self.branchChoices[index]
+    if not def or def.skill~=self.branchChoiceSkill then return false end
+    self.skillBranches[def.skill]=def.id
+    self.branchChoiceSkill=nil;self.branchChoices={};self.selectionKind="upgrade";self.choiceBoxes={}
+    game:setNotice(def.name.." 선택 — "..def.desc,"ore")
+    if self:checkEvolutions(game)then return true end
+    if self.pending>0 then self:openUpgradeChoices(game)else game.mode="playing"end
+    return true
+end
+
 function ClearcutMode:choose(index, game)
     if self.selectionKind == "fusion" then return self:chooseFusion(index,game) end
+    if self.selectionKind == "branch" then return self:chooseBranch(index,game) end
     if index == "reroll" then return self:rerollChoice(game) end
     if index == "banish" then return self:toggleBanishArm(game) end
     if index == "special" then
@@ -4000,7 +4131,7 @@ function ClearcutMode:choose(index, game)
     local wasChest=self.chestPending
     self.chestPending=false
     if def.recovery then self.hp=math.min(self.maxHp,self.hp+20)
-    else self.levels[def.id]=self:levelOf(def.id)+1 end
+    else self.levels[def.id]=self:levelOf(def.id)+1;Synergies.refresh(self) end
     if not wasChest then self.pending=math.max(0,self.pending-1) end
     if def.recovery then
         game:setNotice("현장 휴식 — 체력 +20","food")
@@ -4011,8 +4142,11 @@ function ClearcutMode:choose(index, game)
     else
         game:setNotice(def.name.." Lv."..self:levelOf(def.id),"food")
     end
+    local branchReady=not def.recovery and self:levelOf(def.id)==3 and not self:skillBranch(def.id)
+        and SkillBranches.forSkill(def.id)
     self.choices={}
     self.choiceBoxes={}
+    if branchReady then self:openBranchChoice(def.id,game);return true end
     if self:checkEvolutions(game) then return true end
     self.specialCard = nil
     if self.pending>0 then self:openUpgradeChoices(game) else game.mode="playing" end
@@ -4023,6 +4157,7 @@ function ClearcutMode:fellTree(node, game)
     if not node.active then return false end
     local wasBeehive = node.beehive
     node.active, node.respawn, node.rushHp = false, math.huge, 0
+    self:recordSynergyFell(node)
     -- 기본 수종보다 값나가는(=해금이 필요한) 수종은 더 많은 목재를 준다.
     local amount = (node.treeVariant and node.treeVariant > 1) and 6 or 4
     amount = math.floor(amount * (self.permanentTraits.woodYield or 1) + .5)
@@ -5784,42 +5919,55 @@ end
 
 -- 세로 한 줄짜리 아이콘 스택. 텍스트 없이 아이콘 + 레벨 숫자만으로 지금까지
 -- 찍은 스킬을 보여준다. 트랙별로 묶고, 그 안에서는 레벨 높은 순으로 정렬.
+local function drawSynergyTooltip(def,count,x,y,fonts,screenW,screenH)
+    local w=350;local h=62+#def.thresholds*34
+    x=math.min(x,screenW-w-12);y=math.min(y,screenH-h-12)
+    love.graphics.setColor(.025,.04,.035,.97);love.graphics.rectangle("fill",x,y,w,h,6,6)
+    love.graphics.setColor(def.color);love.graphics.setLineWidth(2);love.graphics.rectangle("line",x+.5,y+.5,w-1,h-1,6,6)
+    love.graphics.setFont(fonts.heading);love.graphics.setColor(1,.96,.84)
+    love.graphics.print(def.name.."  "..count,x+16,y+12)
+    love.graphics.setFont(fonts.small)
+    for i,threshold in ipairs(def.thresholds)do
+        local active=count>=threshold;local yy=y+44+(i-1)*34
+        love.graphics.setColor(active and def.color or {.42,.48,.44})
+        love.graphics.rectangle("fill",x+16,yy+2,28,22,4,4)
+        love.graphics.setColor(active and {1,1,.94} or {.66,.7,.67})
+        love.graphics.printf(tostring(threshold),x+16,yy+7,28,"center")
+        love.graphics.printf(def.text[threshold],x+54,yy+5,w-70,"left")
+    end
+end
+
+-- The left rail is the build's trait board, not a duplicate list of skill
+-- icons. Hovering a row explains every breakpoint just like the draft cards.
 function ClearcutMode:drawSkillTracker(fonts)
-    local picks={}
-    for id,level in pairs(self.levels) do
-        if level>0 then
-            local def=self:getUpgradeDefinition(id)
-            if def then picks[#picks+1]={id=id,level=level,def=def} end
-        end
+    Synergies.refresh(self)
+    local rows={}
+    for _,def in ipairs(Synergies.definitions)do local count=self.synergyCounts[def.id] or 0
+        if count>0 then local tier=self:synergyTier(def.id);rows[#rows+1]={def=def,count=count,tier=tier}end
     end
-    if #picks==0 then return end
-    table.sort(picks,function(a,b)
-        if a.def.track~=b.def.track then return a.def.track<b.def.track end
-        if a.level~=b.level then return a.level>b.level end
-        return a.id<b.id
-    end)
-    local x0,y0=16,254
-    local chip,gap=40,5
-    love.graphics.setColor(.035,.05,.06,.9)
-    love.graphics.rectangle("fill",x0,y0,chip+gap*2,#picks*(chip+gap)+gap,8,8)
-    for i,pick in ipairs(picks) do
-        local cx=x0+gap
-        local cy=y0+gap+(i-1)*(chip+gap)
-        local color=pick.def.color or {.7,.7,.7,1}
-        love.graphics.setColor(color[1]*.3,color[2]*.3,color[3]*.3,.95)
-        love.graphics.rectangle("fill",cx,cy,chip,chip,5,5)
-        love.graphics.setLineWidth(1.5); love.graphics.setColor(color[1],color[2],color[3],.9)
-        love.graphics.rectangle("line",cx+.5,cy+.5,chip-1,chip-1,5,5)
-        local iconDef=ClearcutMode.icons[pick.id=="molotov" and "cigarette" or pick.id]
-        if iconDef then
-            local px=20/#iconDef.rows[1]
-            drawPixelGrid(iconDef.rows,iconDef.palette,cx+chip/2,cy+chip/2-3,px)
-        end
-        love.graphics.setColor(.04,.05,.05,.92)
-        love.graphics.rectangle("fill",cx+chip-16,cy+chip-14,16,14,3,0)
-        love.graphics.setFont(fonts.small); love.graphics.setColor(1,.88,.45,1)
-        love.graphics.printf(tostring(pick.level),cx+chip-16,cy+chip-13,16,"center")
+    if #rows==0 then return end
+    table.sort(rows,function(a,b)if a.tier~=b.tier then return a.tier>b.tier end;if a.count~=b.count then return a.count>b.count end;return a.def.id<b.def.id end)
+    local x0,y0,w,rowH,gap=16,254,112,34,4;local mx,my=love.mouse.getPosition();local hovered
+    self.synergyBoxes={}
+    love.graphics.setColor(.025,.04,.035,.92);love.graphics.rectangle("fill",x0,y0,w,#rows*(rowH+gap)+gap,6,6)
+    for i,row in ipairs(rows)do
+        local x,y=x0+4,y0+4+(i-1)*(rowH+gap);local def=row.def
+        local over=mx>=x and mx<=x+w-8 and my>=y and my<=y+rowH
+        self.synergyBoxes[i]={x=x,y=y,w=w-8,h=rowH,id=def.id}
+        love.graphics.setColor(def.color[1]*.18,def.color[2]*.18,def.color[3]*.18,over and 1 or .92)
+        love.graphics.rectangle("fill",x,y,w-8,rowH,4,4)
+        love.graphics.setColor(def.color);love.graphics.setLineWidth(over and 2 or 1)
+        love.graphics.rectangle("line",x+.5,y+.5,w-9,rowH-1,4,4)
+        local nextAt=Synergies.nextThreshold(def.id,row.count)
+        local progress=nextAt and math.min(1,row.count/nextAt) or 1
+        love.graphics.setColor(def.color[1],def.color[2],def.color[3],.34);love.graphics.rectangle("fill",x+1,y+rowH-4,(w-10)*progress,3)
+        love.graphics.setFont(fonts.small);love.graphics.setColor(1,.96,.84)
+        love.graphics.print(def.name,x+9,y+10)
+        love.graphics.setColor(row.tier>0 and def.color or {.72,.76,.72})
+        love.graphics.printf(row.count.."/"..tostring(nextAt or row.count),x+w-48,y+10,32,"right")
+        if over then hovered=row end
     end
+    if hovered then drawSynergyTooltip(hovered.def,hovered.count,x0+w+10,my-18,fonts,love.graphics.getWidth(),love.graphics.getHeight())end
 end
 
 function ClearcutMode:drawHUD(game,fonts)
@@ -5836,7 +5984,7 @@ function ClearcutMode:drawHUD(game,fonts)
     local statusColor = (self.rootedTimer > 0 or self.beeSlow) and {1,.6,.35} or {.6,.72,.66}
     love.graphics.setColor(statusColor)
     local secured,totalZones=ForestZones.status(self)
-    local status = self.rootedTimer > 0 and "발이 묶임!" or self.beeSlow and "벌떼에 쫓기는 중" or string.format("구역 %d/%d 확보 · 재생 %d회",secured,totalZones,self.regrowPulses)
+    local status = self.rootedTimer > 0 and "발이 묶임!" or self.beeSlow and "벌떼에 쫓기는 중" or string.format("구역 %d/%d 확보 · 재생 %d회 · 숲 압력 x%.1f",secured,totalZones,self.regrowPulses,self:forestPressure())
     love.graphics.setFont(fonts.micro or fonts.small);love.graphics.setColor(statusColor);love.graphics.print(status,20,91)
     local evoNames=Fusions.activeNames(self)
     if #evoNames>0 then
@@ -6307,6 +6455,36 @@ function ClearcutMode:drawSelectionContent(game,fonts,w,h)
     love.graphics.print("레벨 업",34,24)
     self.choiceBoxes={}
     if self.selectionKind == "fusion" then Fusions.drawAcquisition(self,fonts,w,h); return end
+    if self.selectionKind == "branch" then
+        local skill=self:getUpgradeDefinition(self.branchChoiceSkill)
+        love.graphics.setFont(fonts.title);love.graphics.setColor(1,.82,.3)
+        love.graphics.printf((skill and skill.name or "스킬").." · 3레벨 전문화",0,66,w,"center")
+        love.graphics.setFont(fonts.small);love.graphics.setColor(.72,.88,.76)
+        love.graphics.printf("이번 런에서 사용할 공격 방식을 하나 선택합니다.",0,112,w,"center")
+        local startX,cardY,cardW,cardH,gap=selectionCardLayout(w,h,3,h-74)
+        local mx,my=self:selectionMousePosition();local reveal=t-(self.choicesRevealAt or t)
+        for i,def in ipairs(self.branchChoices or {})do
+            local x,y=startX+(i-1)*(cardW+gap),cardY;self.choiceBoxes[i]={x=x,y=y,w=cardW,h=cardH}
+            local hovered=mx>=x and mx<=x+cardW and my>=y and my<=y+cardH
+            local scaleX=specialCardFlip(math.max(0,reveal-(i-1)*.08));local cx=x+cardW/2
+            love.graphics.push();love.graphics.translate(cx,y+cardH/2);love.graphics.scale(scaleX,1);love.graphics.translate(-cx,-(y+cardH/2))
+            if scaleX<.5 then drawCardBack(x,y,cardW,cardH,t,def.color)else
+                drawUpgradeCardFrame(x,y,cardW,cardH,def.color,hovered,nil,t)
+                local icon=ClearcutMode.icons[self.branchChoiceSkill]
+                drawIconSocket(cx,y+math.min(118,cardH*.28),def.color,icon,t,true)
+                love.graphics.setColor(.06,.09,.08,.92);love.graphics.rectangle("fill",x+16,y+16,34,30,7,7)
+                love.graphics.setFont(fonts.heading);love.graphics.setColor(1,1,1);love.graphics.printf(tostring(i),x+16,y+21,34,"center")
+                love.graphics.setFont(fonts.heading);love.graphics.setColor(1,1,1);love.graphics.printf(def.name,x+18,y+cardH*.45,cardW-36,"center")
+                love.graphics.setFont(fonts.small);love.graphics.setColor(def.color)
+                love.graphics.printf("전문화 · 변경 불가",x+20,y+cardH*.45+38,cardW-40,"center")
+                love.graphics.setColor(1,1,1,.17);love.graphics.line(x+22,y+cardH*.45+72,x+cardW-22,y+cardH*.45+72)
+                love.graphics.setFont(fonts.body or fonts.small);love.graphics.setColor(.9,.94,.91)
+                love.graphics.printf(def.desc,x+28,y+cardH*.45+92,cardW-56,"center")
+            end
+            love.graphics.pop()
+        end
+        return
+    end
     if self.selectionKind == "arcana" then
         love.graphics.setFont(fonts.title); love.graphics.setColor(arcanaColor); love.graphics.printf("아르카나 선택",0,66,w,"center")
         love.graphics.setFont(fonts.small); love.graphics.setColor(.85,.78,.95); love.graphics.printf("선택한 효과는 이번 판 동안 유지됩니다.",0,112,w,"center")
@@ -6364,6 +6542,8 @@ function ClearcutMode:drawSelectionContent(game,fonts,w,h)
     local buttonY=h-progressH-12-44-14
     local startX,cardY,cardW,cardH,gap=selectionCardLayout(w,h,numCards,buttonY-14)
     local mx,my=self:selectionMousePosition()
+    Synergies.refresh(self)
+    local synergyHover=nil
     local revealElapsed = t - (self.choicesRevealAt or t)
     for i,def in ipairs(self.choices) do
         local x,y=startX+(i-1)*(cardW+gap),cardY
@@ -6390,16 +6570,20 @@ function ClearcutMode:drawSelectionContent(game,fonts,w,h)
             love.graphics.setColor(1,.3,.25,.5+math.sin(t*8)*.15); love.graphics.setLineWidth(3)
             love.graphics.rectangle("line",x+3,y+3,cardW-6,cardH-6,12,12)
         end
-        -- 이름 · 트랙 태그 칩 · 구분선 · 설명 · 구분선 · 레벨 진행도 순으로 명확히 분리한다.
+        -- 이름 · 시너지 태그 · 설명 · 레벨 진행도. 태그는 이번 선택으로
+        -- 바뀌는 카운트를 즉시 보여주고 마우스 오버 시 전체 효과를 설명한다.
         love.graphics.setFont(fonts.heading); love.graphics.setColor(1,1,1); love.graphics.printf(def.name,x+16,nameY,cardW-32,"center")
-        local trackText = trackLabels[def.track] or ""
-        if trackText ~= "" then
-            love.graphics.setFont(fonts.small)
-            local tagW = math.min(cardW-40, fonts.small:getWidth(trackText)+28)
-            local tagX = cx - tagW/2
-            love.graphics.setColor(jobColor[1],jobColor[2],jobColor[3],.22); love.graphics.rectangle("fill",tagX,tagY,tagW,22,11,11)
-            love.graphics.setColor(jobColor[1],jobColor[2],jobColor[3],.9); love.graphics.setLineWidth(1.3); love.graphics.rectangle("line",tagX,tagY,tagW,22,11,11)
-            love.graphics.setColor(jobColor[1]*.4+.6,jobColor[2]*.4+.6,jobColor[3]*.4+.6,1); love.graphics.printf(trackText,tagX,tagY+5,tagW,"center")
+        local tags=def.tags or {};local tagGap=7;local tagW=(cardW-40-tagGap*math.max(0,#tags-1))/math.max(1,#tags)
+        for tagIndex,tag in ipairs(tags)do
+            local syn=Synergies.forTag(tag);local before,after=Synergies.previewCount(self,def.id,tag)
+            local tagX=x+20+(tagIndex-1)*(tagW+tagGap);local threshold=Synergies.nextThreshold(tag,after)
+            local activated=after>before and threshold and after>=threshold
+            love.graphics.setFont(fonts.small);love.graphics.setColor(syn.color[1],syn.color[2],syn.color[3],.22)
+            love.graphics.rectangle("fill",tagX,tagY,tagW,24,5,5);love.graphics.setColor(syn.color);love.graphics.setLineWidth(activated and 2.2 or 1.2)
+            love.graphics.rectangle("line",tagX+.5,tagY+.5,tagW-1,23,5,5);love.graphics.setColor(1,.96,.84)
+            local countText=after==before and tostring(after)or(before.."→"..after)
+            love.graphics.printf(syn.name.." "..countText,tagX,tagY+6,tagW,"center")
+            if mx>=tagX and mx<=tagX+tagW and my>=tagY and my<=tagY+24 then synergyHover={def=syn,count=after}end
         end
         love.graphics.setColor(1,1,1,.17); love.graphics.line(x+22,descY-11,x+cardW-22,descY-11)
         local desc=selectionDescription(def)
@@ -6507,6 +6691,7 @@ function ClearcutMode:drawSelectionContent(game,fonts,w,h)
         UI.button(bx+btnW+btnGap,by,btnW,btnH,self.banishArmed and "배니시할 카드 선택" or string.format("배니시 (목재 %d)",self:banishCost()),canBanish,fonts.small,mx,my)
     end
     Fusions.drawProgress(self,fonts,w,h)
+    if synergyHover then drawSynergyTooltip(synergyHover.def,synergyHover.count,mx+18,my+18,fonts,w,h)end
 end
 
 function ClearcutMode:choiceAt(x,y)

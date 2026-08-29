@@ -14,6 +14,11 @@ local function json(v)
 end
 local function emit(value)
     local a=value.args
+    -- LÖVE accepts both flat coordinates and one table of coordinates for
+    -- line/polygon. UI capture paths use the table form.
+    if (value.op=="line" or value.op=="polygon") and #a==1 and type(a[1])=="table" then
+        a=a[1];value.args=a
+    end
     if value.op=="draw" then
         a[1],a[2]=transform.x+a[1]*transform.sx,transform.y+a[2]*transform.sy
         local sx,sy=a[4] or 1,a[5] or a[4] or 1

@@ -42,7 +42,7 @@ function Art.impact(mode,kind,x,y,radius)
 end
 local function isActive(mode)
     local active=mode.auraRadius and mode:levelOf("thorn_aura")>0
-    for _,key in ipairs({"bats","crowFx","whipFx","boomerangs","seeds","lightningFx","supplementImpacts"}) do
+    for _,key in ipairs({"bats","crowFx","whipFx","boomerangs","seeds","sproutFields","friendlyGrowthBursts","lightningFx","supplementImpacts"}) do
         if mode[key] and #mode[key]>0 then active=true;break end
     end
     return active
@@ -68,6 +68,14 @@ function Art.drawGround(mode,game,t)
     for _,s in ipairs(mode.seeds or {}) do
         local p=1-s.fuse/s.maxFuse
         patch(7,s.x,s.y+5,72,46,p,t,0,1)
+    end
+    for _,field in ipairs(mode.sproutFields or {})do
+        local p=1-field.life/field.maxLife;local fade=math.min(1,field.life/.55)
+        patch(1,field.x,field.y,field.radius*2.08,field.radius*2.08,p,t,0,5,.78,.96,fade*.78)
+    end
+    for _,field in ipairs(mode.friendlyGrowthBursts or {})do
+        local p=1-field.life/field.maxLife
+        patch(1,field.x,field.y,field.radius*2.08,field.radius*2.08,p,t,0,6,1,.96,1-p)
     end
     for _,fx in ipairs(mode.whipFx or {}) do
         patch(2,fx.x or px,fx.y or py,fx.range*2.1,fx.range*2.1,1-fx.life/fx.maxLife,t,fx.angle,0,1,1/1.05)

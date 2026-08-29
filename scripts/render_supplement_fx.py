@@ -9,12 +9,12 @@ ROOT=Path(__file__).resolve().parents[1];OUT=ROOT/'docs/previews'
 CASES=[('bat_swarm','박쥐 떼','날갯짓 · 근접 궤도',7),('thorn_aura','가시 오라','가시 덩굴 · 타격 펄스',1),
  ('crow_strike','까마귀 습격','최원거리 접촉 · 깃털 비산',3),('vine_whip','덩굴 채찍','부채꼴 후려치기 · 잔상',4),
  ('boomerang_axe','부메랑 도끼','회전 · 왕복 잔상',6),('seed_mine','씨앗 지뢰','발아 예고 · 껍질 폭발',18),
- ('chain_lightning','번개 사슬','피격 대상 연결 · 전기 가지',3),('spore_cloud','포자 구름','뭉치는 포자 · 감염',7)]
+ ('chain_lightning','번개 사슬','피격 대상 연결 · 전기 가지',3)]
 def board(frames):
     canvas=Image.new('RGB',(1280,1904),(21,29,29));p=ImageDraw.Draw(canvas)
     title=ImageFont.truetype(str(ROOT/'assets/font-korean-bold.ttf'),26)
     small=ImageFont.truetype(str(ROOT/'assets/font-korean-regular.ttf'),18)
-    p.text((20,12),'보조 스킬 8종 / 실제 Lua + 셰이더 오프스크린 렌더',font=title,fill=(231,225,189))
+    p.text((20,12),'보조 스킬 7종 / 실제 Lua + 셰이더 오프스크린 렌더',font=title,fill=(231,225,189))
     p.text((20,50),'카메라 0.72 · 제어된 표적 · HUD 제외 · 게임 창 실행 없음',font=small,fill=(163,183,176))
     for i,(frame,case) in enumerate(zip(frames,CASES)):
         x,y=(i%2)*640,88+(i//2)*454
@@ -27,7 +27,7 @@ def main():
     run(ROOT/'scripts/capture_supplement_fx.lua')
     paths=[OUT/f'supplement-{case[0]}-{n}-draws.json' for case in CASES for n in range(25)]
     allframes,renderer,shaders=replay(paths,(640,400))
-    groups=[allframes[i*25:(i+1)*25] for i in range(8)]
+    groups=[allframes[i*25:(i+1)*25] for i in range(7)]
     report=[]
     for case,frames in zip(CASES,groups):
         assert len({f.tobytes() for f in frames})>4,(case[0],'stalled motion')
@@ -50,5 +50,5 @@ def main():
         counts.append(sum(c.get('shader')=='assets/shaders/supplement-fx.glsl' or c.get('file','').startswith('assets/fx/supplement/') for c in commands))
     assert max(counts)<100,'unbounded shared-skill draw submissions'
     (OUT/'supplement-fx-verification.json').write_text(json.dumps(dict(renderer=renderer,shaders=shaders,skills=report,combined_peak_draws=max(counts),window='none',capture='Actual Lua World/Player/skills with fixed stationary targets; each panel shows one activation at an independent playback rate. Combined view retains the generated forest. HUD, generic world debris, live input/audio excluded.'),indent=2),encoding='utf-8')
-    print('SUPPLEMENT_RENDER_OK skills=8 frames=225 combined_peak_draws='+str(max(counts))+' shaders='+str(shaders)+' renderer='+renderer)
+    print('SUPPLEMENT_RENDER_OK skills=7 frames=200 combined_peak_draws='+str(max(counts))+' shaders='+str(shaders)+' renderer='+renderer)
 if __name__=='__main__':main()

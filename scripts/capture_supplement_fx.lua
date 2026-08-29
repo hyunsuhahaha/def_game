@@ -16,8 +16,8 @@ local loader
 for i=1,30 do local name,value=debug.getupvalue(Game.new,i);if name=="loadClearcutSprites" then loader=value;break end end
 local sprites=assert(loader)()
 local traits=require("src.character_traits").new(true)
-local ids={"bat_swarm","thorn_aura","crow_strike","vine_whip","boomerang_axe","seed_mine","chain_lightning","spore_cloud","all"}
-local durations={1.6,1.6,.48,.32,1.6,1.6,.36,2.0,1.6}
+local ids={"bat_swarm","thorn_aura","crow_strike","vine_whip","boomerang_axe","seed_mine","chain_lightning","all"}
+local durations={1.6,1.6,.48,.32,1.6,1.6,.36,1.6}
 for case,id in ipairs(ids) do
     if id=="all" then width,height=1280,720 end
     math.randomseed(1701)
@@ -32,7 +32,7 @@ for case,id in ipairs(ids) do
     g:startClearcut("fire","forest")
     local m,w,p=g.clearcut,g.world,g.player
     m.levels={[id]=3};m.enemies={};m.smoking=nil
-    if id=="all" then for i=1,8 do m.levels[ids[i]]=3 end end
+    if id=="all" then for i=1,7 do m.levels[ids[i]]=3 end end
     p:clearClearcutAction();p.walkClock=.2
     local px,py=p.x,p.y
     -- Fixed clearing for comparing effects. Canopy is kept at the edges.
@@ -74,4 +74,4 @@ for case,id in ipairs(ids) do
         fixture.save("docs/previews/supplement-"..id.."-"..frame.."-draws.json")
     end
 end
-print("SUPPLEMENT_CAPTURE_OK cases=8+combined frames=225 camera=.72 no-window")
+print("SUPPLEMENT_CAPTURE_OK cases=7+combined frames=200 camera=.72 no-window")

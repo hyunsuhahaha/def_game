@@ -53,7 +53,7 @@ def replay(capture_paths,size=(1280,900)):
         quad(program,coords)
     for capture_path in capture_paths:
         fbo=ctx.simple_framebuffer(size,components=4); fbo.use();fbo.clear(0,0,0,1)
-        commands=json.loads(Path(capture_path).read_text())
+        commands=json.loads(Path(capture_path).read_text(encoding="utf-8"))
         for op in commands:
             args=op['args']; color=op['color']; kind=op['op']
             if kind=='draw':
