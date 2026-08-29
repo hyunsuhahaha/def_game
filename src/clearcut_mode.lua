@@ -2144,6 +2144,7 @@ function ClearcutMode:updateFireAttack(dt, game, heldOverride)
         if game.player.setClearcutAction then game.player:setClearcutAction(math.min(.48, reloadProgress * .48)) end
         if smoking.t >= smoking.dur then
             smoking.phase, smoking.loaded = "loaded", true
+            if smoking.newCarton then self.cartonAmmo = self.cartonSize end
             if game.player.clearClearcutAction then game.player:clearClearcutAction() end
         end
         return false
@@ -2186,7 +2187,6 @@ function ClearcutMode:startSmoking(game)
     local newCarton = self.cartonAmmo <= 0
     local dur = newCarton and math.max(2.4, 4.4 / speed) or math.max(.75, 1.25 / speed)
     self.smoking = {phase="reload",t=0,dur=dur,loaded=false,fired=false,smokeEmitted=false,newCarton=newCarton}
-    if newCarton then self.cartonAmmo = self.cartonSize end
     if game.player.setClearcutAction then game.player:setClearcutAction(0) end
 end
 
@@ -5953,32 +5953,36 @@ function ClearcutMode:drawHUD(game,fonts)
         love.graphics.setColor(ready and {.94,.76,.28,1} or {.72,.65,.52,1})
         love.graphics.printf(text,w/2-146,h-45,292,"center")
 
-        -- 보루 잔량: 화면 오른쪽 가장자리에 세로 게이지 + 개수로 표시.
-        -- 다 떨어져서 새 보루를 뜯는 동안엔 게이지가 붉게 바뀌고 "보루 교체" 라벨이 뜬다.
+        -- 보루 잔량: 화면 오른쪽 가장자리에 남은 개비 수만큼 아이콘을 하나씩 세로로 쌓아 보여준다.
+        -- 다 떨어져서 새 보루를 뜯는 동안엔 칸이 전부 빈 채로 깜빡이고 "보루 교체" 라벨이 뜬다.
         local ammoMax=self.cartonSize or 20
         local ammo=math.max(0,math.min(ammoMax,self.cartonAmmo or ammoMax))
         local reloadingCarton=self.smoking and self.smoking.phase=="reload" and self.smoking.newCarton
-        local abw,abh=64,150
-        local abx,aby=w-16-abw,h/2-abh/2
-        love.graphics.setColor(.03,.035,.03,.9); love.graphics.rectangle("fill",abx,aby,abw,abh,8,8)
-        love.graphics.setColor(1,.6,.24,.6); love.graphics.rectangle("line",abx+.5,aby+.5,abw-1,abh-1,8,8)
+        local colX=w-30
+        local top,bottom=140,h-70
+        local avail=math.max(60,bottom-top)
+        local pitch=math.min(26,avail/ammoMax)
+        local colH=pitch*ammoMax
+        local startY=top+(avail-colH)/2
+        love.graphics.setColor(.02,.025,.02,.72)
+        love.graphics.rectangle("fill",colX-16,startY-6,32,colH+12,8,8)
         local iconDef=ClearcutMode.icons.cigarette
-        if iconDef then drawPixelGrid(iconDef.rows,iconDef.palette,abx+abw/2,aby+22,3) end
-        local gaugeX,gaugeY,gaugeW,gaugeH=abx+18,aby+40,abw-36,abh-56
-        love.graphics.setColor(0,0,0,.5); love.graphics.rectangle("fill",gaugeX,gaugeY,gaugeW,gaugeH,3,3)
-        local ratio=ammoMax>0 and ammo/ammoMax or 0
-        local fillH=math.floor(gaugeH*ratio)
-        if reloadingCarton then love.graphics.setColor(1,.32,.28,1)
-        elseif ratio<=.2 then love.graphics.setColor(1,.42,.2,1)
-        else love.graphics.setColor(1,.7,.28,1) end
-        love.graphics.rectangle("fill",gaugeX,gaugeY+gaugeH-fillH,gaugeW,fillH,3,3)
-        love.graphics.setFont(fonts.body); love.graphics.setColor(1,.94,.86,1)
-        love.graphics.printf(tostring(ammo),abx,aby+abh-30,abw,"center")
-        love.graphics.setFont(fonts.small); love.graphics.setColor(.8,.78,.7,.85)
-        love.graphics.printf("/ "..ammoMax,abx,aby+abh-14,abw,"center")
+        local px=math.max(1.2,pitch/9)
+        for i=1,ammoMax do
+            local iy=startY+(i-1)*pitch+pitch/2
+            local filled=i<=ammo
+            love.graphics.setColor(0,0,0,filled and .4 or .22)
+            love.graphics.rectangle("fill",colX-13,iy-pitch/2+1,26,pitch-2,3,3)
+            if filled and iconDef then
+                love.graphics.setColor(1,1,1,1)
+                drawPixelGrid(iconDef.rows,iconDef.palette,colX,iy,px)
+            end
+        end
         if reloadingCarton then
+            love.graphics.setColor(1,.32,.28,.35+math.sin(t*8)*.15)
+            love.graphics.rectangle("fill",colX-16,startY-6,32,colH+12,8,8)
             love.graphics.setFont(fonts.small); love.graphics.setColor(1,.5,.45,.9+math.sin(t*8)*.1)
-            love.graphics.printf("보루 교체",abx-10,aby-20,abw+20,"center")
+            love.graphics.printf("보루 교체",colX-70,startY-24,140,"center")
         end
     end
     if self.job=="philosopher" then
