@@ -222,9 +222,10 @@ end
 function Game:consumeTestNextRunLevels()
     local count=math.max(0,math.floor(self.testLevelsNextRun or 0))
     if count<=0 then return 0 end
-    self.testLevelsNextRun=0
+    local manual=self.testLevelsNextRunManual
+    self.testLevelsNextRun,self.testLevelsNextRunManual=0,false
     self:grantTestLevels(count)
-    self:autoResolvePendingUpgrades()
+    if not manual then self:autoResolvePendingUpgrades() end
     return count
 end
 
@@ -290,10 +291,13 @@ function Game:useTestOption(index)
         else self.testGrantNextRun=true; self.testMessage="다음 런 자원 1,000,000개 지급을 예약했습니다." end
     elseif index==3 then
         if activeRun then self:grantTestLevels(10); self.testMessage="현재 런 레벨 +10을 지급했습니다. 메뉴를 닫으면 3택이 시작됩니다."
-        else self.testLevelsNextRun=20; self.testMessage="다음 런 시작 레벨 +20을 예약했습니다. 강화는 무작위로 자동 선택됩니다." end
+        else self.testLevelsNextRun,self.testLevelsNextRunManual=20,false; self.testMessage="다음 런 시작 레벨 +20을 예약했습니다. 강화는 무작위로 자동 선택됩니다." end
     elseif index==4 then
         if self.testResetArmed and self.testResetTime>0 then self.progression:reset();self.characterTraits:reset();self.achievements:reset();self.testResetArmed=false;self.testMessage="영구 재화·특성·업적 기록을 초기화했습니다."
         else self.testResetArmed,self.testResetTime=true,4; self.testMessage="초기화하려면 4초 안에 버튼을 한 번 더 누르세요." end
+    elseif index==5 then
+        self.testLevelsNextRun,self.testLevelsNextRunManual=20,true
+        self.testMessage="다음 런 시작 레벨 +20을 예약했습니다. 강화를 직접 3택으로 고릅니다."
     end
 end
 
@@ -582,8 +586,9 @@ function Game:mousepressed(x, y, button)
                 if y>=220 and y<=278 then self:useTestOption(1)
                 elseif y>=300 and y<=358 then self:useTestOption(2)
                 elseif y>=380 and y<=438 then self:useTestOption(3)
-                elseif y>=460 and y<=518 then self:useTestOption(4)
-                elseif y>=550 and y<=596 then self:closeTestOptions() end
+                elseif y>=460 and y<=518 then self:useTestOption(5)
+                elseif y>=540 and y<=598 then self:useTestOption(4)
+                elseif y>=640 and y<=686 then self:closeTestOptions() end
             end
         end
         return
@@ -1567,7 +1572,7 @@ function Game:drawTestOptions()
     local w,h,f=love.graphics.getWidth(),love.graphics.getHeight(),self.fonts
     love.graphics.clear(.055,.11,.105)
     love.graphics.setColor(.12,.28,.23,.32); for x=0,w,48 do love.graphics.line(x,0,x,h) end; for y=0,h,48 do love.graphics.line(0,y,w,y) end
-    UI.panel(w/2-360,84,720,548,{.42,1,.6,1},.98)
+    UI.panel(w/2-360,84,720,640,{.42,1,.6,1},.98)
     love.graphics.setFont(f.title); love.graphics.setColor(1,1,1); love.graphics.printf("테스트 옵션",w/2-330,105,660,"center")
     love.graphics.setFont(f.small); love.graphics.setColor(.62,.78,.72); love.graphics.printf("개발 중인 특성·생산·방어 시스템을 빠르게 확인하는 메뉴",w/2-330,153,660,"center")
     love.graphics.setColor(1,.72,.25); love.graphics.printf("보유 유산 부품  "..self.progression.data.currency,w/2-330,181,660,"center")
@@ -1575,10 +1580,11 @@ function Game:drawTestOptions()
     UI.button(bx,220,580,58,"유산 부품 +1,000,000",true,f.heading)
     UI.button(bx,300,580,58,"런 자원 각 +1,000,000  (식량·광석·목재·돌)",true,f.body)
     local activeRun=self.testReturnMode=="playing" or self.testReturnMode=="upgrade" or self.testReturnMode=="rush_upgrade" or self.testReturnMode=="clearcut_upgrade"
-    UI.button(bx,380,580,58,activeRun and "현재 런 레벨 +10  (강화 3택 테스트)" or "다음 런 시작 레벨 +20  (1회 적용)",true,f.body)
-    UI.button(bx,460,580,58,self.testResetArmed and "정말 초기화 — 다시 클릭" or "영구 재화·특성 초기화",true,f.body)
-    UI.button(bx,550,580,46,"돌아가기  [F10 / ESC]",true,f.body)
-    love.graphics.setColor(self.testResetArmed and {1,.42,.25} or {.68,.82,.76}); love.graphics.printf(self.testMessage or "",w/2-315,525,630,"center")
+    UI.button(bx,380,580,58,activeRun and "현재 런 레벨 +10  (강화 3택 테스트)" or "다음 런 시작 레벨 +20  (자동 선택)",true,f.body)
+    UI.button(bx,460,580,58,"다음 런 시작 레벨 +20  (수동 선택 · 직접 3택)",true,f.body)
+    UI.button(bx,540,580,58,self.testResetArmed and "정말 초기화 — 다시 클릭" or "영구 재화·특성 초기화",true,f.body)
+    UI.button(bx,640,580,46,"돌아가기  [F10 / ESC]",true,f.body)
+    love.graphics.setColor(self.testResetArmed and {1,.42,.25} or {.68,.82,.76}); love.graphics.printf(self.testMessage or "",w/2-315,615,630,"center")
 end
 
 function Game:drawResults()
