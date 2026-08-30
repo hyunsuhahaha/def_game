@@ -86,14 +86,26 @@ for _,choice in ipairs(mode.choices)do assert(choice.scoreOperation and not choi
 assert(mode.buyScoreAutomation==nil and mode.updateScoreAutomation==nil,"removed automation runtime methods remain")
 game.mode="playing"
 
--- Clearing every active tree advances and immediately persists the regeneration tier;
--- it must not open a card because cards are still earned only through wood XP.
+-- Clearing every active tree persists the tier immediately, then holds the world for
+-- the authored transition before six trees rise in a staggered sequence.
 for _,node in ipairs(nodes)do if node.rushTree and node.active and not node.giantTree then node.active=false end end
 mode.remainingTrees=0
 local pendingBeforeTier=mode.pending
 assert(mode:updateScoreTierClear(.31,game),"empty forest did not trigger a regeneration transition")
 assert(mode.scoreRegenTier==2 and Traits:getRegenTier()==2 and mode.pending==pendingBeforeTier,"tier clear was not persisted or incorrectly granted a card")
-assert(mode:scoreActiveTreeCount()==6 and math.abs(mode:scoreTreeSpawnRate()-(.14*1.45))<.001,"tier 2 did not reseed six trees at the tier rate")
+assert(mode.scoreTierFx and not mode.scoreTierFx.spawned and mode:scoreActiveTreeCount()==0,"tier effect did not hold the empty field before regrowth")
+mode:updateScoreTierClear(.37,game)
+assert(mode:scoreActiveTreeCount()==0,"tier trees appeared before the visual impact beat")
+mode:updateScoreTierClear(.02,game)
+assert(mode.scoreTierFx and mode.scoreTierFx.spawned and mode:scoreActiveTreeCount()==6,"tier effect did not reseed six trees on its impact beat")
+local emergenceIndex=0
+for _,node in ipairs(nodes)do if node.rushTree and node.active and not node.giantTree then
+    emergenceIndex=emergenceIndex+1
+    assert(node.treeEmergence and node.treeEmergence.source=="tier_up","tier tree is missing its dedicated emergence animation")
+    assert(math.abs(node.treeEmergence.t+(emergenceIndex-1)*.065)<.001,"tier trees do not use staggered emergence timing")
+end end
+mode:updateScoreTierClear(.47,game)
+assert(not mode.scoreTierFx and math.abs(mode:scoreTreeSpawnRate()-(.14*1.45))<.001,"tier transition did not finish cleanly at the new rate")
 
 ordinary=mode:scoreActiveTreeCount()
 mode.scoreTreeAllowance=ordinary+1

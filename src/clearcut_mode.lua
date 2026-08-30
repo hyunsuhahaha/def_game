@@ -41,6 +41,7 @@ local SkillBranches = require("src.clearcut_skill_branches")
 local SynergyUI = require("src.synergy_ui")
 local SmokerWeaponArt = require("src.smoker_weapon_art")
 local ScoreOperations = require("src.score_operations")
+local ScoreTierUpArt = require("src.score_tier_up_art")
 
 local ClearcutMode = {}
 ClearcutMode.__index = ClearcutMode
@@ -205,7 +206,7 @@ function ClearcutMode.new()
         chests={}, bossMagnetPickups={}, worldTreeDebris={}, chestPending=false, molotovShots=0, wildburstTimer=10, plagued={}, dodges=0,
         timeSpawnTimer=35, scoreEnemyTimer=45, eliteTimer=200, reaperSpawned=false,
         stage=1, stageBossHpMul=1, stageElapsed=0, stageTimeLimit=stageTimeLimit(1), failureReason=nil,
-        scoreAttack=false,scoreHardCap=720,scoreStartingTrees=6,scoreBaseTreeAllowance=12,scoreTreeAllowance=12,scoreRegenTier=1,
+        scoreAttack=false,scoreHardCap=720,scoreStartingTrees=6,scoreBaseTreeAllowance=12,scoreTreeAllowance=12,scoreRegenTier=1,scoreTierFx=nil,
         scoreWoodEarned=0,
         scoreFellTimes={},scoreFellHead=1,currentTreesPerSecond=0,peakTreesPerSecond=0,
         treeSpawnRate=.55,scoreSpawnRateMultiplier=1,treeSpawnAccumulator=0,
@@ -485,7 +486,7 @@ function ClearcutMode:setup(game)
         self.scoreRegenTier=game.characterTraits and game.characterTraits.getRegenTier and game.characterTraits:getRegenTier()or 1
         self.scoreStartingRegenTier=self.scoreRegenTier
         self.scoreHighestRegenTier=self.scoreRegenTier
-        self.scoreTierClearTimer,self.scoreTierClearLatch,self.scoreTierSpawned=0,false,0
+        self.scoreTierClearTimer,self.scoreTierClearLatch,self.scoreTierSpawned,self.scoreTierFx=0,false,0,nil
     end
     Maps.configure(game.world,self.mapId)
     Maps.configureStage(game.world,self.stage)
@@ -627,7 +628,7 @@ function ClearcutMode:spawnScoreTree(game)
     self.scoreTierSpawned=(self.scoreTierSpawned or 0)+1
     self.initialTrees=self.totalTreesSpawned;self.remainingTrees=self.remainingTrees+1
     self.peakActiveTrees=math.max(self.peakActiveTrees or 0,self.remainingTrees)
-    return true
+    return true,node
 end
 
 function ClearcutMode:updateScoreTreeGrowth(dt,game)
@@ -644,6 +645,27 @@ end
 
 function ClearcutMode:updateScoreTierClear(dt,game)
     if not self.scoreAttack then return false end
+    local fx=self.scoreTierFx
+    if fx then
+        fx.t=math.min(fx.duration,fx.t+dt)
+        if not fx.spawned and fx.t>=fx.spawnAt then
+            fx.spawned=true
+            self.scoreTierSpawned,self.treeSpawnAccumulator=0,0
+            for i=1,(self.scoreStartingTrees or 6)do
+                local ok,node=self:spawnScoreTree(game)
+                if not ok then break end
+                if node and node.treeEmergence then
+                    node.treeEmergence.t=-(i-1)*.065
+                    node.treeEmergence.source="tier_up"
+                end
+            end
+        end
+        if fx.t>=fx.duration then
+            self.scoreTierFx=nil
+            self.scoreTierClearTimer,self.scoreTierClearLatch=0,false
+        end
+        return true
+    end
     if self:scoreActiveTreeCount()>0 then self.scoreTierClearTimer=0;self.scoreTierClearLatch=false;return false end
     if self.scoreTierClearLatch then return true end
     self.scoreTierClearTimer=(self.scoreTierClearTimer or 0)+dt
@@ -651,11 +673,9 @@ function ClearcutMode:updateScoreTierClear(dt,game)
     self.scoreTierClearLatch=true
     self.scoreRegenTier=(self.scoreRegenTier or 1)+1
     self.scoreHighestRegenTier=math.max(self.scoreHighestRegenTier or 1,self.scoreRegenTier)
-    self.scoreTierSpawned,self.treeSpawnAccumulator=0,0
     if game.characterTraits and game.characterTraits.unlockRegenTier then game.characterTraits:unlockRegenTier(self.scoreRegenTier)end
-    for _=1,(self.scoreStartingTrees or 6)do if not self:spawnScoreTree(game)then break end end
-    self.scoreTierClearTimer,self.scoreTierClearLatch=0,false
-    game:setNotice(string.format("재생 %d단계 — 다음 기록부터 이 단계에서 시작",self.scoreRegenTier),"food")
+    self.scoreTierFx={t=0,duration=.86,spawnAt=.38,fromTier=self.scoreRegenTier-1,toTier=self.scoreRegenTier,spawned=false}
+    if game.feedback and game.feedback.play then game.feedback:play("tier_up",true)end
     return true
 end
 
@@ -808,7 +828,8 @@ function ClearcutMode:update(dt, game)
     self.elapsed = self.elapsed + dt
     if self:updateStageClock(dt,game) then return end
     local tierTransition=self:updateScoreTierClear(dt,game)
-    if not tierTransition and self:updateScoreTreeGrowth(dt,game)then return end
+    if tierTransition then return end
+    if self:updateScoreTreeGrowth(dt,game)then return end
     self:updateHeldAxe(dt, game)
     self:updateThrownTrees(dt, game)
     self:updateBurrowTracks(dt)
@@ -6658,6 +6679,7 @@ function ClearcutMode:drawHUD(game,fonts)
         love.graphics.setColor(ready and {.94,.76,.28,1} or {.72,.65,.52,1})
         love.graphics.printf(text,w/2-146,h-45,292,"center")
     end
+    ScoreTierUpArt.draw(self.scoreTierFx,fonts,w,h)
 end
 
 local function octagonPoints(cx, cy, r, rot)
