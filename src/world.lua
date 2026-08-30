@@ -273,13 +273,36 @@ function World:updateEffects(dt, game)
             local vel = (node.swayVel or 0) + (-(node.swayAngle or 0) * 46 - (node.swayVel or 0) * 7.5) * dt
             node.swayVel = vel
             node.swayAngle = math.max(-.5, math.min(.5, (node.swayAngle or 0) + vel * dt))
-            if node.burning and love.math.random() < dt * 7 then
-                local life = .6 + love.math.random() * .4
-                self.particles[#self.particles + 1] = {
-                    x = node.x + (love.math.random() * 2 - 1) * 14, y = node.y - 30,
-                    vx = (love.math.random() * 2 - 1) * 12, vy = -40 - love.math.random() * 30,
-                    life = life, maxLife = life, size = 2.4 + love.math.random() * 2.4, color = {1, .55 + love.math.random() * .3, .1}, ember = true
-                }
+            if node.burning then
+                node.burnPulseTimer=(node.burnPulseTimer or (.15+love.math.random()*.20))-dt
+                if node.burnPulseAge then node.burnPulseAge=node.burnPulseAge+dt end
+                node.burnJoltTimer=math.max(0,(node.burnJoltTimer or 0)-dt)
+                if node.burnJoltTimer>0 then
+                    local phase=node.burnJoltTimer/.075
+                    node.burnDrawOffset=(node.burnJoltDir or 1)*(phase>.48 and 2 or -1)
+                else node.burnDrawOffset=0 end
+                if node.burnPulseTimer<=0 then
+                    -- Combustion has its own irregular contact rhythm. It is
+                    -- intentionally smaller than the one-shot ignition burst.
+                    node.burnPulseTimer=.15+love.math.random()*.20
+                    node.burnPulseAge=0
+                    node.burnPulseSerial=(node.burnPulseSerial or 0)+1
+                    node.burnJoltTimer=.075
+                    node.burnJoltDir=love.math.random()<.5 and -1 or 1
+                    local count=2+love.math.random(0,2)
+                    for i=1,count do
+                        local side=(i%2==0)and -1 or 1
+                        local life=.38+love.math.random()*.34
+                        self.particles[#self.particles+1]={
+                            x=node.x+side*(7+love.math.random()*18),y=node.y-12-love.math.random()*38,
+                            vx=side*(24+love.math.random()*66),vy=-58-love.math.random()*58,
+                            life=life,maxLife=life,size=2.2+love.math.random()*2.6,
+                            color={1,.48+love.math.random()*.32,.07},ember=true
+                        }
+                    end
+                end
+            else
+                node.burnPulseTimer,node.burnPulseAge,node.burnJoltTimer,node.burnDrawOffset=nil,nil,nil,nil
             end
         end
         if node.fallT and node.fallT < node.fallDur then
@@ -1593,6 +1616,7 @@ function World:draw(player, actorSource)
                         end
                     end
                     love.graphics.setColor(1,1,1,growAlpha)
+                    ox=ox+(node.burnDrawOffset or 0)
                     love.graphics.draw(treeImage,node.x+ox,node.y+oy,growAngle,
                         visual.scale*variantScale*bump*growScale,visual.scale*variantScale*bump*growScale,
                         treeImage:getWidth()/2,treeImage:getHeight()*.91)

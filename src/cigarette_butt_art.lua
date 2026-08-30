@@ -1,8 +1,8 @@
 local Butts=require("src.cigarette_butts")
 local Art={}
-local sprite,burnShader,fxShader,impactAtlas,impactQuads
+local sprite,burnShader,fxShader,impactAtlas,impactQuads,treePulseAtlas,treePulseQuads
 local function load()
-    if sprite and impactAtlas then return end
+    if sprite and impactAtlas and treePulseAtlas then return end
     sprite=love.graphics.newImage("assets/characters/ingame/smoker-cigarette-butt-pixel-v1.png")
     sprite:setFilter("nearest","nearest")
     impactAtlas=love.graphics.newImage("assets/fx/cigarette-impact-atlas-pixel-v1.png")
@@ -12,6 +12,10 @@ local function load()
         impactQuads.landing[frame+1]=love.graphics.newQuad(frame*160,0,160,160,1600,320)
         impactQuads.ignition[frame+1]=love.graphics.newQuad(frame*160,160,160,160,1600,320)
     end
+    treePulseAtlas=love.graphics.newImage("assets/fx/tree-fire-pulse-atlas-pixel-v1.png")
+    treePulseAtlas:setFilter("nearest","nearest")
+    treePulseQuads={}
+    for frame=0,11 do treePulseQuads[frame+1]=love.graphics.newQuad(frame*192,0,192,160,2304,160) end
     burnShader=love.graphics.newShader("assets/shaders/cigarette-butt-burn.glsl")
     fxShader=love.graphics.newShader("assets/shaders/cigarette-ground-fx.glsl")
 end
@@ -88,12 +92,23 @@ end
 
 function Art.drawTransfer(transfer,time)
     local p=math.max(0,math.min(1,(time-transfer.startAt)/transfer.duration))
-    for i=6,0,-1 do
+    local treeSpread=transfer.treeSpread
+    for i=treeSpread and 8 or 6,0,-1 do
         local q=math.max(0,p-i*.045)
         local x=transfer.x+(transfer.tx-transfer.x)*q
         local y=transfer.y+(transfer.ty-6-transfer.y)*q-math.sin(q*math.pi)*24
-        local size=i==0 and 18 or (11-i*.65)
-        fx(0,x,y+size/2,size,size,time,i==0 and 1.8 or (.9-i*.1))
+        local size=i==0 and (treeSpread and 25 or 18) or ((treeSpread and 14 or 11)-i*.65)
+        fx(0,x,y+size/2,size,size,time,i==0 and (treeSpread and 2.35 or 1.8) or (.95-i*.075))
+    end
+    if treeSpread and p<.42 then
+        local burst=1-p/.42
+        local angle=math.atan2(transfer.ty-transfer.y,transfer.tx-transfer.x)
+        for i=1,4 do
+            local a=angle+(i-2.5)*.42
+            local travel=(1-burst)*(23+i*6)
+            fx(0,transfer.x+math.cos(a)*travel,transfer.y-8+math.sin(a)*travel*.55,
+                9+i%2*3,9+i%2*3,time+i*.19,burst*(1.45-i*.12))
+        end
     end
 end
 
@@ -101,13 +116,31 @@ function Art.drawArrival(arrival,time)
     impactFrame("ignition",arrival,time,.72,arrival.targetKind=="enemy" and .48 or .64,127)
 end
 
+function Art.drawTreePulse(node)
+    load()
+    local jolt=node.burnDrawOffset or 0
+    local x=node.x+jolt
+    if node.burnPulseAge and node.burnPulseAge<.18 then
+        local p=math.max(0,math.min(.999,node.burnPulseAge/.18))
+        local frame=math.min(12,math.floor(p*12)+1)
+        local previous=love.graphics.getShader()
+        love.graphics.setShader()
+        love.graphics.setColor(1,1,1,1)
+        love.graphics.draw(treePulseAtlas,treePulseQuads[frame],math.floor(x+.5),math.floor(node.y+5.5),
+            0,.36,.36,96,145)
+        love.graphics.setShader(previous)
+    end
+end
+
 function Art.drawTreeFire(node,time)
     local age=node.cigaretteIgnitedAt and math.max(0,time-node.cigaretteIgnitedAt) or 1
     local grow=.35+.65*math.min(1,age/.45)
-    fx(1,node.x,node.y+3,54*grow,86*grow,time,1)
-    fx(1,node.x-15,node.y+4,28*grow,48*grow,time+.7,.85)
-    fx(1,node.x+14,node.y+4,30*grow,60*grow,time+1.6,.9)
-    fx(2,node.x,node.y-45,64,120,time,.6)
+    local x=node.x+(node.burnDrawOffset or 0)
+    fx(1,x,node.y+3,54*grow,86*grow,time,1)
+    fx(1,x-15,node.y+4,28*grow,48*grow,time+.7,.85)
+    fx(1,x+14,node.y+4,30*grow,60*grow,time+1.6,.9)
+    fx(2,x,node.y-45,64,120,time,.6)
+    Art.drawTreePulse(node)
 end
 
 function Art.drawEnemyFire(enemy,time)

@@ -69,7 +69,7 @@ local definitions = {
     {id="berserker", track="destroy", name="이번 달 목표 초과", desc="쉬지 않고 벨수록 공격 속도가 빨라집니다 (멈추면 초기화).", max=6, color={1,.42,.22}, job="physical"},
     {id="shockwave", track="destroy", name="산재 위험수당", desc="나무를 쓰러뜨리면 주변 나무에도 충격파 피해를 줍니다.", max=6, color={1,.78,.2}, job="physical"},
     -- 확산력 (spread) — 한 번의 행동으로 얼마나 넓게 없애느냐 [흡연자 전용]
-    {id="molotov", track="spread", name="꽁초 투척", desc="사거리와 꽁초의 불씨 전이 범위, 비행 직격 피해가 늘어납니다. 착지 때 불티·재 파편이 튀고, 불씨가 도착하면 나무 밑동이 번쩍이며 수관이 짧게 흔들린 뒤 불꽃이 솟습니다. 3레벨에는 화염 농축/줄꽁초 경로를 고르고, 6레벨에는 선택 경로에 따라 전자담배/폭죽 발사기로 자동 진화합니다. 연습장에서 꽁초 투척 레벨과 분기를 직접 시험할 수 있습니다.", max=6, color={1,.35,.12}, job="fire"},
+    {id="molotov", track="spread", name="꽁초 투척", desc="사거리와 꽁초의 불씨 전이 범위, 비행 직격 피해가 늘어납니다. 착화는 불티·재 파편이 터지는 강한 한 번으로 읽히고, 연소 중에는 0.15~0.35초의 불규칙한 박자마다 불꽃이 짧게 솟고 좌우 불티·밑동 파열·나무의 1~2픽셀 반응이 이어집니다. 다른 나무로 번질 때는 큰 불씨가 목표 방향으로 날아갑니다. 3레벨에는 화염 농축/줄꽁초 경로를 고르고, 6레벨에는 선택 경로에 따라 전자담배/폭죽 발사기로 자동 진화합니다. 연습장에서 꽁초 투척 레벨과 분기를 직접 시험할 수 있습니다.", max=6, color={1,.35,.12}, job="fire"},
     {id="dry_forest", track="spread", name="건조주의보 무시", desc="꽁초의 착화 확률이 레벨당 +2%p 높아지고(최대 96%), 붙은 불이 주변 나무로 더 빠르고 넓게 번집니다.", max=6, color={1,.5,.15}, job="fire"},
     {id="oil_drum", track="spread", name="라이터 기름 유출", desc="나무가 다 타버리면 레벨당 폭발 확률이 크게 올라(1렙 7.5%→5렙 63%), 6렙에서는 100% 확정 발동합니다.", max=6, color={1,.62,.1}, job="fire"},
     {id="straw_bale", track="spread", name="마른 건초더미 생성", desc="주기적으로 큰 건초더미를 둡니다. 꽁초가 닿으면 0.5초 뒤 불이 붙고, 레벨에 따라 넓어지는 화염 지대가 주변 나무와 적에게 지속 피해를 줍니다. 불이 옮겨붙어 다른 대상을 점화시키지는 않습니다.", max=6, color={.85,.72,.25}, job="fire"},
@@ -1960,7 +1960,8 @@ function ClearcutMode:spawnFireSpark(sx, sy, tx, ty)
     local dist = math.sqrt((tx - sx) ^ 2 + (ty - sy) ^ 2)
     local duration = math.max(.28, math.min(.75, dist / 480))
     local now = self.smokerGroundTime
-    self.treeSparks[#self.treeSparks + 1] = {x = sx, y = sy, tx = tx, ty = ty, startAt = now, duration = duration, arrivesAt = now + duration}
+    self.treeSparks[#self.treeSparks + 1] = {x = sx, y = sy, tx = tx, ty = ty, startAt = now,
+        duration = duration, arrivesAt = now + duration, treeSpread=true}
 end
 
 -- 마른 건초더미: 꽁초가 더미 위에 실제로 착지했을 때만 예열을 시작한다.
@@ -2131,6 +2132,9 @@ function ClearcutMode:igniteNear(source, game, radius, count, depth)
     for i = 1, math.min(count, #candidates) do
         candidates[i].burning, candidates[i].burnTimer, candidates[i].spreadDepth, candidates[i].fireTickTimer = true, 0, depth, 0
         game.world:igniteFx(candidates[i].x, candidates[i].y, false)
+        source.burnPulseAge=0
+        source.burnJoltTimer=.075
+        source.burnJoltDir=(candidates[i].x-source.x)>=0 and 1 or -1
         self:spawnFireSpark(source.x, source.y, candidates[i].x, candidates[i].y)
     end
 end
