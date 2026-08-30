@@ -69,9 +69,9 @@ function Lobby:drawScoreAttackButton(box,f)
  for i,c in ipairs(bands)do local yy=y+math.floor((i-1)*h/#bands);local yn=y+math.floor(i*h/#bands);love.graphics.setColor(c[1]+hover*.018,c[2]+hover*.035,c[3]+hover*.025,1);love.graphics.rectangle("fill",x+1,yy,w-2,yn-yy)end
  love.graphics.setColor(.34,.82,.56,.78+hover*.18);love.graphics.rectangle("line",x+.5,y+.5,w-1,h-1,5,5)
  love.graphics.setColor(.94,.63,.20,1);love.graphics.rectangle("fill",x+14,y+12,46,h-24,3,3)
- love.graphics.setFont(f.small);love.graphics.setColor(.08,.055,.018,1);love.graphics.printf("10:00",x+14,y+h/2-f.small:getHeight()/2,46,"center")
+ love.graphics.setFont(f.small);love.graphics.setColor(.08,.055,.018,1);love.graphics.printf("LIVE",x+14,y+h/2-f.small:getHeight()/2,46,"center")
  love.graphics.setColor(.92,.95,.79,1);love.graphics.setFont(f.heading);love.graphics.print("벌목 기록 모드",x+74,y+9)
- love.graphics.setFont(self.microFont or f.small);love.graphics.setColor(.59,.76,.65,1);love.graphics.print("빈 땅에서 시작 · 나무가 계속 자람",x+75,y+36)
+ love.graphics.setFont(self.microFont or f.small);love.graphics.setColor(.59,.76,.65,1);love.graphics.print("벌목 유지량으로 기록 경쟁",x+75,y+36)
  love.graphics.setColor(.05,.13,.10,.88);love.graphics.rectangle("fill",x+w-50,y+h/2-13,36,26,3,3)
  love.graphics.setColor(.72,.90,.73,1);love.graphics.printf("M",x+w-50,y+h/2-(self.microFont or f.small):getHeight()/2,36,"center")
 end

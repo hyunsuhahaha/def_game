@@ -203,7 +203,10 @@ function ClearcutMode.new()
         chests={}, bossMagnetPickups={}, worldTreeDebris={}, chestPending=false, molotovShots=0, wildburstTimer=10, plagued={}, dodges=0,
         timeSpawnTimer=35, eliteTimer=200, reaperSpawned=false,
         stage=1, stageBossHpMul=1, stageElapsed=0, stageTimeLimit=stageTimeLimit(1), failureReason=nil,
-        scoreAttack=false,scoreDuration=600,treeSpawnRate=.55,scoreSpawnRateMultiplier=1,treeSpawnAccumulator=0,
+        scoreAttack=false,scoreHardCap=720,scorePhase="survival",scoreOvertimeElapsed=0,
+        scoreOvertimeBuffer=10,scoreOvertimeBufferMax=10,scoreRequirementBase=1,scoreRequirement=1,scoreMaxRequirement=1,
+        scoreFellTimes={},scoreFellHead=1,currentTreesPerSecond=0,peakTreesPerSecond=0,
+        treeSpawnRate=.55,scoreSpawnRateMultiplier=1,treeSpawnAccumulator=0,
         totalTreesSpawned=0,peakActiveTrees=0,scoreActiveTreeCap=180,scoreGrowthPulses=0,
         berserkState="idle", berserkTimer=170, berserkCycleCount=0, berserkTreeTimer=0, berserkKillsStart=0, berserkFlashNodes={},
         banished={}, rerollCount=0, banishArmed=false, selectionKind="upgrade", arcanaChoices={}, arcanaPicked={},
@@ -384,21 +387,58 @@ function ClearcutMode:berserkMultiplier()
 end
 
 function ClearcutMode:stageTimeRemaining()
+    if self.scoreAttack then
+        return math.max(0,self.scoreOvertimeBuffer or 0)
+    end
     return math.max(0,(self.stageTimeLimit or stageTimeLimit(self.stage,self.mapId))-(self.stageElapsed or 0))
+end
+
+function ClearcutMode:scoreOvertimeRequirementAt(seconds)
+    local tier=math.max(0,math.floor(math.max(0,seconds or 0)/30))
+    return (self.scoreRequirementBase or 1)*2^tier
+end
+
+function ClearcutMode:scoreProductionRate()
+    local times=self.scoreFellTimes or{}
+    local head=self.scoreFellHead or 1
+    local cutoff=(self.stageElapsed or 0)-1
+    while head<=#times and times[head]<cutoff do head=head+1 end
+    if head>1024 then
+        local compact={}
+        for i=head,#times do compact[#compact+1]=times[i] end
+        self.scoreFellTimes,self.scoreFellHead=compact,1
+        times,head=compact,1
+    else
+        self.scoreFellHead=head
+    end
+    local rate=math.max(0,#times-head+1)
+    self.currentTreesPerSecond=rate
+    self.peakTreesPerSecond=math.max(self.peakTreesPerSecond or 0,rate)
+    return rate
 end
 
 function ClearcutMode:updateStageClock(dt,game)
     if self.sandbox or self.dead then return false end
     self.stageElapsed=(self.stageElapsed or 0)+dt
-    if self:stageTimeRemaining()>0 then return false end
     if self.scoreAttack then
-        self:finish(game,true)
-    else
-        self.failureReason="timeout"
-        self.dead=true
-        game:setNotice("제한 시간 초과 — 다음 구역 진입에 실패했습니다.","ore")
-        self:finish(game,false)
+        self.scoreOvertimeElapsed=(self.scoreOvertimeElapsed or 0)+dt
+        self.scoreRequirement=self:scoreOvertimeRequirementAt(self.scoreOvertimeElapsed)
+        self.scoreMaxRequirement=math.max(self.scoreMaxRequirement or(self.scoreRequirementBase or 1),self.scoreRequirement)
+        local production=self:scoreProductionRate()
+        local balance=production/math.max(1,self.scoreRequirement)-1
+        self.scoreOvertimeBuffer=math.max(0,math.min(self.scoreOvertimeBufferMax or 10,(self.scoreOvertimeBuffer or 0)+balance*dt))
+        if self.scoreOvertimeBuffer<=0 or self.stageElapsed>=(self.scoreHardCap or 720) then
+            self.failureReason=self.stageElapsed>=(self.scoreHardCap or 720)and"score_hardcap"or"score_buffer"
+            self:finish(game,true)
+            return true
+        end
+        return false
     end
+    if self:stageTimeRemaining()>0 then return false end
+    self.failureReason="timeout"
+    self.dead=true
+    game:setNotice("제한 시간 초과 — 다음 구역 진입에 실패했습니다.","ore")
+    self:finish(game,false)
     return true
 end
 
@@ -417,7 +457,14 @@ function ClearcutMode:setup(game)
     local Maps=require("src.clearcut_maps")
     self.mapId=Maps.get(self.mapId).id
     self.stage=math.max(1,math.min(BiomeBosses.stageCap(self.mapId),self.stage or 1))
-    self.stageElapsed,self.stageTimeLimit,self.failureReason=0,self.scoreAttack and(self.scoreDuration or 600)or stageTimeLimit(self.stage,self.mapId),nil
+    self.stageElapsed,self.stageTimeLimit,self.failureReason=0,self.scoreAttack and math.huge or stageTimeLimit(self.stage,self.mapId),nil
+    if self.scoreAttack then
+        self.scorePhase,self.scoreOvertimeElapsed="survival",0
+        self.scoreOvertimeBuffer=self.scoreOvertimeBufferMax or 10
+        self.scoreRequirement,self.scoreMaxRequirement=self:scoreOvertimeRequirementAt(0),self:scoreOvertimeRequirementAt(0)
+        self.scoreFellTimes,self.scoreFellHead={},1
+        self.currentTreesPerSecond,self.peakTreesPerSecond=0,0
+    end
     Maps.configure(game.world,self.mapId)
     Maps.configureStage(game.world,self.stage)
     self.mapWorld=game.world
@@ -444,7 +491,7 @@ function ClearcutMode:setup(game)
     self.regrowInterval=self.stage==1 and 12 or (self.stage==2 and 9 or 7)
     self:generateForest(game,self.scoreAttack and 0 or Maps.treeTarget(self.mapId,self.stage))
     if not self.scoreAttack then self:initForestZones(game)else self.forestZones={};self.treeSpawnAccumulator=0 end
-    local notice=self.scoreAttack and "10분 벌목 기록 — 빈 땅에 첫 나무가 자라는 중"or(Maps.get(self.mapId).name.." — 마우스를 누른 채 나무 근처로 이동하세요")
+    local notice=self.scoreAttack and "벌목 기록 — 생산이 유지량 아래로 떨어지면 종료"or(Maps.get(self.mapId).name.." — 마우스를 누른 채 나무 근처로 이동하세요")
     if self.job=="miner" then notice=Maps.get(self.mapId).name.." — 좌클릭 할퀴기 · SPACE/우클릭 잠복" end
     game:setNotice(notice, "food")
     if self.job == "fire" then self:startSmoking(game) end
@@ -467,18 +514,28 @@ local function treeHpFor(mapId, variant)
 end
 
 function ClearcutMode:scoreTreeSpawnRate()
-    return math.max(0,(self.treeSpawnRate or .55)*(self.scoreSpawnRateMultiplier or 1))
+    local base=math.max(0,(self.treeSpawnRate or .55)*(self.scoreSpawnRateMultiplier or 1))
+    if self.scoreAttack then
+        return math.max(base,(self.scoreRequirement or 1)*1.15,(self.currentTreesPerSecond or 0)*1.25)
+    end
+    return base
+end
+
+function ClearcutMode:scoreDynamicTreeCap()
+    if not self.scoreAttack then return self.scoreActiveTreeCap or 180 end
+    return math.max(self.scoreActiveTreeCap or 180,math.min(900,math.ceil(self:scoreTreeSpawnRate()*1.4)))
 end
 
 function ClearcutMode:spawnScoreTree(game)
-    if not self.scoreAttack or self.remainingTrees>=(self.scoreActiveTreeCap or 180)then return false end
+    if not self.scoreAttack or self.remainingTrees>=self:scoreDynamicTreeCap()then return false end
     local Maps=require("src.clearcut_maps");local world=game.world;local w,h=world.width,world.height
     local variantCount=math.max(1,#(world.images.treeVariants or{}));local x,y,variant
     for _=1,90 do
         local px=love.math.random(130,w-130);local py=love.math.random(130,h-130)
         if Maps.treeSpace(world,px,py)and not ForestScenery.isSceneryPocket(px,py,w,h)then
             local separated=true
-            for _,node in ipairs(world.nodes)do if node.rushTree and node.active and(node.x-px)^2+(node.y-py)^2<118^2 then separated=false;break end end
+            local minSep=self.scoreAttack and math.max(48,118-math.floor(math.log(math.max(1,(self.scoreRequirement or 1)/(self.scoreRequirementBase or 1)))/math.log(2))*12)or 118
+            for _,node in ipairs(world.nodes)do if node.rushTree and node.active and(node.x-px)^2+(node.y-py)^2<minSep^2 then separated=false;break end end
             if separated then
                 local index=(self.totalTreesSpawned or 0)+1
                 local candidate=Maps.treeVariant(world,px,py,index)or ForestScenery.treeVariant(px,py,w,h,self.stage,index,variantCount)
@@ -505,9 +562,9 @@ end
 
 function ClearcutMode:updateScoreTreeGrowth(dt,game)
     if not self.scoreAttack then return end
-    self.treeSpawnAccumulator=math.min(6,(self.treeSpawnAccumulator or 0)+dt*self:scoreTreeSpawnRate())
+    self.treeSpawnAccumulator=math.min(48,(self.treeSpawnAccumulator or 0)+dt*self:scoreTreeSpawnRate())
     local grown=0
-    while self.treeSpawnAccumulator>=1 and grown<4 do
+    while self.treeSpawnAccumulator>=1 and grown<24 do
         if not self:spawnScoreTree(game)then break end
         self.treeSpawnAccumulator=self.treeSpawnAccumulator-1;grown=grown+1
     end
@@ -4477,6 +4534,11 @@ function ClearcutMode:fellTree(node, game)
     game.world:harvestBurst(node, game, amount, "목재")
     game.world:spawnDrop("wood", amount, node.x, node.y - 10, 42, 30, 1.5)
     self.treesFelled = self.treesFelled + 1
+    if self.scoreAttack then
+        self.scoreFellTimes=self.scoreFellTimes or{}
+        self.scoreFellTimes[#self.scoreFellTimes+1]=self.stageElapsed or self.elapsed or 0
+        self:scoreProductionRate()
+    end
     if game.achievements then game.achievements:recordTree(self.mapId,node.treeVariant or 1,self.job) end
     self.remainingTrees = math.max(0, self.remainingTrees - 1)
     if node.forestZone then
@@ -4615,7 +4677,7 @@ function ClearcutMode:finish(game, victory)
     local traitReward = math.max(1, math.floor(baseReward * (self.permanentTraits.reward or 1) + .5))
     if game.characterTraits then game.characterTraits:addCurrency(traitReward) end
     local zonesSecured,zonesTotal=ForestZones.status(self)
-    game.result={elapsed=math.floor(self.elapsed),wood=self.totalWood,trees=self.treesFelled,total=self.initialTrees,maxMulti=self.maxMulti,maxChain=self.maxChain,level=self.level,stage=self.stage,stageCode=Maps.stageCode(self.mapId,self.stage),regrowPulses=self.regrowPulses,treesRevived=self.treesRevived,rootedCount=self.rootedCount,beeSwarms=self.beeSwarmsTriggered,victory=victory,kills=self.kills,zonesSecured=zonesSecured,zonesTotal=zonesTotal,traitEarned=traitReward,traitCurrency=game.characterTraits and game.characterTraits.data.currency or traitReward,mapId=self.mapId,operationName=BiomeBosses.operationName(self.mapId),bossName=self.operationBossName,failureReason=self.failureReason,scoreAttack=self.scoreAttack,totalTreesSpawned=self.totalTreesSpawned,peakActiveTrees=self.peakActiveTrees,treeSpawnRate=self:scoreTreeSpawnRate()}
+    game.result={elapsed=math.floor(self.elapsed),wood=self.totalWood,trees=self.treesFelled,total=self.initialTrees,maxMulti=self.maxMulti,maxChain=self.maxChain,level=self.level,stage=self.stage,stageCode=Maps.stageCode(self.mapId,self.stage),regrowPulses=self.regrowPulses,treesRevived=self.treesRevived,rootedCount=self.rootedCount,beeSwarms=self.beeSwarmsTriggered,victory=victory,kills=self.kills,zonesSecured=zonesSecured,zonesTotal=zonesTotal,traitEarned=traitReward,traitCurrency=game.characterTraits and game.characterTraits.data.currency or traitReward,mapId=self.mapId,operationName=BiomeBosses.operationName(self.mapId),bossName=self.operationBossName,failureReason=self.failureReason,scoreAttack=self.scoreAttack,totalTreesSpawned=self.totalTreesSpawned,peakActiveTrees=self.peakActiveTrees,treeSpawnRate=self:scoreTreeSpawnRate(),overtimeElapsed=self.scoreOvertimeElapsed or 0,peakTreesPerSecond=self.peakTreesPerSecond or 0,maxOvertimeRequirement=self.scoreMaxRequirement or 1}
     if game.achievements then game.achievements:recordRun(game.result) end
     game.mode="clearcut_results"
 end
@@ -6307,14 +6369,15 @@ function ClearcutMode:drawHUD(game,fonts)
     drawBerserkOverlay(self.berserkState, w, h, t)
     drawDisasterOverlay(self, w, h, t)
     drawOffscreenIndicators(self, game, fonts, w, h, t)
-    local remaining=self:stageTimeRemaining();local urgent=remaining<=60
-    love.graphics.setFont(fonts.big);love.graphics.setColor(urgent and {1,.30,.18} or {1,.96,.82});love.graphics.print(formatTime(remaining),18,16)
-    love.graphics.setFont(fonts.micro or fonts.small);love.graphics.setColor(urgent and {1,.55,.30} or {.82,.84,.76});love.graphics.print(self.scoreAttack and "10분 벌목 기록 · 흡연자"or("제한 시간 · "..Maps.stageCode(self.mapId,self.stage).." · "..(jobNames[self.job]or"벌목꾼")),20,51)
+    local remaining=self:stageTimeRemaining();local overtime=self.scoreAttack;local urgent=overtime and remaining<=3 or remaining<=60
+    local timeText=overtime and formatTime(self.stageElapsed or 0)or formatTime(remaining)
+    love.graphics.setFont(fonts.big);love.graphics.setColor(urgent and {1,.30,.18} or {1,.96,.82});love.graphics.print(timeText,18,16)
+    love.graphics.setFont(fonts.micro or fonts.small);love.graphics.setColor(urgent and {1,.55,.30} or {.82,.84,.76});love.graphics.print(self.scoreAttack and"벌목 기록 · 흡연자"or("제한 시간 · "..Maps.stageCode(self.mapId,self.stage).." · "..(jobNames[self.job]or"벌목꾼")),20,51)
     love.graphics.setColor(.92,.90,.72);love.graphics.print(self.scoreAttack and string.format("목재 %d   벌목 %d   생성 %d",self.totalWood,self.treesFelled,self.totalTreesSpawned or 0)or string.format("목재 %d   벌목 %d/%d",self.totalWood,self.treesFelled,self.initialTrees),20,71)
     local statusColor = (self.rootedTimer > 0 or self.beeSlow) and {1,.6,.35} or {.6,.72,.66}
     love.graphics.setColor(statusColor)
     local secured,totalZones=ForestZones.status(self)
-    local status = self.rootedTimer > 0 and "발이 묶임!" or self.beeSlow and "벌떼에 쫓기는 중" or(self.scoreAttack and string.format("활성 나무 %d · 생성률 %.2f그루/초",self.remainingTrees,self:scoreTreeSpawnRate())or string.format("구역 %d/%d 확보 · 재생 %d회 · 숲 압력 x%.1f",secured,totalZones,self.regrowPulses,self:forestPressure()))
+    local status = self.rootedTimer > 0 and "발이 묶임!" or self.beeSlow and "벌떼에 쫓기는 중" or(self.scoreAttack and(overtime and string.format("현재 생산 %d그루/초 · 유지 필요 %d그루/초",self.currentTreesPerSecond or 0,self.scoreRequirement or 1)or string.format("활성 나무 %d · 생성률 %.2f그루/초",self.remainingTrees,self:scoreTreeSpawnRate()))or string.format("구역 %d/%d 확보 · 재생 %d회 · 숲 압력 x%.1f",secured,totalZones,self.regrowPulses,self:forestPressure()))
     love.graphics.setFont(fonts.micro or fonts.small);love.graphics.setColor(statusColor);love.graphics.print(status,20,91)
     local evoNames=Fusions.activeNames(self)
     if #evoNames>0 then
@@ -6330,9 +6393,10 @@ function ClearcutMode:drawHUD(game,fonts)
     local pct = self:destructionPct()
     local barW = math.floor(330*uiScale)
     local flash = self.regrowFlash > 0
-    local forestX=math.floor(w/2-barW/2);love.graphics.setFont(fonts.micro or fonts.small);love.graphics.setColor(.90,.92,.78);love.graphics.print(self.scoreAttack and "현재 자란 나무"or"남은 숲",forestX,17)
-    love.graphics.setColor(flash and {1,.47,.32}or{.70,1,.55});love.graphics.printf(self.scoreAttack and tostring(self.remainingTrees)or string.format("%.0f%%",100-pct),forestX,17,barW,"right")
-    HUDArt.bar(forestX,38,barW,14,self.scoreAttack and math.min(1,self.remainingTrees/(self.scoreActiveTreeCap or 180))or 1-pct/100,"forest",flash)
+    local forestX=math.floor(w/2-barW/2);love.graphics.setFont(fonts.micro or fonts.small);love.graphics.setColor(.90,.92,.78);love.graphics.print(self.scoreAttack and"생산 버퍼"or"남은 숲",forestX,17)
+    love.graphics.setColor(flash and {1,.47,.32}or{.70,1,.55});love.graphics.printf(self.scoreAttack and string.format("%.1f초",remaining)or string.format("%.0f%%",100-pct),forestX,17,barW,"right")
+    local scoreFill=remaining/(self.scoreOvertimeBufferMax or 10)
+    HUDArt.bar(forestX,38,barW,14,self.scoreAttack and scoreFill or 1-pct/100,overtime and"health"or"forest",flash or(overtime and urgent))
     if not self.scoreAttack then ForestZones.drawHUD(self,fonts,w,61)end
 
     if self.activeBoss then
@@ -7048,19 +7112,19 @@ function ClearcutMode:drawResults(game,fonts)
     local scale=math.max(.78,math.min(1.18,w/1280,h/720));local contentW=math.min(760,w-48);local x=(w-contentW)/2;local top=math.max(38,(h-510*scale)/2)
     love.graphics.setColor(.006,.009,.007,.84);love.graphics.rectangle("fill",0,0,w,h)
     love.graphics.setFont(fonts.title);love.graphics.setColor(victory and{1,.87,.40}or{1,.37,.24})
-    love.graphics.printf(r.scoreAttack and "10분 벌목 기록"or(victory and((r.operationName or"벌목 작전").." 완료")or"작업 중단"),x,top,contentW,"center")
+    love.graphics.printf(r.scoreAttack and "벌목 기록"or(victory and((r.operationName or"벌목 작전").." 완료")or"작업 중단"),x,top,contentW,"center")
     love.graphics.setFont(fonts.micro or fonts.small);love.graphics.setColor(.72,.76,.68)
-    love.graphics.printf(r.scoreAttack and "흡연자 · 시간 종료"or((r.stageCode or Maps.stageCode(r.mapId,r.stage)).." · "..(victory and((r.bossName or"지역 보스").." 격파")or(r.failureReason=="timeout" and "제한 시간 초과 · 다음 구역 진입 실패" or "회수 기록"))),x,top+48*scale,contentW,"center")
-    local ratio=(r.total or 0)>0 and(r.trees or 0)/(r.total or 1)or 0;local rank=r.scoreAttack and((r.trees or 0)>=400 and"S"or(r.trees or 0)>=280 and"A"or(r.trees or 0)>=160 and"B"or(r.trees or 0)>=80 and"C"or"D")or(victory and(ratio>=.95 and"S"or ratio>=.75 and"A"or"B")or(ratio>=.5 and"C"or"D"))
+    love.graphics.printf(r.scoreAttack and "흡연자 · 생산 종료"or((r.stageCode or Maps.stageCode(r.mapId,r.stage)).." · "..(victory and((r.bossName or"지역 보스").." 격파")or(r.failureReason=="timeout" and "제한 시간 초과 · 다음 구역 진입 실패" or "회수 기록"))),x,top+48*scale,contentW,"center")
+    local ratio=(r.total or 0)>0 and(r.trees or 0)/(r.total or 1)or 0;local overtimeSec=r.overtimeElapsed or 0;local rank=r.scoreAttack and(overtimeSec>=180 and"S"or overtimeSec>=120 and"A"or overtimeSec>=60 and"B"or overtimeSec>=30 and"C"or"D")or(victory and(ratio>=.95 and"S"or ratio>=.75 and"A"or"B")or(ratio>=.5 and"C"or"D"))
     love.graphics.setColor(.35,.40,.34,.75);love.graphics.rectangle("fill",x,top+83*scale,contentW,2)
     love.graphics.setFont(fonts.big);love.graphics.setColor(victory and{1,.70,.18}or{1,.35,.24});love.graphics.printf(rank,x+contentW-70,top,70,"right")
-    local metrics=r.scoreAttack and{{"작업 시간",formatTime(r.elapsed)},{"총 벌목",r.trees},{"생성된 나무",r.totalTreesSpawned or r.total}}or{{"작업 시간",formatTime(r.elapsed)},{"벌목",r.trees.." / "..r.total},{"확보 구역",(r.zonesSecured or 0).." / "..(r.zonesTotal or 0)}}
+    local metrics=r.scoreAttack and{{"총 작업 시간",formatTime(r.elapsed)},{"생산 유지",formatTime(r.overtimeElapsed or 0)},{"총 벌목",r.trees.."그루"}}or{{"작업 시간",formatTime(r.elapsed)},{"벌목",r.trees.." / "..r.total},{"확보 구역",(r.zonesSecured or 0).." / "..(r.zonesTotal or 0)}}
     for i,m in ipairs(metrics)do local colW=contentW/3;local cx=x+(i-1)*colW
         love.graphics.setFont(fonts.micro or fonts.small);love.graphics.setColor(.62,.67,.60);love.graphics.printf(m[1],cx,top+116*scale,colW,"center")
         love.graphics.setFont(fonts.big);love.graphics.setColor(1,.96,.82);love.graphics.printf(tostring(m[2]),cx,top+145*scale,colW,"center")
     end
     love.graphics.setColor(.25,.29,.25,.8);love.graphics.rectangle("fill",x,top+205*scale,contentW,2)
-    local details=r.scoreAttack and{{"총 목재",r.wood},{"처치",r.kills or 0},{"최대 동시 / 연쇄",r.maxMulti.." / "..r.maxChain},{"도달 레벨",r.level},{"최고 활성 나무",r.peakActiveTrees or 0},{"최종 생성률",string.format("%.2f그루/초",r.treeSpawnRate or 0)}}or{{"총 목재",r.wood},{"처치",r.kills or 0},{"최대 동시 / 연쇄",r.maxMulti.." / "..r.maxChain},{"도달 레벨",r.level},{"재생 / 부활 나무",r.regrowPulses.."회 / "..r.treesRevived.."그루"},{"가시덩굴 / 벌집",r.rootedCount.." / "..r.beeSwarms}}
+    local details=r.scoreAttack and{{"총 목재",r.wood},{"최고 생산력",string.format("%d그루/초",r.peakTreesPerSecond or 0)},{"최대 유지 단계",string.format("%d그루/초",r.maxOvertimeRequirement or 1)},{"도달 레벨",r.level},{"최고 활성 나무",r.peakActiveTrees or 0},{"총 산림 공급",r.totalTreesSpawned or r.total}}or{{"총 목재",r.wood},{"처치",r.kills or 0},{"최대 동시 / 연쇄",r.maxMulti.." / "..r.maxChain},{"도달 레벨",r.level},{"재생 / 부활 나무",r.regrowPulses.."회 / "..r.treesRevived.."그루"},{"가시덩굴 / 벌집",r.rootedCount.." / "..r.beeSwarms}}
     love.graphics.setFont(fonts.micro or fonts.small)
     for i,m in ipairs(details)do local col=(i-1)%2;local row=math.floor((i-1)/2);local dx=x+col*(contentW/2);local y=top+(236+row*34)*scale
         love.graphics.setColor(.60,.65,.59);love.graphics.print(m[1],dx+18,y);love.graphics.setColor(.95,.92,.78);love.graphics.printf(tostring(m[2]),dx+130,y,contentW/2-150,"right")

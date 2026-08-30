@@ -26,22 +26,40 @@ function game:setNotice(message)self.notice=message end
 
 game:startClearcutScoreAttack()
 local mode=assert(game.clearcut)
-assert(game.mode=="playing"and mode.scoreAttack and mode.job=="fire"and mode.stageTimeLimit==600,"score attack did not start as a ten-minute smoker run")
+assert(game.mode=="playing"and mode.scoreAttack and mode.job=="fire"and mode.stageTimeLimit==math.huge,"score attack still has a fixed stage time limit")
+assert(mode.scorePhase=="survival"and mode.scoreOvertimeBuffer==10 and mode.scoreRequirement==1,"production survival state was not initialized")
 assert(#game.world.nodes==0 and mode.remainingTrees==0 and mode.totalTreesSpawned==0,"score attack did not start on empty ground")
 assert(not mode:checkWorldTreeSpawn(game),"empty score field incorrectly summoned the world tree")
 
-mode:updateScoreTreeGrowth(4,game)
-assert(#game.world.nodes==2 and mode.remainingTrees==2 and mode.totalTreesSpawned==2,"tree generation rate did not grow two trees over four seconds")
+mode:updateScoreTreeGrowth(1,game)
+assert(mode.remainingTrees>0 and mode.totalTreesSpawned>0,"adaptive forest supply did not begin growing trees")
 for _,node in ipairs(game.world.nodes)do
     assert(node.active and node.rushTree and node.treeEmergence and node.treeEmergence.source=="score_growth","generated tree is missing growth animation or harvest state")
 end
 
-local recycled=game.world.nodes[1];recycled.active=false;mode.remainingTrees=mode.remainingTrees-1
-local slots=#game.world.nodes;mode.treeSpawnAccumulator=1
-mode:updateScoreTreeGrowth(0,game)
-assert(#game.world.nodes==slots and recycled.active and mode.totalTreesSpawned==3,"felled tree slot was not safely recycled for continuous growth")
+local schedule={1,2,4,8,16,32}
+for i,expected in ipairs(schedule)do assert(mode:scoreOvertimeRequirementAt((i-1)*30)==expected,"production requirement schedule is incorrect at tier "..i)end
 
-mode.stageElapsed=599.9
-assert(mode:updateStageClock(.2,game)and game.mode=="clearcut_results"and game.result.scoreAttack and game.result.victory,"ten-minute score run did not finish into score results")
-assert(game.result.totalTreesSpawned==3 and game.result.treeSpawnRate==.55,"score result omitted generation metrics")
-print("SCORE_ATTACK_MODE_OK lobby=separate smoker=only duration=600s initialTrees=0 growth=.55/s result=throughput")
+mode.stageElapsed=1
+mode.scoreFellTimes={}
+for _=1,3 do mode.scoreFellTimes[#mode.scoreFellTimes+1]=1.5 end
+mode.scoreFellHead=1;mode.scoreOvertimeBuffer=5
+assert(not mode:updateStageClock(1,game)and mode.currentTreesPerSecond==3 and mode.scoreOvertimeBuffer>5,"production above requirement did not refill the buffer")
+local highBuffer=mode.scoreOvertimeBuffer
+mode.scoreOvertimeElapsed=30
+mode.scoreFellTimes={}
+for _=1,1 do mode.scoreFellTimes[#mode.scoreFellTimes+1]=2.5 end
+mode.scoreFellHead=1
+assert(not mode:updateStageClock(1,game)and mode.scoreRequirement==2 and mode.scoreOvertimeBuffer<highBuffer,"production below requirement did not drain the buffer")
+assert(mode:scoreTreeSpawnRate()>=2.3,"automatic forest supply did not stay above the current requirement")
+
+local pending=mode.pending
+mode:onWood(999,game)
+assert(mode.pending>pending,"production mode no longer allows run-build progression")
+if game.mode~="playing"then game.mode="playing"end
+mode.pending=0
+mode.scoreOvertimeBuffer=.05
+mode.scoreFellTimes={};mode.scoreFellHead=1
+assert(mode:updateStageClock(.1,game)and game.mode=="clearcut_results"and game.result.scoreAttack and game.result.victory,"empty production buffer did not finish into score results")
+assert(game.result.overtimeElapsed>0 and game.result.maxOvertimeRequirement==2 and game.result.peakTreesPerSecond>=3,"score result omitted production metrics")
+print("SCORE_ATTACK_MODE_OK lobby=separate smoker=only fixedTime=none buffer=10 requirement=1x2^tier supply=adaptive result=throughput")
