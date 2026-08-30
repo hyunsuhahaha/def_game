@@ -4,6 +4,7 @@ love.mouse={getPosition=function()return 240,0 end,isDown=function()return false
 local Mode=require("src.clearcut_mode")
 local Art=require("src.smoker_weapon_art")
 local Branches=require("src.clearcut_skill_branches")
+local World=require("src.world")
 
 local function tree(x,y)
  return{x=x,y=y,rushTree=true,active=true,rushHp=100,rushMaxHp=100}
@@ -12,8 +13,10 @@ local function game(nodes)
  local world={nodes=nodes or {},playBounds={x=-1000,y=-1000,w=2000,h=2000}}
  function world:impactNode()end;function world:igniteFx()end;function world:addParticle()end
  function world:harvestBurst()end;function world:spawnDrop()end
+ function world:windImpactNode(node,nx,ny,power)node.swayAngle=(node.swayAngle or 0)+(nx<0 and -1 or 1)*(.035+.19*power)end
  local player={x=0,y=0,facing=1,gather=1}
  function player:clearClearcutAction()self.clearcutActionProgress=nil end
+ function player:setClearcutAction(value)self.clearcutActionProgress=value end
  local g={mode="clearcut_upgrade",player=player,world=world,tools={axe={speed=1}},camera={screenToWorld=function(_,x,y)return x,y end}}
  function g:setNotice()end
  return g
@@ -39,9 +42,14 @@ local volley=Mode.new();volley.job="fire";volley.levels.molotov=3;volley.skillBr
 assert(#volley.molotovs==3,"butt-volley route did not throw three persistent cigarettes")
 
 local vape=Mode.new();vape.job="fire";vape.levels.molotov=6;vape.skillBranches.molotov="flame_route";vape:applySmokerEvolution()
-local vt=tree(120,-30);local vg=game({vt})
-assert(vape:updateFireAttack(0,vg,true) and vape.actionAudit.vapeShot==1 and vape.smokerWeaponProjectiles[1].kind=="vape")
-vape:updateSmokerWeaponProjectiles(.16,vg);assert(vt.rushHp<100,"visible vape plume missed its swept tree envelope")
+local vt,miss=tree(120,-30),tree(120,-200);local vg=game({vt,miss})
+assert(not vape:updateFireAttack(.45,vg,true)and vape.vapeCharge>.4,"vape skipped inhale/compression charge")
+assert(vape:updateFireAttack(.55,vg,true)and vape.actionAudit.vapeShot==1 and vape.smokerWeaponProjectiles[1].kind=="vape_gust","full charge did not release one pressure front")
+vape:updateSmokerWeaponProjectiles(.16,vg)
+assert(vt.rushHp<100 and miss.rushHp==100 and math.abs(vt.swayAngle or 0)>.18 and #vape.vapeWindLeaves>=20,"full pressure front geometry, leaf stripping or rooted bend is wrong")
+local rooted=tree(0,0);World.windImpactNode({},rooted,1,0,1);assert(rooted.swayAngle>.2 and rooted.swayVel>9,"production world did not pivot the full-charge tree around its root")
+local partial=Mode.new();partial.job="fire";partial.levels.molotov=6;partial.skillBranches.molotov="flame_route";partial:applySmokerEvolution();local pg=game({tree(180,0)})
+partial:updateFireAttack(.24,pg,true);assert(partial:updateFireAttack(0,pg,false)and partial.smokerWeaponProjectiles[1].charge<.5,"early release did not fire a weaker gust")
 vape.molotovTimer=3;vape:updateFire(.01,vg);assert(#vape.molotovs==1,"max-rank cigarette did not remain as an automatic passive")
 
 local fireworks=Mode.new();fireworks.job="fire";fireworks.levels.molotov=6;fireworks.skillBranches.molotov="butt_volley_route";fireworks:applySmokerEvolution()
@@ -53,16 +61,20 @@ local foundBurst=false;for _,p in ipairs(fireworks.smokerWeaponProjectiles)do if
 assert(foundBurst,"firework flight did not become an animated multicolour burst")
 
 fixture.reset();Art.drawChoice("vape",100,100,.8);Art.drawChoice("fireworks",240,100,.8)
-for _,p in ipairs({{kind="vape",x=100,y=240,age=.3,maxLife=.72,angle=0},{kind="firework",x=240,y=240,age=.2,dur=.5,angle=0},{kind="firework_burst",x=390,y=240,age=.45,life=1}})do Art.drawProjectile(p)end
-local equipment,fx,burstFx=0,0,0
+local held=Mode.new();held.job="fire";held.smokerEvolution="vape";held.vapeCharge=.72;Art.drawHeld(held,{player={x=40,y=170,facing=1}},.2)
+for _,p in ipairs({{kind="vape_gust",x=100,y=240,age=.3,maxLife=.52,range=630,angle=0},{kind="firework",x=240,y=240,age=.2,dur=.5,angle=0},{kind="firework_burst",x=390,y=240,age=.45,life=1}})do Art.drawProjectile(p)end
+Art.drawWindLeaf({x=180,y=150,frame=3,age=.2,life=1,scale=1,angle=.2})
+local equipment,fx,burstFx,pressureFx,chargeFx,leafFx,burstDraw=0,0,0,0,0,0,nil
 for _,command in ipairs(fixture.commands)do if command.op=="draw"then
  if command.file=="assets/characters/ingame/smoker-weapon-evolution-equipment-v1.png"then equipment=equipment+1 end
  if command.file=="assets/effects/smoker-weapon-evolution-fx-v1.png"then fx=fx+1 end
- if command.file=="assets/effects/smoker-firework-burst-v2.png"then burstFx=burstFx+1 end
+ if command.file=="assets/effects/smoker-firework-burst-v2.png"then burstFx=burstFx+1;burstDraw=command end
+ if command.file=="assets/effects/smoker-vape-pressure-fx-v2.png"then pressureFx=pressureFx+1 end
+ if command.file=="assets/effects/smoker-vape-charge-fx-v2.png"then chargeFx=chargeFx+1 end
+ if command.file=="assets/effects/smoker-vape-leaves-fx-v2.png"then leafFx=leafFx+1 end
 end end
-assert(equipment==2 and fx==2 and burstFx==1,"production atlases were not used by choice/projectile draw paths")
-local burstDraw=fixture.commands[#fixture.commands]
-assert(burstDraw.op=="draw" and math.abs(burstDraw.args[4]-360/384)<.001,"firework visual diameter does not match radius-180 gameplay")
+assert(equipment==3 and fx==1 and burstFx==1 and pressureFx==1 and chargeFx==1 and leafFx==1,"production charge/pressure/leaf atlases were not used")
+assert(burstDraw and math.abs(burstDraw.args[4]-360/384)<.001,"firework visual diameter does not match radius-180 gameplay")
 local integrated=Mode.new();integrated.job="fire";integrated.smokerEvolution="fireworks"
 integrated.smokerWeaponProjectiles={{kind="firework_burst",x=333,y=222,age=.3,life=1,radius=180}}
 local ig=game({});ig.world.billboardQueue={};integrated:queueProjectedOverlay(ig,.3)
@@ -76,4 +88,4 @@ for index=0,29 do
 end
 local frameCount=0;for _ in pairs(frameKeys)do frameCount=frameCount+1 end
 assert(frameCount==30,"runtime did not expose all 30 firework frames")
-print("SMOKER_WEAPON_EVOLUTIONS_OK route=Lv3 flame+triple-butt evolution=Lv6-auto vape=swept_pierce fireworks=arc+burst30fps")
+print("SMOKER_WEAPON_EVOLUTIONS_OK route=Lv3 flame+triple-butt evolution=Lv6-auto vape=inhale+compress+pressure fireworks=arc+burst30fps")

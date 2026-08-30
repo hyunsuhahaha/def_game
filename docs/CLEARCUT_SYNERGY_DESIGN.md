@@ -78,7 +78,7 @@
 
 `꽁초 투척`이 6레벨이 되면 3레벨에 고른 경로를 다시 묻지 않고 새 무기로 자동 진화한다. 마우스 기본 공격만 교체되며, 기존 꽁초 투척은 2.6초 주기의 자동 패시브로 계속 작동해 각 경로의 강화된 바닥 불씨 구조를 유지한다.
 
-- **전자담배:** 짧은 주기의 청록·보라 증기탄을 연사한다. 보이는 증기 덩어리와 같은 넉넉한 swept-circle 판정으로 나무와 몬스터를 관통한다.
+- **전자담배:** 마우스를 누르면 증기를 흡입·압축하고 약 0.9초 풀차지 뒤 원뿔형 풍압을 분사한다. 증기 자체가 아니라 확장되는 압력 전선이 나무를 타격하며, 수관 잎을 날리고 뿌리 발선 기준으로 나무를 뒤로 휘게 한다. 일찍 떼면 약한 분사, 계속 누르면 풀차지 자동 반복이다.
 - **폭죽 발사기:** 목표 지점으로 로켓을 곡사 발사한다. 착탄 시 빨강·금색·청록·초록·자홍 불꽃이 30프레임/1초로 부드럽게 퍼지며 넓은 범위에 피해를 주고 식물형 대상에는 불을 붙인다.
 - 장비는 `assets/characters/ingame/smoker-weapon-evolution-equipment-v1.png`, 증기/로켓은 `assets/effects/smoker-weapon-evolution-fx-v1.png`, 폭죽 폭발은 384px 셀 30프레임의 `assets/effects/smoker-firework-burst-v2.png`를 nearest 필터로 사용한다.
 - 제작 시안은 `assets/effects/concepts/smoker-weapon-evolutions-concept-v1.png`, 실제 크기 오프스크린 검수본은 `docs/previews/smoker-weapon-evolutions-v1.png`다.

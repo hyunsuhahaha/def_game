@@ -15,12 +15,12 @@
 
 ## 전자담배
 
-- 기본 공격: 마우스를 누르는 동안 약 0.27초 간격으로 발사.
-- 사거리 610, 증기 반경 45, 비행 수명 0.72초.
-- 증기탄 하나가 지나간 경로 전체에서 나무와 몬스터를 각각 한 번씩 관통 타격한다.
-- 청록·보라 증기 실루엣은 6프레임 모두 다르며 2.5D 바닥 기울기와 분리된 upright billboard로 그린다.
+- 기본 공격: 마우스를 누르면 **흡입 → 압축 → 분사**를 약 0.9초에 걸쳐 진행한다. 계속 누르면 풀차지 분사를 자동 반복하고, 15% 이상 충전한 뒤 일찍 떼면 약한 풍압을 즉시 방출한다.
+- 피해 주체는 증기 덩어리가 아니라 전방으로 넓어지는 풍압 전선이다. 충전에 따라 사거리 360→630, 끝 폭 42→114로 커지며 전선이 실제로 도달한 프레임에만 판정한다.
+- 약한 분사도 수관에서 전용 잎 픽셀을 떼어내고 나무를 흔든다. 풀차지는 나무 스프라이트를 뿌리 발선에 고정한 채 뒤로 크게 휘게 하며 몬스터를 강하게 밀어낸다. 일반 타격 흔들림과 카메라 진동은 재사용하지 않는다.
+- 차지 24프레임은 증기 픽셀이 기기 안으로 빨려 들어와 압축되는 방향으로 움직인다. 풍압도 24프레임/30fps로 재생하며, 서로 교차하지 않는 굵고 끊어진 난류 띠·전방 초승달 압력파·속도차를 둔 날리는 잎이 먼저 읽힌다. 전체 FX는 2.5D 바닥 기울기와 분리된 upright billboard로 그린다.
 
-전자담배는 문서 시안이 아니라 실제 인게임 기본 공격 분기다. `src/clearcut_mode.lua`의 `updateVapeAttack`이 발사체를 생성하고 `updateSmokerWeaponProjectiles`가 이동 경로 전체의 나무·몬스터 충돌과 피해를 처리하며, `src/smoker_weapon_art.lua`가 손 장비와 증기탄을 그린다.
+전자담배는 문서 시안이 아니라 실제 인게임 기본 공격 분기다. `src/clearcut_mode.lua`의 `updateVapeAttack`이 차지를 관리하고 `updateSmokerWeaponProjectiles`가 확장되는 원뿔형 풍압 판정·잎 파편·몬스터 넉백을 처리한다. `src/world.lua`의 `windImpactNode`는 나무를 뿌리 기준으로 휘게 하되 화면 진동을 만들지 않으며, `src/smoker_weapon_art.lua`가 차지·풍압·잎 전용 아틀라스를 그린다.
 
 ## 폭죽 발사기
 
@@ -34,13 +34,18 @@
 
 - 장비: `assets/characters/ingame/smoker-weapon-evolution-equipment-v1.png`
 - FX: `assets/effects/smoker-weapon-evolution-fx-v1.png`
+- 전자담배 차지: `assets/effects/smoker-vape-charge-fx-v2.png`
+- 전자담배 풍압: `assets/effects/smoker-vape-pressure-fx-v2.png`
+- 전자담배 잎 파편: `assets/effects/smoker-vape-leaves-fx-v2.png`
 - 30fps 폭죽 폭발: `assets/effects/smoker-firework-burst-v2.png`
 - 보존 시안: `assets/effects/concepts/smoker-weapon-evolutions-concept-v1.png`
 - 런타임 모듈: `src/smoker_weapon_art.lua`
 - 게임플레이 검증: `scripts/verify_smoker_weapon_evolutions.lua`
 - 그래픽 검증: `scripts/verify_smoker_weapon_evolution_art.py`
+- 전자담배 그래픽 검증: `scripts/verify_smoker_vape_pressure_art.py`
 - 오프스크린 검수: `scripts/render_smoker_weapon_evolutions.py`
 - GIF 검수: `docs/previews/smoker-firework-burst-v2.gif`
+- 전자담배 GIF 검수: `docs/previews/smoker-vape-pressure-v2.gif`
 
 ## 연습장에서 확인
 

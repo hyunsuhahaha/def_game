@@ -4,6 +4,7 @@ local Mode=require("src.clearcut_mode")
 local Art=require("src.smoker_weapon_art")
 local bg=love.graphics.newImage("assets/maps/forest-preview-v1.png")
 local smoker=love.graphics.newImage("assets/characters/ingame/smoker-atlas-pixel-v2.png")
+local tree=love.graphics.newImage("assets/trees/broadleaf-tree-cartoon-v3.png")
 local smokerQuad=love.graphics.newQuad(0,0,96,192,smoker:getDimensions())
 local bw,bh=bg:getDimensions()
 
@@ -15,17 +16,40 @@ for frame=0,5 do
  love.graphics.setColor(1,1,1,1)
  love.graphics.draw(smoker,smokerQuad,125,308,0,.61,.61,48,190)
  love.graphics.draw(smoker,smokerQuad,385,308,0,.61,.61,48,190)
- local vape=Mode.new();vape.job="fire";vape.skillBranches.molotov="vape"
+ local vape=Mode.new();vape.job="fire";vape.smokerEvolution="vape";vape.vapeCharge=frame/5
  local firework=Mode.new();firework.job="fire";firework.skillBranches.molotov="fireworks"
  Art.drawHeld(vape,{player={x=125,y=308,facing=1}},fixture.time)
  Art.drawHeld(firework,{player={x=385,y=308,facing=1}},fixture.time)
- Art.drawProjectile({kind="vape",x=185+frame*28,y=239-math.sin(frame*.8)*9,age=frame*.11,maxLife=.72,angle=-.08})
+ Art.drawProjectile({kind="vape_gust",x=172,y=239,age=frame/5*.50,maxLife=.52,range=540,angle=-.08})
  if frame<3 then
   Art.drawProjectile({kind="firework",x=442+frame*35,y=239-frame*24,age=(frame+1)*.12,dur=.5,angle=-.42})
  else
   Art.drawProjectile({kind="firework_burst",x=500,y=178,age=(frame-3)*.16+.05,life=1,radius=180})
  end
  fixture.save("docs/previews/smoker-weapon-evolutions-draws-"..frame..".json")
+end
+
+-- 30 fps inhale -> compression -> rooted-tree pressure response review.
+for frame=0,47 do
+ fixture.reset();fixture.time=frame/30
+ love.graphics.setColor(1,1,1,.78);love.graphics.draw(bg,0,0,0,640/bw,360/bh)
+ love.graphics.setColor(.025,.06,.04,.30);love.graphics.rectangle("fill",0,0,640,360)
+ love.graphics.setColor(.16,.34,.19,.72);love.graphics.rectangle("fill",0,270,640,90)
+ local blast=math.max(0,(frame-23)/24);local bend=blast*blast*.36
+ love.graphics.setColor(0,0,0,.28);love.graphics.ellipse("fill",493,317,58,10)
+ love.graphics.setColor(1,1,1,1);love.graphics.draw(tree,493,311,bend,.72,.72,tree:getWidth()/2,tree:getHeight()*.91)
+ love.graphics.draw(smoker,smokerQuad,118,315,0,.61,.61,48,190)
+ local vape=Mode.new();vape.job="fire";vape.smokerEvolution="vape";vape.vapeCharge=frame<24 and frame/23 or 0;vape.vapeKick=frame>=24 and math.max(0,1-(frame-24)/5)or 0
+ Art.drawHeld(vape,{player={x=118,y=315,facing=1}},fixture.time)
+ if frame>=24 then
+  Art.drawProjectile({kind="vape_gust",x=160,y=246,age=(frame-24)/30,maxLife=.72,range=570,angle=0})
+  for i=1,32 do
+   local age=(frame-24)/30;local life=1.05
+   local stream=(i%4)*7
+   if age<life then Art.drawWindLeaf({x=410+stream+age*(170+i*5),y=190+(i%7)*17-age*(110-i*1.7)+math.sin(age*10+i)*12,frame=1+(i+frame)%8,age=age,life=life,scale=.72+(i%4)*.16,angle=age*(10+i*.7)+i})end
+  end
+ end
+ fixture.save("docs/previews/smoker-vape-pressure-v2-draws-"..frame..".json")
 end
 
 -- Dedicated 30 fps gameplay-scale firework review sequence.
@@ -48,4 +72,4 @@ local choice=Mode.new();choice.job="fire";choice.level=18;choice.levels.molotov=
 choice.branchChoices=require("src.clearcut_skill_branches").smokerEvolutionChoices();choice.selectionKind="branch";choice.choicesRevealAt=-2
 fixture.time=2;fixture.reset();choice:drawSelectionContent({mode="clearcut_upgrade",setNotice=function()end},fonts,width,height)
 fixture.save("docs/previews/smoker-weapon-evolution-choice-draws.json")
-print("SMOKER_WEAPON_EVOLUTION_CAPTURE_OK overview=6 firework=30fps window=none")
+print("SMOKER_WEAPON_EVOLUTION_CAPTURE_OK overview=6 vape=48frames@30fps firework=30fps window=none")

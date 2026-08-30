@@ -19,7 +19,7 @@ Branches.definitions={
 }
 Branches.triggerLevels={molotov=3,seed_mine=3,boomerang_axe=3}
 Branches.smokerEvolutions={
-    {id="vape",skill="molotov",name="전자담배",desc="화염 농축 경로의 완성. 기본 공격이 빠른 청록색 증기탄 연사로 바뀌고 여러 나무와 몬스터를 관통합니다.",color={.25,.88,.84}},
+    {id="vape",skill="molotov",name="전자담배",desc="화염 농축 경로의 완성. 증기를 흡입·압축한 뒤 넓은 풍압으로 분사합니다. 잎을 쓸어내고 풀차지하면 나무가 뿌리 기준으로 크게 휘며 적을 밀어냅니다.",color={.25,.88,.84}},
     {id="fireworks",skill="molotov",name="폭죽 발사기",desc="줄꽁초 경로의 완성. 기본 공격이 느린 폭죽 로켓으로 바뀌고 착탄 지점에 다색 불꽃놀이가 폭발합니다.",color={1,.48,.20}},
 }
 Branches.smokerEvolutionByRoute={flame_route="vape",butt_volley_route="fireworks"}

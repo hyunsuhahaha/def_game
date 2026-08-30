@@ -187,7 +187,7 @@ function ClearcutMode.new()
         bees={}, beeSlow=false, beeSwarmsTriggered=0, beehiveTotal=0,
         streak=0, lastHitAt=-10, molotovTimer=0, evolutions={}, molotovs={},
         cigaretteButts={}, emberTransfers={}, emberArrivals={}, smokerGroundTime=0, secondhandSmokeClouds={},
-        smokerWeaponProjectiles={},smokerWeaponCooldown=0,
+        smokerWeaponProjectiles={},smokerWeaponCooldown=0,vapeCharge=0,vapeKick=0,vapeWindLeaves={},
         treeSparks={}, treeSparkArrivals={}, strawTimer=0, strawBales={}, strawBaleSequence=0,
         oilTrail={}, oilTrailTimer=0, oilTrailLastX=nil, oilTrailLastY=nil, oilTrailSequence=0,
         job=nil, attackCooldown=0, dashing=nil, dashTrail={}, smoking=nil,
@@ -240,7 +240,7 @@ function ClearcutMode:applySmokerEvolution(game)
     local changed=self.smokerEvolution~=evolution
     self.smokerEvolution=evolution
     if changed then
-        self.smoking=nil;self.smokerWeaponCooldown=0
+        self.smoking=nil;self.smokerWeaponCooldown=0;self.vapeCharge=0;self.vapeKick=0;self.vapeWindLeaves={}
         if game and game.player and game.player.clearClearcutAction then game.player:clearClearcutAction()end
         if game and game.setNotice then
             local def=SkillBranches.get(evolution)
@@ -576,7 +576,7 @@ function ClearcutMode:advanceStage(game)
     -- the reward would be deleted on the same frame it dropped.
     self.rootHazards, self.bees, self.molotovs, self.chests, self.plagued, self.worldTreeDebris = {}, {}, {}, {}, {}, {}
     self.secondhandSmokeClouds={}
-    self.smokerWeaponProjectiles={};self.smokerWeaponCooldown=0
+    self.smokerWeaponProjectiles={};self.smokerWeaponCooldown=0;self.vapeCharge=0;self.vapeKick=0;self.vapeWindLeaves={}
     self.eternalFields,self.revivalChorusShots,self.revivalChorusImpacts={},{},{}
     self.veganForkImpacts,self.veganConsumeFx,self.veganHaste={},{},0
     self.milestoneFired, self.worldTreeSpawned, self.worldTree, self.activeBoss, self.operationFinalBoss, self.operationBossName = {}, false, nil, nil, false, nil
@@ -2256,21 +2256,55 @@ function ClearcutMode:damageTreeWithSmokerWeapon(node,damage,game)
     return false
 end
 
-function ClearcutMode:updateVapeAttack(dt,game,held)
-    self.smokerWeaponCooldown=math.max(0,(self.smokerWeaponCooldown or 0)-dt)
-    local tx,ty,nx,ny=smokerAim(self,game,610+self.permanentTraits.range)
-    self.aimX,self.aimY,self.aimRadius=tx,ty,48+self.permanentTraits.area*.2
-    if not held or self.smokerWeaponCooldown>0 then return false end
+local function vapeAimAngle(nx,ny)return math.atan2 and math.atan2(ny,nx)or math.atan(ny/nx)end
+
+function ClearcutMode:releaseVapePressure(game,charge)
+    charge=math.max(.15,math.min(1,charge or 0))
+    local _,_,nx,ny=smokerAim(self,game,650+self.permanentTraits.range)
     game.player.facing=nx<0 and -1 or 1
-    local speed=720*Synergies.projectileSpeedMultiplier(self);local x=game.player.x+nx*42;local y=game.player.y-66+ny*10
+    local x,y=game.player.x+nx*43,game.player.y-66+ny*8
+    local range=360+charge*270+self.permanentTraits.range
     self.smokerWeaponProjectiles[#self.smokerWeaponProjectiles+1]={
-        kind="vape",x=x,y=y,previousX=x,previousY=y,vx=nx*speed,vy=ny*speed,
-        angle=(math.atan2 and math.atan2(ny,nx) or math.atan(ny/nx)),age=0,maxLife=.72,
-        radius=45+self.permanentTraits.area*.18,damage=3.2+self.permanentTraits.treeDamage*.7,hitSet={}
+        kind="vape_gust",x=x,y=y,nx=nx,ny=ny,angle=vapeAimAngle(nx,ny),age=0,maxLife=.52,
+        range=range,maxWidth=42+charge*72+self.permanentTraits.area*.28,
+        damage=4+charge*9+self.permanentTraits.treeDamage*.8,enemyDamage=18+charge*24,
+        charge=charge,fullCharge=charge>=.98,front=0,hitSet={}
     }
     self.actionAudit.vapeShot=(self.actionAudit.vapeShot or 0)+1
-    self.smokerWeaponCooldown=.27*Synergies.cooldownMultiplier(self)/((game.tools.axe.speed or 1)*game.player.gather*self.permanentTraits.attackSpeed)
+    self.vapeKick=charge
     return true
+end
+
+function ClearcutMode:updateVapeAttack(dt,game,held)
+    self.smokerWeaponCooldown=math.max(0,(self.smokerWeaponCooldown or 0)-dt)
+    self.vapeKick=math.max(0,(self.vapeKick or 0)-dt*5.5)
+    local tx,ty,nx,ny=smokerAim(self,game,610+self.permanentTraits.range)
+    self.aimX,self.aimY,self.aimRadius=tx,ty,64+self.permanentTraits.area*.2
+    game.player.facing=nx<0 and -1 or 1
+    local speed=(game.tools.axe.speed or 1)*game.player.gather*self.permanentTraits.attackSpeed
+    local chargeDuration=math.max(.52,.92*Synergies.cooldownMultiplier(self)/speed)
+    if held and self.smokerWeaponCooldown<=0 then
+        self.vapeCharge=math.min(1,(self.vapeCharge or 0)+dt/chargeDuration)
+        if game.player.setClearcutAction then game.player:setClearcutAction(.16+self.vapeCharge*.30)end
+        if self.vapeCharge>=1 then
+            local fired=self:releaseVapePressure(game,1)
+            self.vapeCharge=0;self.smokerWeaponCooldown=.18*Synergies.cooldownMultiplier(self)/speed
+            if game.player.clearClearcutAction then game.player:clearClearcutAction()end
+            return fired
+        end
+        return false
+    end
+    if not held and (self.vapeCharge or 0)>=.15 then
+        local charge=self.vapeCharge;self.vapeCharge=0
+        self.smokerWeaponCooldown=.18*Synergies.cooldownMultiplier(self)/speed
+        if game.player.clearClearcutAction then game.player:clearClearcutAction()end
+        return self:releaseVapePressure(game,charge)
+    end
+    if not held then
+        self.vapeCharge=0
+        if game.player.clearClearcutAction then game.player:clearClearcutAction()end
+    end
+    return false
 end
 
 function ClearcutMode:updateFireworkAttack(dt,game,held)
@@ -2309,16 +2343,41 @@ function ClearcutMode:updateSmokerWeaponProjectiles(dt,game)
     local list=self.smokerWeaponProjectiles or {}
     local bursts={}
     for index=#list,1,-1 do local projectile=list[index]
-        if projectile.kind=="vape" then
-            projectile.previousX,projectile.previousY=projectile.x,projectile.y
-            projectile.x=projectile.x+projectile.vx*dt;projectile.y=projectile.y+projectile.vy*dt;projectile.age=projectile.age+dt
-            for _,node in ipairs(game.world.nodes)do if node.rushTree and node.active and not projectile.hitSet[node]
-                and CombatGeometry.sweptCircleOverlapsTarget(projectile.previousX,projectile.previousY,projectile.x,projectile.y,projectile.radius,node,22)then
-                projectile.hitSet[node]=true;self:damageTreeWithSmokerWeapon(node,projectile.damage,game)
+        if projectile.kind=="vape_gust" then
+            projectile.age=projectile.age+dt
+            local progress=math.min(1,projectile.age/projectile.maxLife)
+            local eased=1-(1-progress)*(1-progress)*(1-progress)
+            projectile.front=projectile.range*eased
+            local px,py=-projectile.ny,projectile.nx
+            local function inside(target,targetRadius)
+                local dx,dy=target.x-projectile.x,target.y-projectile.y
+                local along=dx*projectile.nx+dy*projectile.ny
+                if along < -18 or along > projectile.front+(targetRadius or 0) then return false end
+                local side=math.abs(dx*px+dy*py)
+                local width=25+(math.max(0,along)/projectile.range)*projectile.maxWidth
+                return side<=width+(targetRadius or 0)
+            end
+            for _,node in ipairs(game.world.nodes)do if node.rushTree and node.active and not projectile.hitSet[node]and inside(node,24)then
+                projectile.hitSet[node]=true
+                node.rushHp=(node.rushHp or node.rushMaxHp)-projectile.damage
+                if game.world.windImpactNode then game.world:windImpactNode(node,projectile.nx,projectile.ny,projectile.charge)end
+                local leafCount=math.floor(8+projectile.charge*22)
+                for leafIndex=1,leafCount do
+                    local side=(love.math.random()*2-1)*(35+projectile.charge*42)
+                    local life=.72+love.math.random()*.62
+                    self.vapeWindLeaves[#self.vapeWindLeaves+1]={
+                        x=node.x+px*side,y=node.y-58-love.math.random()*82,
+                        vx=projectile.nx*(155+love.math.random()*150)*(0.48+projectile.charge*.62)+px*side*.8,
+                        vy=projectile.ny*(70+love.math.random()*80)-45-love.math.random()*85,
+                        angle=love.math.random()*math.pi*2,spin=(love.math.random()*2-1)*(7+projectile.charge*7),
+                        age=0,life=life,frame=1+(leafIndex%8),scale=.72+love.math.random()*.48
+                    }
+                end
+                if node.rushHp<=0 then self:fellTree(node,game)end
             end end
-            for _,enemy in ipairs(self.enemies)do if enemy.hp>0 and not projectile.hitSet[enemy]
-                and CombatGeometry.sweptCircleOverlapsTarget(projectile.previousX,projectile.previousY,projectile.x,projectile.y,projectile.radius,enemy)then
-                projectile.hitSet[enemy]=true;enemy.hp=enemy.hp-11;enemy.visualHit=.12
+            for _,enemy in ipairs(self.enemies)do if enemy.hp>0 and not projectile.hitSet[enemy]and inside(enemy,18)then
+                projectile.hitSet[enemy]=true;enemy.hp=enemy.hp-projectile.enemyDamage;enemy.visualHit=.18
+                enemy.knockVX,enemy.knockVY,enemy.knockTimer=projectile.nx*(430+projectile.charge*520),projectile.ny*(430+projectile.charge*520),.28+.18*projectile.charge
             end end
             if projectile.age>=projectile.maxLife then table.remove(list,index)end
         elseif projectile.kind=="firework" then
@@ -2331,6 +2390,11 @@ function ClearcutMode:updateSmokerWeaponProjectiles(dt,game)
         end
     end
     for _,projectile in ipairs(bursts)do self:detonateFirework(projectile,game)end
+    for index=#self.vapeWindLeaves,1,-1 do local leaf=self.vapeWindLeaves[index]
+        leaf.age=leaf.age+dt;leaf.x=leaf.x+leaf.vx*dt;leaf.y=leaf.y+leaf.vy*dt
+        leaf.vx=leaf.vx*math.exp(-dt*.72);leaf.vy=leaf.vy+72*dt;leaf.angle=leaf.angle+leaf.spin*dt
+        if leaf.age>=leaf.life then table.remove(self.vapeWindLeaves,index)end
+    end
 end
 
 function ClearcutMode:updateFireAttack(dt, game, heldOverride)
@@ -5581,6 +5645,9 @@ function ClearcutMode:queueProjectedOverlay(game,t)
     end
     for _,value in ipairs(self.smokerWeaponProjectiles or {})do local projectile=value
         queueUpright(queue,projectile.x,projectile.y,function()SmokerWeaponArt.drawProjectile(projectile)end,projectile.y+.03,projectile.y)
+    end
+    for _,value in ipairs(self.vapeWindLeaves or {})do local leaf=value
+        queueUpright(queue,leaf.x,leaf.y,function()SmokerWeaponArt.drawWindLeaf(leaf)end,leaf.y+.04,leaf.y)
     end
     for _,value in ipairs(self.bees) do local swarm=value
         queueUpright(queue,swarm.x,swarm.y,function()

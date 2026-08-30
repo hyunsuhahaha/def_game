@@ -224,6 +224,18 @@ function World:impactNode(node, game, strong)
     if game.feedback then game.feedback:play(node.kind, strong) end
 end
 
+-- Electronic-cigarette pressure bends the billboard around its rooted base
+-- without borrowing the ordinary hit shake, generic debris or camera trauma.
+function World:windImpactNode(node,dirX,dirY,power)
+    if not node or not node.rushTree or not node.active then return end
+    power=math.max(.15,math.min(1,power or 0))
+    node.hitFlash=math.max(node.hitFlash or 0,.055+.045*power)
+    if node.rushMaxHp and node.rushMaxHp>0 then node.damageStage=TreeDestruction.damageStage(node.rushHp,node.rushMaxHp)end
+    local visualDir=math.abs(dirX or 0)>.16 and (dirX<0 and -1 or 1)or ((dirY or 0)<0 and -1 or 1)
+    node.swayAngle=math.max(-.5,math.min(.5,(node.swayAngle or 0)+visualDir*(.035+.19*power)))
+    node.swayVel=(node.swayVel or 0)+visualDir*(2.6+7.4*power)
+end
+
 function World:harvestBurst(node, game, amount, label)
     local x, y = effectOrigin(node)
     local color = effectColors[node.kind] or effectColors.plot
