@@ -142,6 +142,7 @@ assert(unattendedEnd and unattendedEnd>=30 and unattendedEnd<=40,"time pressure 
 Traits.data.levels.universal_yard=7
 Traits.data.levels.universal_robot_start=1
 Traits.data.levels.universal_robot_motor=5
+Traits.data.levels.universal_mole_companion=1
 for _,id in ipairs({"fire_score_prewarm","fire_score_filter","fire_score_lighter","fire_score_spark","fire_score_launch","fire_score_ash","fire_score_drag","fire_score_heat"})do Traits.data.levels[id]=5 end
 Traits.data.levels.fire_score_stock=1
 game:startClearcutScoreAttack()
@@ -150,6 +151,19 @@ assert(game.clearcut.permanentTraits.range==80 and game.clearcut.permanentTraits
 assert(game.clearcut.permanentTraits.attackSpeed==1.2 and game.clearcut.permanentTraits.burnSpeed==1.3 and game.clearcut.permanentTraits.cigaretteProjectileSpeed==1.35,"score-only pacing traits were not applied at runtime")
 assert(game.clearcut:levelOf("molotov")==0 and game.clearcut:levelOf("dry_forest")==0 and game.clearcut:levelOf("straw_bale")==0 and game.clearcut:levelOf("smoke_ring")==0 and game.clearcut:levelOf("oil_drum")==0,"permanent traits still injected whole in-game skill levels")
 assert(game.clearcut:levelOf("baby_robot")==1 and game.clearcut.permanentTraits.scoreRobotSpeed==.5,"baby robot permanent research was not applied at runtime")
+assert(game.clearcut.moleCompanion and game.clearcut.permanentTraits.scoreMoleCompanion==1,"mole companion permanent research was not applied at runtime")
+local mole=game.clearcut.moleCompanion
+local moleTree
+for _,node in ipairs(game.world.nodes)do if node.rushTree and node.active and not node.giantTree then moleTree=node;break end end
+assert(moleTree,"mole companion test has no active tree")
+mole.x,mole.y=moleTree.x-96,moleTree.y
+mole.target=moleTree;mole.state="seek"
+local moleHp=moleTree.rushHp
+game.clearcut:updateMoleCompanion(.01,game)
+assert(mole.state=="attack"and mole.facing==1,"mole companion did not independently acquire and face a tree")
+game.clearcut:updateMoleCompanion(.34,game)
+assert((not moleTree.active)or moleTree.rushHp<moleHp,"mole companion claw contact frame did not damage its target tree")
+assert(#game.clearcut.minerClawFx==1,"mole companion did not produce one authored claw contact effect")
 assert(game.clearcut.totalWood==0 and game.clearcut.level==1 and game.clearcut.pending==0,"score run did not start with a clean wood-XP progression")
 assert(game.clearcut.smoking and game.clearcut.smoking.dur<.75,"first ignition preparation trait did not shorten the opening load")
 game.clearcut:hurlMolotovAt(game.player.x+600,game.player.y,game)

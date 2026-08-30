@@ -196,7 +196,7 @@ function ClearcutMode.new()
         treeSparks={}, treeSparkArrivals={}, strawTimer=0, strawBales={}, strawBaleSequence=0,
         oilTrail={}, oilTrailTimer=0, oilTrailLastX=nil, oilTrailLastY=nil, oilTrailSequence=0,
         job=nil, attackCooldown=0, dashing=nil, dashTrail={}, smoking=nil,
-        minerClawAction=nil, minerClawFx={}, minerClawMarks={}, minerBurrow=nil, minerBurrowCooldown=0, thrownTrees={}, burrowTracks={}, burrowTrackSequence=0,
+        minerClawAction=nil, minerClawFx={}, minerClawMarks={}, minerBurrow=nil, minerBurrowCooldown=0, thrownTrees={}, burrowTracks={}, burrowTrackSequence=0,moleCompanion=nil,
         smokeRing=nil, smokeRingCooldown=0, smokeRingCharge=nil, smokeRingChargeDuration=1.5,
         salivaGauge=100, salivaGaugeMax=100, salivaDrainRate=30, salivaRegenRate=25, salivaExhausted=false,
         revivalTimer=0, revivalCooldown=0, eternalFields={},
@@ -224,7 +224,7 @@ function ClearcutMode.new()
             biteDamage=0, plagueDuration=0,
             dashSpeed=1, sterileChance=0, aftershockRadius=0, cooldownRefund=0,
             moveSpeed=1, pickupRadius=0, hpRegen=0, reviveCharges=0,
-            scoreInitialIgnitionReduction=0
+            scoreInitialIgnitionReduction=0,scoreMoleCompanion=0
         },
         reviveCharges=0,
         vinePlantTimer=60, vineSpawns={},
@@ -541,6 +541,7 @@ function ClearcutMode:setup(game)
         self.peakActiveTrees=self.remainingTrees
     end
     if not self.scoreAttack then self:initForestZones(game)else self.forestZones={};self.treeSpawnAccumulator=0 end
+    if self.scoreAttack and (self.permanentTraits.scoreMoleCompanion or 0)>0 then self:initMoleCompanion(game) end
     local notice=self.scoreAttack and string.format("벌목 기록 — 활성 나무가 %d그루에 닿으면 종료",self.scoreTreeAllowance)or(Maps.get(self.mapId).name.." — 마우스를 누른 채 나무 근처로 이동하세요")
     if self.job=="miner" then notice=Maps.get(self.mapId).name.." — 좌클릭 할퀴기 · SPACE/우클릭 잠복" end
     game:setNotice(notice, "food")
@@ -597,6 +598,110 @@ function ClearcutMode:scoreTreeHealth(baseHp)
     -- ceil은 3% 증가도 즉시 HP +1로 만들어 낮은 단계에서 실제 증가율을 과장한다.
     -- 반올림을 사용해 체력은 몇 단계에 한 번만 오르고, 공급 배율과 완전히 분리한다.
     return math.max(1,math.floor((baseHp or 1)*tierHealth+.5))
+end
+
+local function moleCompanionAngle(y,x)
+    if math.atan2 then return math.atan2(y,x) end
+    return math.atan(y/x)+(x<0 and math.pi or 0)
+end
+
+function ClearcutMode:initMoleCompanion(game)
+    local sprite=game.clearcutSprites and game.clearcutSprites.miner
+    if not sprite or not sprite.image then return false end
+    local fw,fh=sprite.image:getWidth()/6,sprite.image:getHeight()/2
+    local frames={walk={},action={}}
+    for i=0,5 do
+        frames.walk[i+1]=love.graphics.newQuad(i*fw,0,fw,fh,sprite.image:getDimensions())
+        frames.action[i+1]=love.graphics.newQuad(i*fw,fh,fw,fh,sprite.image:getDimensions())
+    end
+    local x,y=require("src.clearcut_maps").constrain(game.world,game.player.x-86,game.player.y+54,42)
+    self.moleCompanion={x=x,y=y,sprite=sprite,frames=frames,fw=fw,fh=fh,state="seek",target=nil,
+        facing=-1,walkClock=0,attackT=0,attackDuration=.62,struck=false,speed=225,damage=2,treesFelled=0}
+    return true
+end
+
+function ClearcutMode:findMoleCompanionTree(companion,game)
+    local best,bestDistance
+    for _,node in ipairs(game.world.nodes)do
+        if node.rushTree and node.active and not node.giantTree and not node.treeEmergence then
+            local dx,dy=node.x-companion.x,node.y-companion.y
+            local distance=dx*dx+dy*dy
+            if not bestDistance or distance<bestDistance then best,bestDistance=node,distance end
+        end
+    end
+    companion.target=best
+    return best
+end
+
+function ClearcutMode:moleCompanionImpact(companion,game)
+    local node=companion.target
+    if not node or not node.active or node.treeEmergence then return false end
+    local dx,dy=node.x-companion.x,node.y-companion.y
+    local distance=math.sqrt(dx*dx+dy*dy)
+    if distance>145 then return false end
+    if distance<1 then dx,dy,distance=companion.facing or 1,0,1 end
+    local nx,ny=dx/distance,dy/distance
+    local contactX,contactY=companion.x+nx*math.min(72,distance),companion.y+ny*math.min(72,distance)
+    local angle=moleCompanionAngle(ny,nx)
+    local curveFlip=(companion.facing or 1)>0 and -1 or 1
+    MoleClawArt.spawn(self,contactX,contactY,angle,1,curveFlip,24,1,false)
+    node.rushHp=(node.rushHp or node.rushMaxHp)-companion.damage
+    game.world:impactNode(node,game,true)
+    SupplementArt.impact(self,"axe",contactX,contactY,20)
+    if node.rushHp<=0 and self:fellTree(node,game)then companion.treesFelled=companion.treesFelled+1 end
+    return true
+end
+
+function ClearcutMode:updateMoleCompanion(dt,game)
+    local companion=self.moleCompanion
+    if not companion then return false end
+    MoleClawArt.update(self,dt)
+    companion.walkClock=companion.walkClock+dt*7.5
+    if companion.state=="attack"then
+        companion.attackT=math.min(companion.attackDuration,companion.attackT+dt)
+        local progress=companion.attackT/companion.attackDuration
+        if not companion.struck and progress>=.53 then
+            companion.struck=true
+            self:moleCompanionImpact(companion,game)
+        end
+        if companion.attackT>=companion.attackDuration then
+            companion.state,companion.target,companion.attackT,companion.struck="seek",nil,0,false
+        end
+        return true
+    end
+    local target=companion.target
+    if not target or not target.active or target.giantTree or target.treeEmergence then target=self:findMoleCompanionTree(companion,game)end
+    if not target then return false end
+    local dx,dy=target.x-companion.x,target.y-companion.y
+    local distance=math.sqrt(dx*dx+dy*dy)
+    if math.abs(dx)>2 then companion.facing=dx<0 and -1 or 1 end
+    if distance>104 then
+        local step=math.min(distance-104,companion.speed*dt)
+        local x,y=companion.x+dx/distance*step,companion.y+dy/distance*step
+        companion.x,companion.y=require("src.clearcut_maps").constrain(game.world,x,y,42)
+        companion.state="walk"
+    else
+        companion.state,companion.attackT,companion.struck="attack",0,false
+    end
+    return true
+end
+
+function ClearcutMode:drawMoleCompanion(companion)
+    if not companion or not companion.sprite then return end
+    local action=companion.state=="attack"
+    local row=action and "action"or"walk"
+    local progress=action and math.min(.49,(companion.attackT/companion.attackDuration)*.49)or 0
+    local frame=action and(math.floor(progress*6)+1)or(math.floor(companion.walkClock)%6+1)
+    local sprite=companion.sprite
+    local direction=(sprite[row.."Facing"]or{})[frame]or 1
+    local flip=(companion.facing or 1)*(sprite.nativeFacing or 1)*direction
+    local poseScale=(sprite[row.."Scale"]and sprite[row.."Scale"][frame])or 1
+    local foot=(sprite[row.."Feet"]or{})[frame]or 380
+    local bob=not action and math.abs(math.sin(companion.walkClock*math.pi))*1.5 or 0
+    love.graphics.setColor(0,0,0,.38);love.graphics.ellipse("fill",companion.x+2,companion.y+3,23,7)
+    love.graphics.setColor(1,1,1,1)
+    love.graphics.draw(sprite.image,companion.frames[row][frame],companion.x,companion.y-bob,0,
+        .30*flip*poseScale,.30*poseScale,companion.fw/2,foot)
 end
 
 function ClearcutMode:scoreDynamicTreeCap()
@@ -847,6 +952,7 @@ function ClearcutMode:update(dt, game)
     local tierTransition=self:updateScoreTierClear(dt,game)
     if tierTransition then return end
     if self:updateScoreTreeGrowth(dt,game)then return end
+    self:updateMoleCompanion(dt,game)
     self:updateHeldAxe(dt, game)
     self:updateThrownTrees(dt, game)
     self:updateBurrowTracks(dt)
@@ -5799,6 +5905,10 @@ function ClearcutMode:queueWorldActors(queue,t)
     PhilosopherFusionArt.queue(self,queue)
     RevivalCrowdArt.queue(self,queue)
     WorldTreeSiege.queue(self,queue)
+    if self.moleCompanion then local companion=self.moleCompanion
+        queue[#queue+1]={x=companion.x,y=companion.y,anchorY=companion.y,sortBias=.002,
+            draw=function()self:drawMoleCompanion(companion)end}
+    end
     for _,value in ipairs(self.burrowTracks) do
         local mark=value
         queue[#queue+1]={y=-200000+mark.y*.001,ground=true,draw=function() MoleBurrowArt.draw(mark) end}

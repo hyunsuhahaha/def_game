@@ -47,6 +47,7 @@ assert(smoker.attackSpeed == 1 and smoker.range == 0, "logger traits leaked into
 store.data.levels.universal_yard=7
 store.data.levels.universal_robot_start=1
 store.data.levels.universal_robot_motor=5
+store.data.levels.universal_mole_companion=1
 assert(store:effects("fire").scoreTreeAllowance==28,"permanent logging-yard capacity did not reach +28 trees at max rank")
 for _,id in ipairs({"fire_score_prewarm","fire_score_filter","fire_score_lighter","fire_score_spark","fire_score_launch","fire_score_ash","fire_score_drag","fire_score_heat"})do store.data.levels[id]=5 end
 store.data.levels.fire_score_stock=1
@@ -57,8 +58,9 @@ assert(math.abs(scoreSmoker.scoreAttackSpeed-.20)<1e-9 and math.abs(scoreSmoker.
 local activeScore=store:scoreAttackEffects()
 assert(activeScore.scoreInitialIgnitionReduction==.4,"score-mode opening ignition trait is not active")
 assert(activeScore.scoreStartingBabyRobot==1 and activeScore.scoreRobotSpeed==.5,"score-mode baby robot permanent research is not active")
+assert(activeScore.scoreMoleCompanion==1,"score-mode mole companion trait is not active")
 assert(activeScore.scoreStartingWood==nil and activeScore.scoreAutomationDiscount==nil,"removed score automation traits still affect runtime")
-assert(#store:getScoreAttackNodes("fire")==9 and #store:getScoreAttackNodes("universal")==3,"active research board did not isolate score-mode traits")
+assert(#store:getScoreAttackNodes("fire")==9 and #store:getScoreAttackNodes("universal")==4,"active research board did not isolate score-mode traits")
 for _, job in ipairs({"physical","fire","toxic","developer"}) do
     assert(#store:getNodes(job) >= 30, job .. " character graph has too few trait nodes")
 end

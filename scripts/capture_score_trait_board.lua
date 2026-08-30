@@ -11,12 +11,13 @@ local sprites=assert(loader,"clearcut sprite loader missing")()
 local background=love.graphics.newImage("assets/lobby-forest-lofi-day-pixel-v4.png");background:setFilter("nearest","nearest")
 local fonts={}
 for name,size in pairs({micro=12,small=14,body=17,heading=21,big=28,title=36,display=48})do fonts[name]=love.graphics.newFont("assets/font-korean-regular.ttf",size)end
-local function capture(w,h,path)
+local function capture(w,h,path,job)
     love.graphics.getDimensions=function()return w,h end
     love.graphics.getWidth=function()return w end
     love.graphics.getHeight=function()return h end
     local store=Store.new(true);store.data.currency=240
     local board=Board.new(store,fonts,sprites);board.time=1.2
+    if job and job~="fire"then board:selectJob(job)end
     fixture.reset();fixture.time=1.2
     local iw,ih=background:getDimensions();local scale=math.max(w/iw,h/ih)*1.025
     love.graphics.setColor(1,1,1,1);love.graphics.draw(background,(w-iw*scale)/2,(h-ih*scale)/2,0,scale,scale)
@@ -25,4 +26,5 @@ local function capture(w,h,path)
 end
 capture(1280,720,"docs/previews/score-trait-board-draws.json")
 capture(2048,1038,"docs/previews/score-trait-board-wide-draws.json")
-print("SCORE_TRAIT_BOARD_CAPTURE_OK 1280x720+2048x1038 window=none")
+capture(2048,1038,"docs/previews/score-trait-board-universal-wide-draws.json","universal")
+print("SCORE_TRAIT_BOARD_CAPTURE_OK 1280x720+2048x1038 universal=2048x1038 window=none")
