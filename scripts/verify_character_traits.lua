@@ -100,7 +100,12 @@ for i=1,#board.nodeBoxes do for j=i+1,#board.nodeBoxes do
     local separated=a.x+a.w<=b.x or b.x+b.w<=a.x or a.y+a.h<=b.y or b.y+b.h<=a.y
     assert(separated,"research nodes overlap at 1280x720: "..a.id.." / "..b.id)
 end end
-assert(board.viewInitialized and board.zoom>=.34 and board.zoom<=1.15,"research tree did not auto-fit its first viewport")
+assert(board.viewInitialized and board.zoom==board.referenceZoom and board.referenceZoom>=.56 and board.referenceZoom<=.80,"research tree did not open at its authored reference spacing")
+local function distance(a,b)local ax,ay=board:nodeWorld(store:getNode(a));local bx,by=board:nodeWorld(store:getNode(b));return math.sqrt((ax-bx)^2+(ay-by)^2)end
+assert(distance("fire_score_prewarm","fire_score_filter")==distance("fire_score_filter","fire_score_spark"),"left branch step lengths differ")
+assert(distance("fire_score_prewarm","fire_score_lighter")==distance("fire_score_lighter","fire_score_ash"),"right branch step lengths differ")
+assert(distance("fire_score_prewarm","fire_score_launch")==distance("fire_score_launch","fire_score_drag"),"upper branch step lengths differ")
+assert(distance("fire_score_prewarm","fire_score_heat")==distance("fire_score_heat","fire_score_stock"),"lower branch step lengths differ")
 store.data.currency=1000
 local rootBox
 for _,box in ipairs(board.nodeBoxes)do
@@ -124,6 +129,6 @@ assert(math.abs(board.panVY)>0,"released research canvas has no inertial velocit
 local oldZoom=board.zoom
 board:wheelmoved(0,1)
 assert(board.zoom>oldZoom,"mouse wheel did not zoom the research canvas")
-assert(board.zoom>=.36 and board.zoom<=1.60,"research canvas zoom escaped its supported range")
+assert(board.zoom>=board.referenceZoom*.85 and board.zoom<=board.referenceZoom*1.15,"research canvas zoom escaped its spacing-preserving range")
 
 print("CHARACTER_TRAITS_OK")
