@@ -7,19 +7,22 @@ ROOT=Path(__file__).resolve().parents[1];OUT=ROOT/'docs/previews'
 def rgba(c): return tuple(max(0,min(255,round(v*255))) for v in c)
 def render_ui(path,size):
  canvas=Image.new('RGBA',size,(0,0,0,255));draw=ImageDraw.Draw(canvas,'RGBA')
+ def composite_primitive(painter):
+  nonlocal draw
+  layer=Image.new('RGBA',size,(0,0,0,0));painter(ImageDraw.Draw(layer,'RGBA'));canvas.alpha_composite(layer);draw=ImageDraw.Draw(canvas,'RGBA')
  for op in json.loads(Path(path).read_text(encoding='utf-8')):
   kind,args,color=op['op'],op['args'],rgba(op['color'])
   if kind=='rectangle':
    x,y,w,h=args;box=(x,y,x+w,y+h);radius=op.get('radius') or 0
-   if op.get('mode')=='line': draw.rounded_rectangle(box,radius=radius,outline=color,width=max(1,round(op.get('lineWidth',1))))
-   else: draw.rounded_rectangle(box,radius=radius,fill=color)
+   if op.get('mode')=='line': composite_primitive(lambda d:d.rounded_rectangle(box,radius=radius,outline=color,width=max(1,round(op.get('lineWidth',1)))))
+   else: composite_primitive(lambda d:d.rounded_rectangle(box,radius=radius,fill=color))
   elif kind=='ellipse':
    x,y,rx,ry=args;box=(x-rx,y-ry,x+rx,y+ry)
-   if op.get('mode')=='line':draw.ellipse(box,outline=color,width=max(1,round(op.get('lineWidth',1))))
-   else:draw.ellipse(box,fill=color)
-  elif kind=='line': draw.line(args,fill=color,width=max(1,round(op.get('lineWidth',1))),joint='curve')
+   if op.get('mode')=='line':composite_primitive(lambda d:d.ellipse(box,outline=color,width=max(1,round(op.get('lineWidth',1)))))
+   else:composite_primitive(lambda d:d.ellipse(box,fill=color))
+  elif kind=='line': composite_primitive(lambda d:d.line(args,fill=color,width=max(1,round(op.get('lineWidth',1))),joint='curve'))
   elif kind=='polygon':
-   points=list(zip(args[::2],args[1::2]));draw.polygon(points,fill=color if op.get('mode')!='line' else None,outline=color)
+   points=list(zip(args[::2],args[1::2]));composite_primitive(lambda d:d.polygon(points,fill=color if op.get('mode')!='line' else None,outline=color))
   elif kind=='text':
    x,y,w=args;font=ImageFont.truetype(str(ROOT/op['file']),max(8,round(op['size'])))
    text=str(op.get('text',''));align=op.get('align','left')
@@ -31,7 +34,7 @@ def render_ui(path,size):
      else:line=trial
     lines.append(line);text='\n'.join(lines)
    tx=x+w/2 if align=='center' else (x+w if align=='right' else x)
-   draw.multiline_text((tx,y),text,font=font,fill=color,align=align,anchor='ma' if align=='center' else ('ra' if align=='right' else 'la'))
+   composite_primitive(lambda d:d.multiline_text((tx,y),text,font=font,fill=color,align=align,anchor='ma' if align=='center' else ('ra' if align=='right' else 'la')))
   elif kind=='draw':
    image=Image.open(ROOT/op['file']).convert('RGBA');x,y=args[:2]
    quad=op.get('quad')

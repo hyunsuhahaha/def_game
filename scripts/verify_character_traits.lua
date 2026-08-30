@@ -86,6 +86,7 @@ local sprites={physical={image=image},fire={image=image},toxic={image=image},dev
 store.data.levels.fire_score_prewarm=0
 local board=CharacterTraitBoard.new(store,fonts,sprites)
 assert(pcall(board.draw,board), "character trait board draw contract failed")
+assert(board.viewInitialized and board.zoom>=.40 and board.zoom<=1.38,"research tree did not auto-fit its first viewport")
 store.data.currency=1000
 local rootBox
 for _,box in ipairs(board.nodeBoxes)do

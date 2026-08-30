@@ -416,6 +416,7 @@
     <div class="score-rule"><span class="score-rule-label">자동 산림 공급</span><span class="score-rule-value">0그루 달성 · 0.86초 잎/프리즘 단계 상승 연출 · 6그루 순차 발아 · 다음 단계 영구 해금</span></div>
     <div class="score-rule"><span class="score-rule-label">몬스터 투입</span><span class="score-rule-value">첫 45초 없음 · 이후 동시 1→2→3→4마리</span></div>
     <div class="score-rule"><span class="score-rule-label">런 성장</span><span class="score-rule-value">목재 경험치 → 비전투 운영 카드 3택</span></div>
+    <div class="score-rule"><span class="score-rule-label">영구 연구 화면</span><span class="score-rule-value">트리 자동 맞춤 · 고밀도 픽셀 아이콘 · 완료/구매 가능/잠김 상태 분리</span></div>
   </section>
   <div class="toolbar">
     <div class="search-box">
@@ -1004,7 +1005,7 @@ function renderAll() {
   document.getElementById("masthead-stamp").textContent = MODE_META[mode].stamp;
   document.getElementById("footer").textContent = mode === "traits"
     ? "src/character_traits.lua 기준 · 노드 순서는 선행 조건 깊이(단계) 순"
-    : "src/clearcut_mode.lua + score_operations.lua + character_traits.lua 기준 · 현재 로비는 흡연자 벌목 기록 모드만 활성화 · 저장된 재생 단계에서 6그루로 시작하고 0그루 달성 시 0.86초 전투 정지·잎/프리즘 단계 상승 FX·6그루 순차 발아 후 다음 단계가 영구 해금 · 재생 속도 0.14×1.45^(단계-1), HP 1.08^(단계-1) · 목재 경험치 드래프트에는 아기 로봇·탐지 안테나·작업장 확장·조림 구획·목재 선별기·안전 관리 장치만 등장 · 로비 영구 성장은 스킬 레벨을 지급하지 않고 투척 거리·착화 반경·착화/확산 확률·흡연/비행/연소 속도·추가 꽁초 특성으로 분리 · 일반 작전·공용 전투 스킬·융합·시너지 코드는 삭제 없이 비활성 보존";
+    : "src/clearcut_mode.lua + score_operations.lua + character_traits.lua 기준 · 현재 로비는 흡연자 벌목 기록 모드만 활성화 · 저장된 재생 단계에서 6그루로 시작하고 0그루 달성 시 0.86초 전투 정지·잎/프리즘 단계 상승 FX·6그루 순차 발아 후 다음 단계가 영구 해금 · 재생 속도 0.14×1.45^(단계-1), HP 1.08^(단계-1) · 영구 연구 화면은 트리를 해상도에 맞춰 자동 배치하고 전용 픽셀 아이콘·단계 핍·선택 브래킷으로 상태를 구분 · 목재 경험치 드래프트에는 아기 로봇·탐지 안테나·작업장 확장·조림 구획·목재 선별기·안전 관리 장치만 등장 · 로비 영구 성장은 스킬 레벨을 지급하지 않고 투척 거리·착화 반경·착화/확산 확률·흡연/비행/연소 속도·추가 꽁초 특성으로 분리 · 일반 작전·공용 전투 스킬·융합·시너지 코드는 삭제 없이 비활성 보존";
   buildModeSwitch();
   buildTabs();
   renderPanel(document.getElementById("search").value);
