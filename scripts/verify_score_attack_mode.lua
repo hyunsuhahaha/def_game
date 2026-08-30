@@ -168,4 +168,21 @@ game.world.drops={{kind="wood",amount=1,x=r1.x+900,y=r1.y,height=0},{kind="wood"
 r1.target,r2.target=nil,nil
 game.world:updateHelpers(1/60,game)
 assert(r1.target and r2.target and r1.target~=r2.target,"multiple score robots were dispatched to the same wood")
+
+-- Tree variants become distinct lumber and are paid only by the animated result settlement.
+local settleMode=require("src.clearcut_mode").new();settleMode.scoreAttack=true;settleMode.sandbox=true;settleMode.mapId="forest";settleMode.job="fire"
+local speciesTree={active=true,rushTree=true,treeVariant=3,x=game.player.x+20,y=game.player.y,rushHp=0}
+settleMode:fellTree(speciesTree,game)
+assert(settleMode.lumberInventory.birch==1,"felled tree variant did not enter its species lumber inventory")
+settleMode.lumberInventory={broadleaf=2,birch=3};settleMode.treesFelled=5;settleMode.initialTrees=6
+settleMode.scoreStartingRegenTier=1;settleMode.scoreRegenTier=1;settleMode.scoreHighestRegenTier=1
+game.result=nil;game.ended=false;game.achievements=nil
+local coinsBefore=Traits.data.currency
+settleMode:finish(game,true)
+assert(#game.result.lumberRows==2 and game.result.lumberCoinTotal==8,"species lumber did not retain its distinct coin values")
+assert(Traits.data.currency==coinsBefore and game.result.traitEarned==0,"result coins were granted before the visible settlement")
+settleMode:updateResults(.35,game);settleMode:updateResults(.15,game)
+assert(game.result.traitEarned>0 and game.result.traitEarned<8,"sequential settlement did not begin one unit at a time")
+settleMode:completeResultSettlement(game)
+assert(Traits.data.currency==coinsBefore+8 and game.result.traitEarned==8 and settleMode.resultSettlement.complete,"skipping result settlement lost or duplicated coins")
 print("SCORE_ATTACK_MODE_OK start=6 persistent_regen_tier wood_xp=operations combat=permanent")

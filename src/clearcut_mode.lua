@@ -42,6 +42,8 @@ local SynergyUI = require("src.synergy_ui")
 local SmokerWeaponArt = require("src.smoker_weapon_art")
 local ScoreOperations = require("src.score_operations")
 local ScoreTierUpArt = require("src.score_tier_up_art")
+local WoodEconomy = require("src.wood_economy")
+local WoodSettlementArt = require("src.wood_settlement_art")
 
 local ClearcutMode = {}
 ClearcutMode.__index = ClearcutMode
@@ -182,7 +184,7 @@ function ClearcutMode.new()
         sandbox=false,
         levels={}, choices={}, level=1, xp=0, xpNext=10, pending=0,
         skillBranches={},smokerEvolution=nil,synergyCounts={},branchChoiceSkill=nil,branchChoices={},
-        totalWood=0, treesFelled=0, elapsed=0, initialTrees=0, remainingTrees=0,
+        totalWood=0, treesFelled=0, elapsed=0, initialTrees=0, remainingTrees=0,lumberInventory={},resultSettlement=nil,
         maxMulti=1, maxChain=0, axeCooldown=0, axeRange=150, milestoneFired={},
         regrowTimer=0, regrowGrace=35, regrowInterval=12, regrowPulses=0, treesRevived=0, regrowFlash=0,
         forestZones={},zonesSecured=0,
@@ -474,6 +476,8 @@ function ClearcutMode:setup(game)
     if game.world.useArcadeForest then game.world:useArcadeForest() end
     local Maps=require("src.clearcut_maps")
     self.mapId=Maps.get(self.mapId).id
+    self.lumberInventory={}
+    self.resultSettlement=nil
     self.stage=math.max(1,math.min(BiomeBosses.stageCap(self.mapId),self.stage or 1))
     self.stageElapsed,self.stageTimeLimit,self.failureReason=0,self.scoreAttack and math.huge or stageTimeLimit(self.stage,self.mapId),nil
     if self.scoreAttack then
@@ -4685,6 +4689,9 @@ function ClearcutMode:fellTree(node, game)
     game.world:harvestBurst(node, game, amount, "목재")
     game.world:spawnDrop("wood", amount, node.x, node.y - 10, 42, 30, 1.5)
     self.treesFelled = self.treesFelled + 1
+    local lumber=WoodEconomy.forTree(self.mapId,node.treeVariant or 1)
+    self.lumberInventory=self.lumberInventory or{}
+    self.lumberInventory[lumber.id]=(self.lumberInventory[lumber.id]or 0)+1
     if self.scoreAttack then
         self.scoreFellTimes=self.scoreFellTimes or{}
         self.scoreFellTimes[#self.scoreFellTimes+1]=self.stageElapsed or self.elapsed or 0
@@ -4830,11 +4837,62 @@ function ClearcutMode:finish(game, victory)
         baseReward=(self.scoreStartingRegenTier or 1)*3+math.min(20,math.floor(self.treesFelled/8))+tierGain*10
     else baseReward=math.floor(self.treesFelled/5)+self.kills*2+math.floor(self.level*1.5)+(victory and 30 or 0)end
     local traitReward = math.max(1, math.floor(baseReward * (self.permanentTraits.reward or 1) + .5))
-    if game.characterTraits then game.characterTraits:addCurrency(traitReward) end
+    local lumberRows,lumberCoinTotal
+    if self.scoreAttack then
+        lumberRows,lumberCoinTotal=WoodEconomy.settlement(self.mapId,self.lumberInventory)
+        -- Results from older fixtures/runs still settle instead of opening an empty panel.
+        if #lumberRows==0 and self.treesFelled>0 then
+            local fallback=WoodEconomy.forTree(self.mapId,1)
+            self.lumberInventory={[fallback.id]=self.treesFelled}
+            lumberRows,lumberCoinTotal=WoodEconomy.settlement(self.mapId,self.lumberInventory)
+        end
+        traitReward=0
+    elseif game.characterTraits then game.characterTraits:addCurrency(traitReward) end
     local zonesSecured,zonesTotal=ForestZones.status(self)
-    game.result={elapsed=math.floor(self.elapsed),wood=self.scoreAttack and math.floor(self.scoreWoodEarned or 0)or self.totalWood,woodBalance=math.floor(self.totalWood),trees=self.treesFelled,total=self.initialTrees,maxMulti=self.maxMulti,maxChain=self.maxChain,level=self.level,stage=self.stage,stageCode=Maps.stageCode(self.mapId,self.stage),regrowPulses=self.regrowPulses,treesRevived=self.treesRevived,rootedCount=self.rootedCount,beeSwarms=self.beeSwarmsTriggered,victory=victory,kills=self.kills,zonesSecured=zonesSecured,zonesTotal=zonesTotal,traitEarned=traitReward,traitCurrency=game.characterTraits and game.characterTraits.data.currency or traitReward,mapId=self.mapId,operationName=BiomeBosses.operationName(self.mapId),bossName=self.operationBossName,failureReason=self.failureReason,scoreAttack=self.scoreAttack,totalTreesSpawned=self.totalTreesSpawned,peakActiveTrees=self.peakActiveTrees,treeAllowance=self.scoreTreeAllowance,treeSpawnRate=self:scoreTreeSpawnRate(),peakTreesPerSecond=self.peakTreesPerSecond or 0,regenTier=self.scoreRegenTier,startingRegenTier=self.scoreStartingRegenTier,highestRegenTier=self.scoreHighestRegenTier}
+    game.result={elapsed=math.floor(self.elapsed),wood=self.scoreAttack and math.floor(self.scoreWoodEarned or 0)or self.totalWood,woodBalance=math.floor(self.totalWood),trees=self.treesFelled,total=self.initialTrees,maxMulti=self.maxMulti,maxChain=self.maxChain,level=self.level,stage=self.stage,stageCode=Maps.stageCode(self.mapId,self.stage),regrowPulses=self.regrowPulses,treesRevived=self.treesRevived,rootedCount=self.rootedCount,beeSwarms=self.beeSwarmsTriggered,victory=victory,kills=self.kills,zonesSecured=zonesSecured,zonesTotal=zonesTotal,traitEarned=traitReward,traitCurrency=game.characterTraits and game.characterTraits.data.currency or traitReward,mapId=self.mapId,operationName=BiomeBosses.operationName(self.mapId),bossName=self.operationBossName,failureReason=self.failureReason,scoreAttack=self.scoreAttack,totalTreesSpawned=self.totalTreesSpawned,peakActiveTrees=self.peakActiveTrees,treeAllowance=self.scoreTreeAllowance,treeSpawnRate=self:scoreTreeSpawnRate(),peakTreesPerSecond=self.peakTreesPerSecond or 0,regenTier=self.scoreRegenTier,startingRegenTier=self.scoreStartingRegenTier,highestRegenTier=self.scoreHighestRegenTier,lumberRows=lumberRows,lumberCoinTotal=lumberCoinTotal or traitReward}
+    if self.scoreAttack then
+        self.resultSettlement={rows=lumberRows or{},rowIndex=1,accumulator=0,rowPause=.32,elapsed=0,converted=0,total=lumberCoinTotal or 0,bursts={},saveCounter=0,complete=(lumberCoinTotal or 0)==0}
+    end
     if game.achievements then game.achievements:recordRun(game.result) end
     game.mode="clearcut_results"
+end
+
+function ClearcutMode:updateResults(dt,game)
+    local s=self.resultSettlement
+    if not s or s.complete or not game.result then return end
+    s.elapsed=s.elapsed+dt
+    for i=#s.bursts,1,-1 do local b=s.bursts[i];b.t=b.t+dt;if b.t>=b.dur then table.remove(s.bursts,i)end end
+    if s.rowPause>0 then s.rowPause=math.max(0,s.rowPause-dt);return end
+    local row=s.rows[s.rowIndex]
+    if not row then s.complete=true;if game.characterTraits then game.characterTraits:save()end;return end
+    local progress=s.total>0 and s.converted/s.total or 1
+    local interval=math.max(.012,.070-progress*.052)
+    s.accumulator=s.accumulator+dt
+    local steps=0
+    while s.accumulator>=interval and row.remaining>0 and steps<24 do
+        s.accumulator=s.accumulator-interval;steps=steps+1
+        row.remaining=row.remaining-1;row.converted=row.converted+1
+        s.converted=s.converted+row.coin
+        game.result.traitEarned=(game.result.traitEarned or 0)+row.coin
+        if game.characterTraits then game.characterTraits:addCurrency(row.coin,true);game.result.traitCurrency=game.characterTraits.data.currency end
+        s.saveCounter=(s.saveCounter or 0)+1
+        if s.saveCounter>=12 and game.characterTraits then game.characterTraits:save();s.saveCounter=0 end
+        s.bursts[#s.bursts+1]={t=0,dur=.48,rowIndex=s.rowIndex,seed=(row.converted*17+s.rowIndex*31)%11}
+        if #s.bursts>18 then table.remove(s.bursts,1)end
+    end
+    if row.remaining<=0 then if game.characterTraits then game.characterTraits:save();s.saveCounter=0 end;s.rowIndex=s.rowIndex+1;s.rowPause=.18;s.accumulator=0 end
+end
+
+function ClearcutMode:completeResultSettlement(game)
+    local s=self.resultSettlement
+    if not s or s.complete or not game.result then return end
+    local add=0
+    for _,row in ipairs(s.rows)do add=add+row.remaining*row.coin;row.converted=row.converted+row.remaining;row.remaining=0 end
+    if add>0 and game.characterTraits then game.characterTraits:addCurrency(add,true)end
+    game.result.traitEarned=(game.result.traitEarned or 0)+add
+    game.result.traitCurrency=game.characterTraits and game.characterTraits.data.currency or(game.result.traitCurrency or 0)+add
+    s.converted=s.total;s.rowIndex=#s.rows+1;s.complete=true
+    if game.characterTraits then game.characterTraits:save()end
 end
 
 local function drawBeeBody(x, y, angle, wingPhase, scale)
@@ -7272,7 +7330,68 @@ function ClearcutMode:choiceAt(x,y)
     for i,box in ipairs(self.choiceBoxes or {}) do if x>=box.x and x<=box.x+box.w and y>=box.y and y<=box.y+box.h then return i end end
 end
 
+local function drawScoreSettlementResults(self,game,fonts)
+    local w,h,r=love.graphics.getWidth(),love.graphics.getHeight(),game.result
+    local scale=math.max(.72,math.min(1,w/1280,h/720));local contentW=math.min(920,w-36);local x=(w-contentW)/2
+    local top=18*scale;local s=self.resultSettlement
+    love.graphics.setColor(.006,.012,.009,.74);love.graphics.rectangle("fill",0,0,w,h)
+    love.graphics.setFont(fonts.title);love.graphics.setColor(1,.94,.76);love.graphics.printf("작업 종료",x,top,contentW,"center")
+    love.graphics.setFont(fonts.small);love.graphics.setColor(.72,.77,.69)
+    love.graphics.printf(formatTime(r.elapsed).."  ·  "..tostring(r.trees or 0).."그루 벌목  ·  최고 "..tostring(r.peakTreesPerSecond or 0).."그루/초",x,top+46*scale,contentW,"center")
+
+    local panelY=top+82*scale;local panelH=math.min(390*scale,h-panelY-86*scale)
+    love.graphics.setColor(.018,.030,.022,.94);love.graphics.rectangle("fill",x,panelY,contentW,panelH,8,8)
+    love.graphics.setColor(.74,.49,.20,.85);love.graphics.rectangle("fill",x,panelY,5,panelH,3,3)
+    love.graphics.setFont(fonts.heading);love.graphics.setColor(.96,.91,.74);love.graphics.print("목재 정산",x+28*scale,panelY+18*scale)
+    love.graphics.setFont(fonts.micro or fonts.small);love.graphics.setColor(.60,.67,.59);love.graphics.print("수종별 목재가 차례로 연구 코인으로 바뀝니다",x+28*scale,panelY+50*scale)
+
+    local bankW=238*scale;local bankX=x+contentW-bankW-22*scale;local bankY=panelY+26*scale
+    love.graphics.setColor(.055,.068,.047,.98);love.graphics.rectangle("fill",bankX,bankY,bankW,panelH-52*scale,7,7)
+    love.graphics.setColor(.79,.59,.24,.75);love.graphics.rectangle("line",bankX+.5,bankY+.5,bankW-1,panelH-53*scale,7,7)
+    WoodSettlementArt.drawCoin(bankX+bankW/2,bankY+70*scale,(s and s.elapsed or 0),.78*scale,1)
+    love.graphics.setFont(fonts.micro or fonts.small);love.graphics.setColor(.72,.70,.57);love.graphics.printf("보유 연구 코인",bankX,bankY+114*scale,bankW,"center")
+    love.graphics.setFont(fonts.big);love.graphics.setColor(1,.82,.30);love.graphics.printf(tostring(r.traitCurrency or 0),bankX,bankY+138*scale,bankW,"center")
+    love.graphics.setFont(fonts.small);love.graphics.setColor(.54,1,.61);love.graphics.printf("이번 정산  +"..tostring(r.traitEarned or 0),bankX,bankY+184*scale,bankW,"center")
+    love.graphics.setFont(fonts.micro or fonts.small);love.graphics.setColor(.57,.62,.55)
+    love.graphics.printf((s and s.complete)and"정산 완료"or"목재를 세는 중…",bankX,bankY+220*scale,bankW,"center")
+
+    local rows=(s and s.rows)or r.lumberRows or{};local listX=x+24*scale;local listW=contentW-bankW-68*scale
+    local rowStart=panelY+82*scale;local rowH=math.min(64*scale,(panelH-100*scale)/math.max(1,#rows))
+    s=s or{rows=rows,rowIndex=#rows+1,bursts={},elapsed=0,complete=true};s.layout={rows={},bankX=bankX+bankW/2,bankY=bankY+70*scale}
+    for i,row in ipairs(rows)do
+        local ry=rowStart+(i-1)*rowH;local active=not s.complete and i==s.rowIndex
+        if active then love.graphics.setColor(.18,.115,.036,.80);love.graphics.rectangle("fill",listX,ry,listW,rowH-5*scale,5,5)end
+        love.graphics.setColor(active and{1,.66,.20}or{.25,.31,.24});love.graphics.rectangle("fill",listX,ry+rowH-6*scale,listW,2*scale)
+        WoodSettlementArt.drawLog(listX+34*scale,ry+rowH*.43,.28*scale,row.color,1)
+        love.graphics.setFont(fonts.small);love.graphics.setColor(.91,.90,.77);love.graphics.print(row.name,listX+70*scale,ry+10*scale)
+        love.graphics.setFont(fonts.micro or fonts.small);love.graphics.setColor(.62,.68,.59)
+        love.graphics.print("1개 = "..row.coin.." 코인",listX+70*scale,ry+34*scale)
+        love.graphics.setFont(fonts.heading);love.graphics.setColor(active and{1,.83,.37}or{.82,.82,.69})
+        love.graphics.printf("× "..tostring(row.remaining or row.count),listX+listW-118*scale,ry+17*scale,96*scale,"right")
+        s.layout.rows[i]={x=listX+listW-24*scale,y=ry+rowH*.42}
+    end
+    for _,b in ipairs(s.bursts or{})do
+        local origin=s.layout.rows[b.rowIndex]
+        if origin then local p=math.min(1,b.t/b.dur);local ease=1-(1-p)^3
+            local bx=origin.x+(s.layout.bankX-origin.x)*ease
+            local by=origin.y+(s.layout.bankY-origin.y)*ease-math.sin(p*math.pi)*(35+(b.seed or 0))*scale
+            if p<.42 then
+                local row=s.rows[b.rowIndex]
+                WoodSettlementArt.drawLog(bx,by,.12*scale*(1-p*.7),row and row.color or{1,1,1},math.min(1,(1-p)*3))
+            else
+                WoodSettlementArt.drawCoin(bx,by,(s.elapsed or 0)+b.seed,.28*scale,math.min(1,(1-p)*2.8))
+            end
+        end
+    end
+
+    local buttonH=42*scale;local buttonW=210*scale;local by=h-buttonH-18*scale;local bx=w/2-buttonW-7*scale
+    game.clearcutResultButtons={research={x=bx,y=by,w=buttonW,h=buttonH},retry={x=w/2+7*scale,y=by,w=buttonW,h=buttonH}}
+    HUDArt.button(bx,by,buttonW,buttonH,"영구 연구  [T]",fonts.small,"neutral",true)
+    HUDArt.button(w/2+7*scale,by,buttonW,buttonH,"다시 도전  [ENTER]",fonts.small,"amber",true)
+end
+
 function ClearcutMode:drawResults(game,fonts)
+    if game.result and game.result.scoreAttack then return drawScoreSettlementResults(self,game,fonts)end
     local w,h,r=love.graphics.getWidth(),love.graphics.getHeight(),game.result
     local victory=r.victory~=false
     local scale=math.max(.76,math.min(1.16,w/1280,h/720));local contentW=math.min(720,w-48);local x=(w-contentW)/2

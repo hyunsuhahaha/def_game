@@ -387,7 +387,8 @@ function Game:update(dt)
     if self.mode == "character_traits" then self.characterTraitBoard:update(dt); return end
     if self.mode == "test_options" then self.testResetTime=math.max(0,(self.testResetTime or 0)-dt); if self.testResetTime<=0 then self.testResetArmed=false end; return end
     if self.mode == "meta" then self.traitTree:update(dt); return end
-    if self.mode == "results" or self.mode == "rush_results" or self.mode == "clearcut_results" then return end
+    if self.mode == "clearcut_results" then if self.clearcut then self.clearcut:updateResults(dt,self)end;return end
+    if self.mode == "results" or self.mode == "rush_results" then return end
     if self.mode == "build_select" then return end
     self.runXPVisual = self.runXPVisual + (self.runXP - self.runXPVisual) * (1 - math.exp(-dt * 9))
     self.runXPPulse = math.max(0, self.runXPPulse - dt * 1.35)
@@ -528,8 +529,9 @@ function Game:keypressed(key)
         return
     end
     if self.mode == "clearcut_results" then
-        if key=="t" or key=="u" then self.characterTraitReturnMode="lobby";self.mode="character_traits"
-        elseif key=="return" or key=="r" then if self.clearcut and self.clearcut.scoreAttack then self:startClearcutScoreAttack()else self:startClearcut(self.clearcut and self.clearcut.job)end elseif key=="escape" then self.mode="lobby" end
+        if key=="t" or key=="u" then if self.clearcut then self.clearcut:completeResultSettlement(self)end;self.characterTraitReturnMode="lobby";self.mode="character_traits"
+        elseif key=="return" or key=="r" then if self.clearcut then self.clearcut:completeResultSettlement(self)end;if self.clearcut and self.clearcut.scoreAttack then self:startClearcutScoreAttack()else self:startClearcut(self.clearcut and self.clearcut.job)end
+        elseif key=="escape" then if self.clearcut then self.clearcut:completeResultSettlement(self)end;self.mode="lobby" end
         return
     end
     if self.mode == "results" then
@@ -732,7 +734,7 @@ function Game:mousepressed(x, y, button)
         return
     end
     if self.mode == "clearcut_results" then
-        if button==1 then local boxes=self.clearcutResultButtons or{};local function inside(b)return b and x>=b.x and x<=b.x+b.w and y>=b.y and y<=b.y+b.h end;if inside(boxes.research)then self.characterTraitReturnMode="lobby";self.mode="character_traits"elseif inside(boxes.retry)then if self.clearcut and self.clearcut.scoreAttack then self:startClearcutScoreAttack()else self:startClearcut(self.clearcut and self.clearcut.job)end end end
+        if button==1 then local boxes=self.clearcutResultButtons or{};local function inside(b)return b and x>=b.x and x<=b.x+b.w and y>=b.y and y<=b.y+b.h end;if inside(boxes.research)then if self.clearcut then self.clearcut:completeResultSettlement(self)end;self.characterTraitReturnMode="lobby";self.mode="character_traits"elseif inside(boxes.retry)then if self.clearcut then self.clearcut:completeResultSettlement(self)end;if self.clearcut and self.clearcut.scoreAttack then self:startClearcutScoreAttack()else self:startClearcut(self.clearcut and self.clearcut.job)end end end
         return
     end
     if self.mode == "results" then
@@ -1103,7 +1105,7 @@ function Game:drawClearcutSelect()
     love.graphics.setColor(1,1,1,.09); love.graphics.line(tx,dy+(compact and 158 or 205),dx+dw-26,dy+(compact and 158 or 205))
     love.graphics.setFont(compact and f.small or f.body); love.graphics.setColor(.70,.77,.70); love.graphics.printf(focus.detail,tx,dy+(compact and 174 or 224),dw-(tx-dx)-30,"left")
     if not compact then Frontend.badge("고유 작업 방식",tx,dy+dh-105,132,f.small,accent); love.graphics.setColor(.53,.61,.55); love.graphics.print("첫 선택 이후에도 특성 연구망에서 영구 강화 가능",tx,dy+dh-68) end
-    love.graphics.setFont(f.small); love.graphics.setColor(1,.78,.28); love.graphics.print("성과 포인트  "..self.characterTraits.data.currency.." P",tx,dy+dh-42)
+    love.graphics.setFont(f.small); love.graphics.setColor(1,.78,.28); love.graphics.print("연구 코인  "..self.characterTraits.data.currency,tx,dy+dh-42)
 
     self.clearcutCharBoxes={}
     for i,c in ipairs(characters) do

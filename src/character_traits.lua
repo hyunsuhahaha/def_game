@@ -3,7 +3,7 @@ CharacterTraits.__index = CharacterTraits
 
 local jobs = {
     physical = {
-        currencyName="성과 포인트",
+        currencyName="연구 코인",
         tagline="오늘 벤 나무만큼 오늘을 버틴다.",
         doctrine="체력과 도끼날을 갈아 넣어 정면에서 숲을 밀어낸다.",
         palette={.91,.47,.19},
@@ -17,12 +17,12 @@ local jobs = {
             {id="physical_grip", name="굳은살 손잡이", short="묵직한 한 방", desc="도끼 피해 +1", max=3, costs={34,54,78}, effect="treeDamage", value=1, requires={{"physical_sharpen",1}}, x=.70,y=.30, icon="fist", color={.72,.43,.25}},
             {id="physical_lunchbox", name="식은 도시락", short="쓰러지면 한입", desc="나무를 벨 때 체력 +1", max=3, costs={34,54,78}, effect="healOnFell", value=1, requires={{"physical_overtime",1}}, x=.70,y=.70, icon="lunch", color={.62,.72,.42}},
             {id="physical_severance", name="퇴직금 선지급", short="밑동 절단", desc="타격 시 4% 확률로 즉시 벌목", max=3, costs={42,66,92}, effect="executeChance", value=.04, requires={{"physical_overtime",2}}, x=.68,y=.92, icon="stump", color={.76,.33,.20}},
-            {id="physical_report", name="초과 달성 보고서", short="할당량 초과", desc="런 종료 성과 포인트 +10%", max=3, costs={38,58,84}, effect="reward", value=.10, requires={{"physical_sharpen",1},{"physical_overtime",1}}, x=.78,y=.50, icon="report", color={.94,.66,.22}},
+            {id="physical_report", name="초과 달성 보고서", short="할당량 초과", desc="런 종료 연구 코인 +10%", max=3, costs={38,58,84}, effect="reward", value=.10, requires={{"physical_sharpen",1},{"physical_overtime",1}}, x=.78,y=.50, icon="report", color={.94,.66,.22}},
             {id="physical_union", name="노조 없는 현장", short="최종 잔업", desc="도끼 타격 범위 +36", max=1, costs={110}, effect="area", value=36, requires={{"physical_report",3}}, x=.94,y=.50, icon="capstone", color={.95,.32,.18}, capstone=true}
         }
     },
     fire = {
-        currencyName="성과 포인트",
+        currencyName="연구 코인",
         tagline="불씨 하나쯤은 자연이 알아서 처리하겠지.",
         doctrine="긴 흡연 준비 끝에 꽁초를 날려 넓은 숲을 연쇄 점화한다.",
         palette={.82,.28,.22},
@@ -35,13 +35,13 @@ local jobs = {
             {id="fire_deep_drag", name="필터까지 태우기", short="깊은 한 모금", desc="나무가 타는 시간 -8%", max=3, costs={34,54,78}, effect="burnSpeed", value=.08, requires={{"fire_wind",1}}, x=.70,y=.30, icon="ember", color={.96,.43,.16}},
             {id="fire_pack", name="한 갑째 개봉", short="꽁초 추가", desc="투척 시 추가 불씨 +1", max=2, costs={48,82}, effect="extraFires", value=1, requires={{"fire_wind",2}}, x=.68,y=.08, icon="pack", color={.78,.24,.18}},
             {id="fire_secondhand", name="간접흡연 구역", short="연기 확산", desc="초당 불 확산 확률 +4%", max=3, costs={34,54,78}, effect="spreadChance", value=.04, requires={{"fire_ashtray",1}}, x=.70,y=.70, icon="smoke", color={.62,.65,.65}},
-            {id="fire_insurance", name="화재보험 가입 직후", short="보상 준비", desc="런 종료 성과 포인트 +6%", max=3, costs={42,66,92}, effect="reward", value=.06, requires={{"fire_ashtray",2}}, x=.68,y=.92, icon="policy", color={.74,.61,.35}},
-            {id="fire_denial", name="인과관계 불분명", short="증거 불충분", desc="런 종료 성과 포인트 +10%", max=3, costs={38,58,84}, effect="reward", value=.10, requires={{"fire_wind",1},{"fire_ashtray",1}}, x=.78,y=.50, icon="question", color={.69,.53,.72}},
+            {id="fire_insurance", name="화재보험 가입 직후", short="보상 준비", desc="런 종료 연구 코인 +6%", max=3, costs={42,66,92}, effect="reward", value=.06, requires={{"fire_ashtray",2}}, x=.68,y=.92, icon="policy", color={.74,.61,.35}},
+            {id="fire_denial", name="인과관계 불분명", short="증거 불충분", desc="런 종료 연구 코인 +10%", max=3, costs={38,58,84}, effect="reward", value=.10, requires={{"fire_wind",1},{"fire_ashtray",1}}, x=.78,y=.50, icon="question", color={.69,.53,.72}},
             {id="fire_chain", name="연쇄 실화", short="최종 불씨", desc="흡연·투척 속도 +18%", max=1, costs={110}, effect="attackSpeed", value=.18, requires={{"fire_denial",3}}, x=.94,y=.50, icon="capstone", color={1,.27,.09}, capstone=true}
         }
     },
     toxic = {
-        currencyName="성과 포인트",
+        currencyName="연구 코인",
         tagline="남기면 음식물 쓰레기다. 나무도 예외는 아니다.",
         doctrine="대왕 포크로 밑동을 찍고 마지막 타격에 나무를 통째로 비운다.",
         palette={.38,.68,.27},
@@ -55,12 +55,12 @@ local jobs = {
             {id="toxic_buffet_coupon", name="포크 두 개 들기", short="양손 식사", desc="동시 타격 나무 +1", max=2, costs={48,82}, effect="extraTargets", value=1, requires={{"toxic_molar",2}}, x=.68,y=.08, icon="split", color={.72,.38,.62}},
             {id="toxic_compost", name="깨끗한 접시", short="남김 없음", desc="나무를 먹을 때 체력 +1", max=3, costs={34,54,78}, effect="healOnFell", value=1, requires={{"toxic_delivery",1}}, x=.70,y=.70, icon="heartleaf", color={.38,.78,.46}},
             {id="toxic_manifesto", name="씹는 시간 단축", short="바로 삼키기", desc="포크질 속도 +8%", max=3, costs={42,66,92}, effect="attackSpeed", value=.08, requires={{"toxic_delivery",2}}, x=.68,y=.92, icon="clock", color={.68,.72,.84}},
-            {id="toxic_sponsor", name="후원금 사용 내역 비공개", short="영수증 없음", desc="런 종료 성과 포인트 +10%", max=3, costs={38,58,84}, effect="reward", value=.10, requires={{"toxic_molar",1},{"toxic_delivery",1}}, x=.78,y=.50, icon="donation", color={.86,.62,.27}},
+            {id="toxic_sponsor", name="후원금 사용 내역 비공개", short="영수증 없음", desc="런 종료 연구 코인 +10%", max=3, costs={38,58,84}, effect="reward", value=.10, requires={{"toxic_molar",1},{"toxic_delivery",1}}, x=.78,y=.50, icon="donation", color={.86,.62,.27}},
             {id="toxic_buffet", name="숲 전체 뷔페", short="최종 접시", desc="포크 타격 폭 +34", max=1, costs={110}, effect="area", value=34, requires={{"toxic_sponsor",3}}, x=.94,y=.50, icon="capstone", color={.25,.82,.28}, capstone=true}
         }
     },
     developer = {
-        currencyName="성과 포인트",
+        currencyName="연구 코인",
         tagline="나무가 보이면 아직 용적률이 남았다는 뜻이다.",
         doctrine="행정과 중장비를 동시에 밀어붙여 긴 직선의 숲을 개발 부지로 만든다.",
         palette={.28,.58,.76},
@@ -74,12 +74,12 @@ local jobs = {
             {id="developer_greenbelt", name="그린벨트 해제", short="빈 땅 확보", desc="벌목지가 불모지가 될 확률 +12%", max=3, costs={42,66,92}, effect="sterileChance", value=.12, requires={{"developer_rezone",2}}, x=.68,y=.08, icon="map", color={.42,.68,.40}},
             {id="developer_changeorder", name="설계변경 17차", short="끝점 폭파", desc="돌진 종료 폭발 범위 +18", max=3, costs={34,54,78}, effect="aftershockRadius", value=18, requires={{"developer_subcontract",1}}, x=.70,y=.70, icon="blast", color={.92,.42,.18}},
             {id="developer_advance", name="공사대금 선지급", short="바로 재투입", desc="돌진 쿨다운 초기화 확률 +7%", max=3, costs={42,66,92}, effect="cooldownRefund", value=.07, requires={{"developer_subcontract",2}}, x=.68,y=.92, icon="coins", color={.88,.68,.24}},
-            {id="developer_presale", name="사전분양 완판", short="모형도 매진", desc="런 종료 성과 포인트 +10%", max=3, costs={38,58,84}, effect="reward", value=.10, requires={{"developer_rezone",1},{"developer_subcontract",1}}, x=.78,y=.50, icon="tower", color={.47,.65,.82}},
+            {id="developer_presale", name="사전분양 완판", short="모형도 매진", desc="런 종료 연구 코인 +10%", max=3, costs={38,58,84}, effect="reward", value=.10, requires={{"developer_rezone",1},{"developer_subcontract",1}}, x=.78,y=.50, icon="tower", color={.47,.65,.82}},
             {id="developer_expropriate", name="공익사업 강제수용", short="최종 고시", desc="돌진 폭 +32", max=1, costs={110}, effect="area", value=32, requires={{"developer_presale",3}}, x=.94,y=.50, icon="capstone", color={.20,.63,.92}, capstone=true}
         }
     },
     miner = {
-        currencyName="성과 포인트",
+        currencyName="연구 코인",
         tagline="그 삽질이 언젠가는 하드월렛을 찾아줄 것이다.",
         doctrine="탐지와 발굴을 번갈아 밀어붙여 넓은 구역을 통째로 파헤친다.",
         palette={.85,.68,.22},
@@ -93,12 +93,12 @@ local jobs = {
             {id="miner_titanium", name="티타늄 삽날", short="더 깊이", desc="굴착 피해 +1", max=3, costs={34,54,78}, effect="treeDamage", value=1, requires={{"miner_headphone",1}}, x=.70,y=.30, icon="fist", color={.72,.66,.60}},
             {id="miner_thermos", name="식은 보온병 커피", short="한 모금", desc="굴착 시 체력 +1", max=3, costs={34,54,78}, effect="healOnFell", value=1, requires={{"miner_overnight",1}}, x=.70,y=.70, icon="lunch", color={.62,.50,.30}},
             {id="miner_permit", name="발굴허가 없음", short="일단 판다", desc="'발견' 판정 확률 +4%", max=3, costs={42,66,92}, effect="executeChance", value=.04, requires={{"miner_overnight",2}}, x=.68,y=.92, icon="warning", color={.85,.45,.20}},
-            {id="miner_gpscoord", name="그때 그 GPS 좌표", short="기억 재구성", desc="런 종료 성과 포인트 +10%", max=3, costs={38,58,84}, effect="reward", value=.10, requires={{"miner_headphone",1},{"miner_overnight",1}}, x=.78,y=.50, icon="map", color={.92,.70,.25}},
+            {id="miner_gpscoord", name="그때 그 GPS 좌표", short="기억 재구성", desc="런 종료 연구 코인 +10%", max=3, costs={38,58,84}, effect="reward", value=.10, requires={{"miner_headphone",1},{"miner_overnight",1}}, x=.78,y=.50, icon="map", color={.92,.70,.25}},
             {id="miner_landrights", name="산 전체 매입 시도", short="최종 발굴", desc="굴착 범위 +36", max=1, costs={110}, effect="area", value=36, requires={{"miner_gpscoord",3}}, x=.94,y=.50, icon="capstone", color={1,.80,.20}, capstone=true}
         }
     },
     philosopher = {
-        currencyName="성과 포인트",
+        currencyName="연구 코인",
         tagline="태어난 것 자체가 형벌이다. 나는 그저 해방시켜줄 뿐이다.",
         doctrine="그칠 줄 모르는 일장연설과 침으로 넓은 숲을 계속 '해방'시킨다.",
         palette={.75,.90,.35},
@@ -112,7 +112,7 @@ local jobs = {
             {id="philosopher_venomtongue", name="독설 훈련", short="말이 더 따갑다", desc="침 피해 +1", max=3, costs={34,54,78}, effect="biteDamage", value=1, requires={{"philosopher_footnotes",1}}, x=.70,y=.30, icon="tooth", color={.62,.75,.28}},
             {id="philosopher_martyrdom", name="순교자 코스프레", short="말할수록 강해짐", desc="설파 성공 시 체력 +1", max=3, costs={34,54,78}, effect="healOnFell", value=1, requires={{"philosopher_allnighter",1}}, x=.70,y=.70, icon="heartleaf", color={.50,.70,.40}},
             {id="philosopher_manifesto_base", name="자비출판 선언문", short="800쪽짜리", desc="중독 지속시간 +0.8초", max=3, costs={42,66,92}, effect="plagueDuration", value=.8, requires={{"philosopher_allnighter",2}}, x=.68,y=.92, icon="policy", color={.58,.68,.30}},
-            {id="philosopher_cultfollow", name="추종자 세 명 확보", short="믿음의 증거", desc="런 종료 성과 포인트 +10%", max=3, costs={38,58,84}, effect="reward", value=.10, requires={{"philosopher_footnotes",1},{"philosopher_allnighter",1}}, x=.78,y=.50, icon="donation", color={.85,.75,.30}},
+            {id="philosopher_cultfollow", name="추종자 세 명 확보", short="믿음의 증거", desc="런 종료 연구 코인 +10%", max=3, costs={38,58,84}, effect="reward", value=.10, requires={{"philosopher_footnotes",1},{"philosopher_allnighter",1}}, x=.78,y=.50, icon="donation", color={.85,.75,.30}},
             {id="philosopher_finalsermon", name="최후의 설파", short="최종 해방", desc="침 범위 +34", max=1, costs={110}, effect="area", value=34, requires={{"philosopher_cultfollow",3}}, x=.94,y=.50, icon="capstone", color={.70,1,.25}, capstone=true}
         }
     }
@@ -153,12 +153,12 @@ expand("physical",{
     {id="physical_scrapshield",name="폐목재 방패",short="임시 방호",desc="최대 체력 +12",effect="maxHp",value=12,requires={{"physical_backbelt",2}},icon="document",color={.55,.66,.48}},
     {id="physical_route",name="왕복 없는 작업 동선",short="동선 단축",desc="도끼 사거리 +10",effect="range",value=10,requires={{"physical_foreman",2}},icon="road",color={.45,.63,.70}},
     {id="physical_meal",name="잔업 식대 청구",short="하단 전문화",desc="벌목 시 체력 +3",effect="healOnFell",value=3,requires={{"physical_scrapshield",2},{"physical_route",2}},icon="capstone",color={.58,.78,.32},max=1,capstone=true},
-    {id="physical_kpi",name="분기별 벌목 KPI",short="목표 재설정",desc="성과 포인트 +7%",effect="reward",value=.07,requires={{"physical_report",2}},icon="report",color={.88,.62,.20}},
+    {id="physical_kpi",name="분기별 벌목 KPI",short="목표 재설정",desc="연구 코인 +7%",effect="reward",value=.07,requires={{"physical_report",2}},icon="report",color={.88,.62,.20}},
     {id="physical_hydraulic",name="유압 도끼 불법 개조",short="압력 상승",desc="도끼 피해 +1",effect="treeDamage",value=1,requires={{"physical_kpi",1}},icon="machine",color={.66,.72,.74}},
     {id="physical_sawback",name="톱날 겸용 도끼",short="넓은 절단",desc="타격 범위 +10",effect="area",value=10,requires={{"physical_kpi",1}},icon="axe",color={.72,.46,.25}},
     {id="physical_nohire",name="인력 충원 계획 없음",short="혼자 두 배",desc="동시 타격 나무 +1",effect="extraTargets",value=1,requires={{"physical_hydraulic",2}},icon="split",color={.84,.40,.18},max=2},
     {id="physical_erasure",name="산재 기록 말소",short="기록 없음",desc="즉시 벌목 확률 +4%",effect="executeChance",value=.04,requires={{"physical_sawback",2}},icon="document",color={.65,.42,.50}},
-    {id="physical_employee",name="분기 최우수 사원",short="실적 독식",desc="성과 포인트 +12%",effect="reward",value=.12,requires={{"physical_nohire",2},{"physical_erasure",2}},icon="report",color={.96,.66,.18},max=1,capstone=true},
+    {id="physical_employee",name="분기 최우수 사원",short="실적 독식",desc="연구 코인 +12%",effect="reward",value=.12,requires={{"physical_nohire",2},{"physical_erasure",2}},icon="report",color={.96,.66,.18},max=1,capstone=true},
     {id="physical_lifetime",name="정년 없는 평생 현역",short="최종 노동",desc="도끼질 속도 +22%",effect="attackSpeed",value=.22,requires={{"physical_employee",1}},icon="capstone",color={1,.30,.12},max=1,capstone=true,costs={190}}
 })
 
@@ -172,15 +172,15 @@ expand("fire",{
     {id="fire_cough",name="기침으로 불씨 날리기",short="기침 확산",desc="불 확산 확률 +3%",effect="spreadChance",value=.03,requires={{"fire_warning",2}},icon="wind",color={.58,.67,.68}},
     {id="fire_hotash",name="뜨거운 재 털기",short="잔불 유지",desc="연소 속도 +6%",effect="burnSpeed",value=.06,requires={{"fire_cough",1}},icon="ash",color={.62,.54,.48}},
     {id="fire_drymouth",name="입안까지 건조주의보",short="완전 건조",desc="연소 속도 +7%",effect="burnSpeed",value=.07,requires={{"fire_cough",1}},icon="warning",color={.86,.42,.18}},
-    {id="fire_nosign",name="금연 표지판 뒤집기",short="표지 무시",desc="성과 포인트 +6%",effect="reward",value=.06,requires={{"fire_hotash",2}},icon="document",color={.72,.40,.36}},
+    {id="fire_nosign",name="금연 표지판 뒤집기",short="표지 무시",desc="연구 코인 +6%",effect="reward",value=.06,requires={{"fire_hotash",2}},icon="document",color={.72,.40,.36}},
     {id="fire_balcony",name="베란다 투척 숙련",short="포물선 숙련",desc="꽁초 사거리 +20",effect="range",value=20,requires={{"fire_drymouth",2}},icon="wind",color={.45,.65,.76}},
     {id="fire_fireline",name="산불 방화선 역이용",short="하단 전문화",desc="불 확산 확률 +10%",effect="spreadChance",value=.10,requires={{"fire_nosign",2},{"fire_balcony",2}},icon="capstone",color={.94,.50,.12},max=1,capstone=true},
     {id="fire_carton",name="면세점 보루 구매",short="불씨 재고",desc="추가 불씨 +1",effect="extraFires",value=1,requires={{"fire_denial",2}},icon="pack",color={.68,.30,.24},max=2},
     {id="fire_tailwind",name="계절풍 흡연 지침",short="순풍 투척",desc="꽁초 사거리 +18",effect="range",value=18,requires={{"fire_carton",1}},icon="wind",color={.44,.68,.72}},
     {id="fire_resin",name="송진 묻은 필터",short="고열 필터",desc="연소 속도 +8%",effect="burnSpeed",value=.08,requires={{"fire_carton",1}},icon="filter",color={.78,.54,.24}},
     {id="fire_emberstorm",name="불씨 폭풍",short="불씨 증식",desc="추가 불씨 +1",effect="extraFires",value=1,requires={{"fire_tailwind",2}},icon="ember",color={1,.34,.08},max=2},
-    {id="fire_press",name="언론 대응 매뉴얼",short="원인 부인",desc="성과 포인트 +9%",effect="reward",value=.09,requires={{"fire_resin",2}},icon="policy",color={.62,.55,.66}},
-    {id="fire_claim",name="실화 책임 전면 부인",short="책임 없음",desc="성과 포인트 +14%",effect="reward",value=.14,requires={{"fire_emberstorm",2},{"fire_press",2}},icon="question",color={.82,.42,.60},max=1,capstone=true},
+    {id="fire_press",name="언론 대응 매뉴얼",short="원인 부인",desc="연구 코인 +9%",effect="reward",value=.09,requires={{"fire_resin",2}},icon="policy",color={.62,.55,.66}},
+    {id="fire_claim",name="실화 책임 전면 부인",short="책임 없음",desc="연구 코인 +14%",effect="reward",value=.14,requires={{"fire_emberstorm",2},{"fire_press",2}},icon="question",color={.82,.42,.60},max=1,capstone=true},
     {id="fire_redsky",name="하늘이 붉은 건 노을",short="최종 산불",desc="착화 범위 +42",effect="area",value=42,requires={{"fire_claim",1}},icon="capstone",color={1,.18,.04},max=1,capstone=true,costs={190}}
 })
 
@@ -208,17 +208,17 @@ expand("toxic",{
     {id="toxic_family",name="옆자리 포크 빌리기",short="포크 추가",desc="동시 타격 나무 +1",effect="extraTargets",value=1,requires={{"toxic_organic",2}},icon="coupon",color={.70,.40,.58},max=2},
     {id="toxic_fork",name="뷔페 포크 12개",short="넓은 식사",desc="포크 타격 폭 +10",effect="area",value=10,requires={{"toxic_jaw",2}},icon="tongs",color={.48,.72,.64}},
     {id="toxic_rawbar",name="단체 테이블 점령",short="상단 전문화",desc="동시 타격 나무 +2",effect="extraTargets",value=2,requires={{"toxic_family",2},{"toxic_fork",2}},icon="capstone",color={.35,.86,.28},max=1,capstone=true},
-    {id="toxic_badge",name="비건 인증 배지 8개",short="인증 중첩",desc="성과 포인트 +5%",effect="reward",value=.05,requires={{"toxic_cert",2}},icon="certificate",color={.34,.66,.62}},
+    {id="toxic_badge",name="비건 인증 배지 8개",short="인증 중첩",desc="연구 코인 +5%",effect="reward",value=.05,requires={{"toxic_cert",2}},icon="certificate",color={.34,.66,.62}},
     {id="toxic_digest",name="초고속 소화",short="바로 다음 접시",desc="포크질 속도 +5%",effect="attackSpeed",value=.05,requires={{"toxic_badge",1}},icon="clock",color={.46,.74,.28}},
     {id="toxic_gut",name="튼튼한 위장",short="한 그루 더",desc="최대 체력 +7",effect="maxHp",value=7,requires={{"toxic_badge",1}},icon="heartleaf",color={.50,.62,.38}},
-    {id="toxic_donationbox",name="투명하지 않은 모금함",short="현금 후원",desc="성과 포인트 +7%",effect="reward",value=.07,requires={{"toxic_digest",2}},icon="donation",color={.80,.58,.24}},
+    {id="toxic_donationbox",name="투명하지 않은 모금함",short="현금 후원",desc="연구 코인 +7%",effect="reward",value=.07,requires={{"toxic_digest",2}},icon="donation",color={.80,.58,.24}},
     {id="toxic_reusable",name="다회용 위장",short="먹고 회복",desc="나무를 먹을 때 체력 +2",effect="healOnFell",value=2,requires={{"toxic_gut",2}},icon="heartleaf",color={.34,.78,.42}},
     {id="toxic_manifest",name="한 접시 30초",short="하단 전문화",desc="포크질 속도 +14%",effect="attackSpeed",value=.14,requires={{"toxic_donationbox",2},{"toxic_reusable",2}},icon="capstone",color={.42,.82,.24},max=1,capstone=true},
     {id="toxic_board",name="이사회 전원 공복",short="단체 공복",desc="포크 타격 폭 +9",effect="area",value=9,requires={{"toxic_sponsor",2}},icon="document",color={.55,.62,.48}},
     {id="toxic_influencer",name="먹방 인플루언서 영입",short="먹방 확장",desc="추가 포식 대상 +1",effect="extraTargets",value=1,requires={{"toxic_board",1}},icon="coupon",color={.72,.44,.60},max=2},
     {id="toxic_superfood",name="세계수 메인 요리 지정",short="단단한 식재료",desc="포크 피해 +2",effect="biteDamage",value=2,requires={{"toxic_board",1}},icon="fork",color={.38,.76,.30}},
     {id="toxic_retreat",name="원시림 푸드파이터 합숙",short="위장 단련",desc="최대 체력 +10",effect="maxHp",value=10,requires={{"toxic_influencer",2}},icon="heartleaf",color={.48,.66,.42}},
-    {id="toxic_receipt",name="후원 영수증 선택 발급",short="후원 정산",desc="성과 포인트 +9%",effect="reward",value=.09,requires={{"toxic_superfood",2}},icon="report",color={.84,.62,.30}},
+    {id="toxic_receipt",name="후원 영수증 선택 발급",short="후원 정산",desc="연구 코인 +9%",effect="reward",value=.09,requires={{"toxic_superfood",2}},icon="report",color={.84,.62,.30}},
     {id="toxic_congress",name="국제 뷔페 총회 유치",short="숲 전체 식탁",desc="포크 타격 폭 +30",effect="area",value=30,requires={{"toxic_retreat",2},{"toxic_receipt",2}},icon="certificate",color={.30,.72,.52},max=1,capstone=true},
     {id="toxic_eatforest",name="숲 한 접시 완식",short="최종 포크",desc="포크 피해 +5",effect="biteDamage",value=5,requires={{"toxic_congress",1}},icon="capstone",color={.22,.90,.24},max=1,capstone=true,costs={190}}
 })
@@ -231,12 +231,12 @@ expand("developer",{
     {id="developer_border",name="경계석 임의 이동",short="부지 확장",desc="돌진 거리 +20",effect="range",value=20,requires={{"developer_lane",2}},icon="ruler",color={.82,.68,.32}},
     {id="developer_fasttrack",name="패스트트랙 심의",short="상단 전문화",desc="쿨다운 초기화 확률 +14%",effect="cooldownRefund",value=.14,requires={{"developer_turbo",2},{"developer_border",2}},icon="capstone",color={.26,.68,.92},max=1,capstone=true},
     {id="developer_crane",name="타워크레인 선반입",short="장비 선점",desc="돌진 폭 +10",effect="area",value=10,requires={{"developer_machinery",2}},icon="tower",color={.86,.62,.20}},
-    {id="developer_advancepay",name="하도급 선급금 보류",short="자금 회전",desc="성과 포인트 +6%",effect="reward",value=.06,requires={{"developer_crane",1}},icon="coins",color={.82,.65,.28}},
+    {id="developer_advancepay",name="하도급 선급금 보류",short="자금 회전",desc="연구 코인 +6%",effect="reward",value=.06,requires={{"developer_crane",1}},icon="coins",color={.82,.65,.28}},
     {id="developer_concrete",name="조경 전 콘크리트 타설",short="재생 차단",desc="불모지화 확률 +9%",effect="sterileChance",value=.09,requires={{"developer_crane",1}},icon="machine",color={.55,.57,.56}},
     {id="developer_subsub",name="재하청의 재하청",short="책임 분산",desc="리모컨 속도 +5%",effect="attackSpeed",value=.05,requires={{"developer_advancepay",2}},icon="helmet",color={.90,.70,.24}},
     {id="developer_dust",name="비산먼지 측정기 철거",short="폭파 확대",desc="종점 충격파 +16",effect="aftershockRadius",value=16,requires={{"developer_concrete",2}},icon="blast",color={.76,.42,.28}},
     {id="developer_turnkey",name="턴키 수의계약",short="하단 전문화",desc="돌진 속도 +18%",effect="dashSpeed",value=.18,requires={{"developer_subsub",2},{"developer_dust",2}},icon="capstone",color={.24,.72,.88},max=1,capstone=true},
-    {id="developer_modelhouse",name="모델하우스 우선 준공",short="실물은 나중",desc="성과 포인트 +7%",effect="reward",value=.07,requires={{"developer_presale",2}},icon="tower",color={.48,.66,.80}},
+    {id="developer_modelhouse",name="모델하우스 우선 준공",short="실물은 나중",desc="연구 코인 +7%",effect="reward",value=.07,requires={{"developer_presale",2}},icon="tower",color={.48,.66,.80}},
     {id="developer_bypass",name="환경영향평가 우회",short="평가 생략",desc="불모지화 확률 +10%",effect="sterileChance",value=.10,requires={{"developer_modelhouse",1}},icon="document",color={.44,.62,.46}},
     {id="developer_doublelane",name="중장비 전용 복선",short="복선 돌진",desc="돌진 폭 +12",effect="area",value=12,requires={{"developer_modelhouse",1}},icon="road",color={.62,.58,.48}},
     {id="developer_detonator",name="무선 발파 승인",short="원격 발파",desc="종점 충격파 +20",effect="aftershockRadius",value=20,requires={{"developer_bypass",2}},icon="blast",color={.92,.38,.18}},
@@ -258,12 +258,12 @@ expand("miner",{
     {id="miner_reforge",name="삽날 재련",short="대장간 방문",desc="굴착 피해 +1",effect="treeDamage",value=1,requires={{"miner_gloves",2}},icon="sharpen",color={.75,.70,.65},max=2},
     {id="miner_discignore",name="허리 디스크 무시",short="병원은 나중에",desc="삽질 속도 +5%",effect="attackSpeed",value=.05,requires={{"miner_kneepad2",2}},icon="clock",color={.70,.40,.30}},
     {id="miner_bodybreaks",name="몸이 부서져도 판다",short="하단 전문화",desc="굴착 피해 +2",effect="treeDamage",value=2,requires={{"miner_reforge",2},{"miner_discignore",2}},icon="capstone",color={.90,.50,.20},max=1,capstone=true},
-    {id="miner_memoryreconstruct",name="그날의 기억 재구성",short="기억 되짚기",desc="런 종료 성과 포인트 +6%",effect="reward",value=.06,requires={{"miner_gpscoord",2}},icon="document",color={.85,.72,.30}},
+    {id="miner_memoryreconstruct",name="그날의 기억 재구성",short="기억 되짚기",desc="런 종료 연구 코인 +6%",effect="reward",value=.06,requires={{"miner_gpscoord",2}},icon="document",color={.85,.72,.30}},
     {id="miner_hikingclub",name="등산 동호회 탐문",short="목격자 수소문",desc="탐지 사거리 +16",effect="range",value=16,requires={{"miner_memoryreconstruct",1}},icon="map",color={.65,.75,.50}},
-    {id="miner_usedmarket",name="중고 거래 게시글 추적",short="혹시 그 USB?",desc="런 종료 성과 포인트 +6%",effect="reward",value=.06,requires={{"miner_memoryreconstruct",1}},icon="coins",color={.88,.68,.25}},
+    {id="miner_usedmarket",name="중고 거래 게시글 추적",short="혹시 그 USB?",desc="런 종료 연구 코인 +6%",effect="reward",value=.06,requires={{"miner_memoryreconstruct",1}},icon="coins",color={.88,.68,.25}},
     {id="miner_cctv",name="산장 CCTV 확보",short="화질 깨짐",desc="탐지 사거리 +18",effect="range",value=18,requires={{"miner_hikingclub",2}},icon="machine",color={.60,.70,.78}},
-    {id="miner_diary",name="그 해 일기장 발견",short="단서 확보",desc="런 종료 성과 포인트 +9%",effect="reward",value=.09,requires={{"miner_usedmarket",2}},icon="report",color={.82,.62,.28}},
-    {id="miner_certainty",name="확신의 좌표",short="하단2 전문화",desc="런 종료 성과 포인트 +14%",effect="reward",value=.14,requires={{"miner_cctv",2},{"miner_diary",2}},icon="capstone",color={1,.70,.15},max=1,capstone=true},
+    {id="miner_diary",name="그 해 일기장 발견",short="단서 확보",desc="런 종료 연구 코인 +9%",effect="reward",value=.09,requires={{"miner_usedmarket",2}},icon="report",color={.82,.62,.28}},
+    {id="miner_certainty",name="확신의 좌표",short="하단2 전문화",desc="런 종료 연구 코인 +14%",effect="reward",value=.14,requires={{"miner_cctv",2},{"miner_diary",2}},icon="capstone",color={1,.70,.15},max=1,capstone=true},
     {id="miner_definitelyhere",name="여기 어딘가에 반드시 있다",short="최종 발굴",desc="굴착 범위 +48",effect="area",value=48,requires={{"miner_certainty",1}},icon="capstone",color={1,.85,.10},max=1,capstone=true,costs={190}}
 })
 
@@ -280,12 +280,12 @@ expand("philosopher",{
     {id="philosopher_debateclub",name="동네 토론 동아리 장악",short="회장 취임",desc="침 피해 +1",effect="biteDamage",value=1,requires={{"philosopher_coldbrew",2}},icon="tooth",color={.62,.72,.35},max=2},
     {id="philosopher_sleepdeprivation",name="수면 부족 3일째",short="눈이 풀림",desc="중독 지속시간 +0.7초",effect="plagueDuration",value=.7,requires={{"philosopher_thickerskin",2}},icon="ash",color={.55,.58,.45}},
     {id="philosopher_untouchable",name="비판이 닿지 않는다",short="하단 전문화",desc="중독 지속시간 +1.2초",effect="plagueDuration",value=1.2,requires={{"philosopher_debateclub",2},{"philosopher_sleepdeprivation",2}},icon="capstone",color={.78,.90,.32},max=1,capstone=true},
-    {id="philosopher_donationbox2",name="후원 계좌 개설",short="첫 입금 확인",desc="런 종료 성과 포인트 +6%",effect="reward",value=.06,requires={{"philosopher_cultfollow",2}},icon="donation",color={.82,.72,.30}},
+    {id="philosopher_donationbox2",name="후원 계좌 개설",short="첫 입금 확인",desc="런 종료 연구 코인 +6%",effect="reward",value=.06,requires={{"philosopher_cultfollow",2}},icon="donation",color={.82,.72,.30}},
     {id="philosopher_livestream",name="실시간 스트리밍 설파",short="시청자 2명",desc="침 사거리 +16",effect="range",value=16,requires={{"philosopher_donationbox2",1}},icon="wind",color={.70,.82,.36}},
-    {id="philosopher_bookdeal",name="출판사 세 곳 거절",short="자비출판 확정",desc="런 종료 성과 포인트 +6%",effect="reward",value=.06,requires={{"philosopher_donationbox2",1}},icon="report",color={.86,.70,.28}},
+    {id="philosopher_bookdeal",name="출판사 세 곳 거절",short="자비출판 확정",desc="런 종료 연구 코인 +6%",effect="reward",value=.06,requires={{"philosopher_donationbox2",1}},icon="report",color={.86,.70,.28}},
     {id="philosopher_viral",name="한 번 화제가 됨",short="캡처돼서 퍼짐",desc="침 사거리 +18",effect="range",value=18,requires={{"philosopher_livestream",2}},icon="wind",color={.68,.80,.34}},
-    {id="philosopher_disciple",name="진짜 제자가 생김",short="한 명이지만",desc="런 종료 성과 포인트 +9%",effect="reward",value=.09,requires={{"philosopher_bookdeal",2}},icon="certificate",color={.80,.68,.30}},
-    {id="philosopher_movement",name="'해방' 운동 본격화",short="하단2 전문화",desc="런 종료 성과 포인트 +14%",effect="reward",value=.14,requires={{"philosopher_viral",2},{"philosopher_disciple",2}},icon="capstone",color={.90,1,.28},max=1,capstone=true},
+    {id="philosopher_disciple",name="진짜 제자가 생김",short="한 명이지만",desc="런 종료 연구 코인 +9%",effect="reward",value=.09,requires={{"philosopher_bookdeal",2}},icon="certificate",color={.80,.68,.30}},
+    {id="philosopher_movement",name="'해방' 운동 본격화",short="하단2 전문화",desc="런 종료 연구 코인 +14%",effect="reward",value=.14,requires={{"philosopher_viral",2},{"philosopher_disciple",2}},icon="capstone",color={.90,1,.28},max=1,capstone=true},
     {id="philosopher_liberation",name="모든 것을 해방시킨다",short="최종 해방",desc="침 범위 +42",effect="area",value=42,requires={{"philosopher_movement",1}},icon="capstone",color={.65,1,.15},max=1,capstone=true,costs={190}}
 })
 
@@ -293,19 +293,19 @@ expand("philosopher",{
 -- 범용 스탯 트리. 서바이버류 장르에서 흔히 쓰이는 메타 진행 축(체력, 이동속도, 재화 획득량,
 -- 자원 획득 반경=자석, 체력 자연 회복, 부활)을 이 게임의 블랙코미디 톤에 맞춰 구성했다.
 jobs.universal = {
-    currencyName="성과 포인트",
+    currencyName="연구 코인",
     tagline="복지는 직무를 가리지 않는다.",
     doctrine="어떤 현장에 배치되든 몸과 통장은 공통으로 챙긴다 — 선택한 직업과 무관하게 항상 적용된다.",
     palette={.62,.70,.78},
     nodes={
         {id="universal_shuttle", name="통근버스 신설", short="출근 단축", desc="이동 속도 +6%", max=3, costs={18,32,50}, effect="moveSpeed", value=.06, x=.10,y=.50, icon="road", color={.55,.68,.78}},
         {id="universal_checkup", name="정기 건강검진", short="이상 무", desc="최대 체력 +12", max=3, costs={22,38,58}, effect="maxHp", value=12, requires={{"universal_shuttle",1}}, x=.32,y=.28, icon="helmet", color={.62,.72,.60}},
-        {id="universal_incentive", name="분기 인센티브 신설", short="약간의 성의", desc="런 종료 성과 포인트 +8%", max=3, costs={22,38,58}, effect="reward", value=.08, requires={{"universal_shuttle",1}}, x=.32,y=.72, icon="coins", color={.82,.68,.30}},
+        {id="universal_incentive", name="분기 인센티브 신설", short="약간의 성의", desc="런 종료 연구 코인 +8%", max=3, costs={22,38,58}, effect="reward", value=.08, requires={{"universal_shuttle",1}}, x=.32,y=.72, icon="coins", color={.82,.68,.30}},
         {id="universal_locker", name="개인 사물함 확장", short="더 담긴다", desc="자원 획득 반경 +40", max=3, costs={28,46,68}, effect="pickupRadius", value=40, requires={{"universal_checkup",1}}, x=.56,y=.20, icon="basket", color={.66,.70,.50}},
         {id="universal_snackbar", name="탕비실 간식 무제한", short="상시 비치", desc="초당 체력 자연 회복 +0.4", max=3, costs={28,46,68}, effect="hpRegen", value=.4, requires={{"universal_incentive",1}}, x=.56,y=.80, icon="lunch", color={.72,.58,.40}},
         {id="universal_insurance", name="단체 상해보험 특약", short="다치면 보험", desc="최대 체력 +14", max=2, costs={42,72}, effect="maxHp", value=14, requires={{"universal_locker",2}}, x=.68,y=.08, icon="document", color={.60,.70,.62}},
         {id="universal_bike", name="사내 자전거 대여", short="따릉이 지원", desc="이동 속도 +5%", max=3, costs={34,54,78}, effect="moveSpeed", value=.05, requires={{"universal_locker",1}}, x=.70,y=.30, icon="road", color={.58,.70,.80}},
-        {id="universal_profitshare", name="성과공유제 시범 도입", short="나눠 갖기", desc="런 종료 성과 포인트 +10%", max=3, costs={34,54,78}, effect="reward", value=.10, requires={{"universal_snackbar",1}}, x=.70,y=.70, icon="donation", color={.84,.70,.32}},
+        {id="universal_profitshare", name="성과공유제 시범 도입", short="나눠 갖기", desc="런 종료 연구 코인 +10%", max=3, costs={34,54,78}, effect="reward", value=.10, requires={{"universal_snackbar",1}}, x=.70,y=.70, icon="donation", color={.84,.70,.32}},
         {id="universal_cart", name="물류용 카트 지급", short="손 안 대도 된다", desc="자원 획득 반경 +30", max=3, costs={34,54,78}, effect="pickupRadius", value=30, requires={{"universal_snackbar",1}}, x=.68,y=.92, icon="basket", color={.68,.72,.52}},
         {id="universal_severance", name="퇴직 위로금 사전 적립", short="한 번은 봐준다", desc="쓰러졌을 때 1회 부활 (체력 50% 회복)", max=1, costs={110}, effect="reviveCharges", value=1, requires={{"universal_bike",1},{"universal_profitshare",1}}, x=.78,y=.50, icon="heartleaf", color={.85,.45,.55}},
         {id="universal_finalwelfare", name="총무팀의 마지막 배려", short="최종 복지", desc="쓰러졌을 때 부활 횟수 +1", max=1, costs={190}, effect="reviveCharges", value=1, requires={{"universal_severance",1}}, x=.94,y=.50, icon="capstone", color={1,.55,.65}, capstone=true}
@@ -426,7 +426,7 @@ function CharacterTraits:status(id)
         end
     end
     local cost = node.costs[level+1]
-    if self.data.currency < cost then return false, "성과 포인트 " .. cost .. " 필요" end
+    if self.data.currency < cost then return false, "연구 코인 " .. cost .. " 필요" end
     return true, "해금 가능", cost
 end
 
@@ -439,10 +439,10 @@ function CharacterTraits:buy(id)
     return true, byId[id].name .. " " .. self:getLevel(id) .. "단계 해금"
 end
 
-function CharacterTraits:addCurrency(amount)
+function CharacterTraits:addCurrency(amount, deferSave)
     amount = math.max(0, math.floor(amount or 0))
     self.data.currency = self.data.currency + amount
-    self:save()
+    if not deferSave then self:save() end
     return amount
 end
 

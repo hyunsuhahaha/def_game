@@ -474,8 +474,8 @@ function CharacterTraitBoard:draw()
     Frontend.button(self.backBox,"← 돌아가기",fonts.small,{accent=STRUCTURE})
     love.graphics.setFont(fonts.title); love.graphics.setColor(.18,.19,.17); love.graphics.print("영구 연구",184,25)
     love.graphics.setFont(fonts.small); love.graphics.setColor(.38,.40,.37); love.graphics.print("중앙 장비에서 네 방향으로 연구를 확장합니다",184,61)
-    love.graphics.setFont(fonts.small);love.graphics.setColor(.38,.40,.37);love.graphics.printf("성과 포인트",w-236,24,110,"right")
-    love.graphics.setFont(fonts.big);love.graphics.setColor(.24,.54,.32);love.graphics.printf(tostring(self.store.data.currency).." P",w-118,20,92,"right")
+    love.graphics.setFont(fonts.small);love.graphics.setColor(.38,.40,.37);love.graphics.printf("연구 코인",w-236,24,110,"right")
+    love.graphics.setFont(fonts.big);love.graphics.setColor(.24,.54,.32);love.graphics.printf(tostring(self.store.data.currency),w-118,20,92,"right")
 
     local tabY,tabGap=86,8
     local tabCount=#jobOrder

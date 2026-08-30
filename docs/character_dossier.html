@@ -407,7 +407,7 @@
       <h1 class="masthead-title" id="masthead-title">특성 인사기록부</h1>
       <p class="masthead-sub" id="masthead-sub">직업별 전용 특성 6종 + 전 직군 공용 복지 특성 — LAST HAUL 벌목지 연구망 전체 목록</p>
     </div>
-    <div class="masthead-stamp" id="masthead-stamp">성과 포인트 결재 완료</div>
+    <div class="masthead-stamp" id="masthead-stamp">연구 코인 결재 완료</div>
   </div>
 
   <div class="modeswitch" id="modeswitch"></div>
@@ -417,7 +417,7 @@
     <div class="score-rule"><span class="score-rule-label">몬스터 투입</span><span class="score-rule-value">첫 45초 없음 · 이후 동시 1→2→3→4마리</span></div>
     <div class="score-rule"><span class="score-rule-label">런 성장</span><span class="score-rule-value">목재 경험치 → 비전투 운영 카드 3택</span></div>
     <div class="score-rule"><span class="score-rule-label">영구 연구 화면</span><span class="score-rule-value">중앙 루트에서 상·하·좌·우 4방향 분기 · 축소 노드와 분리 라벨 · 밝은 회백색 작업면 · 초록 활성 경로</span></div>
-    <div class="score-rule"><span class="score-rule-label">결과 화면</span><span class="score-rule-value">생존 기록 → 핵심 통계 3개 → 성과 포인트 → 영구 연구/재도전 순서</span></div>
+    <div class="score-rule"><span class="score-rule-label">결과 화면</span><span class="score-rule-value">수종별 목재 집계 → 1개씩 회전 코인으로 순차 변환 → 영구 연구/재도전 (이동 시 잔여분 즉시 정산)</span></div>
   </section>
   <div class="toolbar">
     <div class="search-box">
@@ -439,7 +439,7 @@
    파일로 읽고 고칠 수 있다. 배포된 Claude Artifact(특성 인사기록부)는 이 파일을
    그대로 재발행한 거울본이다 — 내용을 고칠 땐 반드시 이 파일부터 고친다.
 
-   1) 로비 특성 (영구, 성과 포인트로 구매 — src/character_traits.lua)
+   1) 로비 특성 (영구, 연구 코인로 구매 — src/character_traits.lua)
    ========================================================================= */
 const TRAITS = {
   physical: {
@@ -456,7 +456,7 @@ const TRAITS = {
       {id:"physical_grip",name:"굳은살 손잡이",short:"묵직한 한 방",desc:"도끼 피해 +1",max:3,costs:[34,54,78],requires:[["physical_sharpen",1]]},
       {id:"physical_lunchbox",name:"식은 도시락",short:"쓰러지면 한입",desc:"나무를 벨 때 체력 +1",max:3,costs:[34,54,78],requires:[["physical_overtime",1]]},
       {id:"physical_severance",name:"퇴직금 선지급",short:"밑동 절단",desc:"타격 시 4% 확률로 즉시 벌목",max:3,costs:[42,66,92],requires:[["physical_overtime",2]]},
-      {id:"physical_report",name:"초과 달성 보고서",short:"할당량 초과",desc:"런 종료 성과 포인트 +10%",max:3,costs:[38,58,84],requires:[["physical_sharpen",1],["physical_overtime",1]]},
+      {id:"physical_report",name:"초과 달성 보고서",short:"할당량 초과",desc:"런 종료 연구 코인 +10%",max:3,costs:[38,58,84],requires:[["physical_sharpen",1],["physical_overtime",1]]},
       {id:"physical_union",name:"노조 없는 현장",short:"최종 잔업",desc:"도끼 타격 범위 +36",max:1,costs:[110],requires:[["physical_report",3]],capstone:true},
       {id:"physical_boots",name:"현장 안전화 자비 구매",short:"미끄럼 방지",desc:"최대 체력 +8",max:3,costs:[36,62,94],requires:[["physical_axe",2]]},
       {id:"physical_whetstone",name:"편의점 숫돌",short:"급한 연마",desc:"도끼 피해 +1",max:3,costs:[36,62,94],requires:[["physical_boots",1]]},
@@ -470,12 +470,12 @@ const TRAITS = {
       {id:"physical_scrapshield",name:"폐목재 방패",short:"임시 방호",desc:"최대 체력 +12",max:3,costs:[36,62,94],requires:[["physical_backbelt",2]]},
       {id:"physical_route",name:"왕복 없는 작업 동선",short:"동선 단축",desc:"도끼 사거리 +10",max:3,costs:[36,62,94],requires:[["physical_foreman",2]]},
       {id:"physical_meal",name:"잔업 식대 청구",short:"하단 전문화",desc:"벌목 시 체력 +3",max:1,costs:[135],requires:[["physical_scrapshield",2],["physical_route",2]],capstone:true},
-      {id:"physical_kpi",name:"분기별 벌목 KPI",short:"목표 재설정",desc:"성과 포인트 +7%",max:3,costs:[36,62,94],requires:[["physical_report",2]]},
+      {id:"physical_kpi",name:"분기별 벌목 KPI",short:"목표 재설정",desc:"연구 코인 +7%",max:3,costs:[36,62,94],requires:[["physical_report",2]]},
       {id:"physical_hydraulic",name:"유압 도끼 불법 개조",short:"압력 상승",desc:"도끼 피해 +1",max:3,costs:[36,62,94],requires:[["physical_kpi",1]]},
       {id:"physical_sawback",name:"톱날 겸용 도끼",short:"넓은 절단",desc:"타격 범위 +10",max:3,costs:[36,62,94],requires:[["physical_kpi",1]]},
       {id:"physical_nohire",name:"인력 충원 계획 없음",short:"혼자 두 배",desc:"동시 타격 나무 +1",max:2,costs:[48,86],requires:[["physical_hydraulic",2]]},
       {id:"physical_erasure",name:"산재 기록 말소",short:"기록 없음",desc:"즉시 벌목 확률 +4%",max:3,costs:[36,62,94],requires:[["physical_sawback",2]]},
-      {id:"physical_employee",name:"분기 최우수 사원",short:"실적 독식",desc:"성과 포인트 +12%",max:1,costs:[135],requires:[["physical_nohire",2],["physical_erasure",2]],capstone:true},
+      {id:"physical_employee",name:"분기 최우수 사원",short:"실적 독식",desc:"연구 코인 +12%",max:1,costs:[135],requires:[["physical_nohire",2],["physical_erasure",2]],capstone:true},
       {id:"physical_lifetime",name:"정년 없는 평생 현역",short:"최종 노동",desc:"도끼질 속도 +22%",max:1,costs:[190],requires:[["physical_employee",1]],capstone:true},
     ]
   },
@@ -492,8 +492,8 @@ const TRAITS = {
       {id:"fire_deep_drag",name:"필터까지 태우기",short:"깊은 한 모금",desc:"나무가 타는 시간 -8%",max:3,costs:[34,54,78],requires:[["fire_wind",1]]},
       {id:"fire_pack",name:"한 갑째 개봉",short:"꽁초 추가",desc:"투척 시 추가 불씨 +1",max:2,costs:[48,82],requires:[["fire_wind",2]]},
       {id:"fire_secondhand",name:"간접흡연 구역",short:"연기 확산",desc:"초당 불 확산 확률 +4%",max:3,costs:[34,54,78],requires:[["fire_ashtray",1]]},
-      {id:"fire_insurance",name:"화재보험 가입 직후",short:"보상 준비",desc:"런 종료 성과 포인트 +6%",max:3,costs:[42,66,92],requires:[["fire_ashtray",2]]},
-      {id:"fire_denial",name:"인과관계 불분명",short:"증거 불충분",desc:"런 종료 성과 포인트 +10%",max:3,costs:[38,58,84],requires:[["fire_wind",1],["fire_ashtray",1]]},
+      {id:"fire_insurance",name:"화재보험 가입 직후",short:"보상 준비",desc:"런 종료 연구 코인 +6%",max:3,costs:[42,66,92],requires:[["fire_ashtray",2]]},
+      {id:"fire_denial",name:"인과관계 불분명",short:"증거 불충분",desc:"런 종료 연구 코인 +10%",max:3,costs:[38,58,84],requires:[["fire_wind",1],["fire_ashtray",1]]},
       {id:"fire_chain",name:"연쇄 실화",short:"최종 불씨",desc:"흡연·투척 속도 +18%",max:1,costs:[110],requires:[["fire_denial",3]],capstone:true},
       {id:"fire_padding",name:"담뱃불 구멍 난 패딩",short:"불씨 내성",desc:"최대 체력 +8",max:3,costs:[36,62,94],requires:[["fire_filter",2]]},
       {id:"fire_longfinger",name:"유난히 긴 검지",short:"멀리 튕기기",desc:"꽁초 사거리 +16",max:3,costs:[36,62,94],requires:[["fire_padding",1]]},
@@ -504,15 +504,15 @@ const TRAITS = {
       {id:"fire_cough",name:"기침으로 불씨 날리기",short:"기침 확산",desc:"불 확산 확률 +3%",max:3,costs:[36,62,94],requires:[["fire_warning",2]]},
       {id:"fire_hotash",name:"뜨거운 재 털기",short:"잔불 유지",desc:"연소 속도 +6%",max:3,costs:[36,62,94],requires:[["fire_cough",1]]},
       {id:"fire_drymouth",name:"입안까지 건조주의보",short:"완전 건조",desc:"연소 속도 +7%",max:3,costs:[36,62,94],requires:[["fire_cough",1]]},
-      {id:"fire_nosign",name:"금연 표지판 뒤집기",short:"표지 무시",desc:"성과 포인트 +6%",max:3,costs:[36,62,94],requires:[["fire_hotash",2]]},
+      {id:"fire_nosign",name:"금연 표지판 뒤집기",short:"표지 무시",desc:"연구 코인 +6%",max:3,costs:[36,62,94],requires:[["fire_hotash",2]]},
       {id:"fire_balcony",name:"베란다 투척 숙련",short:"포물선 숙련",desc:"꽁초 사거리 +20",max:3,costs:[36,62,94],requires:[["fire_drymouth",2]]},
       {id:"fire_fireline",name:"산불 방화선 역이용",short:"하단 전문화",desc:"불 확산 확률 +10%",max:1,costs:[135],requires:[["fire_nosign",2],["fire_balcony",2]],capstone:true},
       {id:"fire_carton",name:"면세점 보루 구매",short:"불씨 재고",desc:"추가 불씨 +1",max:2,costs:[48,86],requires:[["fire_denial",2]]},
       {id:"fire_tailwind",name:"계절풍 흡연 지침",short:"순풍 투척",desc:"꽁초 사거리 +18",max:3,costs:[36,62,94],requires:[["fire_carton",1]]},
       {id:"fire_resin",name:"송진 묻은 필터",short:"고열 필터",desc:"연소 속도 +8%",max:3,costs:[36,62,94],requires:[["fire_carton",1]]},
       {id:"fire_emberstorm",name:"불씨 폭풍",short:"불씨 증식",desc:"추가 불씨 +1",max:2,costs:[48,86],requires:[["fire_tailwind",2]]},
-      {id:"fire_press",name:"언론 대응 매뉴얼",short:"원인 부인",desc:"성과 포인트 +9%",max:3,costs:[36,62,94],requires:[["fire_resin",2]]},
-      {id:"fire_claim",name:"실화 책임 전면 부인",short:"책임 없음",desc:"성과 포인트 +14%",max:1,costs:[135],requires:[["fire_emberstorm",2],["fire_press",2]],capstone:true},
+      {id:"fire_press",name:"언론 대응 매뉴얼",short:"원인 부인",desc:"연구 코인 +9%",max:3,costs:[36,62,94],requires:[["fire_resin",2]]},
+      {id:"fire_claim",name:"실화 책임 전면 부인",short:"책임 없음",desc:"연구 코인 +14%",max:1,costs:[135],requires:[["fire_emberstorm",2],["fire_press",2]],capstone:true},
       {id:"fire_redsky",name:"하늘이 붉은 건 노을",short:"최종 산불",desc:"착화 범위 +42",max:1,costs:[190],requires:[["fire_claim",1]],capstone:true},
       {id:"fire_score_prewarm",name:"출근 전 라이터 예열",short:"첫 불씨 단축",desc:"벌목 기록 모드 최초 흡연 준비시간 -0.08초",max:5,costs:[18,32,50,74,104]},
       {id:"fire_score_filter",name:"긴 필터 밀어 던지기",short:"투척 거리",desc:"꽁초 투척 사거리 +16",max:6,costs:[18,32,50,74,104,142],requires:[["fire_score_prewarm",1]]},
@@ -539,7 +539,7 @@ const TRAITS = {
       {id:"toxic_buffet_coupon",name:"포크 두 개 들기",short:"양손 식사",desc:"동시 타격 나무 +1",max:2,costs:[48,82],requires:[["toxic_molar",2]]},
       {id:"toxic_compost",name:"깨끗한 접시",short:"남김 없음",desc:"나무를 먹을 때 체력 +1",max:3,costs:[34,54,78],requires:[["toxic_delivery",1]]},
       {id:"toxic_manifesto",name:"씹는 시간 단축",short:"바로 삼키기",desc:"포크질 속도 +8%",max:3,costs:[42,66,92],requires:[["toxic_delivery",2]]},
-      {id:"toxic_sponsor",name:"후원금 사용 내역 비공개",short:"영수증 없음",desc:"런 종료 성과 포인트 +10%",max:3,costs:[38,58,84],requires:[["toxic_molar",1],["toxic_delivery",1]]},
+      {id:"toxic_sponsor",name:"후원금 사용 내역 비공개",short:"영수증 없음",desc:"런 종료 연구 코인 +10%",max:3,costs:[38,58,84],requires:[["toxic_molar",1],["toxic_delivery",1]]},
       {id:"toxic_buffet",name:"숲 전체 뷔페",short:"최종 접시",desc:"포크 타격 폭 +34",max:1,costs:[110],requires:[["toxic_sponsor",3]],capstone:true},
       {id:"toxic_bamboo",name:"손잡이 두 칸 연장",short:"긴 포크",desc:"포크 사거리 +14",max:3,costs:[36,62,94],requires:[["toxic_tongs",2]]},
       {id:"toxic_organic",name:"포크 끝 재연마",short:"뾰족하게",desc:"포크 피해 +1",max:3,costs:[36,62,94],requires:[["toxic_bamboo",1]]},
@@ -547,17 +547,17 @@ const TRAITS = {
       {id:"toxic_family",name:"옆자리 포크 빌리기",short:"포크 추가",desc:"동시 타격 나무 +1",max:2,costs:[48,86],requires:[["toxic_organic",2]]},
       {id:"toxic_fork",name:"뷔페 포크 12개",short:"넓은 식사",desc:"포크 타격 폭 +10",max:3,costs:[36,62,94],requires:[["toxic_jaw",2]]},
       {id:"toxic_rawbar",name:"단체 테이블 점령",short:"상단 전문화",desc:"동시 타격 나무 +2",max:1,costs:[135],requires:[["toxic_family",2],["toxic_fork",2]],capstone:true},
-      {id:"toxic_badge",name:"비건 인증 배지 8개",short:"인증 중첩",desc:"성과 포인트 +5%",max:3,costs:[36,62,94],requires:[["toxic_cert",2]]},
+      {id:"toxic_badge",name:"비건 인증 배지 8개",short:"인증 중첩",desc:"연구 코인 +5%",max:3,costs:[36,62,94],requires:[["toxic_cert",2]]},
       {id:"toxic_digest",name:"초고속 소화",short:"바로 다음 접시",desc:"포크질 속도 +5%",max:3,costs:[36,62,94],requires:[["toxic_badge",1]]},
       {id:"toxic_gut",name:"튼튼한 위장",short:"한 그루 더",desc:"최대 체력 +7",max:3,costs:[36,62,94],requires:[["toxic_badge",1]]},
-      {id:"toxic_donationbox",name:"투명하지 않은 모금함",short:"현금 후원",desc:"성과 포인트 +7%",max:3,costs:[36,62,94],requires:[["toxic_digest",2]]},
+      {id:"toxic_donationbox",name:"투명하지 않은 모금함",short:"현금 후원",desc:"연구 코인 +7%",max:3,costs:[36,62,94],requires:[["toxic_digest",2]]},
       {id:"toxic_reusable",name:"다회용 위장",short:"먹고 회복",desc:"나무를 먹을 때 체력 +2",max:3,costs:[36,62,94],requires:[["toxic_gut",2]]},
       {id:"toxic_manifest",name:"한 접시 30초",short:"하단 전문화",desc:"포크질 속도 +14%",max:1,costs:[135],requires:[["toxic_donationbox",2],["toxic_reusable",2]],capstone:true},
       {id:"toxic_board",name:"이사회 전원 공복",short:"단체 공복",desc:"포크 타격 폭 +9",max:3,costs:[36,62,94],requires:[["toxic_sponsor",2]]},
       {id:"toxic_influencer",name:"먹방 인플루언서 영입",short:"먹방 확장",desc:"추가 포식 대상 +1",max:2,costs:[48,86],requires:[["toxic_board",1]]},
       {id:"toxic_superfood",name:"세계수 메인 요리 지정",short:"단단한 식재료",desc:"포크 피해 +2",max:3,costs:[36,62,94],requires:[["toxic_board",1]]},
       {id:"toxic_retreat",name:"원시림 푸드파이터 합숙",short:"위장 단련",desc:"최대 체력 +10",max:3,costs:[36,62,94],requires:[["toxic_influencer",2]]},
-      {id:"toxic_receipt",name:"후원 영수증 선택 발급",short:"후원 정산",desc:"성과 포인트 +9%",max:3,costs:[36,62,94],requires:[["toxic_superfood",2]]},
+      {id:"toxic_receipt",name:"후원 영수증 선택 발급",short:"후원 정산",desc:"연구 코인 +9%",max:3,costs:[36,62,94],requires:[["toxic_superfood",2]]},
       {id:"toxic_congress",name:"국제 뷔페 총회 유치",short:"숲 전체 식탁",desc:"포크 타격 폭 +30",max:1,costs:[135],requires:[["toxic_retreat",2],["toxic_receipt",2]],capstone:true},
       {id:"toxic_eatforest",name:"숲 한 접시 완식",short:"최종 포크",desc:"포크 피해 +5",max:1,costs:[190],requires:[["toxic_congress",1]],capstone:true},
     ]
@@ -576,7 +576,7 @@ const TRAITS = {
       {id:"developer_greenbelt",name:"그린벨트 해제",short:"빈 땅 확보",desc:"벌목지가 불모지가 될 확률 +12%",max:3,costs:[42,66,92],requires:[["developer_rezone",2]]},
       {id:"developer_changeorder",name:"설계변경 17차",short:"끝점 폭파",desc:"돌진 종료 폭발 범위 +18",max:3,costs:[34,54,78],requires:[["developer_subcontract",1]]},
       {id:"developer_advance",name:"공사대금 선지급",short:"바로 재투입",desc:"돌진 쿨다운 초기화 확률 +7%",max:3,costs:[42,66,92],requires:[["developer_subcontract",2]]},
-      {id:"developer_presale",name:"사전분양 완판",short:"모형도 매진",desc:"런 종료 성과 포인트 +10%",max:3,costs:[38,58,84],requires:[["developer_rezone",1],["developer_subcontract",1]]},
+      {id:"developer_presale",name:"사전분양 완판",short:"모형도 매진",desc:"런 종료 연구 코인 +10%",max:3,costs:[38,58,84],requires:[["developer_rezone",1],["developer_subcontract",1]]},
       {id:"developer_expropriate",name:"공익사업 강제수용",short:"최종 고시",desc:"돌진 폭 +32",max:1,costs:[110],requires:[["developer_presale",3]],capstone:true},
       {id:"developer_drone",name:"측량 드론 배터리 증설",short:"원거리 측량",desc:"돌진 거리 +18",max:3,costs:[36,62,94],requires:[["developer_boundary",2]]},
       {id:"developer_night",name:"야간 공사 허가",short:"24시간 공사",desc:"리모컨 속도 +5%",max:3,costs:[36,62,94],requires:[["developer_drone",1]]},
@@ -585,12 +585,12 @@ const TRAITS = {
       {id:"developer_border",name:"경계석 임의 이동",short:"부지 확장",desc:"돌진 거리 +20",max:3,costs:[36,62,94],requires:[["developer_lane",2]]},
       {id:"developer_fasttrack",name:"패스트트랙 심의",short:"상단 전문화",desc:"쿨다운 초기화 확률 +14%",max:1,costs:[135],requires:[["developer_turbo",2],["developer_border",2]],capstone:true},
       {id:"developer_crane",name:"타워크레인 선반입",short:"장비 선점",desc:"돌진 폭 +10",max:3,costs:[36,62,94],requires:[["developer_machinery",2]]},
-      {id:"developer_advancepay",name:"하도급 선급금 보류",short:"자금 회전",desc:"성과 포인트 +6%",max:3,costs:[36,62,94],requires:[["developer_crane",1]]},
+      {id:"developer_advancepay",name:"하도급 선급금 보류",short:"자금 회전",desc:"연구 코인 +6%",max:3,costs:[36,62,94],requires:[["developer_crane",1]]},
       {id:"developer_concrete",name:"조경 전 콘크리트 타설",short:"재생 차단",desc:"불모지화 확률 +9%",max:3,costs:[36,62,94],requires:[["developer_crane",1]]},
       {id:"developer_subsub",name:"재하청의 재하청",short:"책임 분산",desc:"리모컨 속도 +5%",max:3,costs:[36,62,94],requires:[["developer_advancepay",2]]},
       {id:"developer_dust",name:"비산먼지 측정기 철거",short:"폭파 확대",desc:"종점 충격파 +16",max:3,costs:[36,62,94],requires:[["developer_concrete",2]]},
       {id:"developer_turnkey",name:"턴키 수의계약",short:"하단 전문화",desc:"돌진 속도 +18%",max:1,costs:[135],requires:[["developer_subsub",2],["developer_dust",2]],capstone:true},
-      {id:"developer_modelhouse",name:"모델하우스 우선 준공",short:"실물은 나중",desc:"성과 포인트 +7%",max:3,costs:[36,62,94],requires:[["developer_presale",2]]},
+      {id:"developer_modelhouse",name:"모델하우스 우선 준공",short:"실물은 나중",desc:"연구 코인 +7%",max:3,costs:[36,62,94],requires:[["developer_presale",2]]},
       {id:"developer_bypass",name:"환경영향평가 우회",short:"평가 생략",desc:"불모지화 확률 +10%",max:3,costs:[36,62,94],requires:[["developer_modelhouse",1]]},
       {id:"developer_doublelane",name:"중장비 전용 복선",short:"복선 돌진",desc:"돌진 폭 +12",max:3,costs:[36,62,94],requires:[["developer_modelhouse",1]]},
       {id:"developer_detonator",name:"무선 발파 승인",short:"원격 발파",desc:"종점 충격파 +20",max:3,costs:[36,62,94],requires:[["developer_bypass",2]]},
@@ -613,7 +613,7 @@ const TRAITS = {
       {id:"miner_titanium",name:"티타늄 삽날",short:"더 깊이",desc:"굴착 피해 +1",max:3,costs:[34,54,78],requires:[["miner_headphone",1]]},
       {id:"miner_thermos",name:"식은 보온병 커피",short:"한 모금",desc:"굴착 시 체력 +1",max:3,costs:[34,54,78],requires:[["miner_overnight",1]]},
       {id:"miner_permit",name:"발굴허가 없음",short:"일단 판다",desc:"'발견' 판정 확률 +4%",max:3,costs:[42,66,92],requires:[["miner_overnight",2]]},
-      {id:"miner_gpscoord",name:"그때 그 GPS 좌표",short:"기억 재구성",desc:"런 종료 성과 포인트 +10%",max:3,costs:[38,58,84],requires:[["miner_headphone",1],["miner_overnight",1]]},
+      {id:"miner_gpscoord",name:"그때 그 GPS 좌표",short:"기억 재구성",desc:"런 종료 연구 코인 +10%",max:3,costs:[38,58,84],requires:[["miner_headphone",1],["miner_overnight",1]]},
       {id:"miner_landrights",name:"산 전체 매입 시도",short:"최종 발굴",desc:"굴착 범위 +36",max:1,costs:[110],requires:[["miner_gpscoord",3]],capstone:true},
       {id:"miner_groundradar",name:"지표투과레이더 대여",short:"렌탈 장비",desc:"탐지 사거리 +16",max:3,costs:[36,62,94],requires:[["miner_coil",2]]},
       {id:"miner_remotecontrol",name:"블루투스 삽 리모컨",short:"원격 삽질",desc:"삽질 속도 +5%",max:3,costs:[36,62,94],requires:[["miner_groundradar",1]]},
@@ -627,12 +627,12 @@ const TRAITS = {
       {id:"miner_reforge",name:"삽날 재련",short:"대장간 방문",desc:"굴착 피해 +1",max:2,costs:[48,86],requires:[["miner_gloves",2]]},
       {id:"miner_discignore",name:"허리 디스크 무시",short:"병원은 나중에",desc:"삽질 속도 +5%",max:3,costs:[36,62,94],requires:[["miner_kneepad2",2]]},
       {id:"miner_bodybreaks",name:"몸이 부서져도 판다",short:"하단 전문화",desc:"굴착 피해 +2",max:1,costs:[135],requires:[["miner_reforge",2],["miner_discignore",2]],capstone:true},
-      {id:"miner_memoryreconstruct",name:"그날의 기억 재구성",short:"기억 되짚기",desc:"런 종료 성과 포인트 +6%",max:3,costs:[36,62,94],requires:[["miner_gpscoord",2]]},
+      {id:"miner_memoryreconstruct",name:"그날의 기억 재구성",short:"기억 되짚기",desc:"런 종료 연구 코인 +6%",max:3,costs:[36,62,94],requires:[["miner_gpscoord",2]]},
       {id:"miner_hikingclub",name:"등산 동호회 탐문",short:"목격자 수소문",desc:"탐지 사거리 +16",max:3,costs:[36,62,94],requires:[["miner_memoryreconstruct",1]]},
-      {id:"miner_usedmarket",name:"중고 거래 게시글 추적",short:"혹시 그 USB?",desc:"런 종료 성과 포인트 +6%",max:3,costs:[36,62,94],requires:[["miner_memoryreconstruct",1]]},
+      {id:"miner_usedmarket",name:"중고 거래 게시글 추적",short:"혹시 그 USB?",desc:"런 종료 연구 코인 +6%",max:3,costs:[36,62,94],requires:[["miner_memoryreconstruct",1]]},
       {id:"miner_cctv",name:"산장 CCTV 확보",short:"화질 깨짐",desc:"탐지 사거리 +18",max:3,costs:[36,62,94],requires:[["miner_hikingclub",2]]},
-      {id:"miner_diary",name:"그 해 일기장 발견",short:"단서 확보",desc:"런 종료 성과 포인트 +9%",max:3,costs:[36,62,94],requires:[["miner_usedmarket",2]]},
-      {id:"miner_certainty",name:"확신의 좌표",short:"하단2 전문화",desc:"런 종료 성과 포인트 +14%",max:1,costs:[135],requires:[["miner_cctv",2],["miner_diary",2]],capstone:true},
+      {id:"miner_diary",name:"그 해 일기장 발견",short:"단서 확보",desc:"런 종료 연구 코인 +9%",max:3,costs:[36,62,94],requires:[["miner_usedmarket",2]]},
+      {id:"miner_certainty",name:"확신의 좌표",short:"하단2 전문화",desc:"런 종료 연구 코인 +14%",max:1,costs:[135],requires:[["miner_cctv",2],["miner_diary",2]],capstone:true},
       {id:"miner_definitelyhere",name:"여기 어딘가에 반드시 있다",short:"최종 발굴",desc:"굴착 범위 +48",max:1,costs:[190],requires:[["miner_certainty",1]],capstone:true},
     ]
   },
@@ -650,7 +650,7 @@ const TRAITS = {
       {id:"philosopher_venomtongue",name:"독설 훈련",short:"말이 더 따갑다",desc:"침 피해 +1",max:3,costs:[34,54,78],requires:[["philosopher_footnotes",1]]},
       {id:"philosopher_martyrdom",name:"순교자 코스프레",short:"말할수록 강해짐",desc:"설파 성공 시 체력 +1",max:3,costs:[34,54,78],requires:[["philosopher_allnighter",1]]},
       {id:"philosopher_manifesto_base",name:"자비출판 선언문",short:"800쪽짜리",desc:"중독 지속시간 +0.8초",max:3,costs:[42,66,92],requires:[["philosopher_allnighter",2]]},
-      {id:"philosopher_cultfollow",name:"추종자 세 명 확보",short:"믿음의 증거",desc:"런 종료 성과 포인트 +10%",max:3,costs:[38,58,84],requires:[["philosopher_footnotes",1],["philosopher_allnighter",1]]},
+      {id:"philosopher_cultfollow",name:"추종자 세 명 확보",short:"믿음의 증거",desc:"런 종료 연구 코인 +10%",max:3,costs:[38,58,84],requires:[["philosopher_footnotes",1],["philosopher_allnighter",1]]},
       {id:"philosopher_finalsermon",name:"최후의 설파",short:"최종 해방",desc:"침 범위 +34",max:1,costs:[110],requires:[["philosopher_cultfollow",3]],capstone:true},
       {id:"philosopher_megaphone",name:"휴대용 확성기",short:"더 크게",desc:"침 사거리 +16",max:3,costs:[36,62,94],requires:[["philosopher_lungs",2]]},
       {id:"philosopher_runonsentence",name:"끝나지 않는 문장",short:"접속사 남발",desc:"장광설 속도 +5%",max:3,costs:[36,62,94],requires:[["philosopher_megaphone",1]]},
@@ -664,12 +664,12 @@ const TRAITS = {
       {id:"philosopher_debateclub",name:"동네 토론 동아리 장악",short:"회장 취임",desc:"침 피해 +1",max:2,costs:[48,86],requires:[["philosopher_coldbrew",2]]},
       {id:"philosopher_sleepdeprivation",name:"수면 부족 3일째",short:"눈이 풀림",desc:"중독 지속시간 +0.7초",max:3,costs:[36,62,94],requires:[["philosopher_thickerskin",2]]},
       {id:"philosopher_untouchable",name:"비판이 닿지 않는다",short:"하단 전문화",desc:"중독 지속시간 +1.2초",max:1,costs:[135],requires:[["philosopher_debateclub",2],["philosopher_sleepdeprivation",2]],capstone:true},
-      {id:"philosopher_donationbox2",name:"후원 계좌 개설",short:"첫 입금 확인",desc:"런 종료 성과 포인트 +6%",max:3,costs:[36,62,94],requires:[["philosopher_cultfollow",2]]},
+      {id:"philosopher_donationbox2",name:"후원 계좌 개설",short:"첫 입금 확인",desc:"런 종료 연구 코인 +6%",max:3,costs:[36,62,94],requires:[["philosopher_cultfollow",2]]},
       {id:"philosopher_livestream",name:"실시간 스트리밍 설파",short:"시청자 2명",desc:"침 사거리 +16",max:3,costs:[36,62,94],requires:[["philosopher_donationbox2",1]]},
-      {id:"philosopher_bookdeal",name:"출판사 세 곳 거절",short:"자비출판 확정",desc:"런 종료 성과 포인트 +6%",max:3,costs:[36,62,94],requires:[["philosopher_donationbox2",1]]},
+      {id:"philosopher_bookdeal",name:"출판사 세 곳 거절",short:"자비출판 확정",desc:"런 종료 연구 코인 +6%",max:3,costs:[36,62,94],requires:[["philosopher_donationbox2",1]]},
       {id:"philosopher_viral",name:"한 번 화제가 됨",short:"캡처돼서 퍼짐",desc:"침 사거리 +18",max:3,costs:[36,62,94],requires:[["philosopher_livestream",2]]},
-      {id:"philosopher_disciple",name:"진짜 제자가 생김",short:"한 명이지만",desc:"런 종료 성과 포인트 +9%",max:3,costs:[36,62,94],requires:[["philosopher_bookdeal",2]]},
-      {id:"philosopher_movement",name:"'해방' 운동 본격화",short:"하단2 전문화",desc:"런 종료 성과 포인트 +14%",max:1,costs:[135],requires:[["philosopher_viral",2],["philosopher_disciple",2]],capstone:true},
+      {id:"philosopher_disciple",name:"진짜 제자가 생김",short:"한 명이지만",desc:"런 종료 연구 코인 +9%",max:3,costs:[36,62,94],requires:[["philosopher_bookdeal",2]]},
+      {id:"philosopher_movement",name:"'해방' 운동 본격화",short:"하단2 전문화",desc:"런 종료 연구 코인 +14%",max:1,costs:[135],requires:[["philosopher_viral",2],["philosopher_disciple",2]],capstone:true},
       {id:"philosopher_liberation",name:"모든 것을 해방시킨다",short:"최종 해방",desc:"침 범위 +42",max:1,costs:[190],requires:[["philosopher_movement",1]],capstone:true},
     ]
   },
@@ -680,12 +680,12 @@ const TRAITS = {
     nodes: [
       {id:"universal_shuttle",name:"통근버스 신설",short:"출근 단축",desc:"이동 속도 +6%",max:3,costs:[18,32,50]},
       {id:"universal_checkup",name:"정기 건강검진",short:"이상 무",desc:"최대 체력 +12",max:3,costs:[22,38,58],requires:[["universal_shuttle",1]]},
-      {id:"universal_incentive",name:"분기 인센티브 신설",short:"약간의 성의",desc:"런 종료 성과 포인트 +8%",max:3,costs:[22,38,58],requires:[["universal_shuttle",1]]},
+      {id:"universal_incentive",name:"분기 인센티브 신설",short:"약간의 성의",desc:"런 종료 연구 코인 +8%",max:3,costs:[22,38,58],requires:[["universal_shuttle",1]]},
       {id:"universal_locker",name:"개인 사물함 확장",short:"더 담긴다",desc:"자원 획득 반경 +40",max:3,costs:[28,46,68],requires:[["universal_checkup",1]]},
       {id:"universal_snackbar",name:"탕비실 간식 무제한",short:"상시 비치",desc:"초당 체력 자연 회복 +0.4",max:3,costs:[28,46,68],requires:[["universal_incentive",1]]},
       {id:"universal_insurance",name:"단체 상해보험 특약",short:"다치면 보험",desc:"최대 체력 +14",max:2,costs:[42,72],requires:[["universal_locker",2]]},
       {id:"universal_bike",name:"사내 자전거 대여",short:"따릉이 지원",desc:"이동 속도 +5%",max:3,costs:[34,54,78],requires:[["universal_locker",1]]},
-      {id:"universal_profitshare",name:"성과공유제 시범 도입",short:"나눠 갖기",desc:"런 종료 성과 포인트 +10%",max:3,costs:[34,54,78],requires:[["universal_snackbar",1]]},
+      {id:"universal_profitshare",name:"성과공유제 시범 도입",short:"나눠 갖기",desc:"런 종료 연구 코인 +10%",max:3,costs:[34,54,78],requires:[["universal_snackbar",1]]},
       {id:"universal_cart",name:"물류용 카트 지급",short:"손 안 대도 된다",desc:"자원 획득 반경 +30",max:3,costs:[34,54,78],requires:[["universal_snackbar",1]]},
       {id:"universal_severance",name:"퇴직 위로금 사전 적립",short:"한 번은 봐준다",desc:"쓰러졌을 때 1회 부활 (체력 50% 회복)",max:1,costs:[110],requires:[["universal_bike",1],["universal_profitshare",1]]},
       {id:"universal_finalwelfare",name:"총무팀의 마지막 배려",short:"최종 복지",desc:"쓰러졌을 때 부활 횟수 +1",max:1,costs:[190],requires:[["universal_severance",1]],capstone:true},
@@ -830,7 +830,7 @@ const FUSIONS = {
 
 const ORDER = ["physical","fire","toxic","developer","miner","philosopher","universal"];
 const MODE_META = {
-  traits: { label: "로비 특성", sub: "영구 · 성과 포인트 구매", masthead: "직업별 전용 특성 6종 + 전 직군 공용 복지 특성 — LAST HAUL 벌목지 연구망 전체 목록", stamp: "성과 포인트 결재 완료", data: TRAITS },
+  traits: { label: "로비 특성", sub: "영구 · 연구 코인 구매", masthead: "직업별 전용 특성 6종 + 전 직군 공용 복지 특성 — LAST HAUL 벌목지 연구망 전체 목록", stamp: "연구 코인 결재 완료", data: TRAITS },
   skills: { label: "스킬·운영", sub: "세부 특성 영구 · 운영 런 중", masthead: "흡연자는 세부 전투 특성을 영구 연구 · 목재 경험치 드래프트는 비전투 운영 카드 6종 — 보존된 전체 스킬 목록", stamp: "영구 특성 + 런 운영", data: SKILLS },
 };
 
@@ -1006,7 +1006,7 @@ function renderAll() {
   document.getElementById("masthead-stamp").textContent = MODE_META[mode].stamp;
   document.getElementById("footer").textContent = mode === "traits"
     ? "src/character_traits.lua 기준 · 노드 순서는 선행 조건 깊이(단계) 순"
-    : "src/clearcut_mode.lua + score_operations.lua + character_traits.lua 기준 · 현재 로비는 흡연자 벌목 기록 모드만 활성화 · 저장된 재생 단계에서 6그루로 시작하고 0그루 달성 시 0.86초 전투 정지·잎/프리즘 단계 상승 FX·6그루 순차 발아 후 다음 단계가 영구 해금 · 재생 속도 0.14×1.45^(단계-1), HP 1.08^(단계-1) · 영구 연구는 밝은 회백색 작업면 위 중앙 루트에서 상·하·좌·우 네 갈래로 뻗으며 선택한 노드의 이름·효과·단계·비용을 상단 한 곳에 표시하고 미니맵·숲 배경·중복 설명을 두지 않음 · 결과 화면은 생존 기록·핵심 통계 3개·성과 포인트·영구 연구/재도전 순서로 표시 · 목재 경험치 드래프트에는 아기 로봇·탐지 안테나·작업장 확장·조림 구획·목재 선별기·안전 관리 장치만 등장 · 로비 영구 성장은 스킬 레벨을 지급하지 않고 투척 거리·착화 반경·착화/확산 확률·흡연/비행/연소 속도·추가 꽁초 특성으로 분리 · 일반 작전·공용 전투 스킬·융합·시너지 코드는 삭제 없이 비활성 보존";
+    : "src/clearcut_mode.lua + score_operations.lua + character_traits.lua 기준 · 현재 로비는 흡연자 벌목 기록 모드만 활성화 · 저장된 재생 단계에서 6그루로 시작하고 0그루 달성 시 0.86초 전투 정지·잎/프리즘 단계 상승 FX·6그루 순차 발아 후 다음 단계가 영구 해금 · 재생 속도 0.14×1.45^(단계-1), HP 1.08^(단계-1) · 영구 연구는 밝은 회백색 작업면 위 중앙 루트에서 상·하·좌·우 네 갈래로 뻗으며 선택한 노드의 이름·효과·단계·비용을 상단 한 곳에 표시하고 미니맵·숲 배경·중복 설명을 두지 않음 · 결과 화면은 생존 기록·핵심 통계 3개·연구 코인·영구 연구/재도전 순서로 표시 · 목재 경험치 드래프트에는 아기 로봇·탐지 안테나·작업장 확장·조림 구획·목재 선별기·안전 관리 장치만 등장 · 로비 영구 성장은 스킬 레벨을 지급하지 않고 투척 거리·착화 반경·착화/확산 확률·흡연/비행/연소 속도·추가 꽁초 특성으로 분리 · 일반 작전·공용 전투 스킬·융합·시너지 코드는 삭제 없이 비활성 보존";
   buildModeSwitch();
   buildTabs();
   renderPanel(document.getElementById("search").value);

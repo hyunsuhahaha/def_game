@@ -48,7 +48,7 @@ assert(dossier:find('id="score-mode-summary"',1,true),"dossier is missing the vi
 assert(dossier:find("0그루 달성 · 0.86초 잎/프리즘 단계 상승 연출 · 6그루 순차 발아 · 다음 단계 영구 해금",1,true)and dossier:find("첫 45초 없음",1,true),"dossier score-mode opening pacing is stale")
 assert(dossier:find("목재 경험치 → 비전투 운영 카드 3택",1,true),"dossier score-mode growth summary is stale")
 assert(dossier:find("중앙 루트에서 상·하·좌·우 4방향 분기 · 축소 노드와 분리 라벨 · 밝은 회백색 작업면 · 초록 활성 경로",1,true),"dossier research-board summary is stale")
-assert(dossier:find("생존 기록 → 핵심 통계 3개 → 성과 포인트 → 영구 연구/재도전 순서",1,true),"dossier result-screen summary is stale")
+assert(dossier:find("수종별 목재 집계 → 1개씩 회전 코인으로 순차 변환 → 영구 연구/재도전 (이동 시 잔여분 즉시 정산)",1,true),"dossier result-screen summary is stale")
 assert(dossier:find("목재 경험치 드래프트에는 아기 로봇",1,true),"dossier score-mode system note is stale")
 assert(dossier:find("공용 스킬 · 운영 6종 활성",1,true),"dossier does not document the active operation cards")
 assert(dossier:find("fire_score_prewarm",1,true)and dossier:find("fire_score_stock",1,true),"dossier score-mode permanent traits are stale")
