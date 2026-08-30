@@ -75,7 +75,6 @@ local definitions = {
     {id="buffet_fork", track="suppress", name="뷔페용 포크", desc="포크의 좌우 피격 폭과 동시에 찍는 대상 수가 늘어납니다. 6레벨에는 타격 순간 커다란 포크 잔상이 한 번 더 찍힙니다.", max=6, color={.48,.82,.66}, job="toxic"},
     {id="clean_plate", track="suppress", name="접시 비우기", desc="포크로 쓰러뜨린 대상을 먹을 때 체력을 회복하고, 나무라면 추가 목재도 얻습니다. 6레벨에는 부스러기가 주변 적에게 피해를 줍니다.", max=6, color={1,.76,.28}, job="toxic"},
     {id="seconds_please", track="suppress", name="한 그릇 더", desc="대상을 먹은 뒤 잠시 포크질 속도가 빨라집니다. 연속으로 먹을수록 식사 템포를 유지하기 쉬워집니다.", max=6, color={.92,.48,.68}, job="toxic"},
-    {id="forced_growth", track="suppress", name="강제 성장", desc="숲의 재생 속도가 크게 빨라지지만, 목재 경험치 획득량도 크게 늘어납니다.", max=6, color={.85,.7,.25}},
     -- 개발력 (develop) — 말뚝 → 중장비 → 폭파 [부동산 개발업자 전용]
     {id="pile_driving", track="develop", name="말뚝 박기", desc="돌진 사거리가 늘어나고 재사용 대기시간이 줄어듭니다.", max=6, color={.7,.62,.4}, job="developer"},
     {id="heavy_machinery", track="develop", name="중장비 투입", desc="돌진 경로의 폭이 넓어져 더 많은 나무를 밀어버립니다.", max=6, color={1,.72,.15}, job="developer"},
@@ -4123,7 +4122,7 @@ function ClearcutMode:onWood(amount, game)
     amount = amount * (self.woodGainMul or 1)
     self.totalWood = self.totalWood + amount
     game.wood = self.totalWood
-    local xpMult = (1 + self:power("forced_growth") * .4)*Synergies.woodXpMultiplier(self)
+    local xpMult = Synergies.woodXpMultiplier(self)
     self.xp = self.xp + amount * xpMult
     while self.xp >= self.xpNext do
         self.xp = self.xp - self.xpNext
@@ -5243,7 +5242,7 @@ local dryForestPalette = {O={.3,.08,.02,1}, H={1,.85,.4,1}, W={1,.42,.1,1}}
 local demolitionPalette = {O={.3,.05,.02,1}, H={1,.75,.35,1}, W={1,.35,.15,1}}
 local oilDrumPalette = {O={.18,.11,.02,1}, H={1,.82,.4,1}, W={.75,.5,.15,1}, D={.4,.24,.05,1}}
 local siteClearancePalette = {O={.15,.15,.16,1}, H={.85,.85,.85,1}, W={.55,.5,.5,1}, D={.35,.32,.32,1}}
-local forcedGrowthPalette = {O={.16,.22,.05,1}, H={.85,.95,.6,1}, T={.4,.72,.22,1}}
+local cleanPlatePalette = {O={.16,.22,.05,1}, H={.85,.95,.6,1}, T={.4,.72,.22,1}}
 local pileDrivingPalette = {O={.2,.14,.06,1}, H={.92,.85,.7,1}, T={.55,.4,.2,1}}
 local forkPalette = {O={.08,.11,.12,1}, H={1,1,.86,1}, W={.72,.84,.86,1}, T={.52,.82,.24,1}, D={.34,.20,.42,1}}
 local footnotePalette = {O={.16,.22,.04,1}, H={.9,.98,.6,1}, W={.85,.9,.4,1}}
@@ -5317,9 +5316,8 @@ ClearcutMode.icons = {
     fork = {rows = forkRows, palette = forkPalette},
     fork_feast = {rows = forkRows, palette = forkPalette},
     buffet_fork = {rows = forkRows, palette = forkPalette},
-    clean_plate = {rows = boxRows, palette = forcedGrowthPalette},
+    clean_plate = {rows = boxRows, palette = cleanPlatePalette},
     seconds_please = {rows = diamondRows, palette = forkPalette},
-    forced_growth = {rows = stickRows, palette = forcedGrowthPalette},
     pile_driving = {rows = stickRows, palette = pileDrivingPalette},
     heavy_machinery = {rows = heavyMachineryRows, palette = heavyMachineryPalette},
     demolition = {rows = diamondRows, palette = demolitionPalette},

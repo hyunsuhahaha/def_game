@@ -712,9 +712,8 @@ const SKILLS = {
   },
   universal: { label: "공용 패시브", accent: "var(--c-universal)",
     tagline: "직업이 뭐든, 몸에서 알아서 나가는 것들이 있다.",
-    doctrine: "기본 공격과 무관하게 자동으로 발동하는 패시브 4종 + 전 직업에 열려 있는 파괴/억제 카드 4종.",
+    doctrine: "기본 공격과 무관하게 자동으로 발동하며 전 직업에 열려 있는 공용 패시브 7종.",
     nodes: [
-      {id:"forced_growth",track:"suppress",name:"강제 성장",desc:"숲의 재생 속도가 크게 빨라지지만, 목재 경험치 획득량도 크게 늘어납니다."},
       {id:"bat_swarm",track:"supplement",name:"박쥐 떼",desc:"주위를 맴도는 박쥐가 사거리 안의 생존 몬스터만 골라 주기적으로 급강하해 쪼아버립니다."},
       {id:"thorn_aura",track:"supplement",name:"가시 오라",desc:"몸 주위의 넓은 가시덩굴 지대가 주기적으로 주변 나무와 적에게 피해를 줍니다."},
       {id:"crow_strike",track:"supplement",name:"까마귀 습격",desc:"주기적으로 까마귀가 급강하해 사거리 내 가장 먼 생존 몬스터를 저격합니다."},
@@ -739,7 +738,7 @@ const SYNERGIES = {
 const SYNERGY_TAGS = {
   wide_blade:["impact","momentum"],berserker:["momentum","impact"],shockwave:["impact","field"],
   molotov:["ignition","momentum"],dry_forest:["ignition","field"],oil_drum:["ignition","impact"],straw_bale:["ignition","field"],smoke_ring:["field","momentum"],
-  fork_feast:["harvest","impact"],buffet_fork:["harvest","momentum"],clean_plate:["harvest","field"],seconds_please:["harvest","momentum"],forced_growth:["growth","harvest"],
+  fork_feast:["harvest","impact"],buffet_fork:["harvest","momentum"],clean_plate:["harvest","field"],seconds_please:["harvest","momentum"],
   pile_driving:["impact","momentum"],heavy_machinery:["impact","momentum"],demolition:["impact","ignition"],site_clearance:["field","impact"],
   detector:["impact","momentum"],burrow_uproot:["impact","field"],brute_force:["momentum","impact"],
   monologue:["field","momentum"],revival_meeting:["field","growth"],footnote:["momentum","field"],loud_voice:["field","impact"],saliva_gland:["growth","field"],

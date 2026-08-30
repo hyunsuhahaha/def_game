@@ -62,10 +62,10 @@ local scenarios={
         levels={wide_blade=3,berserker=3,thorn_aura=3,vine_whip=3,boomerang_axe=3,seed_mine=3},
         branches={boomerang_axe="broad_axe",seed_mine="scatter_mine"}},
     {name="late",level=43,stage=4,elapsed=500,seconds=30,
-        levels={wide_blade=6,berserker=6,forced_growth=6,thorn_aura=6,vine_whip=6,boomerang_axe=6,seed_mine=6},
+        levels={wide_blade=6,berserker=6,thorn_aura=6,vine_whip=6,boomerang_axe=6,seed_mine=6},
         branches={boomerang_axe="ricochet_axe",seed_mine="sprout_mine"}},
     {name="late_contested",level=43,stage=4,elapsed=500,seconds=30,totems=4,
-        levels={wide_blade=6,berserker=6,forced_growth=6,thorn_aura=6,vine_whip=6,boomerang_axe=6,seed_mine=6},
+        levels={wide_blade=6,berserker=6,thorn_aura=6,vine_whip=6,boomerang_axe=6,seed_mine=6},
         branches={boomerang_axe="ricochet_axe",seed_mine="sprout_mine"}},
 }
 local results={};for _,spec in ipairs(scenarios)do results[#results+1]=runScenario(spec)end

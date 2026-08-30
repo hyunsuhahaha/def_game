@@ -290,7 +290,7 @@ function love.load()
     if os.getenv("LAST_HAUL_CAPTURE_CLEARCUT_BUILDS") then
         game:startClearcut()
         local c = game.clearcut
-        c.levels = {wide_blade=3, berserker=3, shockwave=3, domino=2, molotov=3, dry_forest=3, oil_drum=3, embers=3, herbicide=3, root_cutting=3, fork_feast=3, buffet_fork=2, clean_plate=2, forced_growth=1}
+        c.levels = {wide_blade=3, berserker=3, shockwave=3, domino=2, molotov=3, dry_forest=3, oil_drum=3, embers=3, herbicide=3, root_cutting=3, fork_feast=3, buffet_fork=2, clean_plate=2}
         c:checkEvolutions(game)
         c.elapsed = 46
         c.streak = 12

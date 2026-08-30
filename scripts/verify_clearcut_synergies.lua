@@ -19,8 +19,9 @@ for _,job in ipairs({"physical","fire","toxic","developer","miner","philosopher"
  for _,def in ipairs(mode:sandboxSkillList())do assert(#def.tags==2,def.id.." missing synergy tags");seen[def.id]=true end
 end
 local liveCount=0;for _ in pairs(seen)do liveCount=liveCount+1 end
-assert(liveCount==32,"live skill tag audit did not cover every definition: "..liveCount)
+assert(liveCount==31,"live skill tag audit did not cover every definition: "..liveCount)
 assert(not Synergies.skillTags.spore_cloud,"removed spore cloud returned through synergy data")
+assert(not mode:getUpgradeDefinition("forced_growth")and not Synergies.skillTags.forced_growth,"removed forced-growth skill returned")
 mode.levels={bat_swarm=1,crow_strike=6,seed_mine=2,thorn_aura=1}
 mode.level=8
 local counts=Synergies.refresh(mode)
@@ -67,7 +68,7 @@ local oldHp=tree(0,0,9).rushMaxHp;pressure:forestPressure();assert(oldHp==9)
 local earlyBurst=Mode.new();earlyBurst.level=12;earlyBurst.levels={thorn_aura=1,seed_mine=1};earlyBurst.enemies={}
 for i=1,12 do earlyBurst:recordSynergyFell({x=0,y=0})end
 assert(#earlyBurst.friendlyGrowthBursts==1,"two-growth breakpoint has no gameplay effect")
-local burst=Mode.new();burst.level=30;burst.levels={thorn_aura=1,vine_whip=1,seed_mine=1,forced_growth=1,
+local burst=Mode.new();burst.level=30;burst.levels={thorn_aura=1,vine_whip=1,seed_mine=1,saliva_gland=1,
  wide_blade=1,shockwave=1,boomerang_axe=1,demolition=1};burst.enemies={}
 for i=1,7 do burst:recordSynergyFell({x=0,y=0})end
 assert(#burst.friendlyGrowthBursts>=2,"capstone synergies did not schedule clearing waves")

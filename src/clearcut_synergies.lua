@@ -7,7 +7,7 @@ Synergies.skillTags={
     molotov={"ignition","momentum"},dry_forest={"ignition","field"},oil_drum={"ignition","impact"},
     straw_bale={"ignition","field"},smoke_ring={"field","momentum"},
     fork_feast={"harvest","impact"},buffet_fork={"harvest","momentum"},clean_plate={"harvest","field"},
-    seconds_please={"harvest","momentum"},forced_growth={"growth","harvest"},
+    seconds_please={"harvest","momentum"},
     pile_driving={"impact","momentum"},heavy_machinery={"impact","momentum"},demolition={"impact","ignition"},
     site_clearance={"field","impact"},detector={"impact","momentum"},burrow_uproot={"impact","field"},
     brute_force={"momentum","impact"},monologue={"field","momentum"},revival_meeting={"field","growth"},
