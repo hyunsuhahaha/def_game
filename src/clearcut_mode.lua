@@ -243,9 +243,42 @@ end
 
 function ClearcutMode:sandboxSetLevel(id, delta)
     local def = upgradeById[id]
-    if not def then return end
+    if not def then return false end
     self.levels[id] = math.max(0, math.min(def.max, self:levelOf(id) + delta))
+    local trigger=SkillBranches.triggerLevel(id)
+    if trigger and self:levelOf(id)<trigger then self.skillBranches[id]=nil end
     Synergies.refresh(self)
+    return true
+end
+
+function ClearcutMode:sandboxSetAllSkills(maxed)
+    for _,def in ipairs(self:sandboxSkillList())do self.levels[def.id]=maxed and def.max or 0 end
+    if not maxed then self.skillBranches={};self.evolutions={} end
+    Synergies.refresh(self)
+end
+
+-- 연습장에서는 실제 카드 분기 조건을 그대로 보여 주되 선택만 즉시 적용한다.
+-- 전자담배/폭죽도 여기서 정해야 실제 기본 공격 업데이트 경로가 바뀐다.
+function ClearcutMode:sandboxBranchList()
+    local available={};local owned={}
+    for _,def in ipairs(self:sandboxSkillList())do owned[def.id]=true end
+    for skill,list in pairs(SkillBranches.definitions)do if owned[skill]then
+        local definition=upgradeById[skill];local trigger=SkillBranches.triggerLevel(skill)
+        -- 직업 무기 진화는 처음부터 잠금 상태로 보여 발견 가능하게 하고,
+        -- 공용 전문화는 해당 스킬을 실제 요구 레벨까지 찍었을 때 펼친다.
+        if (definition and definition.job==self.job)or self:levelOf(skill)>=trigger then
+            available[#available+1]={skill=skill,trigger=trigger,choices=list,definition=definition}
+        end
+    end end
+    table.sort(available,function(a,b)return a.skill<b.skill end)
+    return available
+end
+
+function ClearcutMode:sandboxSetBranch(skill,branchId)
+    local branch=SkillBranches.get(branchId);local trigger=SkillBranches.triggerLevel(skill)
+    if not branch or branch.skill~=skill or not trigger or self:levelOf(skill)<trigger then return false end
+    self.skillBranches[skill]=branchId
+    return true
 end
 
 -- 융합 스킬은 정상적으로는 재료 두 스킬을 만렙 찍고 3택 카드 화면에서 확정 획득해야

@@ -369,8 +369,15 @@ function SelfTest.run(game)
     assert(game.clearcut:levelOf("molotov") == 1, "연습장 스킬 레벨 증가 실패")
     game.clearcut:sandboxSetLevel("molotov", 99)
     assert(game.clearcut:levelOf("molotov") == game.clearcut:getUpgradeDefinition("molotov").max, "연습장 스킬 레벨이 만렙을 넘음")
+    game:drawSandboxPanel()
+    local vapeBox
+    for _,entry in ipairs(game.sandboxBranchBoxes or {})do if entry.id=="vape"then vapeBox=entry.box end end
+    assert(vapeBox,"연습장에 전자담배 무기 진화 선택이 없음")
+    game:sandboxPanelClick(vapeBox.x+1,vapeBox.y+1)
+    assert(game.clearcut:skillBranch("molotov")=="vape","연습장에서 전자담배를 실제 기본 무기로 선택하지 못함")
     game.clearcut:sandboxSetLevel("molotov", -99)
     assert(game.clearcut:levelOf("molotov") == 0, "연습장 스킬 레벨이 0 밑으로 안 내려감")
+    assert(not game.clearcut:skillBranch("molotov"),"요구 레벨 아래에서도 연습장 무기 진화가 남음")
     game.clearcut.enemies = {}
     game.clearcut.timeSpawnTimer = 0
     game.clearcut:updateTimeSpawner(.01, game)

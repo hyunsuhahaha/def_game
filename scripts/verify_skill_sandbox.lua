@@ -1,0 +1,31 @@
+package.path="./?.lua;./?/init.lua;"..package.path
+local Mode=require("src.clearcut_mode")
+
+local mode=Mode.new();mode.job="fire";mode.sandbox=true
+local seen={}
+for _,def in ipairs(mode:sandboxSkillList())do seen[def.id]=true end
+assert(seen.molotov and seen.seed_mine and not seen.berserker,"practice skill catalog is not job + shared")
+
+local branches=mode:sandboxBranchList();local foundVape=false
+for _,group in ipairs(branches)do if group.skill=="molotov"then
+    assert(group.trigger==6 and #group.choices==2,"smoker practice evolution choices are incomplete")
+    foundVape=true
+end end
+assert(foundVape,"locked smoker evolution is not discoverable in practice")
+assert(not mode:sandboxSetBranch("molotov","vape"),"locked vape was selectable below level six")
+mode:sandboxSetLevel("molotov",99)
+assert(mode:sandboxSetBranch("molotov","vape") and mode:skillBranch("molotov")=="vape","practice did not equip vape")
+mode:sandboxSetLevel("molotov",-1)
+assert(not mode:skillBranch("molotov"),"vape remained equipped below its trigger level")
+
+mode:sandboxSetAllSkills(true)
+assert(mode:levelOf("molotov")==6 and mode:levelOf("chain_lightning")==6,"max-all did not fill practice skills")
+mode:sandboxSetAllSkills(false)
+assert(mode:levelOf("molotov")==0 and mode:levelOf("chain_lightning")==0,"practice reset did not clear skills")
+
+local gameSource=assert(io.open("src/game.lua","rb")):read("*a")
+assert(gameSource:find("sandboxBranchBoxes",1,true) and gameSource:find("sandboxMaxBox",1,true) and gameSource:find("sandboxPanelScroll",1,true),"practice controls are not wired to the panel")
+local dossier=assert(io.open("docs/character_dossier.html","rb")):read("*a")
+assert(not dossier:find("시스템 연동",1,true) and not dossier:find("system%-note"),"internal system note is still visible in the dossier")
+assert(dossier:find("전자담배 %[인게임 구현%]") and dossier:find("연습장에서 모든 직업/공용 스킬",1,true),"dossier does not expose live vape/practice support")
+print("SKILL_SANDBOX_OK rows=click-to-level bulk=max+reset branches=vape+fireworks+shared scroll=wheel dossier=clean")

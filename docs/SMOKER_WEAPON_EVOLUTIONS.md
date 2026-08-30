@@ -15,6 +15,8 @@
 - 증기탄 하나가 지나간 경로 전체에서 나무와 몬스터를 각각 한 번씩 관통 타격한다.
 - 청록·보라 증기 실루엣은 6프레임 모두 다르며 2.5D 바닥 기울기와 분리된 upright billboard로 그린다.
 
+전자담배는 문서 시안이 아니라 실제 인게임 기본 공격 분기다. `src/clearcut_mode.lua`의 `updateVapeAttack`이 발사체를 생성하고 `updateSmokerWeaponProjectiles`가 이동 경로 전체의 나무·몬스터 충돌과 피해를 처리하며, `src/smoker_weapon_art.lua`가 손 장비와 증기탄을 그린다.
+
 ## 폭죽 발사기
 
 - 기본 공격: 마우스를 누르는 동안 약 0.86초 간격으로 발사.
@@ -31,3 +33,9 @@
 - 게임플레이 검증: `scripts/verify_smoker_weapon_evolutions.lua`
 - 그래픽 검증: `scripts/verify_smoker_weapon_evolution_art.py`
 - 오프스크린 검수: `scripts/render_smoker_weapon_evolutions.py`
+
+## 연습장에서 확인
+
+로비의 `연습`에서 흡연자를 고른다. 오른쪽 스킬 목록에서 `꽁초 투척` 행을 눌러 Lv.6으로 만든 뒤 `무기 진화`의 `전자담배` 또는 `폭죽 발사기`를 직접 고른다. 선택 직후 마우스 왼쪽 버튼을 누르고 있으면 해당 기본 공격을 시험할 수 있다. `전부 만렙`과 `전체 초기화`로 빌드를 빠르게 재설정할 수 있고, 목록이 화면보다 길면 패널 위에서 휠로 스크롤한다.
+
+실제 연습장 패널 오프스크린 검수본은 `docs/previews/skill-sandbox-v2.png`다.

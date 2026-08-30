@@ -787,6 +787,12 @@ function Game:wheelmoved(x, y)
     if self.mode=="character_traits" then self.characterTraitBoard:wheelmoved(x,y); return end
     if self.mode=="achievements" then self.achievementBoard:wheelmoved(x,y); return end
     if self.mode=="clearcut_map_select" then local mx,my=love.mouse.getPosition();require("src.clearcut_map_select").wheelmoved(self,mx,my,y);return end
+    if self.clearcut and self.clearcut.sandbox and self.sandboxPanelBox and y~=0 then
+        local mx,my=love.mouse.getPosition();local b=self.sandboxPanelBox
+        if mx>=b.x and mx<=b.x+b.w and my>=b.y and my<=b.y+b.h then
+            self.sandboxPanelScroll=math.max(0,math.min(self.sandboxScrollMax or 0,(self.sandboxPanelScroll or 0)-y*72));return
+        end
+    end
     if self.clearcut and self.clearcut.worldTreeEmergence then return end
     if self.mode ~= "playing" or y == 0 then return end
     if not (love.keyboard.isDown("lctrl") or love.keyboard.isDown("rctrl")) then return end
@@ -1166,6 +1172,7 @@ end
 -- 적을 부를 수 있다. 스토리/맵 선택 같은 정상 진행 절차는 전부 건너뛴다.
 function Game:startClearcutSandbox(characterId)
     self:resetRun()
+    self.sandboxPanelScroll=0
     self.clearcut = ClearcutMode.new()
     self.clearcut.job = characterId
     self.clearcut.sandbox = true
@@ -1185,28 +1192,41 @@ end
 function Game:drawSandboxPanel()
     local w, h, f = love.graphics.getWidth(), love.graphics.getHeight(), self.fonts
     local skills = self.clearcut:sandboxSkillList()
+    local branches = self.clearcut:sandboxBranchList()
     local fusions = self.clearcut:sandboxFusionList()
     local jobSkills, sharedSkills = {}, {}
     for _, def in ipairs(skills) do
         if def.job then jobSkills[#jobSkills + 1] = def else sharedSkills[#sharedSkills + 1] = def end
     end
-    local panelW, rowH, headerH = 300, 25, 20
-    local fusionBlockH = #fusions > 0 and (22 + #fusions * rowH) or 0
-    local skillBlockH = (#jobSkills > 0 and (headerH + #jobSkills * rowH) or 0) + (#sharedSkills > 0 and (headerH + #sharedSkills * rowH) or 0)
-    local panelH = math.min(h - 32, 96 + skillBlockH + fusionBlockH + 74)
-    local x, y = w - panelW - 16, 16
+    local panelW, rowH, headerH = math.min(360,w-24), 26, 22
+    local panelH = h - 24
+    local x, y = w - panelW - 12, 12
+    self.sandboxPanelBox={x=x,y=y,w=panelW,h=panelH}
     UI.panel(x, y, panelW, panelH, {.3, .82, .5, 1}, .94)
     love.graphics.setFont(f.small); love.graphics.setColor(1, .92, .55)
     love.graphics.print("스킬 연습장", x + 14, y + 10)
     love.graphics.setColor(.78, .87, .8)
     love.graphics.print(self:sandboxCharacterName(self.clearcut.job), x + 14, y + 28)
-    self.sandboxSkyviewBox={x=x+132,y=y+23,w=panelW-146,h=24}
+    self.sandboxSkyviewBox={x=x+panelW-146,y=y+11,w=132,h=24}
     local skyOn=(self.camera.skyviewTarget or 0)>.5
     UI.button(self.sandboxSkyviewBox.x,self.sandboxSkyviewBox.y,self.sandboxSkyviewBox.w,self.sandboxSkyviewBox.h,
         skyOn and "SKYVIEW 끄기" or "SKYVIEW 보기",true,f.small)
 
+    self.sandboxMaxBox={x=x+14,y=y+49,w=(panelW-34)/2,h=25}
+    self.sandboxResetBox={x=self.sandboxMaxBox.x+self.sandboxMaxBox.w+6,y=y+49,w=(panelW-34)/2,h=25}
+    UI.button(self.sandboxMaxBox.x,self.sandboxMaxBox.y,self.sandboxMaxBox.w,self.sandboxMaxBox.h,"전부 만렙",true,f.small)
+    UI.button(self.sandboxResetBox.x,self.sandboxResetBox.y,self.sandboxResetBox.w,self.sandboxResetBox.h,"전체 초기화",true,f.small)
+
+    local contentTop,contentBottom=y+82,y+panelH-76
+    self.sandboxContentBox={x=x+6,y=contentTop,w=panelW-12,h=contentBottom-contentTop}
+    local contentHeight=(#jobSkills+#sharedSkills)*rowH+2*headerH
+    contentHeight=contentHeight+(#branches>0 and 24+#branches*48 or 0)
+    contentHeight=contentHeight+(#fusions>0 and 24+#fusions*rowH or 0)
+    self.sandboxScrollMax=math.max(0,contentHeight-self.sandboxContentBox.h)
+    self.sandboxPanelScroll=math.max(0,math.min(self.sandboxPanelScroll or 0,self.sandboxScrollMax))
+    love.graphics.setScissor(self.sandboxContentBox.x,self.sandboxContentBox.y,self.sandboxContentBox.w,self.sandboxContentBox.h)
     self.sandboxSkillBoxes = {}
-    local rowY = y + 50
+    local rowY = contentTop-(self.sandboxPanelScroll or 0)
     local function drawSkillGroup(label, list)
         if #list == 0 then return end
         love.graphics.setFont(f.small); love.graphics.setColor(1, .85, .5)
@@ -1214,18 +1234,42 @@ function Game:drawSandboxPanel()
         rowY = rowY + headerH
         for _, def in ipairs(list) do
             local level = self.clearcut:levelOf(def.id)
-            love.graphics.setColor(1, 1, 1, .9)
-            love.graphics.printf(def.name .. "  " .. level .. "/" .. def.max, x + 14, rowY + 3, panelW - 90, "left")
-            local minusBox = {x = x + panelW - 64, y = rowY, w = 22, h = 20}
-            local plusBox = {x = x + panelW - 36, y = rowY, w = 22, h = 20}
-            UI.button(minusBox.x, minusBox.y, minusBox.w, minusBox.h, "-", true, f.small)
-            UI.button(plusBox.x, plusBox.y, plusBox.w, plusBox.h, "+", true, f.small)
+            local plusBox={x=x+14,y=rowY,w=panelW-58,h=22}
+            local minusBox={x=x+panelW-38,y=rowY,w=24,h=22}
+            love.graphics.setColor(.025,.045,.038,.96);love.graphics.rectangle("fill",plusBox.x,plusBox.y,plusBox.w,plusBox.h,3,3)
+            love.graphics.setColor(def.color[1],def.color[2],def.color[3],.22);love.graphics.rectangle("fill",plusBox.x,plusBox.y,plusBox.w*(level/def.max),plusBox.h,3,3)
+            love.graphics.setColor(def.color[1],def.color[2],def.color[3],level>0 and .75 or .28);love.graphics.rectangle("line",plusBox.x+.5,plusBox.y+.5,plusBox.w-1,plusBox.h-1,3,3)
+            love.graphics.setFont(f.small);love.graphics.setColor(1,1,1,.92);love.graphics.print(def.name,plusBox.x+7,rowY+3)
+            love.graphics.setColor(level==def.max and {1,.88,.42} or {.72,.82,.76});love.graphics.printf("Lv."..level.." / "..def.max,plusBox.x, rowY+3,plusBox.w-22,"right")
+            love.graphics.setColor(1,.82,.36,.9);love.graphics.print("+",plusBox.x+plusBox.w-16,rowY+3)
+            UI.button(minusBox.x,minusBox.y,minusBox.w,minusBox.h,"−",level>0,f.small)
             self.sandboxSkillBoxes[#self.sandboxSkillBoxes + 1] = {id = def.id, minus = minusBox, plus = plusBox}
             rowY = rowY + rowH
         end
     end
     drawSkillGroup("직업 전용", jobSkills)
     drawSkillGroup("공용", sharedSkills)
+
+    self.sandboxBranchBoxes={}
+    if #branches>0 then
+        love.graphics.setFont(f.small);love.graphics.setColor(1,.85,.5);love.graphics.print("무기 진화 / 전문화 · 조건 달성 후 택1",x+14,rowY+2);rowY=rowY+24
+        for _,group in ipairs(branches)do
+            local unlocked=self.clearcut:levelOf(group.skill)>=group.trigger
+            love.graphics.setFont(f.micro or f.small);love.graphics.setColor(unlocked and {.88,.92,.82} or {.48,.54,.50})
+            love.graphics.print((group.definition and group.definition.name or group.skill).."  Lv."..group.trigger,x+14,rowY+1)
+            rowY=rowY+18
+            local gap=4;local bw=(panelW-28-gap*(#group.choices-1))/#group.choices
+            for i,branch in ipairs(group.choices)do
+                local box={x=x+14+(i-1)*(bw+gap),y=rowY,w=bw,h=25}
+                local selected=self.clearcut:skillBranch(group.skill)==branch.id
+                love.graphics.setColor(selected and branch.color or (unlocked and {.10,.15,.13,.98} or {.055,.07,.065,.94}));love.graphics.rectangle("fill",box.x,box.y,box.w,box.h,3,3)
+                love.graphics.setColor(branch.color[1],branch.color[2],branch.color[3],selected and 1 or (unlocked and .55 or .18));love.graphics.rectangle("line",box.x+.5,box.y+.5,box.w-1,box.h-1,3,3)
+                love.graphics.setFont(f.micro or f.small);love.graphics.setColor(1,1,1,unlocked and 1 or .34);love.graphics.printf(branch.name,box.x,box.y+5,box.w,"center")
+                self.sandboxBranchBoxes[#self.sandboxBranchBoxes+1]={skill=group.skill,id=branch.id,box=box,enabled=unlocked}
+            end
+            rowY=rowY+30
+        end
+    end
 
     self.sandboxFusionBoxes = {}
     if #fusions > 0 then
@@ -1240,6 +1284,14 @@ function Game:drawSandboxPanel()
             rowY = rowY + rowH
         end
     end
+    love.graphics.setScissor()
+
+    if self.sandboxScrollMax>0 then
+        local trackH=self.sandboxContentBox.h-8;local thumbH=math.max(28,trackH*self.sandboxContentBox.h/contentHeight)
+        local thumbY=contentTop+4+(trackH-thumbH)*(self.sandboxPanelScroll/self.sandboxScrollMax)
+        love.graphics.setColor(.24,.34,.29,.8);love.graphics.rectangle("fill",x+panelW-6,contentTop+4,2,trackH)
+        love.graphics.setColor(.72,.84,.66,.9);love.graphics.rectangle("fill",x+panelW-7,thumbY,4,thumbH)
+    end
 
     self.sandboxMobBox = {x = x + 14, y = y + panelH - 68, w = panelW - 28, h = 30}
     UI.button(self.sandboxMobBox.x, self.sandboxMobBox.y, self.sandboxMobBox.w, self.sandboxMobBox.h, "몹 소환", true, f.body)
@@ -1248,6 +1300,7 @@ function Game:drawSandboxPanel()
 end
 
 function Game:sandboxPanelClick(x, y)
+    local function inside(b)return b and x>=b.x and x<=b.x+b.w and y>=b.y and y<=b.y+b.h end
     if self.sandboxSkyviewBox and x>=self.sandboxSkyviewBox.x and x<=self.sandboxSkyviewBox.x+self.sandboxSkyviewBox.w and y>=self.sandboxSkyviewBox.y and y<=self.sandboxSkyviewBox.y+self.sandboxSkyviewBox.h then
         self.camera:setMode((self.camera.skyviewTarget or 0)>.5 and "default" or "skyview",.6)
         return true
@@ -1258,11 +1311,17 @@ function Game:sandboxPanelClick(x, y)
     if self.sandboxExitBox and x>=self.sandboxExitBox.x and x<=self.sandboxExitBox.x+self.sandboxExitBox.w and y>=self.sandboxExitBox.y and y<=self.sandboxExitBox.y+self.sandboxExitBox.h then
         self:resetRun(); self.mode = "lobby"; return true
     end
+    if inside(self.sandboxMaxBox)then self.clearcut:sandboxSetAllSkills(true);return true end
+    if inside(self.sandboxResetBox)then self.clearcut:sandboxSetAllSkills(false);return true end
+    if not inside(self.sandboxContentBox)then return inside(self.sandboxPanelBox) end
     for _, box in ipairs(self.sandboxSkillBoxes or {}) do
         local mb, pb = box.minus, box.plus
         if x>=mb.x and x<=mb.x+mb.w and y>=mb.y and y<=mb.y+mb.h then self.clearcut:sandboxSetLevel(box.id, -1); return true end
         if x>=pb.x and x<=pb.x+pb.w and y>=pb.y and y<=pb.y+pb.h then self.clearcut:sandboxSetLevel(box.id, 1); return true end
     end
+    for _,entry in ipairs(self.sandboxBranchBoxes or {})do if entry.enabled and inside(entry.box)then
+        self.clearcut:sandboxSetBranch(entry.skill,entry.id);return true
+    end end
     for _, box in ipairs(self.sandboxFusionBoxes or {}) do
         local b = box.box
         if x>=b.x and x<=b.x+b.w and y>=b.y and y<=b.y+b.h then self.clearcut:sandboxToggleFusion(box.id); return true end
