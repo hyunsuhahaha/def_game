@@ -743,11 +743,17 @@ function World:updateHelpers(dt, game)
     local operationScanner=chopper and chopper.scoreAttack and chopper:levelOf("robot_scanner")or 0
     local speed=(80+level*30)*(1+(chopper and chopper.permanentTraits and chopper.permanentTraits.scoreRobotSpeed or 0))*(1+operationScanner*.18)
     local home=chopper and game.player or self.core
-    local scanRadius=chopper and(300+level*120)*(1+operationScanner*.35)or math.huge
+    -- Score-attack carriers are map workers, not player pets. Every landed wood
+    -- drop is globally visible; scanner upgrades improve dispatch speed instead
+    -- of deciding whether a distant drop exists at all.
     while #self.helpers < helperCount do
         self.helpers[#self.helpers + 1] = {x = home.x + love.math.random(-40, 40), y = home.y + love.math.random(-40, 40), bob = love.math.random() * 6.28}
     end
     while #self.helpers>helperCount do table.remove(self.helpers)end
+    local reserved={}
+    for _,other in ipairs(self.helpers)do
+        if other.target and dropStillListed(self.drops,other.target)then reserved[other.target]=other end
+    end
     for _, h in ipairs(self.helpers) do
         h.bob = h.bob + dt * 5
         h.speed = speed
@@ -776,10 +782,12 @@ function World:updateHelpers(dt, game)
                 for _, drop in ipairs(self.drops) do
                     local dx, dy = drop.x - h.x, drop.y - h.y
                     local d = dx * dx + dy * dy
-                    local eligible=(not chopper or drop.kind=="wood")and(drop.height or 0)<=18 and d<=scanRadius*scanRadius
+                    local available=not reserved[drop]or reserved[drop]==h
+                    local eligible=available and(not chopper or drop.kind=="wood")and(drop.height or 0)<=18
                     if eligible and(not bestDist or d<bestDist)then best,bestDist=drop,d end
                 end
                 h.target = best
+                if best then reserved[best]=h end
             end
             if h.target then
                 local dx, dy = h.target.x - h.x, h.target.y - h.y
@@ -802,7 +810,7 @@ function World:updateHelpers(dt, game)
                         h.carrying = {kind = collected.kind, amount = collected.amount}
                     end
                 end
-            else
+            elseif not chopper then
                 local dx, dy = home.x - h.x, home.y - h.y
                 local dist = math.sqrt(dx * dx + dy * dy)
                 if dist > 30 then h.x, h.y = h.x + dx / dist * h.speed * .5 * dt, h.y + dy / dist * h.speed * .5 * dt end

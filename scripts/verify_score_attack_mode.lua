@@ -130,11 +130,25 @@ assert(game.clearcut.totalWood==0 and game.clearcut.level==1 and game.clearcut.p
 assert(game.clearcut.smoking and game.clearcut.smoking.dur<.75,"first ignition preparation trait did not shorten the opening load")
 local deliveredBefore=game.clearcut.totalWood
 local carriedBefore=game.player.wood
-game.world.drops={{kind="wood",amount=1,x=game.player.x+300,y=game.player.y,height=0,vx=0,vy=0,vz=0,magnet=false}}
-for _=1,300 do game.world:updateHelpers(1/60,game)end
+game.world:updateHelpers(0,game)
+local idleRobot=game.world.helpers[1]
+idleRobot.x,idleRobot.y=game.player.x+700,game.player.y+500
+game.world.drops={}
+game.world:updateHelpers(1,game)
+assert(idleRobot.x==game.player.x+700 and idleRobot.y==game.player.y+500,"score robot still follows the player while idle")
+game.world.drops={{kind="wood",amount=1,x=game.player.x+1800,y=game.player.y+500,height=0,vx=0,vy=0,vz=0,magnet=false}}
+local beforeDispatchX=idleRobot.x
+game.world:updateHelpers(1,game)
+assert(idleRobot.target==game.world.drops[1] and idleRobot.x>beforeDispatchX,"score robot did not dispatch to map-wide wood")
+for _=1,900 do game.world:updateHelpers(1/60,game)end
 assert(#game.world.helpers==1 and #game.world.drops==0 and game.clearcut.totalWood==deliveredBefore+1,"baby robot did not convert a landed wood drop into wood XP")
 assert(game.player.wood==carriedBefore and game.world.helpers[1].carrying==nil,"baby robot incorrectly carried wood back to the player")
 game.clearcut.levels.baby_robot=3
 game.world:updateHelpers(1/60,game)
 assert(#game.world.helpers==2,"baby robot level scaling did not add a second carrier")
+local r1,r2=game.world.helpers[1],game.world.helpers[2]
+game.world.drops={{kind="wood",amount=1,x=r1.x+900,y=r1.y,height=0},{kind="wood",amount=1,x=r1.x-900,y=r1.y,height=0}}
+r1.target,r2.target=nil,nil
+game.world:updateHelpers(1/60,game)
+assert(r1.target and r2.target and r1.target~=r2.target,"multiple score robots were dispatched to the same wood")
 print("SCORE_ATTACK_MODE_OK start=6 persistent_regen_tier wood_xp=operations combat=permanent")
