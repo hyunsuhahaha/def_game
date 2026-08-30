@@ -765,7 +765,7 @@ function World:updateHelpers(dt, game)
                 end
                 if chopper and kind=="wood"then chopper:onWood(amount,game)else game:addRunXP(amount)end
                 local pulseKind = kind == "food" and "plot" or kind == "wood" and "tree" or kind
-                self:resourcePulse(game, pulseKind, amount, "아기 로봇 배달")
+                self:resourcePulse(game, pulseKind, amount, "로봇 납품")
                 h.carrying = nil
             end
         else
@@ -786,9 +786,20 @@ function World:updateHelpers(dt, game)
                 if dist > 6 then
                     h.x, h.y = h.x + dx / dist * h.speed * dt, h.y + dy / dist * h.speed * dt
                 else
-                    h.carrying = {kind = h.target.kind, amount = h.target.amount}
+                    local collected=h.target
                     for i, d in ipairs(self.drops) do if d == h.target then table.remove(self.drops, i); break end end
                     h.target = nil
+                    if chopper then
+                        local amount=collected.amount
+                        if game.runStats then
+                            game.runStats.harvested=(game.runStats.harvested or 0)+amount
+                            game.runStats.wood=(game.runStats.wood or 0)+amount
+                        end
+                        chopper:onWood(amount,game)
+                        self:resourcePulse(game,"tree",amount,"아기 로봇 회수")
+                    else
+                        h.carrying = {kind = collected.kind, amount = collected.amount}
+                    end
                 end
             else
                 local dx, dy = home.x - h.x, home.y - h.y

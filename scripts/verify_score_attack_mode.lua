@@ -113,9 +113,11 @@ assert(game.clearcut:levelOf("baby_robot")==1 and game.clearcut.permanentTraits.
 assert(game.clearcut.totalWood==0 and game.clearcut.level==1 and game.clearcut.pending==0,"score run did not start with a clean wood-XP progression")
 assert(game.clearcut.smoking and game.clearcut.smoking.dur<.75,"first ignition preparation trait did not shorten the opening load")
 local deliveredBefore=game.clearcut.totalWood
+local carriedBefore=game.player.wood
 game.world.drops={{kind="wood",amount=1,x=game.player.x+300,y=game.player.y,height=0,vx=0,vy=0,vz=0,magnet=false}}
 for _=1,300 do game.world:updateHelpers(1/60,game)end
-assert(#game.world.helpers==1 and #game.world.drops==0 and game.clearcut.totalWood==deliveredBefore+1,"baby robot did not retrieve a landed wood drop and deliver it to the player")
+assert(#game.world.helpers==1 and #game.world.drops==0 and game.clearcut.totalWood==deliveredBefore+1,"baby robot did not convert a landed wood drop into wood XP")
+assert(game.player.wood==carriedBefore and game.world.helpers[1].carrying==nil,"baby robot incorrectly carried wood back to the player")
 game.clearcut.levels.baby_robot=3
 game.world:updateHelpers(1/60,game)
 assert(#game.world.helpers==2,"baby robot level scaling did not add a second carrier")

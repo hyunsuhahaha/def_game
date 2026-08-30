@@ -100,7 +100,7 @@ local definitions = {
     {id="chain_lightning", track="supplement", name="번개 사슬", desc="주기적으로 번개가 가까운 생존 몬스터 사이만 연쇄로 튀며 다단히트합니다.", max=6, color={.35,.75,.95}},
     -- 기존 공용 전투 패시브는 드래프트에서 제외하고, 아래 한 장만
     -- 떨어진 목재 회수를 담당하는 공용 유틸리티 카드로 노출한다.
-    {id="baby_robot", track="supplement", name="아기 운반 로봇", desc="귀여운 운반 로봇이 떨어진 목재를 찾아 주워옵니다. 강화하면 로봇 수와 탐색 범위, 이동속도가 증가합니다.", max=6, color={.40,.86,1}, sharedDraft=true},
+    {id="baby_robot", track="supplement", name="아기 운반 로봇", desc="귀여운 운반 로봇이 떨어진 목재를 회수해 즉시 목재 경험치로 바꿉니다. 강화하면 로봇 수와 탐색 범위, 이동속도가 증가합니다.", max=6, color={.40,.86,1}, sharedDraft=true},
 }
 
 local upgradeById = {}
