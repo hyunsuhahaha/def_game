@@ -12,10 +12,10 @@ local function load()
         impactQuads.landing[frame+1]=love.graphics.newQuad(frame*160,0,160,160,1600,320)
         impactQuads.ignition[frame+1]=love.graphics.newQuad(frame*160,160,160,160,1600,320)
     end
-    treeFireAtlas=love.graphics.newImage("assets/fx/tree-fire-loop-atlas-pixel-v2.png")
+    treeFireAtlas=love.graphics.newImage("assets/fx/tree-fire-loop-atlas-pixel-v3.png")
     treeFireAtlas:setFilter("nearest","nearest")
     treeFireQuads={}
-    for frame=0,15 do treeFireQuads[frame+1]=love.graphics.newQuad(frame*320,0,320,320,5120,320) end
+    for frame=0,19 do treeFireQuads[frame+1]=love.graphics.newQuad(frame*320,0,320,320,6400,320) end
     burnShader=love.graphics.newShader("assets/shaders/cigarette-butt-burn.glsl")
     fxShader=love.graphics.newShader("assets/shaders/cigarette-ground-fx.glsl")
 end
@@ -121,9 +121,15 @@ function Art.drawTreeFire(node,time)
     local age=node.cigaretteIgnitedAt and math.max(0,time-node.cigaretteIgnitedAt) or 1
     local grow=.35+.65*math.min(1,age/.45)
     local seedPhase=((node.x or 0)*.013+(node.y or 0)*.007)%1
-    local frame=math.floor((time*14+seedPhase*16)%16)+1
+    local frame=math.floor((time*14+seedPhase*20)%20)+1
     local previous=love.graphics.getShader()
     love.graphics.setShader()
+    local previousBlend=love.graphics.getBlendMode and love.graphics.getBlendMode()or"alpha"
+    love.graphics.setBlendMode("add")
+    love.graphics.setColor(1,.32,.04,.16)
+    love.graphics.draw(treeFireAtlas,treeFireQuads[frame],math.floor(node.x+.5),math.floor(node.y+5.5),
+        0,.425*grow,.425*grow,160,286)
+    love.graphics.setBlendMode(previousBlend)
     love.graphics.setColor(1,1,1,1)
     love.graphics.draw(treeFireAtlas,treeFireQuads[frame],math.floor(node.x+.5),math.floor(node.y+5.5),
         0,.40*grow,.40*grow,160,286)

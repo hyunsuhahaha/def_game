@@ -19,11 +19,11 @@ node.cigaretteIgnitedAt=0
 Art.drawTreeFire(node,.4)
 local atlasDraws,shaderDraws,oldPulseDraws=0,0,0
 for _,draw in ipairs(fixture.commands) do
-    if draw.file=="assets/fx/tree-fire-loop-atlas-pixel-v2.png" then atlasDraws=atlasDraws+1 end
+    if draw.file=="assets/fx/tree-fire-loop-atlas-pixel-v3.png" then atlasDraws=atlasDraws+1 end
     if draw.file=="assets/fx/tree-fire-pulse-atlas-pixel-v1.png" then oldPulseDraws=oldPulseDraws+1 end
     if draw.shader=="assets/shaders/cigarette-ground-fx.glsl" then shaderDraws=shaderDraws+1 end
 end
-assert(atlasDraws==1 and shaderDraws==1,"authored fire loop and continuous smoke were not drawn once each")
+assert(atlasDraws==2 and shaderDraws==1,"authored fire glow/body and continuous smoke were not drawn")
 assert(oldPulseDraws==0,"removed rhythmic pulse atlas is still connected")
 
 fixture.reset()
