@@ -241,13 +241,21 @@ function ClearcutMode:sandboxSkillList()
     return list
 end
 
-function ClearcutMode:sandboxSetLevel(id, delta)
+function ClearcutMode:sandboxSetLevel(id, delta, game)
     local def = upgradeById[id]
     if not def then return false end
+    local before=self:levelOf(id)
     self.levels[id] = math.max(0, math.min(def.max, self:levelOf(id) + delta))
     local trigger=SkillBranches.triggerLevel(id)
     if trigger and self:levelOf(id)<trigger then self.skillBranches[id]=nil end
     Synergies.refresh(self)
+    -- Practice must reproduce the real level-up flow. Reaching a branch rank
+    -- opens the same full-screen, mutually exclusive chooser immediately;
+    -- hiding it at the bottom of the scroll panel made rank three look inert.
+    if game and trigger and before<trigger and self:levelOf(id)>=trigger
+        and not self:skillBranch(id) and SkillBranches.forSkill(id) then
+        self:openBranchChoice(id,game)
+    end
     return true
 end
 

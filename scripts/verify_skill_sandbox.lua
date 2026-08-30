@@ -26,6 +26,7 @@ assert(mode:levelOf("molotov")==0 and mode:levelOf("chain_lightning")==0,"practi
 local gameSource=assert(io.open("src/game.lua","rb")):read("*a")
 assert(gameSource:find("sandboxBranchBoxes",1,true) and gameSource:find("sandboxMaxBox",1,true) and gameSource:find("sandboxPanelScroll",1,true),"practice controls are not wired to the panel")
 assert(gameSource:find('UI.button(plusBox.x,plusBox.y,plusBox.w,plusBox.h,"+",level<def.max',1,true),"practice skill plus control is not explicit/enabled")
+assert(gameSource:find("sandboxSetLevel(box.id,1,self)",1,true),"practice plus button does not open the real rank-three branch flow")
 local sandboxGuard=assert(gameSource:find("if self.clearcut and self.clearcut.sandbox and button==1 and self:sandboxPanelClick(x, y) then return end",1,true))
 local endedGuard=assert(gameSource:find("if self.ended then return end",sandboxGuard,true))
 assert(sandboxGuard<endedGuard,"practice panel input is blocked by gameplay end/emergence guards")

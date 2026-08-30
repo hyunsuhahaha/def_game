@@ -378,6 +378,12 @@ function SelfTest.run(game)
     game.clearcut:sandboxSetLevel("molotov", -99)
     assert(game.clearcut:levelOf("molotov") == 0, "연습장 스킬 레벨이 0 밑으로 안 내려감")
     assert(not game.clearcut:skillBranch("molotov"),"요구 레벨 아래에서도 연습장 무기 진화가 남음")
+    game.clearcut:sandboxSetLevel("seed_mine",2)
+    assert(game.clearcut:sandboxSetLevel("seed_mine",1,game),"연습장 씨앗 지뢰 3레벨 증가 실패")
+    assert(game.mode=="clearcut_upgrade" and game.clearcut.selectionKind=="branch" and game.clearcut.branchChoiceSkill=="seed_mine","연습장 3레벨 도달 즉시 전문화 3택이 열리지 않음")
+    assert(#game.clearcut.branchChoices==3 and game.clearcut:chooseBranch(1,game),"연습장 씨앗 지뢰 전문화 선택 실패")
+    assert(game.mode=="playing" and game.clearcut:skillBranch("seed_mine")=="heavy_mine","연습장 전문화가 실제 전투 상태에 적용되지 않음")
+    game.clearcut:sandboxSetLevel("seed_mine",-99)
     game.clearcut.enemies = {}
     game.clearcut.timeSpawnTimer = 0
     game.clearcut:updateTimeSpawner(.01, game)

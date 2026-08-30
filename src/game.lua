@@ -1324,8 +1324,8 @@ function Game:sandboxPanelClick(x, y)
     if not inside(self.sandboxContentBox)then return inside(self.sandboxPanelBox) end
     for _, box in ipairs(self.sandboxSkillBoxes or {}) do
         local mb, pb = box.minus, box.plus
-        if x>=mb.x and x<=mb.x+mb.w and y>=mb.y and y<=mb.y+mb.h then self.clearcut:sandboxSetLevel(box.id, -1); return true end
-        if x>=pb.x and x<=pb.x+pb.w and y>=pb.y and y<=pb.y+pb.h then self.clearcut:sandboxSetLevel(box.id, 1); return true end
+        if x>=mb.x and x<=mb.x+mb.w and y>=mb.y and y<=mb.y+mb.h then self.clearcut:sandboxSetLevel(box.id,-1,self);return true end
+        if x>=pb.x and x<=pb.x+pb.w and y>=pb.y and y<=pb.y+pb.h then self.clearcut:sandboxSetLevel(box.id,1,self);return true end
     end
     for _,entry in ipairs(self.sandboxBranchBoxes or {})do if entry.enabled and inside(entry.box)then
         self.clearcut:sandboxSetBranch(entry.skill,entry.id);return true
