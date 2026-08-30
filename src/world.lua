@@ -1494,12 +1494,14 @@ function World:draw(player, actorSource)
     end} end
     for _, value in ipairs(self.helpers) do local helper = value; queue[#queue + 1] = {x=helper.x,y = helper.y, draw = function()
         local bob = math.sin(helper.bob) * 4
-        shadow(helper.x, helper.y + 10, 16, 6, .38)
+        local helperSize=actorSource and 60 or 34
+        local helperLift=actorSource and 29 or 18
+        shadow(helper.x,helper.y+(actorSource and 13 or 10),actorSource and 28 or 16,actorSource and 9 or 6,.38)
         local icon = self.buildingIcons.carrier_drone
         if icon then
             love.graphics.setColor(1, 1, 1, 1)
-            local scale = 34 / math.max(icon:getWidth(), icon:getHeight())
-            centered(icon, helper.x, helper.y - 18 + bob, scale)
+            local scale = helperSize / math.max(icon:getWidth(), icon:getHeight())
+            centered(icon,helper.x,helper.y-helperLift+bob,scale)
         end
         if helper.carrying then
             local kind = helper.carrying.kind
