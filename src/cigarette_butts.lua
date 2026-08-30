@@ -88,7 +88,9 @@ local function attempt(mode,butt,at,game)
     local target,targetKind,distance=candidate(butt,mode,game.world.nodes)
     if not target then return end
     local heat=1-.35*(at-butt.bornAt)/Butts.lifetime
-    local chance=math.min(.75,Butts.baseChance+mode:levelOf("dry_forest")*.06)*heat*(1-.35*distance/butt.radius)
+    local routeMultiplier=mode.skillBranch and mode:skillBranch("molotov")=="flame_route"and 1.35 or 1
+    local chance=math.min(.90,math.min(.75,Butts.baseChance+mode:levelOf("dry_forest")*.06)*routeMultiplier)
+        *heat*(1-.35*distance/butt.radius)
     if love.math.random()>=chance then return end
     local duration=.55+.25*distance/butt.radius
     local tipX,tipY=Butts.tip(butt,at)

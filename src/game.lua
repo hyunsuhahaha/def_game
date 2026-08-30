@@ -1328,7 +1328,7 @@ function Game:sandboxPanelClick(x, y)
         if x>=pb.x and x<=pb.x+pb.w and y>=pb.y and y<=pb.y+pb.h then self.clearcut:sandboxSetLevel(box.id,1,self);return true end
     end
     for _,entry in ipairs(self.sandboxBranchBoxes or {})do if entry.enabled and inside(entry.box)then
-        self.clearcut:sandboxSetBranch(entry.skill,entry.id);return true
+        self.clearcut:sandboxSetBranch(entry.skill,entry.id,self);return true
     end end
     for _, box in ipairs(self.sandboxFusionBoxes or {}) do
         local b = box.box

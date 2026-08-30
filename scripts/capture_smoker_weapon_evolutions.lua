@@ -45,7 +45,7 @@ local function font(path,size)return{path=path,size=size,getHeight=function()ret
 local regular,bold="assets/font-korean-regular.ttf","assets/font-korean-bold.ttf"
 local fonts={micro=font(regular,12),small=font(regular,14),body=font(regular,18),heading=font(bold,20),title=font(bold,32),big=font(bold,28)}
 local choice=Mode.new();choice.job="fire";choice.level=18;choice.levels.molotov=6;choice.branchChoiceSkill="molotov"
-choice.branchChoices=require("src.clearcut_skill_branches").forSkill("molotov");choice.selectionKind="branch";choice.choicesRevealAt=-2
+choice.branchChoices=require("src.clearcut_skill_branches").smokerEvolutionChoices();choice.selectionKind="branch";choice.choicesRevealAt=-2
 fixture.time=2;fixture.reset();choice:drawSelectionContent({mode="clearcut_upgrade",setNotice=function()end},fonts,width,height)
 fixture.save("docs/previews/smoker-weapon-evolution-choice-draws.json")
 print("SMOKER_WEAPON_EVOLUTION_CAPTURE_OK overview=6 firework=30fps window=none")

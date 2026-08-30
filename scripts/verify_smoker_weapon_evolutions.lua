@@ -19,23 +19,32 @@ local function game(nodes)
  return g
 end
 
-assert(Branches.triggerLevel("molotov")==6 and #Branches.forSkill("molotov")==2,"max-rank smoker evolution choices missing")
-local draft=Mode.new();draft.job="fire";draft.levels.molotov=5;draft.pending=1
+assert(Branches.triggerLevel("molotov")==3 and #Branches.forSkill("molotov")==2,"rank-three smoker routes missing")
+assert(Branches.smokerEvolutionFor("flame_route")=="vape"and Branches.smokerEvolutionFor("butt_volley_route")=="fireworks","smoker route/evolution mapping is wrong")
+local draft=Mode.new();draft.job="fire";draft.levels.molotov=2;draft.pending=1
 draft.choices={draft:getUpgradeDefinition("molotov")};local dg=game({tree(200,0)})
-assert(draft:choose(1,dg) and draft.selectionKind=="branch" and draft.branchChoiceSkill=="molotov","molotov level six did not open evolution")
-assert(draft:chooseBranch(1,dg) and draft:skillBranch("molotov")=="vape" and dg.mode=="playing","vape evolution could not be chosen")
-local fusionDraft=Mode.new();fusionDraft.job="fire";fusionDraft.levels={molotov=5,dry_forest=6};fusionDraft.pending=1
+assert(draft:choose(1,dg) and draft.selectionKind=="branch" and draft.branchChoiceSkill=="molotov","molotov level three did not open route choice")
+assert(draft:chooseBranch(1,dg) and draft:skillBranch("molotov")=="flame_route"and dg.mode=="playing","flame route could not be chosen")
+draft.levels.molotov=5;draft.pending=1;draft.choices={draft:getUpgradeDefinition("molotov")}
+assert(draft:choose(1,dg)and draft:smokerEvolutionId()=="vape"and dg.mode=="playing","flame route did not auto-evolve into vape at level six")
+local fusionDraft=Mode.new();fusionDraft.job="fire";fusionDraft.levels={molotov=5,dry_forest=6};fusionDraft.skillBranches.molotov="butt_volley_route";fusionDraft.pending=1
 fusionDraft.choices={fusionDraft:getUpgradeDefinition("molotov")};local fdg=game({tree(200,0)})
-assert(fusionDraft:choose(1,fdg) and fusionDraft.selectionKind=="branch")
-assert(fusionDraft:chooseBranch(2,fdg) and fusionDraft.selectionKind=="fusion","weapon evolution swallowed a ready smoker fusion")
+assert(fusionDraft:choose(1,fdg)and fusionDraft:smokerEvolutionId()=="fireworks"and fusionDraft.selectionKind=="fusion","automatic weapon evolution swallowed a ready smoker fusion")
 
-local vape=Mode.new();vape.job="fire";vape.levels.molotov=6;vape.skillBranches.molotov="vape"
+local flame=Mode.new();flame.job="fire";flame.levels.molotov=3;flame.skillBranches.molotov="flame_route"
+local plain=Mode.new();plain.job="fire";plain.levels.molotov=3
+local routeGame=game({tree(220,0)});flame:hurlMolotovAt(220,0,routeGame);plain:hurlMolotovAt(220,0,routeGame)
+assert(flame.molotovs[1].radius>plain.molotovs[1].radius*1.2,"flame route did not strengthen ember transfer range")
+local volley=Mode.new();volley.job="fire";volley.levels.molotov=3;volley.skillBranches.molotov="butt_volley_route";volley:hurlMolotovAt(220,0,routeGame)
+assert(#volley.molotovs==3,"butt-volley route did not throw three persistent cigarettes")
+
+local vape=Mode.new();vape.job="fire";vape.levels.molotov=6;vape.skillBranches.molotov="flame_route";vape:applySmokerEvolution()
 local vt=tree(120,-30);local vg=game({vt})
 assert(vape:updateFireAttack(0,vg,true) and vape.actionAudit.vapeShot==1 and vape.smokerWeaponProjectiles[1].kind=="vape")
 vape:updateSmokerWeaponProjectiles(.16,vg);assert(vt.rushHp<100,"visible vape plume missed its swept tree envelope")
 vape.molotovTimer=3;vape:updateFire(.01,vg);assert(#vape.molotovs==1,"max-rank cigarette did not remain as an automatic passive")
 
-local fireworks=Mode.new();fireworks.job="fire";fireworks.levels.molotov=6;fireworks.skillBranches.molotov="fireworks"
+local fireworks=Mode.new();fireworks.job="fire";fireworks.levels.molotov=6;fireworks.skillBranches.molotov="butt_volley_route";fireworks:applySmokerEvolution()
 local ft=tree(240,0);local fg=game({ft})
 assert(fireworks:updateFireAttack(0,fg,true) and fireworks.actionAudit.fireworkShot==1)
 fireworks:updateSmokerWeaponProjectiles(1,fg)
@@ -54,7 +63,7 @@ end end
 assert(equipment==2 and fx==2 and burstFx==1,"production atlases were not used by choice/projectile draw paths")
 local burstDraw=fixture.commands[#fixture.commands]
 assert(burstDraw.op=="draw" and math.abs(burstDraw.args[4]-360/384)<.001,"firework visual diameter does not match radius-180 gameplay")
-local integrated=Mode.new();integrated.job="fire";integrated.skillBranches.molotov="fireworks"
+local integrated=Mode.new();integrated.job="fire";integrated.smokerEvolution="fireworks"
 integrated.smokerWeaponProjectiles={{kind="firework_burst",x=333,y=222,age=.3,life=1,radius=180}}
 local ig=game({});ig.world.billboardQueue={};integrated:queueProjectedOverlay(ig,.3)
 local queued=false;for _,entry in ipairs(ig.world.billboardQueue)do if entry.x==333 and entry.y==222 then fixture.reset();entry.draw();queued=true end end
@@ -67,4 +76,4 @@ for index=0,29 do
 end
 local frameCount=0;for _ in pairs(frameKeys)do frameCount=frameCount+1 end
 assert(frameCount==30,"runtime did not expose all 30 firework frames")
-print("SMOKER_WEAPON_EVOLUTIONS_OK choice=Lv6 vape=swept_pierce fireworks=arc+burst30fps cigarette=passive art=nearest")
+print("SMOKER_WEAPON_EVOLUTIONS_OK route=Lv3 flame+triple-butt evolution=Lv6-auto vape=swept_pierce fireworks=arc+burst30fps")

@@ -65,7 +65,7 @@ local definitions = {
     {id="berserker", track="destroy", name="이번 달 목표 초과", desc="쉬지 않고 벨수록 공격 속도가 빨라집니다 (멈추면 초기화).", max=6, color={1,.42,.22}, job="physical"},
     {id="shockwave", track="destroy", name="산재 위험수당", desc="나무를 쓰러뜨리면 주변 나무에도 충격파 피해를 줍니다.", max=6, color={1,.78,.2}, job="physical"},
     -- 확산력 (spread) — 한 번의 행동으로 얼마나 넓게 없애느냐 [흡연자 전용]
-    {id="molotov", track="spread", name="꽁초 투척", desc="사거리와 꽁초의 불씨 전이 범위, 비행 직격 피해가 늘어납니다. 6레벨에는 전자담배/폭죽 중 기본 무기를 진화시키고, 꽁초는 7초간 남아 불씨를 옮기는 자동 패시브가 됩니다.", max=6, color={1,.35,.12}, job="fire"},
+    {id="molotov", track="spread", name="꽁초 투척", desc="사거리와 꽁초의 불씨 전이 범위, 비행 직격 피해가 늘어납니다. 3레벨에는 화염 농축/줄꽁초 경로를 고르고, 6레벨에는 선택 경로에 따라 전자담배/폭죽 발사기로 자동 진화합니다.", max=6, color={1,.35,.12}, job="fire"},
     {id="dry_forest", track="spread", name="건조주의보 무시", desc="꽁초의 착화 확률이 레벨당 +6%p 높아지고(최대 75%), 붙은 불이 주변 나무로 더 빠르고 넓게 번집니다.", max=6, color={1,.5,.15}, job="fire"},
     {id="oil_drum", track="spread", name="라이터 기름 유출", desc="나무가 다 타버리면 레벨당 폭발 확률이 크게 올라(1렙 7.5%→5렙 63%), 6렙에서는 100% 확정 발동합니다.", max=6, color={1,.62,.1}, job="fire"},
     {id="straw_bale", track="spread", name="마른 건초더미 생성", desc="주기적으로 큰 건초더미를 둡니다. 꽁초가 닿으면 0.5초 뒤 불이 붙고, 레벨에 따라 넓어지는 화염 지대가 주변 나무와 적에게 지속 피해를 줍니다. 불이 옮겨붙어 다른 대상을 점화시키지는 않습니다.", max=6, color={.85,.72,.25}, job="fire"},
@@ -179,7 +179,7 @@ function ClearcutMode.new()
     return setmetatable({
         sandbox=false,
         levels={}, choices={}, level=1, xp=0, xpNext=10, pending=0,
-        skillBranches={},synergyCounts={},branchChoiceSkill=nil,branchChoices={},
+        skillBranches={},smokerEvolution=nil,synergyCounts={},branchChoiceSkill=nil,branchChoices={},
         totalWood=0, treesFelled=0, elapsed=0, initialTrees=0, remainingTrees=0,
         maxMulti=1, maxChain=0, axeCooldown=0, axeRange=150, milestoneFired={},
         regrowTimer=0, regrowGrace=35, regrowInterval=12, regrowPulses=0, treesRevived=0, regrowFlash=0,
@@ -230,6 +230,26 @@ function ClearcutMode:synergyTier(id)return Synergies.tier(self,id)end
 function ClearcutMode:skillTags(id)return Synergies.tagsFor(id)end
 function ClearcutMode:skillBranch(id)return self.skillBranches and self.skillBranches[id]end
 function ClearcutMode:getUpgradeDefinition(id) return upgradeById[id] end
+function ClearcutMode:smokerEvolutionId()
+    local legacy=self:skillBranch("molotov")
+    return self.smokerEvolution or ((legacy=="vape"or legacy=="fireworks")and legacy or nil)
+end
+function ClearcutMode:applySmokerEvolution(game)
+    if self:levelOf("molotov")<6 then self.smokerEvolution=nil;return false end
+    local evolution=SkillBranches.smokerEvolutionFor(self:skillBranch("molotov"))
+    if not evolution then return false end
+    local changed=self.smokerEvolution~=evolution
+    self.smokerEvolution=evolution
+    if changed then
+        self.smoking=nil;self.smokerWeaponCooldown=0
+        if game and game.player and game.player.clearClearcutAction then game.player:clearClearcutAction()end
+        if game and game.setNotice then
+            local def=SkillBranches.get(evolution)
+            game:setNotice((def and def.name or evolution).." 자동 진화!","ore")
+        end
+    end
+    return true
+end
 
 -- 스킬 연습장 전용: 현재 직업이 실제로 쓸 수 있는 스킬(직업 전용 + 공용) 전체를 나열한다.
 -- 만렙/배니시/카드 뽑기 같은 정상 진행 제약 없이 화면에서 바로 레벨을 조절하기 위한 목록이다.
@@ -248,6 +268,7 @@ function ClearcutMode:sandboxSetLevel(id, delta, game)
     self.levels[id] = math.max(0, math.min(def.max, self:levelOf(id) + delta))
     local trigger=SkillBranches.triggerLevel(id)
     if trigger and self:levelOf(id)<trigger then self.skillBranches[id]=nil end
+    if id=="molotov"and self:levelOf(id)<6 then self.smokerEvolution=nil end
     Synergies.refresh(self)
     -- Practice must reproduce the real level-up flow. Reaching a branch rank
     -- opens the same full-screen, mutually exclusive chooser immediately;
@@ -256,12 +277,14 @@ function ClearcutMode:sandboxSetLevel(id, delta, game)
         and not self:skillBranch(id) and SkillBranches.forSkill(id) then
         self:openBranchChoice(id,game)
     end
+    if id=="molotov"then self:applySmokerEvolution(game)end
     return true
 end
 
 function ClearcutMode:sandboxSetAllSkills(maxed)
     for _,def in ipairs(self:sandboxSkillList())do self.levels[def.id]=maxed and def.max or 0 end
-    if not maxed then self.skillBranches={};self.evolutions={} end
+    if not maxed then self.skillBranches={};self.smokerEvolution=nil;self.evolutions={}
+    else self:applySmokerEvolution() end
     Synergies.refresh(self)
 end
 
@@ -282,10 +305,12 @@ function ClearcutMode:sandboxBranchList()
     return available
 end
 
-function ClearcutMode:sandboxSetBranch(skill,branchId)
+function ClearcutMode:sandboxSetBranch(skill,branchId,game)
     local branch=SkillBranches.get(branchId);local trigger=SkillBranches.triggerLevel(skill)
-    if not branch or branch.skill~=skill or not trigger or self:levelOf(skill)<trigger then return false end
+    if not branch or branch.skill~=skill or not SkillBranches.isChoice(skill,branchId)
+        or not trigger or self:levelOf(skill)<trigger then return false end
     self.skillBranches[skill]=branchId
+    if skill=="molotov"then self:applySmokerEvolution(game)end
     return true
 end
 
@@ -1751,7 +1776,8 @@ function ClearcutMode:throwMolotov(game, wildfire)
         end
     end
     if #candidates == 0 then return end
-    local throws = wildfire and math.min(2, #candidates) or 1
+    local requested=wildfire and 2 or (self:skillBranch("molotov")=="butt_volley_route"and 3 or 1)
+    local throws = math.min(requested,#candidates)
     for i = 1, throws do
         local pick = love.math.random(#candidates)
         local target = table.remove(candidates, pick)
@@ -1761,7 +1787,9 @@ function ClearcutMode:throwMolotov(game, wildfire)
         self.molotovs[#self.molotovs+1] = {
             x0=tipX, y0=mouthY, x1=target.x+28, y1=target.y+22,
             t=0, dur=math.max(.34, dist/850), target=target, wildfire=wildfire,
-            radius=90+self:power("molotov")*20+self.permanentTraits.area, landingAngle=.18+math.sin(target.x*.013)*.6
+            radius=(90+self:power("molotov")*20+self.permanentTraits.area)
+                *(self:skillBranch("molotov")=="flame_route"and 1.25 or 1),
+            landingAngle=.18+math.sin(target.x*.013)*.6
         }
     end
     self:trackMolotovBarrage(game)
@@ -1805,11 +1833,18 @@ function ClearcutMode:hurlMolotovAt(tx, ty, game, isBarrage)
         x0=tipX, y0=mouthY, x1=x1, y1=y1,
         t=0, dur=approachDur+fallDuration, approachDur=approachDur,fallDuration=fallDuration,
         fallsOffMap=fallsOffMap,dropDistance=2600,dropDrift=(tx-x1)*.16,
-        manual=true, radius=90 + self:power("molotov") * 20 + self.permanentTraits.area,
+        manual=true, radius=(90+self:power("molotov")*20+self.permanentTraits.area)
+            *(self:skillBranch("molotov")=="flame_route"and 1.25 or 1),
         landingAngle=.18+math.sin(tx*.013+ty*.017)*.6
     }
     if not isBarrage then
         self:trackMolotovBarrage(game)
+        if self:skillBranch("molotov")=="butt_volley_route"then
+            local dx,dy=tx-game.player.x,ty-game.player.y;local length=math.max(1,math.sqrt(dx*dx+dy*dy))
+            local px,py=-dy/length,dx/length
+            self:hurlMolotovAt(tx+px*54,ty+py*54,game,true)
+            self:hurlMolotovAt(tx-px*54,ty-py*54,game,true)
+        end
         for _ = 1, math.floor(self.permanentTraits.extraFires) do
             self:hurlMolotovAt(tx + love.math.random(-40,40), ty + love.math.random(-40,40), game, true)
         end
@@ -1827,7 +1862,7 @@ end
 -- 별도 계약이라 그대로 둔다. 이건 순전히 비행 중 직격 판정.
 function ClearcutMode:updateMolotovImpacts(dt, game)
     if #self.enemies == 0 then return end
-    local dmg = 6 + self:power("molotov") * 4
+    local dmg = (6+self:power("molotov")*4)*(self:skillBranch("molotov")=="flame_route"and 1.35 or 1)
     for _, flight in ipairs(self.molotovs) do
         if not flight.fallsOffMap then
             local previousX,previousY=CigaretteButts.flightPosition(flight,flight.t)
@@ -1901,7 +1936,7 @@ function ClearcutMode:updateBurningEnemies(dt,game)
         end
         return
     end
-    local damage=5+self:power("molotov")*3
+    local damage=(5+self:power("molotov")*3)*(self:skillBranch("molotov")=="flame_route"and 1.3 or 1)
     for _,e in ipairs(self.enemies) do
         if e.burning then
             -- Enemy fire is one boolean state, never a stack. Additional fire
@@ -1935,7 +1970,8 @@ function ClearcutMode:updateFire(dt, game)
     end
     local dryLevel = self:levelOf("dry_forest")
     local dryPower = self:power("dry_forest")
-    local spreadChancePerSec = (.12 + dryPower * .14 + self.permanentTraits.spreadChance) * Synergies.ignitionChanceMultiplier(self)
+    local routeFire=self:skillBranch("molotov")=="flame_route"and 1.3 or 1
+    local spreadChancePerSec = (.12 + dryPower * .14 + self.permanentTraits.spreadChance) * Synergies.ignitionChanceMultiplier(self)*routeFire
     local spreadRadius = (130 + dryPower * 45) * Synergies.ignitionRadiusMultiplier(self)
     local burnDuration = math.max(2.2, (3.6 - dryPower * .35) / self.permanentTraits.burnSpeed)
     self:updateStrawBales(dt, game)
@@ -2301,7 +2337,7 @@ end
 function ClearcutMode:updateFireAttack(dt, game, heldOverride)
     local held = heldOverride
     if held == nil then held = love.mouse.isDown(1) end
-    local evolution=self:skillBranch("molotov")
+    local evolution=self:smokerEvolutionId()
     if evolution=="vape" then return self:updateVapeAttack(dt,game,held)end
     if evolution=="fireworks" then return self:updateFireworkAttack(dt,game,held)end
     local maxRange = 320 + self:power("molotov") * 40 + self.permanentTraits.range
@@ -2348,7 +2384,8 @@ function ClearcutMode:updateFireAttack(dt, game, heldOverride)
         self:hurlMolotovAt(smoking.tx, smoking.ty, game)
         self.actionAudit.cigaretteFlick = self.actionAudit.cigaretteFlick + 1
         self.streak, self.lastHitAt = self.streak + 1, self.elapsed
-        self.cartonAmmo = math.max(0, (self.cartonAmmo or self.cartonSize or 20) - 1)
+        local spent=self:skillBranch("molotov")=="butt_volley_route"and 3 or 1
+        self.cartonAmmo = math.max(0, (self.cartonAmmo or self.cartonSize or 20) - spent)
         fired = true
     end
     if smoking.t >= smoking.dur then self:startSmoking(game) end
@@ -4242,7 +4279,11 @@ function ClearcutMode:chooseBranch(index,game)
     local def=self.branchChoices and self.branchChoices[index]
     if not def or def.skill~=self.branchChoiceSkill then return false end
     self.skillBranches[def.skill]=def.id
-    if def.skill=="molotov" then self.smoking=nil;self.smokerWeaponCooldown=0;if game.player.clearClearcutAction then game.player:clearClearcutAction()end end
+    if def.skill=="molotov" then
+        self.smoking=nil;self.smokerWeaponCooldown=0
+        if game.player.clearClearcutAction then game.player:clearClearcutAction()end
+        self:applySmokerEvolution(game)
+    end
     self.branchChoiceSkill=nil;self.branchChoices={};self.selectionKind="upgrade";self.choiceBoxes={}
     game:setNotice(def.name.." 선택 — "..def.desc,"ore")
     if self:checkEvolutions(game)then return true end
@@ -4293,6 +4334,7 @@ function ClearcutMode:choose(index, game)
     else
         game:setNotice(def.name.." Lv."..self:levelOf(def.id),"food")
     end
+    if def.id=="molotov"then self:applySmokerEvolution(game)end
     local branchLevel=SkillBranches.triggerLevel(def.id)
     local branchReady=not def.recovery and branchLevel and self:levelOf(def.id)==branchLevel
         and not self:skillBranch(def.id) and SkillBranches.forSkill(def.id)
@@ -6583,7 +6625,7 @@ end
 -- 카드에서는 효과를 빠르게 비교할 수 있도록 긴 기획 설명을 핵심 작동만 남겨 줄인다.
 -- 상세 수치와 전체 문장은 인물 기록부/스킬 설명 원본(def.desc)에 그대로 보존한다.
 local selectionDescriptions={
-    molotov="꽁초 사거리·불씨 범위·직격 피해가 증가합니다. 6레벨에는 전자담배/폭죽 중 하나로 기본 공격이 진화하고 꽁초는 자동 패시브가 됩니다.",
+    molotov="3레벨에 화염 농축/줄꽁초 경로를 선택합니다. 화염은 착화·연소·확산을 강화하고, 줄꽁초는 한 번에 3개비를 던집니다. 6레벨에는 경로별 무기로 자동 진화합니다.",
     dry_forest="꽁초 착화 확률이 증가하고, 붙은 불이 주변 나무로 더 빠르고 넓게 번집니다.",
     oil_drum="불탄 나무가 폭발할 확률이 크게 증가합니다. 6레벨에는 폭발이 반드시 발생합니다.",
     straw_bale="큰 건초더미를 설치합니다. 꽁초가 닿으면 0.5초 뒤 넓은 화염 지대가 생겨 나무와 적에게 지속 피해를 줍니다.",
@@ -6639,7 +6681,10 @@ function ClearcutMode:drawSelectionContent(game,fonts,w,h)
             if scaleX<.5 then drawCardBack(x,y,cardW,cardH,t,def.color)else
                 drawUpgradeCardFrame(x,y,cardW,cardH,def.color,hovered,nil,t)
                 local iconY=y+math.min(118,cardH*.28)
-                if self.branchChoiceSkill=="molotov" then SmokerWeaponArt.drawChoice(def.id,cx,iconY,.88)
+                if self.branchChoiceSkill=="molotov"then
+                    if not SmokerWeaponArt.drawChoice(def.id,cx,iconY,.88)then
+                        drawIconSocket(cx,iconY,def.color,ClearcutMode.icons.cigarette,t,true)
+                    end
                 else local icon=ClearcutMode.icons[self.branchChoiceSkill];drawIconSocket(cx,iconY,def.color,icon,t,true)end
                 love.graphics.setColor(.06,.09,.08,.92);love.graphics.rectangle("fill",x+16,y+16,34,30,7,7)
                 love.graphics.setFont(fonts.heading);love.graphics.setColor(1,1,1);love.graphics.printf(tostring(i),x+16,y+21,34,"center")
