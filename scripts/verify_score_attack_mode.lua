@@ -106,7 +106,7 @@ for _,node in ipairs(nodes)do if node.rushTree and node.active and not node.gian
     assert(math.abs(node.treeEmergence.t+(emergenceIndex-1)*.065)<.001,"tier trees do not use staggered emergence timing")
 end end
 mode:updateScoreTierClear(.47,game)
-assert(not mode.scoreTierFx and math.abs(mode:scoreTreeSpawnRate()-(.14*1.60))<.001,"tier transition did not finish cleanly at the new rate")
+assert(not mode.scoreTierFx and math.abs(mode:scoreTreeSpawnRate()-(.14*1.75))<.001,"tier transition did not finish cleanly at the new rate")
 assert(mode:scoreTreeHealth(7)==7,"tier 2 tree HP rose before the regeneration pressure became visible")
 
 ordinary=mode:scoreActiveTreeCount()
@@ -119,10 +119,10 @@ assert(game.result.treeAllowance==ordinary+1 and game.result.peakActiveTrees>=or
 assert(game.result.woodSpent==nil and game.result.automation==nil,"removed automation build leaked into score results")
 
 game:startClearcutScoreAttack()
-assert(game.clearcut.scoreRegenTier==2 and math.abs(game.clearcut:scoreTreeSpawnRate()-(.14*1.60))<.001,"next run did not start from the permanently unlocked tier")
+assert(game.clearcut.scoreRegenTier==2 and math.abs(game.clearcut:scoreTreeSpawnRate()-(.14*1.75))<.001,"next run did not start from the permanently unlocked tier")
 
 game.clearcut.scoreRegenTier=6
-assert(math.abs(game.clearcut:scoreTreeSpawnRate()-(.14*1.60^5))<.001,"late regeneration curve is not supply-led")
+assert(math.abs(game.clearcut:scoreTreeSpawnRate()-(.14*1.75^5))<.001,"late regeneration curve is not supply-led")
 assert(game.clearcut:scoreTreeHealth(7)==8,"late tree HP curve is missing its restrained increase")
 assert(game.clearcut:scoreTreeSpawnRate()/.14>9 and game.clearcut:scoreTreeHealth(7)/7<1.2,"difficulty did not prioritize regeneration over tree HP")
 

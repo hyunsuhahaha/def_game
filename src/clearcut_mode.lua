@@ -565,9 +565,9 @@ end
 
 -- 기록 모드의 공급 곡선은 영구 저장되는 재생 단계 하나로만 결정한다.
 -- 시간/최근 벌목량 추종은 원인을 읽기 어렵게 하므로 이 모드에서 의도적으로 비활성화한다.
--- 난도는 단단한 나무보다 빠르게 차오르는 숲에서 온다. 단계당 공급량은 60%씩
+-- 난도는 단단한 나무보다 빠르게 차오르는 숲에서 온다. 단계당 공급량은 75%씩
 -- 늘리되 HP는 3%만 올려, 후반에도 완성된 빌드가 나무를 우두두 쓰러뜨리게 한다.
-function ClearcutMode:scoreTimedTreeSpawnRate()return .14*1.60^math.max(0,(self.scoreRegenTier or 1)-1)end
+function ClearcutMode:scoreTimedTreeSpawnRate()return .14*1.75^math.max(0,(self.scoreRegenTier or 1)-1)end
 
 function ClearcutMode:scoreTreeSpawnRate()
     local density=self:scoreForestDensityMultiplier()
