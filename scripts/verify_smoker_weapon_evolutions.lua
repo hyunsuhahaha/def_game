@@ -44,18 +44,27 @@ local foundBurst=false;for _,p in ipairs(fireworks.smokerWeaponProjectiles)do if
 assert(foundBurst,"firework flight did not become an animated multicolour burst")
 
 fixture.reset();Art.drawChoice("vape",100,100,.8);Art.drawChoice("fireworks",240,100,.8)
-for _,p in ipairs({{kind="vape",x=100,y=240,age=.3,maxLife=.72,angle=0},{kind="firework",x=240,y=240,age=.2,dur=.5,angle=0},{kind="firework_burst",x=390,y=240,age=.45,life=.82}})do Art.drawProjectile(p)end
-local equipment,fx=0,0
+for _,p in ipairs({{kind="vape",x=100,y=240,age=.3,maxLife=.72,angle=0},{kind="firework",x=240,y=240,age=.2,dur=.5,angle=0},{kind="firework_burst",x=390,y=240,age=.45,life=1}})do Art.drawProjectile(p)end
+local equipment,fx,burstFx=0,0,0
 for _,command in ipairs(fixture.commands)do if command.op=="draw"then
  if command.file=="assets/characters/ingame/smoker-weapon-evolution-equipment-v1.png"then equipment=equipment+1 end
  if command.file=="assets/effects/smoker-weapon-evolution-fx-v1.png"then fx=fx+1 end
+ if command.file=="assets/effects/smoker-firework-burst-v2.png"then burstFx=burstFx+1 end
 end end
-assert(equipment==2 and fx==3,"production atlases were not used by choice/projectile draw paths")
+assert(equipment==2 and fx==2 and burstFx==1,"production atlases were not used by choice/projectile draw paths")
 local burstDraw=fixture.commands[#fixture.commands]
-assert(burstDraw.op=="draw" and math.abs(burstDraw.args[4]-360/192)<.001,"firework visual diameter does not match radius-180 gameplay")
+assert(burstDraw.op=="draw" and math.abs(burstDraw.args[4]-360/384)<.001,"firework visual diameter does not match radius-180 gameplay")
 local integrated=Mode.new();integrated.job="fire";integrated.skillBranches.molotov="fireworks"
-integrated.smokerWeaponProjectiles={{kind="firework_burst",x=333,y=222,age=.3,life=.82,radius=180}}
+integrated.smokerWeaponProjectiles={{kind="firework_burst",x=333,y=222,age=.3,life=1,radius=180}}
 local ig=game({});ig.world.billboardQueue={};integrated:queueProjectedOverlay(ig,.3)
 local queued=false;for _,entry in ipairs(ig.world.billboardQueue)do if entry.x==333 and entry.y==222 then fixture.reset();entry.draw();queued=true end end
 assert(queued and fixture.commands[1],"smoker evolution FX did not enter the upright 2.5D billboard pass")
-print("SMOKER_WEAPON_EVOLUTIONS_OK choice=Lv6 vape=swept_pierce fireworks=arc+burst cigarette=passive art=nearest")
+local frameKeys={}
+for index=0,29 do
+ fixture.reset();Art.drawProjectile({kind="firework_burst",x=100,y=100,age=index/30,life=1,radius=180})
+ local command=fixture.commands[1];assert(command and command.file=="assets/effects/smoker-firework-burst-v2.png")
+ frameKeys[(command.quad[1]or 0)..":"..(command.quad[2]or 0)]=true
+end
+local frameCount=0;for _ in pairs(frameKeys)do frameCount=frameCount+1 end
+assert(frameCount==30,"runtime did not expose all 30 firework frames")
+print("SMOKER_WEAPON_EVOLUTIONS_OK choice=Lv6 vape=swept_pierce fireworks=arc+burst30fps cigarette=passive art=nearest")

@@ -23,9 +23,19 @@ for frame=0,5 do
  if frame<3 then
   Art.drawProjectile({kind="firework",x=442+frame*35,y=239-frame*24,age=(frame+1)*.12,dur=.5,angle=-.42})
  else
-  Art.drawProjectile({kind="firework_burst",x=500,y=178,age=(frame-3)*.16+.05,life=.82,radius=180})
+  Art.drawProjectile({kind="firework_burst",x=500,y=178,age=(frame-3)*.16+.05,life=1,radius=180})
  end
  fixture.save("docs/previews/smoker-weapon-evolutions-draws-"..frame..".json")
+end
+
+-- Dedicated 30 fps gameplay-scale firework review sequence.
+for frame=0,29 do
+ fixture.reset();fixture.time=frame/30
+ love.graphics.setColor(1,1,1,.76);love.graphics.draw(bg,0,0,0,640/bw,360/bh)
+ love.graphics.setColor(.015,.035,.028,.64);love.graphics.rectangle("fill",0,0,640,360)
+ love.graphics.setColor(.13,.27,.15,.78);love.graphics.rectangle("fill",0,276,640,84)
+ Art.drawProjectile({kind="firework_burst",x=320,y=182,age=frame/30,life=1,radius=180})
+ fixture.save("docs/previews/smoker-firework-burst-v2-draws-"..frame..".json")
 end
 local width,height=1280,720
 love.graphics.getDimensions=function()return width,height end;love.graphics.getWidth=function()return width end;love.graphics.getHeight=function()return height end
@@ -38,4 +48,4 @@ local choice=Mode.new();choice.job="fire";choice.level=18;choice.levels.molotov=
 choice.branchChoices=require("src.clearcut_skill_branches").forSkill("molotov");choice.selectionKind="branch";choice.choicesRevealAt=-2
 fixture.time=2;fixture.reset();choice:drawSelectionContent({mode="clearcut_upgrade",setNotice=function()end},fonts,width,height)
 fixture.save("docs/previews/smoker-weapon-evolution-choice-draws.json")
-print("SMOKER_WEAPON_EVOLUTION_CAPTURE_OK frames=6 window=none")
+print("SMOKER_WEAPON_EVOLUTION_CAPTURE_OK overview=6 firework=30fps window=none")

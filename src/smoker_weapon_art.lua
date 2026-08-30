@@ -1,13 +1,14 @@
 -- Upright 2.5D-safe art for the two max-rank smoker weapon evolutions.
 local Art={}
-local equip,fx,equipQuads,fxQuads
-local CELL=192
+local equip,fx,burstFx,equipQuads,fxQuads,burstQuads
+local CELL,BURST_CELL,BURST_FRAMES=192,384,30
 
 local function load()
     if equip then return end
     equip=love.graphics.newImage("assets/characters/ingame/smoker-weapon-evolution-equipment-v1.png")
     fx=love.graphics.newImage("assets/effects/smoker-weapon-evolution-fx-v1.png")
-    equip:setFilter("nearest","nearest");fx:setFilter("nearest","nearest")
+    burstFx=love.graphics.newImage("assets/effects/smoker-firework-burst-v2.png")
+    equip:setFilter("nearest","nearest");fx:setFilter("nearest","nearest");burstFx:setFilter("nearest","nearest")
     equipQuads={
         vape=love.graphics.newQuad(0,0,128,96,256,96),
         fireworks=love.graphics.newQuad(128,0,128,96,256,96),
@@ -16,10 +17,15 @@ local function load()
     for row=0,2 do fxQuads[row+1]={};for frame=0,5 do
         fxQuads[row+1][frame+1]=love.graphics.newQuad(frame*CELL,row*CELL,CELL,CELL,1152,576)
     end end
+    burstQuads={};for index=0,BURST_FRAMES-1 do
+        local column,row=index%6,math.floor(index/6)
+        burstQuads[index+1]=love.graphics.newQuad(column*BURST_CELL,row*BURST_CELL,BURST_CELL,BURST_CELL,2304,1920)
+    end
 end
 
-local function frame(age,life)
-    return math.max(1,math.min(6,math.floor(math.max(0,age)/(life/6))+1))
+local function frame(age,life,count)
+    count=count or 6
+    return math.max(1,math.min(count,math.floor(math.max(0,age)/(life/count))+1))
 end
 
 function Art.drawHeld(mode,game,t)
@@ -57,12 +63,13 @@ function Art.drawProjectile(projectile)
         local index=frame(age,projectile.dur or .55);local angle=projectile.angle or 0
         love.graphics.setColor(1,1,1,1);love.graphics.draw(fx,fxQuads[2][index],projectile.x,projectile.y,angle,.62,.62,96,96)
     elseif projectile.kind=="firework_burst" then
-        local index=frame(age,projectile.life or .82)
-        love.graphics.setColor(1,1,1,math.max(0,1-age/(projectile.life or .82)))
-        local scale=((projectile.radius or 180)*2)/CELL
-        love.graphics.draw(fx,fxQuads[3][index],projectile.x,projectile.y,0,scale,scale,96,96)
+        local life=projectile.life or 1;local index=frame(age,life,BURST_FRAMES)
+        local fade=age<life*.82 and 1 or math.max(0,(life-age)/(life*.18))
+        love.graphics.setColor(1,1,1,fade)
+        local scale=((projectile.radius or 180)*2)/BURST_CELL
+        love.graphics.draw(burstFx,burstQuads[index],projectile.x,projectile.y,0,scale,scale,BURST_CELL/2,BURST_CELL/2)
     end
 end
 
-function Art.assets()load();return{equipment=equip,fx=fx}end
+function Art.assets()load();return{equipment=equip,fx=fx,fireworkBurst=burstFx}end
 return Art

@@ -2255,7 +2255,7 @@ function ClearcutMode:detonateFirework(projectile,game)
         if self:enemyHasCategory(enemy,"plant")then self:igniteEnemy(enemy,game,self.smokerGroundTime)end
     end end
     self.maxChain=math.max(self.maxChain,felled)
-    self.smokerWeaponProjectiles[#self.smokerWeaponProjectiles+1]={kind="firework_burst",x=projectile.x1,y=projectile.y1,age=0,life=.82,radius=radius}
+    self.smokerWeaponProjectiles[#self.smokerWeaponProjectiles+1]={kind="firework_burst",x=projectile.x1,y=projectile.y1,age=0,life=1,radius=radius}
 end
 
 function ClearcutMode:updateSmokerWeaponProjectiles(dt,game)

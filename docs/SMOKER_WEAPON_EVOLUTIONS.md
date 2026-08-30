@@ -22,17 +22,20 @@
 - 기본 공격: 마우스를 누르는 동안 약 0.86초 간격으로 발사.
 - 사거리 720, 로켓은 목표까지 곡사 비행.
 - 착탄 반경 180. 나무와 몬스터에 광역 피해를 주고 살아남은 나무 및 식물형 몬스터에 불을 붙일 수 있다.
-- 비행 6프레임과 폭발 6프레임을 분리한다. 폭발은 빨강·금색·청록·초록·자홍을 동시에 사용하며 단색 원/사각형 런타임 도형을 사용하지 않는다.
+- 비행 6프레임과 폭발 전용 30프레임을 분리한다. 폭발은 384px 원생 셀을 1초 동안 30fps로 재생하며 점화→다색 곡선 방사→불티 분열과 낙하→연기·잔광 소멸이 프레임 사이에서 이어진다.
+- 폭발은 빨강·금색·청록·초록·자홍을 함께 사용하지만 실사 입자나 매끈한 벡터 광선이 아니라 단계 명암의 카툰 픽셀 불티로 표현한다. 단색 원/사각형 런타임 도형은 사용하지 않는다.
 
 ## 자산과 검증
 
 - 장비: `assets/characters/ingame/smoker-weapon-evolution-equipment-v1.png`
 - FX: `assets/effects/smoker-weapon-evolution-fx-v1.png`
+- 30fps 폭죽 폭발: `assets/effects/smoker-firework-burst-v2.png`
 - 보존 시안: `assets/effects/concepts/smoker-weapon-evolutions-concept-v1.png`
 - 런타임 모듈: `src/smoker_weapon_art.lua`
 - 게임플레이 검증: `scripts/verify_smoker_weapon_evolutions.lua`
 - 그래픽 검증: `scripts/verify_smoker_weapon_evolution_art.py`
 - 오프스크린 검수: `scripts/render_smoker_weapon_evolutions.py`
+- GIF 검수: `docs/previews/smoker-firework-burst-v2.gif`
 
 ## 연습장에서 확인
 

@@ -76,7 +76,7 @@
 
 - **전자담배:** 짧은 주기의 청록·보라 증기탄을 연사한다. 보이는 증기 덩어리와 같은 넉넉한 swept-circle 판정으로 나무와 몬스터를 관통한다.
 - **폭죽 발사기:** 목표 지점으로 로켓을 곡사 발사한다. 착탄 시 빨강·금색·청록·초록·자홍 불꽃이 6프레임으로 퍼지며 넓은 범위에 피해를 주고 식물형 대상에는 불을 붙인다.
-- 장비는 `assets/characters/ingame/smoker-weapon-evolution-equipment-v1.png`, 투사체/폭발은 `assets/effects/smoker-weapon-evolution-fx-v1.png`를 nearest 필터로 사용한다.
+- 장비는 `assets/characters/ingame/smoker-weapon-evolution-equipment-v1.png`, 증기/로켓은 `assets/effects/smoker-weapon-evolution-fx-v1.png`, 폭죽 폭발은 384px 셀 30프레임의 `assets/effects/smoker-firework-burst-v2.png`를 nearest 필터로 사용한다.
 - 제작 시안은 `assets/effects/concepts/smoker-weapon-evolutions-concept-v1.png`, 실제 크기 오프스크린 검수본은 `docs/previews/smoker-weapon-evolutions-v1.png`다.
 
 ## 밸런스 가드레일
