@@ -12,6 +12,7 @@ local World=require("src.world")
 local Player=require("src.player")
 local Camera=require("src.camera")
 local Traits=require("src.character_traits").new(true)
+local function expectedSpawn(tier,seconds)return .14*1.75^(tier-1)*2^(seconds/60)end
 
 local loader
 for i=1,30 do local name,value=debug.getupvalue(Game.new,i);if name=="loadClearcutSprites"then loader=value;break end end
@@ -32,6 +33,7 @@ assert(#game.world.nodes==6 and mode:scoreActiveTreeCount()==6 and mode.totalTre
 assert(mode.remainingTrees==6 and mode.initialTrees==6 and mode.peakActiveTrees==6,"starting score trees were not included in occupancy metrics")
 assert(not mode:checkWorldTreeSpawn(game),"opening score field incorrectly summoned the world tree")
 assert(mode.scoreRegenTier==1 and math.abs(mode:scoreTreeSpawnRate()-.14)<.001,"opening forest did not use saved regeneration tier 1")
+assert(mode:scoreTimePressureMultiplier()==1,"time pressure was not neutral at run start")
 assert(mode:scoreTreeHealth(7)==7,"tier 1 altered ordinary tree health")
 mode.currentTreesPerSecond=0
 
@@ -74,7 +76,8 @@ mode.scoreFellTimes={}
 for _=1,5 do mode.scoreFellTimes[#mode.scoreFellTimes+1]=90 end
 mode.scoreFellHead=1
 mode:scoreProductionRate()
-assert(mode.currentTreesPerSecond==5 and math.abs(mode:scoreTreeSpawnRate()-.14)<.001,"recent logging output incorrectly changed tier-based regeneration")
+assert(mode.currentTreesPerSecond==5 and math.abs(mode:scoreTreeSpawnRate()-expectedSpawn(1,90))<.001,"elapsed-time pressure did not raise regeneration independently of recent logging output")
+assert(math.abs(mode:scoreTimePressureMultiplier()-2^1.5)<.001,"time pressure did not double every 60 seconds")
 
 local pending=mode.pending
 game.mode="test"
@@ -106,7 +109,7 @@ for _,node in ipairs(nodes)do if node.rushTree and node.active and not node.gian
     assert(math.abs(node.treeEmergence.t+(emergenceIndex-1)*.065)<.001,"tier trees do not use staggered emergence timing")
 end end
 mode:updateScoreTierClear(.47,game)
-assert(not mode.scoreTierFx and math.abs(mode:scoreTreeSpawnRate()-(.14*1.75))<.001,"tier transition did not finish cleanly at the new rate")
+assert(not mode.scoreTierFx and math.abs(mode:scoreTreeSpawnRate()-expectedSpawn(2,90))<.001,"tier transition did not preserve elapsed-time pressure at the new rate")
 assert(mode:scoreTreeHealth(7)==7,"tier 2 tree HP rose before the regeneration pressure became visible")
 
 ordinary=mode:scoreActiveTreeCount()
@@ -134,7 +137,7 @@ for second=1,90 do
     mode.stageElapsed=second
     if mode:updateScoreTreeGrowth(1,game)then unattendedEnd=second;break end
 end
-assert(unattendedEnd and unattendedEnd>=38 and unattendedEnd<=50,"six-tree unattended run did not end near the tier-1 supply window")
+assert(unattendedEnd and unattendedEnd>=30 and unattendedEnd<=40,"time pressure did not end an unattended tier-1 run in its intended opening window")
 
 Traits.data.levels.universal_yard=7
 Traits.data.levels.universal_robot_start=1
