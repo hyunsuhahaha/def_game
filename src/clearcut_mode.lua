@@ -565,7 +565,9 @@ end
 
 -- 기록 모드의 공급 곡선은 영구 저장되는 재생 단계 하나로만 결정한다.
 -- 시간/최근 벌목량 추종은 원인을 읽기 어렵게 하므로 이 모드에서 의도적으로 비활성화한다.
-function ClearcutMode:scoreTimedTreeSpawnRate()return .14*1.45^math.max(0,(self.scoreRegenTier or 1)-1)end
+-- 난도는 단단한 나무보다 빠르게 차오르는 숲에서 온다. 단계당 공급량은 60%씩
+-- 늘리되 HP는 3%만 올려, 후반에도 완성된 빌드가 나무를 우두두 쓰러뜨리게 한다.
+function ClearcutMode:scoreTimedTreeSpawnRate()return .14*1.60^math.max(0,(self.scoreRegenTier or 1)-1)end
 
 function ClearcutMode:scoreTreeSpawnRate()
     local density=self:scoreForestDensityMultiplier()
@@ -582,8 +584,10 @@ function ClearcutMode:scoreForestDensityMultiplier()
 end
 
 function ClearcutMode:scoreTreeHealth(baseHp)
-    local tierHealth=self.scoreAttack and 1.08^math.max(0,(self.scoreRegenTier or 1)-1)or 1
-    return math.max(1,math.ceil((baseHp or 1)*self:scoreForestDensityMultiplier()*tierHealth))
+    local tierHealth=self.scoreAttack and 1.03^math.max(0,(self.scoreRegenTier or 1)-1)or 1
+    -- ceil은 3% 증가도 즉시 HP +1로 만들어 낮은 단계에서 실제 증가율을 과장한다.
+    -- 반올림을 사용해 체력은 몇 단계에 한 번만 오르고, 공급 배율과 완전히 분리한다.
+    return math.max(1,math.floor((baseHp or 1)*tierHealth+.5))
 end
 
 function ClearcutMode:scoreDynamicTreeCap()
@@ -623,7 +627,7 @@ function ClearcutMode:spawnScoreTree(game)
     local baseHp=treeHpFor(world.clearcutMap,variant);local hp=self:scoreTreeHealth(baseHp)
     node.kind,node.x,node.y,node.work,node.workTime="tree",x,y,0,1
     node.active,node.respawn,node.rushTree,node.rushHp,node.rushMaxHp=true,0,true,hp,hp
-    node.scoreBaseHp,node.scoreHpMultiplier=baseHp,self:scoreForestDensityMultiplier()
+    node.scoreBaseHp,node.scoreHpMultiplier=baseHp,hp/baseHp
     node.beehive,node.treeVariant,node.giantTree,node.sterile=false,variant,false,nil
     node.burning,node.burnTimer,node.fallT,node.uprooted,node.damageStage=nil,nil,nil,nil,nil
     node.forestZone,node.swayAngle,node.swayVel=nil,0,0
