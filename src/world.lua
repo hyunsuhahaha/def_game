@@ -740,9 +740,10 @@ function World:updateHelpers(dt, game)
     local chopper=game.clearcut
     local level=chopper and chopper:levelOf("baby_robot")or(game.upgrades and game.upgrades:level("baby_robot")or 0)
     local helperCount=chopper and(level>0 and 1+math.floor((level-1)/2)or 0)or level
-    local speed=(80+level*30)*(1+(chopper and chopper.permanentTraits and chopper.permanentTraits.scoreRobotSpeed or 0))
+    local operationScanner=chopper and chopper.scoreAttack and chopper:levelOf("robot_scanner")or 0
+    local speed=(80+level*30)*(1+(chopper and chopper.permanentTraits and chopper.permanentTraits.scoreRobotSpeed or 0))*(1+operationScanner*.18)
     local home=chopper and game.player or self.core
-    local scanRadius=chopper and(300+level*120)or math.huge
+    local scanRadius=chopper and(300+level*120)*(1+operationScanner*.35)or math.huge
     while #self.helpers < helperCount do
         self.helpers[#self.helpers + 1] = {x = home.x + love.math.random(-40, 40), y = home.y + love.math.random(-40, 40), bob = love.math.random() * 6.28}
     end

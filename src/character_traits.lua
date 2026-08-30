@@ -189,13 +189,13 @@ expand("fire",{
 -- 일반 흡연자 연구는 삭제하지 않고 저장 호환을 위해 위에 그대로 보존한다.
 local scoreFireNodes={
     {id="fire_score_prewarm",name="출근 전 라이터 예열",short="첫 불씨 단축",desc="벌목 기록 모드 최초 착화 준비시간 -0.12초",effect="scoreInitialIgnitionReduction",value=.12,wx=430,wy=850,icon="ember",color={1,.48,.12}},
-    {id="fire_score_filter",name="기록용 장초 필터",short="멀리 튕긴다",desc="벌목 기록 모드 꽁초 사거리 +12",effect="scoreRange",value=12,wx=800,wy=680,icon="filter",color={.88,.66,.32},requires={{"fire_score_prewarm",1}}},
-    {id="fire_score_lighter",name="산업용 점화 코일",short="불씨 고정",desc="벌목 기록 모드 착화 확률 +3%",effect="scoreIgnition",value=.03,wx=1190,wy=560,icon="ember",color={.96,.43,.16},requires={{"fire_score_filter",1}}},
-    {id="fire_score_ash",name="대형 재받이 개조",short="넓게 턴다",desc="벌목 기록 모드 착화 범위 +10",effect="scoreArea",value=10,wx=1190,wy=850,icon="ash",color={.62,.54,.48},requires={{"fire_score_filter",1}}},
-    {id="fire_score_drag",name="교대 없는 줄담배",short="재장전 단축",desc="벌목 기록 모드 흡연·투척 속도 +4%",effect="scoreAttackSpeed",value=.04,wx=1580,wy=560,icon="clock",color={.78,.76,.67},requires={{"fire_score_lighter",2}}},
-    {id="fire_score_heat",name="고온 불씨 압축",short="더 뜨겁게",desc="벌목 기록 모드 나무 피해 +0.5",effect="scoreTreeDamage",value=.5,wx=1580,wy=850,icon="warning",color={1,.34,.08},requires={{"fire_score_ash",2}}},
+    {id="fire_score_filter",name="꽁초 투척 영구 개조",short="기본 무기 성장",desc="다음 벌목 기록부터 꽁초 투척이 이 레벨로 시작합니다.",effect="scoreRange",value=12,scoreSkill="molotov",wx=800,wy=680,icon="filter",color={.88,.66,.32},requires={{"fire_score_prewarm",1}}},
+    {id="fire_score_lighter",name="건조주의보 무시 영구 개조",short="확산 성장",desc="다음 벌목 기록부터 건조주의보 무시가 이 레벨로 시작합니다.",effect="scoreIgnition",value=.03,scoreSkill="dry_forest",wx=1190,wy=560,icon="ember",color={.96,.43,.16},requires={{"fire_score_filter",1}}},
+    {id="fire_score_ash",name="마른 건초더미 영구 개조",short="건초 성장",desc="다음 벌목 기록부터 마른 건초더미가 이 레벨로 시작합니다.",effect="scoreArea",value=10,scoreSkill="straw_bale",wx=1190,wy=850,icon="ash",color={.62,.54,.48},requires={{"fire_score_filter",1}}},
+    {id="fire_score_drag",name="도넛 강화 영구 개조",short="도넛 성장",desc="다음 벌목 기록부터 도넛 강화가 이 레벨로 시작합니다.",effect="scoreAttackSpeed",value=.04,scoreSkill="smoke_ring",wx=1580,wy=560,icon="clock",color={.78,.76,.67},requires={{"fire_score_lighter",2}}},
+    {id="fire_score_heat",name="라이터 기름 유출 영구 개조",short="기름 성장",desc="다음 벌목 기록부터 라이터 기름 유출이 이 레벨로 시작합니다.",effect="scoreTreeDamage",value=.5,scoreSkill="oil_drum",wx=1580,wy=850,icon="warning",color={1,.34,.08},requires={{"fire_score_ash",2}}},
 }
-for _,node in ipairs(scoreFireNodes)do node.job="fire";node.scoreMode=true;node.max=5;node.costs=node.costs or{18,32,50,74,104};jobs.fire.nodes[#jobs.fire.nodes+1]=node end
+for _,node in ipairs(scoreFireNodes)do node.job="fire";node.scoreMode=true;node.max=node.scoreSkill and 6 or 5;node.costs=node.costs or(node.scoreSkill and{18,32,50,74,104,142}or{18,32,50,74,104});jobs.fire.nodes[#jobs.fire.nodes+1]=node end
 
 expand("toxic",{
     {id="toxic_bamboo",name="손잡이 두 칸 연장",short="긴 포크",desc="포크 사거리 +14",effect="range",value=14,requires={{"toxic_tongs",2}},icon="tongs",color={.55,.67,.38}},
@@ -334,7 +334,7 @@ table.sort(orderedIds)
 local storyJobs = {"physical", "fire", "toxic", "developer", "miner", "philosopher"}
 
 local function defaults()
-    local data = {currency=0, levels={}, storySeen={}}
+    local data = {currency=0, regenTier=1, levels={}, storySeen={}}
     for id in pairs(byId) do data.levels[id] = 0 end
     for _, job in ipairs(storyJobs) do data.storySeen[job] = false end
     return data
@@ -345,6 +345,7 @@ function CharacterTraits.decode(text)
     for key, value in (text or ""):gmatch("([%w_]+)=([%d]+)") do
         local number = math.max(0, math.floor(tonumber(value) or 0))
         if key == "currency" then data.currency = number
+        elseif key == "regenTier" then data.regenTier = math.max(1,number)
         elseif byId[key] then data.levels[key] = math.min(number, byId[key].max)
         elseif key:match("^story_") then
             local job = key:sub(7)
@@ -355,7 +356,7 @@ function CharacterTraits.decode(text)
 end
 
 function CharacterTraits.encode(data)
-    local lines = {"version=2", "currency=" .. math.floor(data.currency or 0)}
+    local lines = {"version=3", "currency=" .. math.floor(data.currency or 0),"regenTier="..math.max(1,math.floor(data.regenTier or 1))}
     for _, id in ipairs(orderedIds) do
         local node = byId[id]
         lines[#lines+1] = id .. "=" .. math.min(node.max, math.floor(data.levels[id] or 0))
@@ -391,6 +392,14 @@ function CharacterTraits:getScoreAttackNodes(job)
 end
 function CharacterTraits:getNode(id) return byId[id] end
 function CharacterTraits:getLevel(id) return self.data.levels[id] or 0 end
+function CharacterTraits:getRegenTier()return math.max(1,math.floor(self.data.regenTier or 1))end
+function CharacterTraits:unlockRegenTier(tier)
+    tier=math.max(1,math.floor(tier or 1))
+    if tier<=self:getRegenTier()then return false end
+    self.data.regenTier=tier
+    self:save()
+    return true
+end
 
 local function requirementsOf(node)
     if not node or not node.requires then return {} end
@@ -479,11 +488,12 @@ function CharacterTraits:scoreAttackEffects()
         moveSpeed=1,pickupRadius=0,hpRegen=0,reviveCharges=0,woodYield=1,
         scoreTreeAllowance=0,scoreRange=0,scoreIgnition=0,scoreArea=0,
         scoreAttackSpeed=0,scoreTreeDamage=0,scoreInitialIgnitionReduction=0,
-        scoreStartingBabyRobot=0,scoreRobotSpeed=0
+        scoreStartingBabyRobot=0,scoreRobotSpeed=0,scoreSkillLevels={}
     }
     for _,job in ipairs({"fire","universal"})do
         for _,node in ipairs(self:getScoreAttackNodes(job))do
             effects[node.effect]=(effects[node.effect]or 0)+self:getLevel(node.id)*node.value
+            if node.scoreSkill then effects.scoreSkillLevels[node.scoreSkill]=math.min(6,self:getLevel(node.id))end
         end
     end
     return effects

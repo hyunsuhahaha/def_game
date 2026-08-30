@@ -31,14 +31,12 @@ assert(mode.scoreTreeAllowance==12,"fresh score mode did not use the 12-tree bas
 assert(#game.world.nodes==6 and mode:scoreActiveTreeCount()==6 and mode.totalTreesSpawned==6,"score mode did not start with exactly six active trees")
 assert(mode.remainingTrees==6 and mode.initialTrees==6 and mode.peakActiveTrees==6,"starting score trees were not included in occupancy metrics")
 assert(not mode:checkWorldTreeSpawn(game),"opening score field incorrectly summoned the world tree")
-assert(math.abs(mode:scoreTreeSpawnRate()-.16)<.001,"opening forest supply was not reduced to the new low rate")
+assert(mode.scoreRegenTier==1 and math.abs(mode:scoreTreeSpawnRate()-.14)<.001,"opening forest did not use saved regeneration tier 1")
 mode.currentTreesPerSecond=0
-assert(math.abs(mode:scoreTimedTreeSpawnRate(60)-.28)<.001 and math.abs(mode:scoreTimedTreeSpawnRate(120)-.55)<.001,"timed forest production did not reach its opening milestones")
-assert(mode:scoreTimedTreeSpawnRate(150)>.67 and mode:scoreTimedTreeSpawnRate(180)>.81 and mode:scoreTimedTreeSpawnRate(360)>2.6,"timed forest production did not keep compounding after two minutes")
 
 local openingTrees=#game.world.nodes
-mode:updateScoreTreeGrowth(7,game)
-assert(mode:scoreActiveTreeCount()>openingTrees and mode.totalTreesSpawned>openingTrees,"adaptive forest supply did not grow beyond the six opening trees")
+mode:updateScoreTreeGrowth(8,game)
+assert(mode:scoreActiveTreeCount()>openingTrees and mode.totalTreesSpawned>openingTrees,"tier-based forest supply did not grow beyond the six opening trees")
 for i=openingTrees+1,#game.world.nodes do local node=game.world.nodes[i]
     assert(node.active and node.rushTree and node.treeEmergence and node.treeEmergence.source=="score_growth","generated tree is missing its growth animation or harvest state")
 end
@@ -59,9 +57,9 @@ mode:updateBerserk(999,game);mode:updateVinePlants(999,game);mode:updateDisaster
 assert(mode.berserkTimer==berserkBefore and mode.vinePlantTimer==vinesBefore and mode.disasterTimer==disasterBefore,"normal-stage threat systems remained active in score mode")
 
 local scorePool=mode:upgradePool()
-assert(#scorePool==6,"score mode did not expose five smoker skills plus the baby robot")
-for _,def in ipairs(scorePool)do assert(def.job=="fire" or def.id=="baby_robot","unexpected shared or foreign skill leaked into the smoker draft: "..def.id)end
-assert(mode:getUpgradeDefinition("baby_robot").sharedDraft==true,"baby robot is not marked as the single shared utility draft")
+assert(#scorePool==6,"score mode did not expose exactly six operation cards")
+for _,def in ipairs(scorePool)do assert(def.scoreOperation and not def.job,"combat skill leaked into the operation draft: "..def.id)end
+assert(mode:getUpgradeDefinition("baby_robot").scoreOperation==true,"baby robot is not marked as a score operation")
 
 local nodes=game.world.nodes
 nodes[#nodes+1]={rushTree=true,active=false}
@@ -75,7 +73,7 @@ mode.scoreFellTimes={}
 for _=1,5 do mode.scoreFellTimes[#mode.scoreFellTimes+1]=90 end
 mode.scoreFellHead=1
 mode:scoreProductionRate()
-assert(mode.currentTreesPerSecond==5 and mode:scoreTreeSpawnRate()>=5.4,"adaptive supply did not follow recent logging output")
+assert(mode.currentTreesPerSecond==5 and math.abs(mode:scoreTreeSpawnRate()-.14)<.001,"recent logging output incorrectly changed tier-based regeneration")
 
 local pending=mode.pending
 game.mode="test"
@@ -84,10 +82,20 @@ assert(mode.pending==pending+1 and mode.level==2 and mode.scoreWoodEarned==10,"s
 mode:rollChoices()
 assert(#mode.choices==3,"score level-up did not roll exactly three choices")
 for _,choice in ipairs(mode.choices)do assert(choice.id~="forest_expansion","removed forest automation card returned")end
-for _,choice in ipairs(mode.choices)do assert(choice.job=="fire" or choice.id=="baby_robot","score draft offered an unexpected shared card: "..choice.id)end
+for _,choice in ipairs(mode.choices)do assert(choice.scoreOperation and not choice.job,"score draft offered a combat card: "..choice.id)end
 assert(mode.buyScoreAutomation==nil and mode.updateScoreAutomation==nil,"removed automation runtime methods remain")
 game.mode="playing"
 
+-- Clearing every active tree advances and immediately persists the regeneration tier;
+-- it must not open a card because cards are still earned only through wood XP.
+for _,node in ipairs(nodes)do if node.rushTree and node.active and not node.giantTree then node.active=false end end
+mode.remainingTrees=0
+local pendingBeforeTier=mode.pending
+assert(mode:updateScoreTierClear(.31,game),"empty forest did not trigger a regeneration transition")
+assert(mode.scoreRegenTier==2 and Traits:getRegenTier()==2 and mode.pending==pendingBeforeTier,"tier clear was not persisted or incorrectly granted a card")
+assert(mode:scoreActiveTreeCount()==6 and math.abs(mode:scoreTreeSpawnRate()-(.14*1.45))<.001,"tier 2 did not reseed six trees at the tier rate")
+
+ordinary=mode:scoreActiveTreeCount()
 mode.scoreTreeAllowance=ordinary+1
 assert(not mode:checkScoreOvercrowding(game),"score mode ended below its tree allowance")
 nodes[#nodes+1]={rushTree=true,active=true,giantTree=false}
@@ -97,13 +105,17 @@ assert(game.result.treeAllowance==ordinary+1 and game.result.peakActiveTrees>=or
 assert(game.result.woodSpent==nil and game.result.automation==nil,"removed automation build leaked into score results")
 
 game:startClearcutScoreAttack()
+assert(game.clearcut.scoreRegenTier==2 and math.abs(game.clearcut:scoreTreeSpawnRate()-(.14*1.45))<.001,"next run did not start from the permanently unlocked tier")
+
+Traits.data.regenTier=1
+game:startClearcutScoreAttack()
 mode=assert(game.clearcut)
 local unattendedEnd
 for second=1,90 do
     mode.stageElapsed=second
     if mode:updateScoreTreeGrowth(1,game)then unattendedEnd=second;break end
 end
-assert(unattendedEnd and unattendedEnd>=30 and unattendedEnd<=50,"six-tree unattended run did not end in the intended 35-40 second opening window")
+assert(unattendedEnd and unattendedEnd>=38 and unattendedEnd<=50,"six-tree unattended run did not end near the tier-1 supply window")
 
 Traits.data.levels.universal_yard=7
 Traits.data.levels.universal_robot_start=1
@@ -112,6 +124,7 @@ for _,id in ipairs({"fire_score_prewarm","fire_score_filter","fire_score_lighter
 game:startClearcutScoreAttack()
 assert(game.clearcut.scoreTreeAllowance==40,"max permanent yard expansion did not raise the runtime allowance to 40")
 assert(game.clearcut.permanentTraits.range==60 and game.clearcut.permanentTraits.area==50 and game.clearcut.permanentTraits.treeDamage==2.5,"score-only permanent smoker research was not applied at runtime")
+assert(game.clearcut:levelOf("molotov")==5 and game.clearcut:levelOf("dry_forest")==5 and game.clearcut:levelOf("straw_bale")==5 and game.clearcut:levelOf("smoke_ring")==5 and game.clearcut:levelOf("oil_drum")==5,"former run combat cards did not start at their permanent research levels")
 assert(game.clearcut:levelOf("baby_robot")==1 and game.clearcut.permanentTraits.scoreRobotSpeed==.5,"baby robot permanent research was not applied at runtime")
 assert(game.clearcut.totalWood==0 and game.clearcut.level==1 and game.clearcut.pending==0,"score run did not start with a clean wood-XP progression")
 assert(game.clearcut.smoking and game.clearcut.smoking.dur<.75,"first ignition preparation trait did not shorten the opening load")
@@ -124,4 +137,4 @@ assert(game.player.wood==carriedBefore and game.world.helpers[1].carrying==nil,"
 game.clearcut.levels.baby_robot=3
 game.world:updateHelpers(1/60,game)
 assert(#game.world.helpers==2,"baby robot level scaling did not add a second carrier")
-print("SCORE_ATTACK_MODE_OK start=6 loss=tree_capacity growth=wood_xp_3choice supply=adaptive")
+print("SCORE_ATTACK_MODE_OK start=6 persistent_regen_tier wood_xp=operations combat=permanent")

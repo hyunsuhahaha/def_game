@@ -412,10 +412,10 @@
 
   <div class="modeswitch" id="modeswitch"></div>
   <section class="score-mode-summary" id="score-mode-summary" hidden aria-label="벌목 기록 모드 현재 규칙">
-    <div class="score-rule"><span class="score-rule-label">종료 조건</span><span class="score-rule-value">활성 나무 12그루 · 영구 강화마다 +4</span></div>
-    <div class="score-rule"><span class="score-rule-label">자동 산림 공급</span><span class="score-rule-value">시작 6그루 · 0.16그루/초 · 2분부터 30초마다 ×1.22</span></div>
+    <div class="score-rule"><span class="score-rule-label">종료 조건</span><span class="score-rule-value">활성 나무 12그루 · 영구 강화와 운영 카드로 확장</span></div>
+    <div class="score-rule"><span class="score-rule-label">자동 산림 공급</span><span class="score-rule-value">저장된 재생 단계 · 0그루 달성 시 다음 단계 영구 해금</span></div>
     <div class="score-rule"><span class="score-rule-label">몬스터 투입</span><span class="score-rule-value">첫 45초 없음 · 이후 동시 1→2→3→4마리</span></div>
-    <div class="score-rule"><span class="score-rule-label">런 성장</span><span class="score-rule-value">목재 경험치 → 직업 카드 + 아기 로봇 3택</span></div>
+    <div class="score-rule"><span class="score-rule-label">런 성장</span><span class="score-rule-value">목재 경험치 → 비전투 운영 카드 3택</span></div>
   </section>
   <div class="toolbar">
     <div class="search-box">
@@ -513,11 +513,11 @@ const TRAITS = {
       {id:"fire_claim",name:"실화 책임 전면 부인",short:"책임 없음",desc:"성과 포인트 +14%",max:1,costs:[135],requires:[["fire_emberstorm",2],["fire_press",2]],capstone:true},
       {id:"fire_redsky",name:"하늘이 붉은 건 노을",short:"최종 산불",desc:"착화 범위 +42",max:1,costs:[190],requires:[["fire_claim",1]],capstone:true},
       {id:"fire_score_prewarm",name:"출근 전 라이터 예열",short:"첫 불씨 단축",desc:"벌목 기록 모드 최초 착화 준비시간 -0.12초",max:5,costs:[18,32,50,74,104]},
-      {id:"fire_score_filter",name:"기록용 장초 필터",short:"멀리 튕긴다",desc:"벌목 기록 모드 꽁초 사거리 +12",max:5,costs:[18,32,50,74,104],requires:[["fire_score_prewarm",1]]},
-      {id:"fire_score_lighter",name:"산업용 점화 코일",short:"불씨 고정",desc:"벌목 기록 모드 착화 확률 +3%",max:5,costs:[18,32,50,74,104],requires:[["fire_score_filter",1]]},
-      {id:"fire_score_ash",name:"대형 재받이 개조",short:"넓게 턴다",desc:"벌목 기록 모드 착화 범위 +10",max:5,costs:[18,32,50,74,104],requires:[["fire_score_filter",1]]},
-      {id:"fire_score_drag",name:"교대 없는 줄담배",short:"재장전 단축",desc:"벌목 기록 모드 흡연·투척 속도 +4%",max:5,costs:[18,32,50,74,104],requires:[["fire_score_lighter",2]]},
-      {id:"fire_score_heat",name:"고온 불씨 압축",short:"더 뜨겁게",desc:"벌목 기록 모드 나무 피해 +0.5",max:5,costs:[18,32,50,74,104],requires:[["fire_score_ash",2]]},
+      {id:"fire_score_filter",name:"꽁초 투척 영구 개조",short:"기본 무기 성장",desc:"다음 벌목 기록부터 꽁초 투척이 이 레벨로 시작합니다.",max:6,costs:[18,32,50,74,104,142],requires:[["fire_score_prewarm",1]]},
+      {id:"fire_score_lighter",name:"건조주의보 무시 영구 개조",short:"확산 성장",desc:"다음 벌목 기록부터 건조주의보 무시가 이 레벨로 시작합니다.",max:6,costs:[18,32,50,74,104,142],requires:[["fire_score_filter",1]]},
+      {id:"fire_score_ash",name:"마른 건초더미 영구 개조",short:"건초 성장",desc:"다음 벌목 기록부터 마른 건초더미가 이 레벨로 시작합니다.",max:6,costs:[18,32,50,74,104,142],requires:[["fire_score_filter",1]]},
+      {id:"fire_score_drag",name:"도넛 강화 영구 개조",short:"도넛 성장",desc:"다음 벌목 기록부터 도넛 강화가 이 레벨로 시작합니다.",max:6,costs:[18,32,50,74,104,142],requires:[["fire_score_lighter",2]]},
+      {id:"fire_score_heat",name:"라이터 기름 유출 영구 개조",short:"기름 성장",desc:"다음 벌목 기록부터 라이터 기름 유출이 이 레벨로 시작합니다.",max:6,costs:[18,32,50,74,104,142],requires:[["fire_score_ash",2]]},
     ]
   },
   toxic: {
@@ -751,9 +751,9 @@ const SKILLS = {
       {id:"saliva_gland",track:"venom",name:"침샘 발달",desc:"침에 맞은 대상은 서서히 중독되어 지속 피해를 입습니다."},
     ]
   },
-  universal: { label: "공용 스킬 · 유틸리티 1종 활성", accent: "var(--c-universal)",
+  universal: { label: "공용 스킬 · 운영 6종 활성", accent: "var(--c-universal)",
     tagline: "직업이 뭐든, 몸에서 알아서 나가는 것들이 있다.",
-    doctrine: "공용 전투 패시브 7종은 코드·자산·연습장에 보존하고 드래프트에서는 제외한다. 떨어진 목재를 회수하는 아기 운반 로봇만 공용 유틸리티 카드로 등장한다. 기록 모드 월드에서는 최대 변 60 단위로 표시해 캐릭터 주변에서도 확실히 보이며, 회수 판정과 탐색 범위는 표시 크기와 별도로 유지한다.",
+    doctrine: "공용 전투 패시브 7종은 코드·자산·연습장에 보존하고 기록 모드 드래프트에서는 제외한다. 기록 모드는 목재 경험치로 아기 로봇·탐지·작업장·조림·선별·안전관리 여섯 비전투 운영 카드만 선택한다.",
     nodes: [
       {id:"bat_swarm",track:"supplement",name:"박쥐 떼",desc:"주위를 맴도는 박쥐가 사거리 안의 생존 몬스터만 골라 주기적으로 급강하해 쪼아버립니다."},
       {id:"thorn_aura",track:"supplement",name:"가시 오라",desc:"몸 주위의 넓은 가시덩굴 지대가 주기적으로 주변 나무와 적에게 피해를 줍니다."},
@@ -762,7 +762,12 @@ const SKILLS = {
       {id:"boomerang_axe",track:"supplement",name:"부메랑 도끼",desc:"가장 가까운 생존 몬스터를 향해 도끼가 날아가며, 넓은 회전 범위로 왕복 타격하고 손으로 돌아옵니다."},
       {id:"seed_mine",track:"supplement",name:"씨앗 지뢰",desc:"가장 가까운 생존 몬스터 방향에 씨앗 지뢰를 심습니다. 잠시 후 크게 터져 넓은 범위에 피해를 줍니다."},
       {id:"chain_lightning",track:"supplement",name:"번개 사슬",desc:"주기적으로 번개가 가까운 생존 몬스터 사이만 연쇄로 튀며 다단히트합니다."},
-      {id:"baby_robot",track:"supplement",name:"아기 운반 로봇",desc:"귀여운 운반 로봇이 떨어진 목재를 회수해 즉시 목재 경험치로 바꿉니다. 강화하면 로봇 수와 탐색 범위, 이동속도가 증가합니다."},
+      {id:"baby_robot",track:"supplement",name:"아기 운반 로봇",desc:"떨어진 목재를 찾아 즉시 목재 경험치로 회수합니다. 강화하면 로봇 수와 기본 기동력이 늘어납니다.",max:3},
+      {id:"robot_scanner",track:"supplement",name:"목재 탐지 안테나",desc:"아기 로봇의 탐색 반경과 이동속도가 증가해 멀리 떨어진 목재도 빠르게 회수합니다.",max:3},
+      {id:"yard_management",track:"supplement",name:"작업장 확장",desc:"이번 작업의 나무 허용량이 단계마다 1그루 증가합니다.",max:3},
+      {id:"forest_zoning",track:"supplement",name:"조림 구획 지정",desc:"새 나무가 가장자리보다 작업자 주변의 벌목 가능한 구역에 모여 자랍니다.",max:3},
+      {id:"wood_sorter",track:"supplement",name:"목재 선별기",desc:"회수한 목재가 주는 경험치가 단계마다 15% 증가합니다.",max:3},
+      {id:"safety_system",track:"supplement",name:"안전 관리 장치",desc:"나무가 허용량에 닿았을 때 과밀 판정 전 유예시간을 단계마다 0.25초 확보합니다.",max:3},
     ]
   }
 };
@@ -821,7 +826,7 @@ const FUSIONS = {
 const ORDER = ["physical","fire","toxic","developer","miner","philosopher","universal"];
 const MODE_META = {
   traits: { label: "로비 특성", sub: "영구 · 성과 포인트 구매", masthead: "직업별 전용 특성 6종 + 전 직군 공용 복지 특성 — LAST HAUL 벌목지 연구망 전체 목록", stamp: "성과 포인트 결재 완료", data: TRAITS },
-  skills: { label: "인게임 스킬", sub: "런 중 · 직업 + 운반 로봇", masthead: "현재 드래프트는 직업 전용 카드와 아기 운반 로봇만 노출 · 공용 전투 스킬 구현은 삭제 없이 보존 — 런 중 성장 체계 전체 목록", stamp: "직업 카드 + 회수 유틸리티", data: SKILLS },
+  skills: { label: "스킬·운영", sub: "전투 영구 · 운영 런 중", masthead: "흡연자 전투 카드는 영구 연구 · 목재 경험치 드래프트는 비전투 운영 카드 6종 — 보존된 전체 스킬 목록", stamp: "영구 전투 + 런 운영", data: SKILLS },
 };
 
 let mode = "skills";
@@ -996,7 +1001,7 @@ function renderAll() {
   document.getElementById("masthead-stamp").textContent = MODE_META[mode].stamp;
   document.getElementById("footer").textContent = mode === "traits"
     ? "src/character_traits.lua 기준 · 노드 순서는 선행 조건 깊이(단계) 순"
-    : "src/clearcut_mode.lua + clearcut_synergies.lua + synergy_ui.lua + clearcut_skill_branches.lua + clearcut_fusions.lua 기준 · 현재 로비는 흡연자 벌목 기록 모드만 의도적으로 활성화하고 일반 작전·다른 작업자·지구본·브리핑·보스·러시 코드는 삭제 없이 비활성 보존 · 기록 모드는 활성 일반 나무 6그루와 0.16그루/초 공급에서 시작하고 기본 허용량 12그루에 닿으면 종료 · 자동 산림 공급은 60초 0.28, 120초 0.55그루/초까지 상승한 뒤 30초마다 시간 기반 하한이 22%씩 복리 증가하며 실제 벌목 생산량 추종값과 큰 쪽을 사용 · 목재를 얻으면 경험치가 올라 레벨업마다 현재 직업 전용 카드와 공용 아기 운반 로봇 중 3개를 제시 · 공용 전투 스킬 7종은 코드·자산·연습장에 보존하되 드래프트에서 제외 · 아기 로봇은 떨어진 목재에 닿는 즉시 목재 경험치로 회수하며 플레이어에게 귀환하거나 인벤토리에 적재하지 않는다 · 레벨에 따라 수·탐색 범위·이동속도가 증가하고 영구 연구로 기본 지급과 속도 강화 가능 · 기존 3레벨 분기·6레벨 진화·융합·시너지를 그대로 사용 · 자동화 구매 HUD와 Z/X/C/V 구매 입력, 시작 목재·자동화 할인 연구, 산림 증설 카드는 제거 · 활성 영구 연구는 최초 착화 준비시간·기록용 사거리·착화율·범위·투척 속도·나무 피해·나무 허용량·아기 로봇으로 구성 · 첫 45초간 몬스터가 없고 이후 동시 1→2→3→4마리만 투입 · HUD와 결과는 과밀도·허용량·버틴 시간·도달 레벨·총 벌목·최고 생산력을 기록 · 인게임 시너지는 배경 카드 없이 엠블럼 아이콘만 표시하고 설명은 호버에서만 표시";
+    : "src/clearcut_mode.lua + score_operations.lua + character_traits.lua 기준 · 현재 로비는 흡연자 벌목 기록 모드만 활성화 · 저장된 재생 단계에서 6그루로 시작하고 0그루 달성 시 다음 단계가 즉시 영구 해금 · 재생 속도 0.14×1.45^(단계-1), HP 1.08^(단계-1) · 목재 경험치 드래프트에는 아기 로봇·탐지 안테나·작업장 확장·조림 구획·목재 선별기·안전 관리 장치만 등장 · 기존 흡연자 전투 카드 5종은 로비 영구 연구 레벨로 다음 런에 적용 · 일반 작전·공용 전투 스킬·융합·시너지 코드는 삭제 없이 비활성 보존";
   buildModeSwitch();
   buildTabs();
   renderPanel(document.getElementById("search").value);

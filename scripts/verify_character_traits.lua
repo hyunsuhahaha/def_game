@@ -29,6 +29,9 @@ assert(lobby:keypressed("return") == "score_attack" and lobby:keypressed("m")=="
 assert(lobby:mousepressed(20,20,1)=="score_attack" and lobby:mousepressed(130,20,1) == "character_traits", "score-attack lobby navigation is not wired")
 
 local store = CharacterTraits.new(true)
+assert(store:getRegenTier()==1 and store:unlockRegenTier(3) and store:getRegenTier()==3 and not store:unlockRegenTier(2),"persistent regeneration tier did not advance monotonically")
+local roundTrip=CharacterTraits.decode(CharacterTraits.encode(store.data))
+assert(roundTrip.regenTier==3,"persistent regeneration tier did not survive save encoding")
 store.data.currency = 300
 local blocked = store:buy("physical_axe")
 assert(not blocked, "dependent character trait unlocked before its prerequisite")
