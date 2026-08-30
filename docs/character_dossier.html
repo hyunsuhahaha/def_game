@@ -148,6 +148,29 @@
     margin-top: 2px;
   }
 
+  .score-mode-summary {
+    display: grid;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: 0;
+    margin: -2px 0 16px;
+    border-top: 1px solid var(--line-strong);
+    border-bottom: 1px solid var(--line-strong);
+  }
+  .score-mode-summary[hidden] { display: none; }
+  .score-rule {
+    padding: 10px 14px 11px;
+    border-right: 1px solid var(--line);
+  }
+  .score-rule:last-child { border-right: 0; }
+  .score-rule-label {
+    display: block;
+    margin-bottom: 3px;
+    color: var(--stamp-red);
+    font: 600 10px/1.2 "IBM Plex Mono", monospace;
+    letter-spacing: .05em;
+  }
+  .score-rule-value { font-size: 12px; line-height: 1.45; }
+
   /* ---------- Search ---------- */
   .toolbar {
     display: flex;
@@ -369,6 +392,9 @@
   }
 
   @media (max-width: 720px) {
+    .score-mode-summary { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+    .score-rule:nth-child(2) { border-right: 0; }
+    .score-rule:nth-child(-n+2) { border-bottom: 1px solid var(--line); }
     .col-req { display: none; }
     thead th:last-child { display: none; }
   }
@@ -385,6 +411,12 @@
   </div>
 
   <div class="modeswitch" id="modeswitch"></div>
+  <section class="score-mode-summary" id="score-mode-summary" hidden aria-label="벌목 기록 모드 현재 규칙">
+    <div class="score-rule"><span class="score-rule-label">종료 조건</span><span class="score-rule-value">활성 나무 12그루 · 영구 강화마다 +4</span></div>
+    <div class="score-rule"><span class="score-rule-label">초반 산림 공급</span><span class="score-rule-value">0.16그루/초 · 30~120초에 0.55까지 상승</span></div>
+    <div class="score-rule"><span class="score-rule-label">몬스터 투입</span><span class="score-rule-value">첫 45초 없음 · 이후 동시 1→2→3→4마리</span></div>
+    <div class="score-rule"><span class="score-rule-label">런 성장</span><span class="score-rule-value">랜덤 3택 없음 · 목재로 Z/X/C/V 자동화 구매</span></div>
+  </section>
   <div class="toolbar">
     <div class="search-box">
       <input id="search" type="text" placeholder="이름으로 찾기…" autocomplete="off">
@@ -939,6 +971,7 @@ function renderSkillsPanel(job, q, jobKey) {
 function renderPanel(filterText) {
   const data = MODE_META[mode].data;
   const job = data[active];
+  document.getElementById("score-mode-summary").hidden = active !== "fire";
   const q = (filterText || "").trim().toLowerCase();
   const { html, visibleCount } = mode === "traits" ? renderTraitsPanel(job, q) : renderSkillsPanel(job, q, active);
 
@@ -971,6 +1004,3 @@ renderAll();
 </script>
 </body>
 </html>
-
-
-\n
