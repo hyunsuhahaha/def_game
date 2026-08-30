@@ -25,6 +25,10 @@ assert(mode:levelOf("molotov")==0 and mode:levelOf("chain_lightning")==0,"practi
 
 local gameSource=assert(io.open("src/game.lua","rb")):read("*a")
 assert(gameSource:find("sandboxBranchBoxes",1,true) and gameSource:find("sandboxMaxBox",1,true) and gameSource:find("sandboxPanelScroll",1,true),"practice controls are not wired to the panel")
+assert(gameSource:find('UI.button(plusBox.x,plusBox.y,plusBox.w,plusBox.h,"+",level<def.max',1,true),"practice skill plus control is not explicit/enabled")
+local sandboxGuard=assert(gameSource:find("if self.clearcut and self.clearcut.sandbox and button==1 and self:sandboxPanelClick(x, y) then return end",1,true))
+local endedGuard=assert(gameSource:find("if self.ended then return end",sandboxGuard,true))
+assert(sandboxGuard<endedGuard,"practice panel input is blocked by gameplay end/emergence guards")
 local dossier=assert(io.open("docs/character_dossier.html","rb")):read("*a")
 assert(not dossier:find("시스템 연동",1,true) and not dossier:find("system%-note"),"internal system note is still visible in the dossier")
 assert(dossier:find("전자담배 %[인게임 구현%]") and dossier:find("연습장에서 모든 직업/공용 스킬",1,true),"dossier does not expose live vape/practice support")

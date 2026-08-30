@@ -75,6 +75,8 @@ assert(#burst.friendlyGrowthBursts>=2,"capstone synergies did not schedule clear
 local source=assert(io.open("src/clearcut_mode.lua","rb")):read("*a")
 assert(source:find("drawSynergyTooltip",1,true) and source:find("self.synergyBoxes",1,true),"hoverable synergy HUD missing")
 assert(source:find("ICON_ONLY_SYNERGY_RAIL",1,true),"gameplay synergy rail is not icon-only")
+local tracker=source:match("function ClearcutMode:drawSkillTracker%(fonts%)(.-)function ClearcutMode:drawHUD") or ""
+assert(tracker:find("SynergyUI.drawEmblem",1,true) and not tracker:find("SynergyUI.drawSocket",1,true),"resting synergy HUD still has a black socket/card behind the emblem")
 assert(source:find("Synergies.previewCount",1,true),"draft cards do not preview synergy count changes")
 assert(source:find('"레벨 대기"',1,true) and source:find('"Lv."..gate',1,true),"hover tooltip does not expose level-gated breakpoints")
 assert(source:find('require("src.synergy_ui")',1,true) and source:find("SynergyUI.drawBadge",1,true),"draft/HUD did not adopt icon-led synergy UI")

@@ -2026,6 +2026,10 @@ function ClearcutMode:updateSmokeRing(dt, game)
             if game.player.clearClearcutAction then game.player:clearClearcutAction() end
             self:activateSmokeRing(game,true)
             if game.camera then game.camera.trauma=math.min(1,(game.camera.trauma or 0)+.28) end
+            -- The charge dt belongs to the charging phase. Applying the same
+            -- full step to the newly spawned ring can move it past its entire
+            -- range in one frame and make the activated skill invisible.
+            return
         end
     end
     local ring = self.smokeRing
@@ -6115,8 +6119,11 @@ function ClearcutMode:drawSkillTracker(fonts)
         local x,y=x0,y0+(i-1)*(iconSize+gap);local def=row.def
         local over=mx>=x and mx<=x+iconSize and my>=y and my<=y+iconSize
         self.synergyBoxes[i]={x=x,y=y,w=iconSize,h=iconSize,id=def.id}
+        -- The resting HUD is the authored emblem itself: no black socket,
+        -- plate, card or border behind it. Hover only enlarges the emblem;
+        -- detailed information remains exclusive to the tooltip.
         local drawSize=over and iconSize+4 or iconSize
-        SynergyUI.drawSocket(def.id,x+iconSize/2,y+iconSize/2,drawSize,row.tier>0,over and 1 or .94)
+        SynergyUI.drawEmblem(def.id,x+iconSize/2,y+iconSize/2,drawSize,row.tier>0,over and 1 or .94)
         if over then hovered=row end
     end
     if hovered then drawSynergyTooltip(self,hovered.def,hovered.count,x0+iconSize+12,my-18,fonts,love.graphics.getWidth(),love.graphics.getHeight())end

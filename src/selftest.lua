@@ -386,6 +386,15 @@ function SelfTest.run(game)
     assert(#game.clearcut.enemies == 0, "연습장에서 자동 스폰(시간/정예)이 꺼지지 않음")
     local sandboxDrawOk, sandboxDrawErr = pcall(game.draw, game)
     assert(sandboxDrawOk, "스킬 연습장 렌더 실패: " .. tostring(sandboxDrawErr))
+    local smokePlus
+    for _,box in ipairs(game.sandboxSkillBoxes or {})do if box.id=="smoke_ring"then smokePlus=box.plus end end
+    assert(smokePlus,"연습장 도넛 강화 + 버튼 생성 실패")
+    game.ended=true
+    game.clearcut.worldTreeEmergence={t=0}
+    game:mousepressed(smokePlus.x+smokePlus.w/2,smokePlus.y+smokePlus.h/2,1)
+    assert(game.clearcut:levelOf("smoke_ring")==1,"연습장 + 버튼이 실제 마우스 입력 또는 gameplay guard에 막힘")
+    game.ended=false
+    game.clearcut.worldTreeEmergence=nil
     assert(game.sandboxSkyviewBox,"연습장 SKYVIEW 버튼이 없음")
     game:sandboxPanelClick(game.sandboxSkyviewBox.x+1,game.sandboxSkyviewBox.y+1)
     assert(game.camera.mode=="skyview" and game.camera.skyviewTarget==1,"연습장 SKYVIEW 버튼이 카메라를 켜지 못함")

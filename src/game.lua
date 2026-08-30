@@ -719,9 +719,11 @@ function Game:mousepressed(x, y, button)
         end
         return
     end
+    -- Practice controls are screen UI and must remain operable even if a
+    -- sandbox scenario leaves gameplay ended or inside an emergence freeze.
+    if self.clearcut and self.clearcut.sandbox and button==1 and self:sandboxPanelClick(x, y) then return end
     if self.ended then return end
     if self.clearcut and self.clearcut.worldTreeEmergence then return end
-    if self.clearcut and self.clearcut.sandbox and button==1 and self:sandboxPanelClick(x, y) then return end
     if self.runType=="rush" or self.runType=="clearcut" then
         -- 벌목 러시/숲 전멸 모드는 개별 나무를 클릭하지 않는다. 버튼을 누르는 동안
         -- 해당 모드가 플레이어 주변의 나무를 자동 포착한다.
@@ -1239,15 +1241,16 @@ function Game:drawSandboxPanel()
         rowY = rowY + headerH
         for _, def in ipairs(list) do
             local level = self.clearcut:levelOf(def.id)
-            local plusBox={x=x+14,y=rowY,w=panelW-58,h=22}
-            local minusBox={x=x+panelW-38,y=rowY,w=24,h=22}
-            love.graphics.setColor(.025,.045,.038,.96);love.graphics.rectangle("fill",plusBox.x,plusBox.y,plusBox.w,plusBox.h,3,3)
-            love.graphics.setColor(def.color[1],def.color[2],def.color[3],.22);love.graphics.rectangle("fill",plusBox.x,plusBox.y,plusBox.w*(level/def.max),plusBox.h,3,3)
-            love.graphics.setColor(def.color[1],def.color[2],def.color[3],level>0 and .75 or .28);love.graphics.rectangle("line",plusBox.x+.5,plusBox.y+.5,plusBox.w-1,plusBox.h-1,3,3)
-            love.graphics.setFont(f.small);love.graphics.setColor(1,1,1,.92);love.graphics.print(def.name,plusBox.x+7,rowY+3)
-            love.graphics.setColor(level==def.max and {1,.88,.42} or {.72,.82,.76});love.graphics.printf("Lv."..level.." / "..def.max,plusBox.x, rowY+3,plusBox.w-22,"right")
-            love.graphics.setColor(1,.82,.36,.9);love.graphics.print("+",plusBox.x+plusBox.w-16,rowY+3)
+            local minusBox={x=x+14,y=rowY,w=24,h=22}
+            local plusBox={x=x+panelW-38,y=rowY,w=24,h=22}
+            local infoBox={x=minusBox.x+28,y=rowY,w=panelW-84,h=22}
             UI.button(minusBox.x,minusBox.y,minusBox.w,minusBox.h,"−",level>0,f.small)
+            love.graphics.setColor(.025,.045,.038,.96);love.graphics.rectangle("fill",infoBox.x,infoBox.y,infoBox.w,infoBox.h,3,3)
+            love.graphics.setColor(def.color[1],def.color[2],def.color[3],.22);love.graphics.rectangle("fill",infoBox.x,infoBox.y,infoBox.w*(level/def.max),infoBox.h,3,3)
+            love.graphics.setColor(def.color[1],def.color[2],def.color[3],level>0 and .75 or .28);love.graphics.rectangle("line",infoBox.x+.5,infoBox.y+.5,infoBox.w-1,infoBox.h-1,3,3)
+            love.graphics.setFont(f.small);love.graphics.setColor(1,1,1,.92);love.graphics.print(def.name,infoBox.x+7,rowY+3)
+            love.graphics.setColor(level==def.max and {1,.88,.42} or {.72,.82,.76});love.graphics.printf("Lv."..level.." / "..def.max,infoBox.x,rowY+3,infoBox.w-7,"right")
+            UI.button(plusBox.x,plusBox.y,plusBox.w,plusBox.h,"+",level<def.max,f.small)
             self.sandboxSkillBoxes[#self.sandboxSkillBoxes + 1] = {id = def.id, minus = minusBox, plus = plusBox}
             rowY = rowY + rowH
         end
