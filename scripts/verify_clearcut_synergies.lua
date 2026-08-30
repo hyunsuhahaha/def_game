@@ -17,6 +17,7 @@ local seen={}
 for _,job in ipairs({"physical","fire","toxic","developer","miner","philosopher"})do
  mode.job=job
  for _,def in ipairs(mode:sandboxSkillList())do assert(#def.tags==2,def.id.." missing synergy tags");seen[def.id]=true end
+ for _,def in ipairs(mode:upgradePool())do assert(def.job==job,"shared or foreign card leaked into "..job.." draft: "..def.id)end
 end
 local liveCount=0;for _ in pairs(seen)do liveCount=liveCount+1 end
 assert(liveCount==31,"live skill tag audit did not cover every definition: "..liveCount)

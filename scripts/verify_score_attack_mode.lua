@@ -55,7 +55,9 @@ local berserkBefore,vinesBefore,disasterBefore=mode.berserkTimer,mode.vinePlantT
 mode:updateBerserk(999,game);mode:updateVinePlants(999,game);mode:updateDisasters(999,game)
 assert(mode.berserkTimer==berserkBefore and mode.vinePlantTimer==vinesBefore and mode.disasterTimer==disasterBefore,"normal-stage threat systems remained active in score mode")
 
-assert(#mode:upgradePool()>=3,"score mode did not expose the normal authored skill pool")
+local scorePool=mode:upgradePool()
+assert(#scorePool==5,"score mode did not expose exactly the five smoker skills")
+for _,def in ipairs(scorePool)do assert(def.job=="fire","shared or foreign skill leaked into the smoker draft: "..def.id)end
 
 local nodes=game.world.nodes
 nodes[#nodes+1]={rushTree=true,active=false}
@@ -78,6 +80,7 @@ assert(mode.pending==pending+1 and mode.level==2 and mode.scoreWoodEarned==10,"s
 mode:rollChoices()
 assert(#mode.choices==3,"score level-up did not roll exactly three choices")
 for _,choice in ipairs(mode.choices)do assert(choice.id~="forest_expansion","removed forest automation card returned")end
+for _,choice in ipairs(mode.choices)do assert(choice.job=="fire","score draft offered a non-smoker card: "..choice.id)end
 assert(mode.buyScoreAutomation==nil and mode.updateScoreAutomation==nil,"removed automation runtime methods remain")
 game.mode="playing"
 

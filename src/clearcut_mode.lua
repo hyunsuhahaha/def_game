@@ -4406,7 +4406,9 @@ end
 function ClearcutMode:upgradePool()
     local pool = {}
     for _, def in ipairs(definitions) do
-        local jobOk = not def.job or not self.job or def.job == self.job
+        -- 현재 프로토타입의 카드 선택은 직업 정체성만 검증한다. 공용 스킬의
+        -- 구현·연습장·문서는 보존하되 일반 레벨업 풀에는 넣지 않는다.
+        local jobOk = def.job ~= nil and self.job ~= nil and def.job == self.job
         local modeOk = not def.scoreOnly or self.scoreAttack
         if jobOk and modeOk and not self.banished[def.id] and self:levelOf(def.id) < def.max then pool[#pool+1]=def end
     end
