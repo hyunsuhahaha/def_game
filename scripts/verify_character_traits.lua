@@ -86,6 +86,15 @@ local sprites={physical={image=image},fire={image=image},toxic={image=image},dev
 store.data.levels.fire_score_prewarm=0
 local board=CharacterTraitBoard.new(store,fonts,sprites)
 assert(pcall(board.draw,board), "character trait board draw contract failed")
+assert(board.researchBackground==nil,"research board restored the removed forest-photo backdrop")
+local root=store:getNode("fire_score_prewarm")
+local rx,ry=board:nodeWorld(root)
+local directions={left=false,right=false,up=false,down=false}
+for _,id in ipairs({"fire_score_filter","fire_score_lighter","fire_score_launch","fire_score_heat"})do
+    local nx,ny=board:nodeWorld(store:getNode(id));local dx,dy=nx-rx,ny-ry
+    if math.abs(dx)>math.abs(dy)then directions[dx<0 and"left"or"right"]=true else directions[dy<0 and"up"or"down"]=true end
+end
+assert(directions.left and directions.right and directions.up and directions.down,"smoker root does not branch in four directions")
 assert(board.viewInitialized and board.zoom>=.40 and board.zoom<=1.38,"research tree did not auto-fit its first viewport")
 store.data.currency=1000
 local rootBox

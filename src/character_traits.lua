@@ -193,11 +193,11 @@ local scoreFireNodes={
     {id="fire_score_filter",name="긴 필터 밀어 던지기",short="투척 거리",desc="꽁초 투척 사거리 +16",effect="scoreRange",value=16,max=6,costs={18,32,50,74,104,142},wx=730,wy=520,icon="filter",color={.88,.66,.32},requires={{"fire_score_prewarm",1}}},
     {id="fire_score_lighter",name="불씨 반경 넓히기",short="착화 범위",desc="꽁초가 불씨를 옮기는 착화 반경 +12",effect="scoreArea",value=12,max=6,costs={18,32,50,74,104,142},wx=730,wy=900,icon="ember",color={.96,.43,.16},requires={{"fire_score_prewarm",1}}},
     {id="fire_score_spark",name="심지 끝까지 달구기",short="착화 확률",desc="꽁초의 착화 성공 확률 +1.2%p",effect="scoreIgnitionChance",value=.012,wx=1080,wy=380,icon="ember",color={1,.56,.16},requires={{"fire_score_filter",2}}},
-    {id="fire_score_launch",name="손가락 튕기기 연습",short="비행 속도",desc="꽁초 비행 속도 +7%",effect="scoreProjectileSpeed",value=.07,wx=1080,wy=650,icon="wind",color={.82,.72,.42},requires={{"fire_score_filter",1}}},
+    {id="fire_score_launch",name="손가락 튕기기 연습",short="비행 속도",desc="꽁초 비행 속도 +7%",effect="scoreProjectileSpeed",value=.07,wx=1080,wy=650,icon="wind",color={.82,.72,.42},requires={{"fire_score_prewarm",1}}},
     {id="fire_score_ash",name="마른 재 흩뿌리기",short="확산 확률",desc="불붙은 나무의 주변 확산 확률 +3%p",effect="scoreSpreadChance",value=.03,max=6,costs={18,32,50,74,104,142},wx=1080,wy=940,icon="ash",color={.72,.52,.36},requires={{"fire_score_lighter",2}}},
-    {id="fire_score_drag",name="한 모금만 피우기",short="흡연 속도",desc="흡연·재장전 속도 +4%",effect="scoreAttackSpeed",value=.04,max=6,costs={18,32,50,74,104,142},wx=1430,wy=470,icon="clock",color={.78,.76,.67},requires={{"fire_score_spark",2},{"fire_score_launch",2}}},
-    {id="fire_score_heat",name="송진 묻은 불씨",short="연소 속도",desc="불붙은 나무의 연소 속도 +6%",effect="scoreBurnSpeed",value=.06,max=6,costs={18,32,50,74,104,142},wx=1430,wy=820,icon="warning",color={1,.34,.08},requires={{"fire_score_launch",2},{"fire_score_ash",2}}},
-    {id="fire_score_stock",name="주머니 속 마지막 한 개비",short="추가 꽁초",desc="투척할 때 추가 꽁초 +1",effect="scoreExtraFires",value=1,max=1,costs={180},wx=1780,wy=650,icon="pack",color={1,.30,.08},requires={{"fire_score_drag",3},{"fire_score_heat",3}},capstone=true},
+    {id="fire_score_drag",name="한 모금만 피우기",short="흡연 속도",desc="흡연·재장전 속도 +4%",effect="scoreAttackSpeed",value=.04,max=6,costs={18,32,50,74,104,142},wx=1430,wy=470,icon="clock",color={.78,.76,.67},requires={{"fire_score_launch",2}}},
+    {id="fire_score_heat",name="송진 묻은 불씨",short="연소 속도",desc="불붙은 나무의 연소 속도 +6%",effect="scoreBurnSpeed",value=.06,max=6,costs={18,32,50,74,104,142},wx=1430,wy=820,icon="warning",color={1,.34,.08},requires={{"fire_score_prewarm",1}}},
+    {id="fire_score_stock",name="주머니 속 마지막 한 개비",short="추가 꽁초",desc="투척할 때 추가 꽁초 +1",effect="scoreExtraFires",value=1,max=1,costs={180},wx=1780,wy=650,icon="pack",color={1,.30,.08},requires={{"fire_score_heat",3}},capstone=true},
 }
 for _,node in ipairs(scoreFireNodes)do node.job="fire";node.scoreMode=true;node.max=node.max or 5;node.costs=node.costs or{18,32,50,74,104};jobs.fire.nodes[#jobs.fire.nodes+1]=node end
 
