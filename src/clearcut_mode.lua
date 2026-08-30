@@ -98,6 +98,9 @@ local definitions = {
     {id="boomerang_axe", track="supplement", name="부메랑 도끼", desc="가장 가까운 생존 몬스터를 향해 도끼가 날아가며, 넓은 회전 범위로 왕복 타격하고 손으로 돌아옵니다.", max=6, color={.6,.6,.65}},
     {id="seed_mine", track="supplement", name="씨앗 지뢰", desc="가장 가까운 생존 몬스터 방향에 씨앗 지뢰를 심습니다. 잠시 후 크게 터져 넓은 범위에 피해를 줍니다.", max=6, color={.65,.45,.2}},
     {id="chain_lightning", track="supplement", name="번개 사슬", desc="주기적으로 번개가 가까운 생존 몬스터 사이만 연쇄로 튀며 다단히트합니다.", max=6, color={.35,.75,.95}},
+    -- 기존 공용 전투 패시브는 드래프트에서 제외하고, 아래 한 장만
+    -- 떨어진 목재 회수를 담당하는 공용 유틸리티 카드로 노출한다.
+    {id="baby_robot", track="supplement", name="아기 운반 로봇", desc="귀여운 운반 로봇이 떨어진 목재를 찾아 주워옵니다. 강화하면 로봇 수와 탐색 범위, 이동속도가 증가합니다.", max=6, color={.40,.86,1}, sharedDraft=true},
 }
 
 local upgradeById = {}
@@ -495,6 +498,7 @@ function ClearcutMode:setup(game)
         self.permanentTraits.spreadChance=(self.permanentTraits.spreadChance or 0)+(self.permanentTraits.scoreIgnition or 0)
         self.permanentTraits.treeDamage=(self.permanentTraits.treeDamage or 0)+(self.permanentTraits.scoreTreeDamage or 0)
         self.permanentTraits.attackSpeed=(self.permanentTraits.attackSpeed or 1)*(1+(self.permanentTraits.scoreAttackSpeed or 0))
+        self.levels.baby_robot=math.max(self:levelOf("baby_robot"),math.floor(self.permanentTraits.scoreStartingBabyRobot or 0))
         self.totalWood=0
         game.wood=0
     end
@@ -4406,9 +4410,9 @@ end
 function ClearcutMode:upgradePool()
     local pool = {}
     for _, def in ipairs(definitions) do
-        -- 현재 프로토타입의 카드 선택은 직업 정체성만 검증한다. 공용 스킬의
-        -- 구현·연습장·문서는 보존하되 일반 레벨업 풀에는 넣지 않는다.
-        local jobOk = def.job ~= nil and self.job ~= nil and def.job == self.job
+        -- 현재 프로토타입은 직업 카드와 목재 회수용 아기 로봇만 검증한다.
+        -- 나머지 공용 전투 스킬은 구현·연습장·문서에 보존하되 풀에는 넣지 않는다.
+        local jobOk = (def.job ~= nil and self.job ~= nil and def.job == self.job) or def.sharedDraft == true
         local modeOk = not def.scoreOnly or self.scoreAttack
         if jobOk and modeOk and not self.banished[def.id] and self:levelOf(def.id) < def.max then pool[#pool+1]=def end
     end
@@ -5621,6 +5625,7 @@ ClearcutMode.icons = {
     boomerang_axe = {rows = axeIconRows, palette = boomerangAxePalette},
     seed_mine = {rows = seedIconRows, palette = seedIconPalette},
     chain_lightning = {rows = lightningIconRows, palette = lightningIconPalette},
+    baby_robot = {rows = boxRows, palette = lightningIconPalette},
     brute_force = {rows = boxRows, palette = bruteForcePalette},
 }
 ClearcutMode.drawPixelGrid = drawPixelGrid

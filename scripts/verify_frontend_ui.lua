@@ -12,7 +12,7 @@ assert(lobby:find("lobby%-forest%-lofi%-day%-pixel%-v4%.png"),"bright forest lo-
 assert(not lobby:find("숲이 다시 자라기 전에",1,true),"removed lobby slogan returned")
 assert(lobby:find("벌목 기록 시작",1,true),"active score-mode start button missing")
 assert(lobby:find('ACTIVE_DEVELOPMENT_MODE="score_attack"',1,true)and lobby:find("시작 6그루 · 0.16그루/초",1,true),"score mode is not clearly marked with the six-tree opening")
-assert(lobby:find("기록전 영구 연구",1,true)and lobby:find("첫 불씨 · 투척 · 연소 · 허용량",1,true),"active score research entry is missing from lobby")
+assert(lobby:find("기록전 영구 연구",1,true)and lobby:find("첫 불씨 · 아기 로봇 · 연소 · 허용량",1,true),"active score research entry is missing from lobby")
 assert(lobby:find("목재 경험치 · 레벨업 3택",1,true)and not lobby:find("목재로 자동화 설비 구매",1,true),"score growth rules are stale")
 assert(not game:find("automationKeys",1,true)and not game:find("automationClick",1,true),"removed score automation input is still wired")
 assert(game:find("function Game:startClearcutScoreAttack",1,true),"score attack entry point missing")

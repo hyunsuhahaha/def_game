@@ -56,8 +56,9 @@ mode:updateBerserk(999,game);mode:updateVinePlants(999,game);mode:updateDisaster
 assert(mode.berserkTimer==berserkBefore and mode.vinePlantTimer==vinesBefore and mode.disasterTimer==disasterBefore,"normal-stage threat systems remained active in score mode")
 
 local scorePool=mode:upgradePool()
-assert(#scorePool==5,"score mode did not expose exactly the five smoker skills")
-for _,def in ipairs(scorePool)do assert(def.job=="fire","shared or foreign skill leaked into the smoker draft: "..def.id)end
+assert(#scorePool==6,"score mode did not expose five smoker skills plus the baby robot")
+for _,def in ipairs(scorePool)do assert(def.job=="fire" or def.id=="baby_robot","unexpected shared or foreign skill leaked into the smoker draft: "..def.id)end
+assert(mode:getUpgradeDefinition("baby_robot").sharedDraft==true,"baby robot is not marked as the single shared utility draft")
 
 local nodes=game.world.nodes
 nodes[#nodes+1]={rushTree=true,active=false}
@@ -80,7 +81,7 @@ assert(mode.pending==pending+1 and mode.level==2 and mode.scoreWoodEarned==10,"s
 mode:rollChoices()
 assert(#mode.choices==3,"score level-up did not roll exactly three choices")
 for _,choice in ipairs(mode.choices)do assert(choice.id~="forest_expansion","removed forest automation card returned")end
-for _,choice in ipairs(mode.choices)do assert(choice.job=="fire","score draft offered a non-smoker card: "..choice.id)end
+for _,choice in ipairs(mode.choices)do assert(choice.job=="fire" or choice.id=="baby_robot","score draft offered an unexpected shared card: "..choice.id)end
 assert(mode.buyScoreAutomation==nil and mode.updateScoreAutomation==nil,"removed automation runtime methods remain")
 game.mode="playing"
 
@@ -102,10 +103,20 @@ end
 assert(unattendedEnd and unattendedEnd>=30 and unattendedEnd<=50,"six-tree unattended run did not end in the intended 35-40 second opening window")
 
 Traits.data.levels.universal_yard=7
+Traits.data.levels.universal_robot_start=1
+Traits.data.levels.universal_robot_motor=5
 for _,id in ipairs({"fire_score_prewarm","fire_score_filter","fire_score_lighter","fire_score_ash","fire_score_drag","fire_score_heat"})do Traits.data.levels[id]=5 end
 game:startClearcutScoreAttack()
 assert(game.clearcut.scoreTreeAllowance==40,"max permanent yard expansion did not raise the runtime allowance to 40")
 assert(game.clearcut.permanentTraits.range==60 and game.clearcut.permanentTraits.area==50 and game.clearcut.permanentTraits.treeDamage==2.5,"score-only permanent smoker research was not applied at runtime")
+assert(game.clearcut:levelOf("baby_robot")==1 and game.clearcut.permanentTraits.scoreRobotSpeed==.5,"baby robot permanent research was not applied at runtime")
 assert(game.clearcut.totalWood==0 and game.clearcut.level==1 and game.clearcut.pending==0,"score run did not start with a clean wood-XP progression")
 assert(game.clearcut.smoking and game.clearcut.smoking.dur<.75,"first ignition preparation trait did not shorten the opening load")
+local deliveredBefore=game.clearcut.totalWood
+game.world.drops={{kind="wood",amount=1,x=game.player.x+300,y=game.player.y,height=0,vx=0,vy=0,vz=0,magnet=false}}
+for _=1,300 do game.world:updateHelpers(1/60,game)end
+assert(#game.world.helpers==1 and #game.world.drops==0 and game.clearcut.totalWood==deliveredBefore+1,"baby robot did not retrieve a landed wood drop and deliver it to the player")
+game.clearcut.levels.baby_robot=3
+game.world:updateHelpers(1/60,game)
+assert(#game.world.helpers==2,"baby robot level scaling did not add a second carrier")
 print("SCORE_ATTACK_MODE_OK start=6 loss=tree_capacity growth=wood_xp_3choice supply=adaptive")

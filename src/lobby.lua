@@ -74,7 +74,7 @@ function Lobby:drawResearchButton(box,f)
  love.graphics.setColor(.94,.63,.20,1);love.graphics.rectangle("fill",x+14,y+12,46,h-24,3,3)
  love.graphics.setFont(f.small);love.graphics.setColor(.08,.055,.018,1);love.graphics.printf("LAB",x+14,y+h/2-f.small:getHeight()/2,46,"center")
  love.graphics.setColor(.92,.95,.79,1);love.graphics.setFont(f.heading);love.graphics.print("기록전 영구 연구",x+74,y+9)
- love.graphics.setFont(self.microFont or f.small);love.graphics.setColor(.59,.76,.65,1);love.graphics.print("첫 불씨 · 투척 · 연소 · 허용량",x+75,y+36)
+ love.graphics.setFont(self.microFont or f.small);love.graphics.setColor(.59,.76,.65,1);love.graphics.print("첫 불씨 · 아기 로봇 · 연소 · 허용량",x+75,y+36)
  love.graphics.setColor(.05,.13,.10,.88);love.graphics.rectangle("fill",x+w-50,y+h/2-13,36,26,3,3)
  love.graphics.setColor(.72,.90,.73,1);love.graphics.printf("T",x+w-50,y+h/2-(self.microFont or f.small):getHeight()/2,36,"center")
 end

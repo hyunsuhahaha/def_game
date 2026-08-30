@@ -737,28 +737,35 @@ local function dropStillListed(list, target)
 end
 
 function World:updateHelpers(dt, game)
-    local level = game.upgrades and game.upgrades:level("baby_robot") or 0
-    local speed = 80 + level * 30
-    while #self.helpers < level do
-        self.helpers[#self.helpers + 1] = {x = self.core.x + love.math.random(-40, 40), y = self.core.y + love.math.random(-40, 40), bob = love.math.random() * 6.28}
+    local chopper=game.clearcut
+    local level=chopper and chopper:levelOf("baby_robot")or(game.upgrades and game.upgrades:level("baby_robot")or 0)
+    local helperCount=chopper and(level>0 and 1+math.floor((level-1)/2)or 0)or level
+    local speed=(80+level*30)*(1+(chopper and chopper.permanentTraits and chopper.permanentTraits.scoreRobotSpeed or 0))
+    local home=chopper and game.player or self.core
+    local scanRadius=chopper and(300+level*120)or math.huge
+    while #self.helpers < helperCount do
+        self.helpers[#self.helpers + 1] = {x = home.x + love.math.random(-40, 40), y = home.y + love.math.random(-40, 40), bob = love.math.random() * 6.28}
     end
+    while #self.helpers>helperCount do table.remove(self.helpers)end
     for _, h in ipairs(self.helpers) do
         h.bob = h.bob + dt * 5
         h.speed = speed
         if h.carrying then
-            local dx, dy = self.core.x - h.x, self.core.y - h.y
+            local dx, dy = home.x - h.x, home.y - h.y
             local dist = math.sqrt(dx * dx + dy * dy)
             if dist > 40 then
                 h.x, h.y = h.x + dx / dist * h.speed * dt, h.y + dy / dist * h.speed * dt
             else
                 local kind, amount = h.carrying.kind, h.carrying.amount
-                if game.upgrades then amount = game.upgrades:applyGain(kind, amount) end
-                game[kind] = game[kind] + amount
-                game.runStats.harvested = game.runStats.harvested + amount
-                game.runStats[kind] = (game.runStats[kind] or 0) + amount
-                game:addRunXP(amount)
+                if game.upgrades and not chopper then amount = game.upgrades:applyGain(kind, amount) end
+                if chopper then game.player[kind]=(game.player[kind]or 0)+amount else game[kind]=game[kind]+amount end
+                if game.runStats then
+                    game.runStats.harvested = (game.runStats.harvested or 0) + amount
+                    game.runStats[kind] = (game.runStats[kind] or 0) + amount
+                end
+                if chopper and kind=="wood"then chopper:onWood(amount,game)else game:addRunXP(amount)end
                 local pulseKind = kind == "food" and "plot" or kind == "wood" and "tree" or kind
-                self:resourcePulse(game, pulseKind, amount, "로봇 납품")
+                self:resourcePulse(game, pulseKind, amount, "아기 로봇 배달")
                 h.carrying = nil
             end
         else
@@ -768,7 +775,8 @@ function World:updateHelpers(dt, game)
                 for _, drop in ipairs(self.drops) do
                     local dx, dy = drop.x - h.x, drop.y - h.y
                     local d = dx * dx + dy * dy
-                    if not bestDist or d < bestDist then best, bestDist = drop, d end
+                    local eligible=(not chopper or drop.kind=="wood")and(drop.height or 0)<=18 and d<=scanRadius*scanRadius
+                    if eligible and(not bestDist or d<bestDist)then best,bestDist=drop,d end
                 end
                 h.target = best
             end
@@ -783,7 +791,7 @@ function World:updateHelpers(dt, game)
                     h.target = nil
                 end
             else
-                local dx, dy = self.core.x - h.x, self.core.y - h.y
+                local dx, dy = home.x - h.x, home.y - h.y
                 local dist = math.sqrt(dx * dx + dy * dy)
                 if dist > 30 then h.x, h.y = h.x + dx / dist * h.speed * .5 * dt, h.y + dy / dist * h.speed * .5 * dt end
             end

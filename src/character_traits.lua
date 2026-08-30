@@ -316,7 +316,9 @@ expand("universal",{
     {id="universal_lumberbonus",name="목재 실적 인정",short="벤 만큼 잡힌다",desc="목재 획득량 +12%",effect="woodYield",value=.12,requires={{"universal_shuttle",1}},icon="coins",color={.78,.62,.30}},
     {id="universal_afforestation",name="선제적 조림 사업",short="미리 심어둔다",desc="스테이지 진행마다 나무 +6그루(스테이지 배수)",effect="forestRestock",value=6,requires={{"universal_shuttle",1}},icon="map",color={.42,.68,.40}},
     {id="universal_seedbank",name="다수종 조림 협약",short="한 종만 심지 않는다",desc="벌목지에 더 값나가는 수종이 함께 자란다",effect="treeVariety",value=1,max=1,requires={{"universal_afforestation",1}},icon="leaf",color={.55,.72,.35}},
-    {id="universal_yard",name="벌목장 부지 확장",short="쌓아둘 자리",desc="벌목 기록 모드의 나무 허용량 +4그루",effect="scoreTreeAllowance",value=4,max=7,costs={16,26,40,58,80,108,142},wx=520,wy=850,icon="map",color={.48,.72,.42},scoreMode=true}
+    {id="universal_yard",name="벌목장 부지 확장",short="쌓아둘 자리",desc="벌목 기록 모드의 나무 허용량 +4그루",effect="scoreTreeAllowance",value=4,max=7,costs={16,26,40,58,80,108,142},wx=520,wy=850,icon="map",color={.48,.72,.42},scoreMode=true},
+    {id="universal_robot_start",name="아기 로봇 기본 지급",short="첫 출근 동행",desc="벌목 기록 모드를 아기 운반 로봇 Lv.1로 시작",effect="scoreStartingBabyRobot",value=1,max=1,costs={42},wx=900,wy=680,icon="basket",color={.40,.86,1},scoreMode=true},
+    {id="universal_robot_motor",name="아기 로봇 고속 모터",short="더 빨리 줍는다",desc="아기 운반 로봇 이동속도 +10%",effect="scoreRobotSpeed",value=.10,max=5,costs={22,38,58,82,112},wx=1260,wy=680,icon="clock",color={.55,.90,1},requires={{"universal_robot_start",1}},scoreMode=true},
 })
 
 local byId = {}
@@ -454,7 +456,7 @@ function CharacterTraits:effects(job)
         moveSpeed=1, pickupRadius=0, hpRegen=0, reviveCharges=0,
         woodYield=1, forestRestock=0, treeVariety=0, scoreTreeAllowance=0,
         scoreRange=0,scoreIgnition=0,scoreArea=0,scoreAttackSpeed=0,scoreTreeDamage=0,
-        scoreInitialIgnitionReduction=0
+        scoreInitialIgnitionReduction=0,scoreStartingBabyRobot=0,scoreRobotSpeed=0
     }
     local function accumulate(nodes)
         for _, node in ipairs(nodes) do
@@ -476,7 +478,8 @@ function CharacterTraits:scoreAttackEffects()
         healOnFell=0,executeChance=0,burnSpeed=1,extraFires=0,spreadChance=0,
         moveSpeed=1,pickupRadius=0,hpRegen=0,reviveCharges=0,woodYield=1,
         scoreTreeAllowance=0,scoreRange=0,scoreIgnition=0,scoreArea=0,
-        scoreAttackSpeed=0,scoreTreeDamage=0,scoreInitialIgnitionReduction=0
+        scoreAttackSpeed=0,scoreTreeDamage=0,scoreInitialIgnitionReduction=0,
+        scoreStartingBabyRobot=0,scoreRobotSpeed=0
     }
     for _,job in ipairs({"fire","universal"})do
         for _,node in ipairs(self:getScoreAttackNodes(job))do

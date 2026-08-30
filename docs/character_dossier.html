@@ -415,7 +415,7 @@
     <div class="score-rule"><span class="score-rule-label">종료 조건</span><span class="score-rule-value">활성 나무 12그루 · 영구 강화마다 +4</span></div>
     <div class="score-rule"><span class="score-rule-label">초반 산림 공급</span><span class="score-rule-value">시작 6그루 · 0.16그루/초 · 허용량 12</span></div>
     <div class="score-rule"><span class="score-rule-label">몬스터 투입</span><span class="score-rule-value">첫 45초 없음 · 이후 동시 1→2→3→4마리</span></div>
-    <div class="score-rule"><span class="score-rule-label">런 성장</span><span class="score-rule-value">목재 경험치 → 흡연자 전용 스킬 3택</span></div>
+    <div class="score-rule"><span class="score-rule-label">런 성장</span><span class="score-rule-value">목재 경험치 → 직업 카드 + 아기 로봇 3택</span></div>
   </section>
   <div class="toolbar">
     <div class="search-box">
@@ -688,6 +688,8 @@ const TRAITS = {
       {id:"universal_afforestation",name:"선제적 조림 사업",short:"미리 심어둔다",desc:"스테이지 진행마다 나무 +6그루(스테이지 배수)",max:3,costs:[36,62,94],requires:[["universal_shuttle",1]]},
       {id:"universal_seedbank",name:"다수종 조림 협약",short:"한 종만 심지 않는다",desc:"벌목지에 더 값나가는 수종이 함께 자란다",max:1,costs:[135],requires:[["universal_afforestation",1]]},
       {id:"universal_yard",name:"벌목장 부지 확장",short:"쌓아둘 자리",desc:"벌목 기록 모드의 나무 허용량 +4그루",max:7,costs:[16,26,40,58,80,108,142]},
+      {id:"universal_robot_start",name:"아기 로봇 기본 지급",short:"첫 출근 동행",desc:"벌목 기록 모드를 아기 운반 로봇 Lv.1로 시작",max:1,costs:[42]},
+      {id:"universal_robot_motor",name:"아기 로봇 고속 모터",short:"더 빨리 줍는다",desc:"아기 운반 로봇 이동속도 +10%",max:5,costs:[22,38,58,82,112],requires:[["universal_robot_start",1]]},
     ]
   }
 };
@@ -749,9 +751,9 @@ const SKILLS = {
       {id:"saliva_gland",track:"venom",name:"침샘 발달",desc:"침에 맞은 대상은 서서히 중독되어 지속 피해를 입습니다."},
     ]
   },
-  universal: { label: "공용 패시브 · 현재 드래프트 제외", accent: "var(--c-universal)",
+  universal: { label: "공용 스킬 · 유틸리티 1종 활성", accent: "var(--c-universal)",
     tagline: "직업이 뭐든, 몸에서 알아서 나가는 것들이 있다.",
-    doctrine: "코드·자산·연습장에는 보존하지만 현재 게임의 레벨업 카드에는 나오지 않는 공용 패시브 7종.",
+    doctrine: "공용 전투 패시브 7종은 코드·자산·연습장에 보존하고 드래프트에서는 제외한다. 떨어진 목재를 회수하는 아기 운반 로봇만 공용 유틸리티 카드로 등장한다.",
     nodes: [
       {id:"bat_swarm",track:"supplement",name:"박쥐 떼",desc:"주위를 맴도는 박쥐가 사거리 안의 생존 몬스터만 골라 주기적으로 급강하해 쪼아버립니다."},
       {id:"thorn_aura",track:"supplement",name:"가시 오라",desc:"몸 주위의 넓은 가시덩굴 지대가 주기적으로 주변 나무와 적에게 피해를 줍니다."},
@@ -760,6 +762,7 @@ const SKILLS = {
       {id:"boomerang_axe",track:"supplement",name:"부메랑 도끼",desc:"가장 가까운 생존 몬스터를 향해 도끼가 날아가며, 넓은 회전 범위로 왕복 타격하고 손으로 돌아옵니다."},
       {id:"seed_mine",track:"supplement",name:"씨앗 지뢰",desc:"가장 가까운 생존 몬스터 방향에 씨앗 지뢰를 심습니다. 잠시 후 크게 터져 넓은 범위에 피해를 줍니다."},
       {id:"chain_lightning",track:"supplement",name:"번개 사슬",desc:"주기적으로 번개가 가까운 생존 몬스터 사이만 연쇄로 튀며 다단히트합니다."},
+      {id:"baby_robot",track:"supplement",name:"아기 운반 로봇",desc:"귀여운 운반 로봇이 떨어진 목재를 찾아 주워옵니다. 강화하면 로봇 수와 탐색 범위, 이동속도가 증가합니다."},
     ]
   }
 };
@@ -782,7 +785,7 @@ const SYNERGY_TAGS = {
   detector:["impact","momentum"],burrow_uproot:["impact","field"],brute_force:["momentum","impact"],
   monologue:["field","momentum"],revival_meeting:["field","growth"],footnote:["momentum","field"],loud_voice:["field","impact"],saliva_gland:["growth","field"],
   bat_swarm:["wild","momentum"],thorn_aura:["growth","field"],crow_strike:["wild","momentum"],vine_whip:["growth","impact"],
-  boomerang_axe:["momentum","impact"],seed_mine:["growth","field"],chain_lightning:["momentum","impact"],
+  boomerang_axe:["momentum","impact"],seed_mine:["growth","field"],chain_lightning:["momentum","impact"],baby_robot:["harvest","momentum"],
 };
 const SKILL_BRANCHES = {
   molotov:["화염 농축 [인게임 구현] — 3레벨 분기. 불씨 전이 반경 +25%, 확률 +35%, 직격 +35%, 연소·확산 +30%; 6레벨에는 흡입→압축→원뿔형 풍압 분사 전자담배로 자동 진화. 약한 분사는 잎을 날리고 풀차지는 나무를 뿌리 발선 기준으로 크게 휘며 몬스터를 밀어냄","줄꽁초 [인게임 구현] — 3레벨 분기. 한 번에 독립 판정 꽁초 3개비 투척; 6레벨 30fps 다색 폭죽 발사기 자동 진화"],
@@ -818,7 +821,7 @@ const FUSIONS = {
 const ORDER = ["physical","fire","toxic","developer","miner","philosopher","universal"];
 const MODE_META = {
   traits: { label: "로비 특성", sub: "영구 · 성과 포인트 구매", masthead: "직업별 전용 특성 6종 + 전 직군 공용 복지 특성 — LAST HAUL 벌목지 연구망 전체 목록", stamp: "성과 포인트 결재 완료", data: TRAITS },
-  skills: { label: "인게임 스킬", sub: "런 중 · 직업 카드 우선", masthead: "현재 드래프트는 직업 전용 카드만 노출 · 공용 스킬 구현은 삭제 없이 보존 — 런 중 성장 체계 전체 목록", stamp: "직업 카드 집중 검증", data: SKILLS },
+  skills: { label: "인게임 스킬", sub: "런 중 · 직업 + 운반 로봇", masthead: "현재 드래프트는 직업 전용 카드와 아기 운반 로봇만 노출 · 공용 전투 스킬 구현은 삭제 없이 보존 — 런 중 성장 체계 전체 목록", stamp: "직업 카드 + 회수 유틸리티", data: SKILLS },
 };
 
 let mode = "skills";
@@ -993,7 +996,7 @@ function renderAll() {
   document.getElementById("masthead-stamp").textContent = MODE_META[mode].stamp;
   document.getElementById("footer").textContent = mode === "traits"
     ? "src/character_traits.lua 기준 · 노드 순서는 선행 조건 깊이(단계) 순"
-    : "src/clearcut_mode.lua + clearcut_synergies.lua + synergy_ui.lua + clearcut_skill_branches.lua + clearcut_fusions.lua 기준 · 현재 로비는 흡연자 벌목 기록 모드만 의도적으로 활성화하고 일반 작전·다른 작업자·지구본·브리핑·보스·러시 코드는 삭제 없이 비활성 보존 · 기록 모드는 활성 일반 나무 6그루와 0.16그루/초 공급에서 시작하고 기본 허용량 12그루에 닿으면 종료 · 목재를 얻으면 경험치가 올라 레벨업마다 현재 직업 전용 스킬 카드 3개 중 하나를 선택하고 공용 스킬은 코드·자산·연습장에 보존하되 드래프트에서 제외 · 기존 3레벨 분기·6레벨 진화·융합·시너지를 그대로 사용 · 자동화 구매 HUD와 Z/X/C/V 구매 입력, 시작 목재·자동화 할인 연구, 산림 증설 카드는 제거 · 활성 영구 연구는 최초 착화 준비시간·기록용 사거리·착화율·범위·투척 속도·나무 피해·나무 허용량으로 구성 · 첫 45초간 몬스터가 없고 이후 동시 1→2→3→4마리만 투입 · HUD와 결과는 과밀도·허용량·버틴 시간·도달 레벨·총 벌목·최고 생산력을 기록 · 인게임 시너지는 배경 카드 없이 엠블럼 아이콘만 표시하고 설명은 호버에서만 표시";
+    : "src/clearcut_mode.lua + clearcut_synergies.lua + synergy_ui.lua + clearcut_skill_branches.lua + clearcut_fusions.lua 기준 · 현재 로비는 흡연자 벌목 기록 모드만 의도적으로 활성화하고 일반 작전·다른 작업자·지구본·브리핑·보스·러시 코드는 삭제 없이 비활성 보존 · 기록 모드는 활성 일반 나무 6그루와 0.16그루/초 공급에서 시작하고 기본 허용량 12그루에 닿으면 종료 · 목재를 얻으면 경험치가 올라 레벨업마다 현재 직업 전용 카드와 공용 아기 운반 로봇 중 3개를 제시 · 공용 전투 스킬 7종은 코드·자산·연습장에 보존하되 드래프트에서 제외 · 아기 로봇은 떨어진 목재만 회수하며 레벨에 따라 수·탐색 범위·이동속도가 증가하고 영구 연구로 기본 지급과 속도 강화 가능 · 기존 3레벨 분기·6레벨 진화·융합·시너지를 그대로 사용 · 자동화 구매 HUD와 Z/X/C/V 구매 입력, 시작 목재·자동화 할인 연구, 산림 증설 카드는 제거 · 활성 영구 연구는 최초 착화 준비시간·기록용 사거리·착화율·범위·투척 속도·나무 피해·나무 허용량·아기 로봇으로 구성 · 첫 45초간 몬스터가 없고 이후 동시 1→2→3→4마리만 투입 · HUD와 결과는 과밀도·허용량·버틴 시간·도달 레벨·총 벌목·최고 생산력을 기록 · 인게임 시너지는 배경 카드 없이 엠블럼 아이콘만 표시하고 설명은 호버에서만 표시";
   buildModeSwitch();
   buildTabs();
   renderPanel(document.getElementById("search").value);

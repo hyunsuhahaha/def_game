@@ -14,7 +14,7 @@ Synergies.skillTags={
     footnote={"momentum","field"},loud_voice={"field","impact"},saliva_gland={"growth","field"},
     bat_swarm={"wild","momentum"},thorn_aura={"growth","field"},crow_strike={"wild","momentum"},
     vine_whip={"growth","impact"},boomerang_axe={"momentum","impact"},seed_mine={"growth","field"},
-    chain_lightning={"momentum","impact"},
+    chain_lightning={"momentum","impact"},baby_robot={"harvest","momentum"},
 }
 
 Synergies.definitions={
