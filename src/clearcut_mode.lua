@@ -213,7 +213,7 @@ function ClearcutMode.new()
         hp=100, maxHp=100, invulnTimer=0, dead=false,
         enemies={}, projectiles={}, bossTelegraphs={}, resinPuddles={}, waveFired={}, worldTreeSpawned=false, readyToFinish=false, activeBoss=nil,operationFinalBoss=false,operationBossName=nil,kills=0,
         chests={}, bossMagnetPickups={}, worldTreeDebris={}, chestPending=false, molotovShots=0, wildburstTimer=10, plagued={}, dodges=0,
-        timeSpawnTimer=35, eliteTimer=200, reaperSpawned=false,
+        timeSpawnTimer=35, scoreEnemyTimer=45, eliteTimer=200, reaperSpawned=false,
         stage=1, stageBossHpMul=1, stageElapsed=0, stageTimeLimit=stageTimeLimit(1), failureReason=nil,
         scoreAttack=false,scoreHardCap=720,scoreBaseTreeAllowance=12,scoreTreeAllowance=12,
         scoreAutomation={},scoreAutomationTimer=0,scoreWoodEarned=0,scoreWoodSpent=0,scoreAutomationBoxes={},
@@ -525,6 +525,9 @@ function ClearcutMode:setup(game)
         self.currentTreesPerSecond,self.peakTreesPerSecond=0,0
         self.scoreAutomation,self.scoreAutomationTimer={},0
         self.scoreWoodEarned,self.scoreWoodSpent=0,0
+        -- 기록 모드는 첫 수십 초가 숲 과밀과 자동화에 적응하는 구간이다.
+        -- 일반 스테이지의 파괴율 웨이브와 별도로, 45초 뒤부터 소수만 투입한다.
+        self.scoreEnemyTimer=45
     end
     Maps.configure(game.world,self.mapId)
     Maps.configureStage(game.world,self.stage)
@@ -586,8 +589,24 @@ function ClearcutMode:scoreTreeSpawnRate()
     local density=self:scoreForestDensityMultiplier()
     local base=math.max(0,self.treeSpawnRate or .55)
     if self.scoreAttack then
-        local timePressure=base*(1+math.max(0,self.stageElapsed or 0)/150)^.72
-        return math.max(timePressure,(self.currentTreesPerSecond or 0)*1.08)*density
+        local elapsed=math.max(0,self.stageElapsed or 0)
+        -- 초반 산림 공급을 대폭 낮춘다. 첫 30초는 기존 .55의 약 29%만
+        -- 생성하고, 2분에 걸쳐 원래 기초량으로 복귀한다.
+        local timePressure
+        if elapsed<30 then
+            timePressure=.16
+        elseif elapsed<60 then
+            timePressure=.16+(elapsed-30)/30*.12
+        elseif elapsed<120 then
+            timePressure=.28+(elapsed-60)/60*(base-.28)
+        else
+            timePressure=base*(1+(elapsed-120)/150)^.72
+        end
+        -- 한두 그루를 막 베기 시작한 순간 공급이 즉시 폭증하지 않도록
+        -- 실제 생산량 추종은 30초부터 열고 90초에 완전히 연결한다.
+        local adaptation=math.max(0,math.min(1,(elapsed-30)/60))
+        local adaptive=(self.currentTreesPerSecond or 0)*1.08*adaptation
+        return math.max(timePressure,adaptive)*density
     end
     return base
 end
@@ -1130,6 +1149,30 @@ end
 
 function ClearcutMode:updateTimeSpawner(dt, game)
     if self.sandbox then return end
+    if self.scoreAttack then
+        local elapsed=self.stageElapsed or 0
+        self.scoreEnemyTimer=(self.scoreEnemyTimer or 45)-dt
+        if self.scoreEnemyTimer>0 then return end
+
+        -- 기록전의 적은 주 난이도가 아니라 벌목 동선을 조금 흔드는 방해물이다.
+        -- 살아 있는 수를 제한해 타이머 한 번에 한 마리만 보충한다.
+        local limit=elapsed<120 and 1 or(elapsed<240 and 2 or(elapsed<360 and 3 or 4))
+        local alive=0
+        for _,enemy in ipairs(self.enemies)do
+            if not enemy.dead and(enemy.hp or 0)>0 then alive=alive+1 end
+        end
+        local interval=elapsed<120 and 32 or(elapsed<240 and 26 or(elapsed<360 and 22 or 18))
+        if alive>=limit then
+            self.scoreEnemyTimer=4
+            return
+        end
+        self.scoreEnemyTimer=interval
+        local kind=(elapsed<180 or love.math.random()<.72)and"squirrel"or"boar"
+        local a=love.math.random()*math.pi*2
+        local r=560+love.math.random()*120
+        self:spawnEnemy(kind,game.player.x+math.cos(a)*r,game.player.y+math.sin(a)*r)
+        return
+    end
     self.timeSpawnTimer = self.timeSpawnTimer - dt
     if self.timeSpawnTimer > 0 then return end
     local curse = self:curseLevel()
@@ -1147,7 +1190,7 @@ end
 
 -- 정기 엘리트: 진행도와 무관하게 몇 분마다 훨씬 강한 개체가 등장
 function ClearcutMode:updateEliteTimer(dt, game)
-    if self.sandbox then return end
+    if self.sandbox or self.scoreAttack then return end
     self.eliteTimer = self.eliteTimer - dt
     if self.eliteTimer > 0 then return end
     self.eliteTimer = 240 * (self.eliteIntervalMul or 1)
@@ -1167,7 +1210,7 @@ end
 -- 광폭화 라운드: 주기적으로 찾아오는 하드코어 서지 이벤트. 경고 → 광란 → 냉각 3단계로 돌며,
 -- 광란 중엔 스폰이 폭증하고 근처에 남아있는 나무들이 직접 뿌리를 뻗어 플레이어를 물어뜯는다.
 function ClearcutMode:updateBerserk(dt, game)
-    if self.sandbox then return end
+    if self.sandbox or self.scoreAttack then return end
     self.berserkTimer = self.berserkTimer - dt
     if self.berserkState == "idle" then
         if self.berserkTimer <= 0 then
@@ -1242,7 +1285,7 @@ end
 -- 자이라식 소환 식물: 주기적으로 플레이어 주변 땅이 갈라지며 이빨 달린 덩굴괴수가 솟아나 가시를 쏜다.
 -- 저주 레벨이 오를수록 더 자주, 더 많이 솟아난다. 진짜 몹으로 스폰되므로 처치하면 보상도 준다.
 function ClearcutMode:updateVinePlants(dt, game)
-    if self.sandbox then return end
+    if self.sandbox or self.scoreAttack then return end
     for i = #self.vineSpawns, 1, -1 do
         local v = self.vineSpawns[i]
         v.timer = v.timer - dt
@@ -1269,7 +1312,7 @@ end
 
 -- 자연재해: 비, 뿌리 지진, 낙하 가지. 지면 경고 뒤 실제 식생이 공격한다.
 function ClearcutMode:updateDisasters(dt, game)
-    if self.sandbox then return end
+    if self.sandbox or self.scoreAttack then return end
     if self.stage<2 then return end
     self.disasterTimer = self.disasterTimer - dt
     if self.disasterState == "idle" then
@@ -4383,6 +4426,10 @@ function ClearcutMode:demolitionEcho(x, y, game)
 end
 
 function ClearcutMode:checkMilestones(game)
+    -- 빈 땅에서 시작하는 기록 모드는 첫 벌목 때 파괴율이 곧바로 100%가 된다.
+    -- 일반 스테이지용 25/50/75% 웨이브를 실행하면 초반 몬스터가 한꺼번에
+    -- 쏟아지므로 기록전에서는 파괴율 마일스톤 전체를 사용하지 않는다.
+    if self.scoreAttack then return end
     local pct = self:destructionPct()
     for _, m in ipairs(milestones) do
         if pct >= m.pct and not self.milestoneFired[m.pct] then

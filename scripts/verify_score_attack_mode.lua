@@ -30,12 +30,28 @@ assert(game.mode=="playing"and mode.scoreAttack and mode.job=="fire"and mode.sta
 assert(mode.scoreTreeAllowance==12,"fresh score mode did not use the 12-tree base allowance")
 assert(#game.world.nodes==0 and mode:scoreActiveTreeCount()==0 and mode.totalTreesSpawned==0,"score mode did not start on empty ground")
 assert(not mode:checkWorldTreeSpawn(game),"empty score field incorrectly summoned the world tree")
+assert(math.abs(mode:scoreTreeSpawnRate()-.16)<.001,"opening forest supply was not reduced to the new low rate")
 
-mode:updateScoreTreeGrowth(2,game)
+mode:updateScoreTreeGrowth(7,game)
 assert(mode:scoreActiveTreeCount()>0 and mode.totalTreesSpawned>0,"adaptive forest supply did not begin growing trees")
 for _,node in ipairs(game.world.nodes)do
     assert(node.active and node.rushTree and node.treeEmergence and node.treeEmergence.source=="score_growth","generated tree is missing its growth animation or harvest state")
 end
+
+mode:checkMilestones(game)
+assert(#mode.enemies==0 and next(mode.milestoneFired)==nil,"score mode fired normal destruction milestone waves")
+mode.stageElapsed=44
+mode:updateTimeSpawner(44,game)
+assert(#mode.enemies==0,"score mode spawned monsters during the 45-second opening grace")
+mode.stageElapsed=45
+mode:updateTimeSpawner(1.1,game)
+assert(#mode.enemies==1,"score mode did not introduce exactly one sparse monster after the grace")
+mode.scoreEnemyTimer=0
+mode:updateTimeSpawner(.1,game)
+assert(#mode.enemies==1,"score mode exceeded its opening one-monster cap")
+local berserkBefore,vinesBefore,disasterBefore=mode.berserkTimer,mode.vinePlantTimer,mode.disasterTimer
+mode:updateBerserk(999,game);mode:updateVinePlants(999,game);mode:updateDisasters(999,game)
+assert(mode.berserkTimer==berserkBefore and mode.vinePlantTimer==vinesBefore and mode.disasterTimer==disasterBefore,"normal-stage threat systems remained active in score mode")
 
 local sample=game.world.nodes[1];local baseHp=sample.scoreBaseHp;sample.rushHp=math.max(1,math.floor(sample.rushMaxHp/2))
 mode.levels.forest_expansion=2
@@ -55,9 +71,9 @@ nodes[#nodes+1]={active=true,kind="plant"}
 local ordinary=mode:scoreActiveTreeCount()
 assert(ordinary>=1 and ordinary==mode.remainingTrees,"tree capacity count included inactive, giant, or non-tree nodes")
 
-mode.stageElapsed=20
+mode.stageElapsed=90
 mode.scoreFellTimes={}
-for _=1,5 do mode.scoreFellTimes[#mode.scoreFellTimes+1]=20 end
+for _=1,5 do mode.scoreFellTimes[#mode.scoreFellTimes+1]=90 end
 mode.scoreFellHead=1
 mode:scoreProductionRate()
 assert(mode.currentTreesPerSecond==5 and mode:scoreTreeSpawnRate()>=5.4,"adaptive supply did not follow recent logging output")
@@ -86,11 +102,11 @@ assert(game.result.automation.butt_launcher==1 and game.result.automation.forest
 game:startClearcutScoreAttack()
 mode=assert(game.clearcut)
 local unattendedEnd
-for second=1,30 do
+for second=1,90 do
     mode.stageElapsed=second
     if mode:updateScoreTreeGrowth(1,game)then unattendedEnd=second;break end
 end
-assert(unattendedEnd and unattendedEnd>=10 and unattendedEnd<=30,"fresh unattended run did not end inside the intended 10-30 second window")
+assert(unattendedEnd and unattendedEnd>=55 and unattendedEnd<=80,"fresh unattended run did not reflect the reduced opening forest supply")
 
 Traits.data.levels.universal_yard=7
 for _,id in ipairs({"fire_score_filter","fire_score_lighter","fire_score_ash","fire_score_drag","fire_score_heat"})do Traits.data.levels[id]=5 end
