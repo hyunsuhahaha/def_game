@@ -501,12 +501,13 @@ function ClearcutMode:setup(game)
     if self.scoreAttack then
         self.permanentTraits.range=(self.permanentTraits.range or 0)+(self.permanentTraits.scoreRange or 0)
         self.permanentTraits.area=(self.permanentTraits.area or 0)+(self.permanentTraits.scoreArea or 0)
-        self.permanentTraits.spreadChance=(self.permanentTraits.spreadChance or 0)+(self.permanentTraits.scoreIgnition or 0)
-        self.permanentTraits.treeDamage=(self.permanentTraits.treeDamage or 0)+(self.permanentTraits.scoreTreeDamage or 0)
+        self.permanentTraits.cigaretteIgnitionChance=(self.permanentTraits.cigaretteIgnitionChance or 0)+(self.permanentTraits.scoreIgnitionChance or 0)
+        self.permanentTraits.spreadChance=(self.permanentTraits.spreadChance or 0)+(self.permanentTraits.scoreSpreadChance or 0)
         self.permanentTraits.attackSpeed=(self.permanentTraits.attackSpeed or 1)*(1+(self.permanentTraits.scoreAttackSpeed or 0))
-        for skill,level in pairs(self.permanentTraits.scoreSkillLevels or{})do self.levels[skill]=math.max(self:levelOf(skill),level)end
+        self.permanentTraits.burnSpeed=(self.permanentTraits.burnSpeed or 1)*(1+(self.permanentTraits.scoreBurnSpeed or 0))
+        self.permanentTraits.extraFires=(self.permanentTraits.extraFires or 0)+math.floor(self.permanentTraits.scoreExtraFires or 0)
+        self.permanentTraits.cigaretteProjectileSpeed=1+(self.permanentTraits.scoreProjectileSpeed or 0)
         self.levels.baby_robot=math.max(self:levelOf("baby_robot"),math.floor(self.permanentTraits.scoreStartingBabyRobot or 0))
-        if self:levelOf("molotov")>=3 and not self:skillBranch("molotov")then self.skillBranches.molotov="flame_route"end
         self:applySmokerEvolution(game)
         self.totalWood=0
         game.wood=0
@@ -2011,7 +2012,7 @@ function ClearcutMode:throwMolotov(game, wildfire)
         local _,mouthY,_,tipX=self:smokerMouthPose(game)
         self.molotovs[#self.molotovs+1] = {
             x0=tipX, y0=mouthY, x1=target.x+28, y1=target.y+22,
-            t=0, dur=math.max(.22,dist/1200), target=target, wildfire=wildfire,
+            t=0, dur=math.max(.18,dist/(1200*(self.permanentTraits.cigaretteProjectileSpeed or 1))), target=target, wildfire=wildfire,
             radius=(90+self:power("molotov")*20+self.permanentTraits.area)
                 *(self:skillBranch("molotov")=="flame_route"and 1.25 or 1),
             landingAngle=.18+math.sin(target.x*.013)*.6
@@ -2052,7 +2053,7 @@ function ClearcutMode:hurlMolotovAt(tx, ty, game, isBarrage)
         y1=bounds.y+2
     end
     local dist=math.sqrt((x1-tipX)^2+(y1-mouthY)^2)
-    local approachDur=math.max(.22,dist/1200)
+    local approachDur=math.max(.18,dist/(1200*(self.permanentTraits.cigaretteProjectileSpeed or 1)))
     local fallDuration=fallsOffMap and 1.45 or 0
     self.molotovs[#self.molotovs+1] = {
         x0=tipX, y0=mouthY, x1=x1, y1=y1,

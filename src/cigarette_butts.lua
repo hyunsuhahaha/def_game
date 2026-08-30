@@ -94,7 +94,8 @@ local function attempt(mode,butt,at,game)
     if not target then return end
     local heat=1-.15*(at-butt.bornAt)/Butts.lifetime
     local routeMultiplier=mode.skillBranch and mode:skillBranch("molotov")=="flame_route"and 1.35 or 1
-    local chance=math.min(.96,(Butts.baseChance+mode:levelOf("dry_forest")*.02)*routeMultiplier)
+    local permanentChance=mode.permanentTraits and mode.permanentTraits.cigaretteIgnitionChance or 0
+    local chance=math.min(.96,(Butts.baseChance+mode:levelOf("dry_forest")*.02+permanentChance)*routeMultiplier)
         *heat*(1-.12*distance/butt.radius)
     if love.math.random()>=chance then return end
     local duration=.12+.10*distance/butt.radius

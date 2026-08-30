@@ -49,7 +49,7 @@ assert(dossier:find("저장된 재생 단계 · 0그루 달성 시 다음 단계
 assert(dossier:find("목재 경험치 → 비전투 운영 카드 3택",1,true),"dossier score-mode growth summary is stale")
 assert(dossier:find("목재 경험치 드래프트에는 아기 로봇",1,true),"dossier score-mode system note is stale")
 assert(dossier:find("공용 스킬 · 운영 6종 활성",1,true),"dossier does not document the active operation cards")
-assert(dossier:find("fire_score_prewarm",1,true)and dossier:find("fire_score_heat",1,true),"dossier score-mode permanent research is stale")
+assert(dossier:find("fire_score_prewarm",1,true)and dossier:find("fire_score_stock",1,true),"dossier score-mode permanent traits are stale")
 assert(dossier:find("universal_robot_start",1,true)and dossier:find("universal_robot_motor",1,true),"dossier baby robot permanent research is stale")
 assert(not dossier:find("fire_score_procurement",1,true)and not dossier:find('id:"forest_expansion"',1,true),"removed automation content remains in dossier")
 print("CHARACTER_DOSSIER_OK skills="..checked.." fusions="..fusionChecked.." names/descriptions/max=synced")

@@ -512,12 +512,15 @@ const TRAITS = {
       {id:"fire_press",name:"언론 대응 매뉴얼",short:"원인 부인",desc:"성과 포인트 +9%",max:3,costs:[36,62,94],requires:[["fire_resin",2]]},
       {id:"fire_claim",name:"실화 책임 전면 부인",short:"책임 없음",desc:"성과 포인트 +14%",max:1,costs:[135],requires:[["fire_emberstorm",2],["fire_press",2]],capstone:true},
       {id:"fire_redsky",name:"하늘이 붉은 건 노을",short:"최종 산불",desc:"착화 범위 +42",max:1,costs:[190],requires:[["fire_claim",1]],capstone:true},
-      {id:"fire_score_prewarm",name:"출근 전 라이터 예열",short:"첫 불씨 단축",desc:"벌목 기록 모드 최초 착화 준비시간 -0.12초",max:5,costs:[18,32,50,74,104]},
-      {id:"fire_score_filter",name:"꽁초 투척 영구 개조",short:"기본 무기 성장",desc:"다음 벌목 기록부터 꽁초 투척이 이 레벨로 시작합니다.",max:6,costs:[18,32,50,74,104,142],requires:[["fire_score_prewarm",1]]},
-      {id:"fire_score_lighter",name:"건조주의보 무시 영구 개조",short:"확산 성장",desc:"다음 벌목 기록부터 건조주의보 무시가 이 레벨로 시작합니다.",max:6,costs:[18,32,50,74,104,142],requires:[["fire_score_filter",1]]},
-      {id:"fire_score_ash",name:"마른 건초더미 영구 개조",short:"건초 성장",desc:"다음 벌목 기록부터 마른 건초더미가 이 레벨로 시작합니다.",max:6,costs:[18,32,50,74,104,142],requires:[["fire_score_filter",1]]},
-      {id:"fire_score_drag",name:"도넛 강화 영구 개조",short:"도넛 성장",desc:"다음 벌목 기록부터 도넛 강화가 이 레벨로 시작합니다.",max:6,costs:[18,32,50,74,104,142],requires:[["fire_score_lighter",2]]},
-      {id:"fire_score_heat",name:"라이터 기름 유출 영구 개조",short:"기름 성장",desc:"다음 벌목 기록부터 라이터 기름 유출이 이 레벨로 시작합니다.",max:6,costs:[18,32,50,74,104,142],requires:[["fire_score_ash",2]]},
+      {id:"fire_score_prewarm",name:"출근 전 라이터 예열",short:"첫 불씨 단축",desc:"벌목 기록 모드 최초 흡연 준비시간 -0.08초",max:5,costs:[18,32,50,74,104]},
+      {id:"fire_score_filter",name:"긴 필터 밀어 던지기",short:"투척 거리",desc:"꽁초 투척 사거리 +16",max:6,costs:[18,32,50,74,104,142],requires:[["fire_score_prewarm",1]]},
+      {id:"fire_score_lighter",name:"불씨 반경 넓히기",short:"착화 범위",desc:"꽁초가 불씨를 옮기는 착화 반경 +12",max:6,costs:[18,32,50,74,104,142],requires:[["fire_score_prewarm",1]]},
+      {id:"fire_score_spark",name:"심지 끝까지 달구기",short:"착화 확률",desc:"꽁초의 착화 성공 확률 +1.2%p",max:5,costs:[18,32,50,74,104],requires:[["fire_score_filter",2]]},
+      {id:"fire_score_launch",name:"손가락 튕기기 연습",short:"비행 속도",desc:"꽁초 비행 속도 +7%",max:5,costs:[18,32,50,74,104],requires:[["fire_score_filter",1]]},
+      {id:"fire_score_ash",name:"마른 재 흩뿌리기",short:"확산 확률",desc:"불붙은 나무의 주변 확산 확률 +3%p",max:6,costs:[18,32,50,74,104,142],requires:[["fire_score_lighter",2]]},
+      {id:"fire_score_drag",name:"한 모금만 피우기",short:"흡연 속도",desc:"흡연·재장전 속도 +4%",max:6,costs:[18,32,50,74,104,142],requires:[["fire_score_spark",2],["fire_score_launch",2]]},
+      {id:"fire_score_heat",name:"송진 묻은 불씨",short:"연소 속도",desc:"불붙은 나무의 연소 속도 +6%",max:6,costs:[18,32,50,74,104,142],requires:[["fire_score_launch",2],["fire_score_ash",2]]},
+      {id:"fire_score_stock",name:"주머니 속 마지막 한 개비",short:"추가 꽁초",desc:"투척할 때 추가 꽁초 +1",max:1,costs:[180],requires:[["fire_score_drag",3],["fire_score_heat",3]],capstone:true},
     ]
   },
   toxic: {
@@ -826,7 +829,7 @@ const FUSIONS = {
 const ORDER = ["physical","fire","toxic","developer","miner","philosopher","universal"];
 const MODE_META = {
   traits: { label: "로비 특성", sub: "영구 · 성과 포인트 구매", masthead: "직업별 전용 특성 6종 + 전 직군 공용 복지 특성 — LAST HAUL 벌목지 연구망 전체 목록", stamp: "성과 포인트 결재 완료", data: TRAITS },
-  skills: { label: "스킬·운영", sub: "전투 영구 · 운영 런 중", masthead: "흡연자 전투 카드는 영구 연구 · 목재 경험치 드래프트는 비전투 운영 카드 6종 — 보존된 전체 스킬 목록", stamp: "영구 전투 + 런 운영", data: SKILLS },
+  skills: { label: "스킬·운영", sub: "세부 특성 영구 · 운영 런 중", masthead: "흡연자는 세부 전투 특성을 영구 연구 · 목재 경험치 드래프트는 비전투 운영 카드 6종 — 보존된 전체 스킬 목록", stamp: "영구 특성 + 런 운영", data: SKILLS },
 };
 
 let mode = "skills";
@@ -1001,7 +1004,7 @@ function renderAll() {
   document.getElementById("masthead-stamp").textContent = MODE_META[mode].stamp;
   document.getElementById("footer").textContent = mode === "traits"
     ? "src/character_traits.lua 기준 · 노드 순서는 선행 조건 깊이(단계) 순"
-    : "src/clearcut_mode.lua + score_operations.lua + character_traits.lua 기준 · 현재 로비는 흡연자 벌목 기록 모드만 활성화 · 저장된 재생 단계에서 6그루로 시작하고 0그루 달성 시 다음 단계가 즉시 영구 해금 · 재생 속도 0.14×1.45^(단계-1), HP 1.08^(단계-1) · 목재 경험치 드래프트에는 아기 로봇·탐지 안테나·작업장 확장·조림 구획·목재 선별기·안전 관리 장치만 등장 · 기존 흡연자 전투 카드 5종은 로비 영구 연구 레벨로 다음 런에 적용 · 일반 작전·공용 전투 스킬·융합·시너지 코드는 삭제 없이 비활성 보존";
+    : "src/clearcut_mode.lua + score_operations.lua + character_traits.lua 기준 · 현재 로비는 흡연자 벌목 기록 모드만 활성화 · 저장된 재생 단계에서 6그루로 시작하고 0그루 달성 시 다음 단계가 즉시 영구 해금 · 재생 속도 0.14×1.45^(단계-1), HP 1.08^(단계-1) · 목재 경험치 드래프트에는 아기 로봇·탐지 안테나·작업장 확장·조림 구획·목재 선별기·안전 관리 장치만 등장 · 로비 영구 성장은 스킬 레벨을 지급하지 않고 투척 거리·착화 반경·착화/확산 확률·흡연/비행/연소 속도·추가 꽁초 특성으로 분리 · 일반 작전·공용 전투 스킬·융합·시너지 코드는 삭제 없이 비활성 보존";
   buildModeSwitch();
   buildTabs();
   renderPanel(document.getElementById("search").value);

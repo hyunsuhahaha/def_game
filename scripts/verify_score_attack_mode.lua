@@ -120,14 +120,19 @@ assert(unattendedEnd and unattendedEnd>=38 and unattendedEnd<=50,"six-tree unatt
 Traits.data.levels.universal_yard=7
 Traits.data.levels.universal_robot_start=1
 Traits.data.levels.universal_robot_motor=5
-for _,id in ipairs({"fire_score_prewarm","fire_score_filter","fire_score_lighter","fire_score_ash","fire_score_drag","fire_score_heat"})do Traits.data.levels[id]=5 end
+for _,id in ipairs({"fire_score_prewarm","fire_score_filter","fire_score_lighter","fire_score_spark","fire_score_launch","fire_score_ash","fire_score_drag","fire_score_heat"})do Traits.data.levels[id]=5 end
+Traits.data.levels.fire_score_stock=1
 game:startClearcutScoreAttack()
 assert(game.clearcut.scoreTreeAllowance==40,"max permanent yard expansion did not raise the runtime allowance to 40")
-assert(game.clearcut.permanentTraits.range==60 and game.clearcut.permanentTraits.area==50 and game.clearcut.permanentTraits.treeDamage==2.5,"score-only permanent smoker research was not applied at runtime")
-assert(game.clearcut:levelOf("molotov")==5 and game.clearcut:levelOf("dry_forest")==5 and game.clearcut:levelOf("straw_bale")==5 and game.clearcut:levelOf("smoke_ring")==5 and game.clearcut:levelOf("oil_drum")==5,"former run combat cards did not start at their permanent research levels")
+assert(game.clearcut.permanentTraits.range==80 and game.clearcut.permanentTraits.area==60 and game.clearcut.permanentTraits.extraFires==1,"score-only permanent smoker traits were not applied at runtime")
+assert(game.clearcut.permanentTraits.attackSpeed==1.2 and game.clearcut.permanentTraits.burnSpeed==1.3 and game.clearcut.permanentTraits.cigaretteProjectileSpeed==1.35,"score-only pacing traits were not applied at runtime")
+assert(game.clearcut:levelOf("molotov")==0 and game.clearcut:levelOf("dry_forest")==0 and game.clearcut:levelOf("straw_bale")==0 and game.clearcut:levelOf("smoke_ring")==0 and game.clearcut:levelOf("oil_drum")==0,"permanent traits still injected whole in-game skill levels")
 assert(game.clearcut:levelOf("baby_robot")==1 and game.clearcut.permanentTraits.scoreRobotSpeed==.5,"baby robot permanent research was not applied at runtime")
 assert(game.clearcut.totalWood==0 and game.clearcut.level==1 and game.clearcut.pending==0,"score run did not start with a clean wood-XP progression")
 assert(game.clearcut.smoking and game.clearcut.smoking.dur<.75,"first ignition preparation trait did not shorten the opening load")
+game.clearcut:hurlMolotovAt(game.player.x+600,game.player.y,game)
+assert(#game.clearcut.molotovs==2 and game.clearcut.molotovs[1].approachDur<.5,"projectile-speed/additional-butt traits are not live")
+game.clearcut.molotovs={}
 local deliveredBefore=game.clearcut.totalWood
 local carriedBefore=game.player.wood
 game.world:updateHelpers(0,game)

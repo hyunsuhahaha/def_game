@@ -184,18 +184,22 @@ expand("fire",{
     {id="fire_redsky",name="하늘이 붉은 건 노을",short="최종 산불",desc="착화 범위 +42",effect="area",value=42,requires={{"fire_claim",1}},icon="capstone",color={1,.18,.04},max=1,capstone=true,costs={190}}
 })
 
--- 벌목 기록 모드의 개인 장비 연구. 런 중 카드 성장은 목재 경험치가 담당하고,
--- 여기서는 첫 불씨와 투척 기초 성능만 영구 성장으로 나눈다.
+-- 벌목 기록 모드의 개인 장비 특성. 인게임 스킬 레벨을 통째로 선구매하지 않고
+-- 투척·착화·확산·연소의 작은 수치를 갈래별로 올린다. 기존 ID는 저장 호환을
+-- 위해 유지하되 scoreSkill 연결은 두지 않는다.
 -- 일반 흡연자 연구는 삭제하지 않고 저장 호환을 위해 위에 그대로 보존한다.
 local scoreFireNodes={
-    {id="fire_score_prewarm",name="출근 전 라이터 예열",short="첫 불씨 단축",desc="벌목 기록 모드 최초 착화 준비시간 -0.12초",effect="scoreInitialIgnitionReduction",value=.12,wx=430,wy=850,icon="ember",color={1,.48,.12}},
-    {id="fire_score_filter",name="꽁초 투척 영구 개조",short="기본 무기 성장",desc="다음 벌목 기록부터 꽁초 투척이 이 레벨로 시작합니다.",effect="scoreRange",value=12,scoreSkill="molotov",wx=800,wy=680,icon="filter",color={.88,.66,.32},requires={{"fire_score_prewarm",1}}},
-    {id="fire_score_lighter",name="건조주의보 무시 영구 개조",short="확산 성장",desc="다음 벌목 기록부터 건조주의보 무시가 이 레벨로 시작합니다.",effect="scoreIgnition",value=.03,scoreSkill="dry_forest",wx=1190,wy=560,icon="ember",color={.96,.43,.16},requires={{"fire_score_filter",1}}},
-    {id="fire_score_ash",name="마른 건초더미 영구 개조",short="건초 성장",desc="다음 벌목 기록부터 마른 건초더미가 이 레벨로 시작합니다.",effect="scoreArea",value=10,scoreSkill="straw_bale",wx=1190,wy=850,icon="ash",color={.62,.54,.48},requires={{"fire_score_filter",1}}},
-    {id="fire_score_drag",name="도넛 강화 영구 개조",short="도넛 성장",desc="다음 벌목 기록부터 도넛 강화가 이 레벨로 시작합니다.",effect="scoreAttackSpeed",value=.04,scoreSkill="smoke_ring",wx=1580,wy=560,icon="clock",color={.78,.76,.67},requires={{"fire_score_lighter",2}}},
-    {id="fire_score_heat",name="라이터 기름 유출 영구 개조",short="기름 성장",desc="다음 벌목 기록부터 라이터 기름 유출이 이 레벨로 시작합니다.",effect="scoreTreeDamage",value=.5,scoreSkill="oil_drum",wx=1580,wy=850,icon="warning",color={1,.34,.08},requires={{"fire_score_ash",2}}},
+    {id="fire_score_prewarm",name="출근 전 라이터 예열",short="첫 불씨 단축",desc="벌목 기록 모드 최초 흡연 준비시간 -0.08초",effect="scoreInitialIgnitionReduction",value=.08,wx=390,wy=710,icon="ember",color={1,.48,.12}},
+    {id="fire_score_filter",name="긴 필터 밀어 던지기",short="투척 거리",desc="꽁초 투척 사거리 +16",effect="scoreRange",value=16,max=6,costs={18,32,50,74,104,142},wx=730,wy=520,icon="filter",color={.88,.66,.32},requires={{"fire_score_prewarm",1}}},
+    {id="fire_score_lighter",name="불씨 반경 넓히기",short="착화 범위",desc="꽁초가 불씨를 옮기는 착화 반경 +12",effect="scoreArea",value=12,max=6,costs={18,32,50,74,104,142},wx=730,wy=900,icon="ember",color={.96,.43,.16},requires={{"fire_score_prewarm",1}}},
+    {id="fire_score_spark",name="심지 끝까지 달구기",short="착화 확률",desc="꽁초의 착화 성공 확률 +1.2%p",effect="scoreIgnitionChance",value=.012,wx=1080,wy=380,icon="ember",color={1,.56,.16},requires={{"fire_score_filter",2}}},
+    {id="fire_score_launch",name="손가락 튕기기 연습",short="비행 속도",desc="꽁초 비행 속도 +7%",effect="scoreProjectileSpeed",value=.07,wx=1080,wy=650,icon="wind",color={.82,.72,.42},requires={{"fire_score_filter",1}}},
+    {id="fire_score_ash",name="마른 재 흩뿌리기",short="확산 확률",desc="불붙은 나무의 주변 확산 확률 +3%p",effect="scoreSpreadChance",value=.03,max=6,costs={18,32,50,74,104,142},wx=1080,wy=940,icon="ash",color={.72,.52,.36},requires={{"fire_score_lighter",2}}},
+    {id="fire_score_drag",name="한 모금만 피우기",short="흡연 속도",desc="흡연·재장전 속도 +4%",effect="scoreAttackSpeed",value=.04,max=6,costs={18,32,50,74,104,142},wx=1430,wy=470,icon="clock",color={.78,.76,.67},requires={{"fire_score_spark",2},{"fire_score_launch",2}}},
+    {id="fire_score_heat",name="송진 묻은 불씨",short="연소 속도",desc="불붙은 나무의 연소 속도 +6%",effect="scoreBurnSpeed",value=.06,max=6,costs={18,32,50,74,104,142},wx=1430,wy=820,icon="warning",color={1,.34,.08},requires={{"fire_score_launch",2},{"fire_score_ash",2}}},
+    {id="fire_score_stock",name="주머니 속 마지막 한 개비",short="추가 꽁초",desc="투척할 때 추가 꽁초 +1",effect="scoreExtraFires",value=1,max=1,costs={180},wx=1780,wy=650,icon="pack",color={1,.30,.08},requires={{"fire_score_drag",3},{"fire_score_heat",3}},capstone=true},
 }
-for _,node in ipairs(scoreFireNodes)do node.job="fire";node.scoreMode=true;node.max=node.scoreSkill and 6 or 5;node.costs=node.costs or(node.scoreSkill and{18,32,50,74,104,142}or{18,32,50,74,104});jobs.fire.nodes[#jobs.fire.nodes+1]=node end
+for _,node in ipairs(scoreFireNodes)do node.job="fire";node.scoreMode=true;node.max=node.max or 5;node.costs=node.costs or{18,32,50,74,104};jobs.fire.nodes[#jobs.fire.nodes+1]=node end
 
 expand("toxic",{
     {id="toxic_bamboo",name="손잡이 두 칸 연장",short="긴 포크",desc="포크 사거리 +14",effect="range",value=14,requires={{"toxic_tongs",2}},icon="tongs",color={.55,.67,.38}},
@@ -464,7 +468,8 @@ function CharacterTraits:effects(job)
         dashSpeed=1, sterileChance=0, aftershockRadius=0, cooldownRefund=0,
         moveSpeed=1, pickupRadius=0, hpRegen=0, reviveCharges=0,
         woodYield=1, forestRestock=0, treeVariety=0, scoreTreeAllowance=0,
-        scoreRange=0,scoreIgnition=0,scoreArea=0,scoreAttackSpeed=0,scoreTreeDamage=0,
+        scoreRange=0,scoreArea=0,scoreAttackSpeed=0,scoreIgnitionChance=0,scoreSpreadChance=0,
+        scoreProjectileSpeed=0,scoreBurnSpeed=0,scoreExtraFires=0,
         scoreInitialIgnitionReduction=0,scoreStartingBabyRobot=0,scoreRobotSpeed=0
     }
     local function accumulate(nodes)
@@ -486,14 +491,14 @@ function CharacterTraits:scoreAttackEffects()
         attackSpeed=1,range=0,area=0,maxHp=0,reward=1,extraTargets=0,treeDamage=0,
         healOnFell=0,executeChance=0,burnSpeed=1,extraFires=0,spreadChance=0,
         moveSpeed=1,pickupRadius=0,hpRegen=0,reviveCharges=0,woodYield=1,
-        scoreTreeAllowance=0,scoreRange=0,scoreIgnition=0,scoreArea=0,
-        scoreAttackSpeed=0,scoreTreeDamage=0,scoreInitialIgnitionReduction=0,
-        scoreStartingBabyRobot=0,scoreRobotSpeed=0,scoreSkillLevels={}
+        scoreTreeAllowance=0,scoreRange=0,scoreArea=0,scoreAttackSpeed=0,
+        scoreIgnitionChance=0,scoreSpreadChance=0,scoreProjectileSpeed=0,
+        scoreBurnSpeed=0,scoreExtraFires=0,scoreInitialIgnitionReduction=0,
+        scoreStartingBabyRobot=0,scoreRobotSpeed=0
     }
     for _,job in ipairs({"fire","universal"})do
         for _,node in ipairs(self:getScoreAttackNodes(job))do
             effects[node.effect]=(effects[node.effect]or 0)+self:getLevel(node.id)*node.value
-            if node.scoreSkill then effects.scoreSkillLevels[node.scoreSkill]=math.min(6,self:getLevel(node.id))end
         end
     end
     return effects
