@@ -154,6 +154,9 @@ function Game:startRush()
 end
 
 function Game:startClearcut(characterId, mapId, stage)
+    -- LEGACY/CAMPAIGN ENTRY (INTENTIONALLY DISABLED IN PRODUCTION LOBBY).
+    -- Keep this implementation for tests, sandbox work, and a future campaign
+    -- return. The active lobby starts startClearcutScoreAttack instead.
     mapId=mapId or (self.clearcut and self.clearcut.mapId) or self.selectedClearcutMap or "forest"
     stage=stage or (self.clearcut and self.clearcut.stage) or self.selectedClearcutStage or 1
     self:resetRun()
@@ -435,6 +438,9 @@ function Game:keypressed(key)
     if self.mode == "lobby" then
         if key == "escape" then love.event.quit(); return end
         local action=self.lobby:keypressed(key)
+        -- "clearcut" is intentionally unreachable from the active lobby, but
+        -- this branch is preserved so the campaign can be restored without
+        -- rebuilding its character/map/briefing flow.
         if action=="clearcut" then
             self.mode="clearcut_select"
         elseif action=="score_attack" then

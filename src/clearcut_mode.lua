@@ -230,7 +230,8 @@ function ClearcutMode.new()
             burnSpeed=1, extraFires=0, spreadChance=0,
             biteDamage=0, plagueDuration=0,
             dashSpeed=1, sterileChance=0, aftershockRadius=0, cooldownRefund=0,
-            moveSpeed=1, pickupRadius=0, hpRegen=0, reviveCharges=0
+            moveSpeed=1, pickupRadius=0, hpRegen=0, reviveCharges=0,
+            scoreInitialIgnitionReduction=0,scoreStartingWood=0,scoreAutomationDiscount=0
         },
         reviveCharges=0,
         vinePlantTimer=60, vineSpawns={},
@@ -431,7 +432,10 @@ end
 
 function ClearcutMode:scoreAutomationCost(id)
     local def=scoreAutomationById[id];if not def then return nil end
-    return def.costs[self:scoreAutomationLevel(id)+1]
+    local base=def.costs[self:scoreAutomationLevel(id)+1]
+    if not base then return nil end
+    local discount=math.max(0,math.min(.20,(self.permanentTraits and self.permanentTraits.scoreAutomationDiscount)or 0))
+    return math.max(1,math.floor(base*(1-discount)+.5))
 end
 
 function ClearcutMode:buyScoreAutomation(id,game)
@@ -536,7 +540,9 @@ function ClearcutMode:setup(game)
     local w, h = game.world.width, game.world.height
     local spawnX, spawnY = w / 2, h / 2
     game.player.x, game.player.y = spawnX, spawnY
-    self.permanentTraits = (game.characterTraits and game.characterTraits:effects(self.job)) or self.permanentTraits
+    if game.characterTraits then
+        self.permanentTraits=self.scoreAttack and game.characterTraits.scoreAttackEffects and game.characterTraits:scoreAttackEffects()or game.characterTraits:effects(self.job)
+    end
     self.scoreTreeAllowance=(self.scoreBaseTreeAllowance or 12)+(self.permanentTraits.scoreTreeAllowance or 0)
     if self.scoreAttack then
         self.permanentTraits.range=(self.permanentTraits.range or 0)+(self.permanentTraits.scoreRange or 0)
@@ -544,6 +550,8 @@ function ClearcutMode:setup(game)
         self.permanentTraits.spreadChance=(self.permanentTraits.spreadChance or 0)+(self.permanentTraits.scoreIgnition or 0)
         self.permanentTraits.treeDamage=(self.permanentTraits.treeDamage or 0)+(self.permanentTraits.scoreTreeDamage or 0)
         self.permanentTraits.attackSpeed=(self.permanentTraits.attackSpeed or 1)*(1+(self.permanentTraits.scoreAttackSpeed or 0))
+        self.totalWood=math.max(0,math.floor(self.permanentTraits.scoreStartingWood or 0))
+        game.wood=self.totalWood
     end
     if game.achievements then
         local ae=game.achievements:effects()
@@ -2719,6 +2727,10 @@ function ClearcutMode:startSmoking(game)
     local speed = (game.tools.axe.speed or 1) * game.player.gather * self.permanentTraits.attackSpeed
     local newCarton = self.cartonAmmo <= 0
     local dur = newCarton and math.max(2.4, 4.4 / speed) or math.max(.75, 1.25 / speed)
+    if self.scoreAttack and not self.scoreInitialSmokingStarted then
+        dur=math.max(.35,dur-math.max(0,self.permanentTraits.scoreInitialIgnitionReduction or 0))
+        self.scoreInitialSmokingStarted=true
+    end
     self.smoking = {phase="reload",t=0,dur=dur,loaded=false,fired=false,smokeEmitted=false,newCarton=newCarton}
     if game.player.setClearcutAction then game.player:setClearcutAction(0) end
 end

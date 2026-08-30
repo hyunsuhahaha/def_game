@@ -46,5 +46,6 @@ end
 assert(fusionChecked>=7,"dossier verifier found too few fusion definitions")
 assert(dossier:find('id="score-mode-summary"',1,true),"dossier is missing the visible score-mode rules summary")
 assert(dossier:find("0.16그루/초",1,true)and dossier:find("첫 45초 없음",1,true),"dossier score-mode opening pacing is stale")
-assert(dossier:find("랜덤 3택 없음",1,true)and dossier:find("Z/X/C/V 자동화 구매",1,true),"dossier score-mode progression summary is stale")
+assert(dossier:find("첫 착화·초기 목재·자동화 비용·허용량",1,true),"dossier score-mode progression summary is stale")
+assert(dossier:find("fire_score_prewarm",1,true)and dossier:find("fire_score_procurement",1,true),"dossier score-mode permanent research is stale")
 print("CHARACTER_DOSSIER_OK skills="..checked.." fusions="..fusionChecked.." names/descriptions/max=synced")

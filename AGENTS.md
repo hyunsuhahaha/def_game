@@ -26,6 +26,12 @@
 
 # 프로젝트 작업 규칙
 
+## 현재 활성 개발 모드 — 벌목 기록 모드
+
+**현재 로비에서 플레이어에게 노출하는 주 모드는 흡연자 `벌목 기록 모드(score_attack)` 하나다.** 일반 스테이지 작전, 다른 작업자, 지구본, 브리핑, 보스전, 러시 등 기존 코드는 폐기한 것이 아니라 향후 재사용을 위해 **의도적으로 비활성화**한 상태다. 삭제하거나 기록 모드에 억지로 합치지 않는다. 활성 범위와 복구 지점은 [`docs/ACTIVE_DEVELOPMENT_MODE.md`](docs/ACTIVE_DEVELOPMENT_MODE.md)를 따른다.
+
+**FOR ALL AGENTS: The lobby intentionally exposes only the smoker score-attack prototype. Legacy campaign, character, map, briefing, boss, and rush code is preserved but deliberately unreachable from the production lobby. Do not delete it or accidentally re-enable it without an explicit user request.**
+
 ## 모든 완료 작업은 Git 원격 저장소에 반영
 
 **모든 에이전트는 작업을 완료할 때 관련 검증을 실행하고, 변경 파일을 커밋한 뒤 현재 추적 브랜치의 원격 저장소까지 푸시한다.** 로컬 커밋만 만든 상태를 최종 완료로 보고하지 않는다. 푸시 결과와 커밋 해시를 최종 보고에 포함한다. 검증 실패, 충돌, 인증 오류로 안전하게 푸시할 수 없으면 실패 상태를 숨기지 말고 정확한 차단 원인을 보고한다.

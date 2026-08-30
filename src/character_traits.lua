@@ -133,9 +133,9 @@ local function expand(job, definitions)
         jobs[job].nodes[#jobs[job].nodes+1]={
             id=definition.id,name=definition.name,short=definition.short,desc=definition.desc,
             effect=definition.effect,value=definition.value,requires=definition.requires,
-            wx=position[1],wy=position[2],icon=definition.icon or "capstone",color=definition.color,
+            wx=definition.wx or position[1],wy=definition.wy or position[2],icon=definition.icon or "capstone",color=definition.color,
             max=max,costs=definition.costs or (max==1 and {135} or max==2 and {48,86} or {36,62,94}),
-            capstone=definition.capstone
+            capstone=definition.capstone,scoreMode=definition.scoreMode
         }
     end
 end
@@ -185,15 +185,19 @@ expand("fire",{
 })
 
 -- 벌목 기록 모드의 개인 장비 연구. 일반 스테이지의 카드 선택을 복사하지 않고,
--- 투척·착화·범위·화력의 기초 수치만 영구 성장으로 잘게 나눈다.
+-- 첫 불씨·초기 자본·자동화 조달과 투척 기초 성능을 영구 성장으로 나눈다.
+-- 일반 흡연자 연구는 삭제하지 않고 저장 호환을 위해 위에 그대로 보존한다.
 local scoreFireNodes={
-    {id="fire_score_filter",name="기록용 장초 필터",short="멀리 튕긴다",desc="벌목 기록 모드 꽁초 사거리 +12",effect="scoreRange",value=12,wx=3380,wy=470,icon="filter",color={.88,.66,.32},requires={{"fire_filter",2}}},
-    {id="fire_score_lighter",name="산업용 점화 코일",short="불씨 고정",desc="벌목 기록 모드 착화 확률 +3%",effect="scoreIgnition",value=.03,wx=3660,wy=330,icon="ember",color={.96,.43,.16},requires={{"fire_score_filter",1}}},
-    {id="fire_score_ash",name="대형 재받이 개조",short="넓게 턴다",desc="벌목 기록 모드 착화 범위 +10",effect="scoreArea",value=10,wx=3660,wy=610,icon="ash",color={.62,.54,.48},requires={{"fire_score_filter",1}}},
-    {id="fire_score_drag",name="교대 없는 줄담배",short="재장전 단축",desc="벌목 기록 모드 흡연·투척 속도 +4%",effect="scoreAttackSpeed",value=.04,wx=3940,wy=330,icon="clock",color={.78,.76,.67},requires={{"fire_score_lighter",2}}},
-    {id="fire_score_heat",name="고온 불씨 압축",short="더 뜨겁게",desc="벌목 기록 모드 나무 피해 +0.5",effect="scoreTreeDamage",value=.5,wx=3940,wy=610,icon="warning",color={1,.34,.08},requires={{"fire_score_ash",2}}},
+    {id="fire_score_prewarm",name="출근 전 라이터 예열",short="첫 불씨 단축",desc="벌목 기록 모드 최초 착화 준비시간 -0.12초",effect="scoreInitialIgnitionReduction",value=.12,wx=430,wy=850,icon="ember",color={1,.48,.12}},
+    {id="fire_score_filter",name="기록용 장초 필터",short="멀리 튕긴다",desc="벌목 기록 모드 꽁초 사거리 +12",effect="scoreRange",value=12,wx=800,wy=680,icon="filter",color={.88,.66,.32},requires={{"fire_score_prewarm",1}}},
+    {id="fire_score_float",name="첫 설비 외상 장부",short="초기 목재",desc="벌목 기록 모드 시작 목재 +3",effect="scoreStartingWood",value=3,wx=800,wy=1080,icon="coins",color={.78,.62,.30},requires={{"fire_score_prewarm",1}}},
+    {id="fire_score_lighter",name="산업용 점화 코일",short="불씨 고정",desc="벌목 기록 모드 착화 확률 +3%",effect="scoreIgnition",value=.03,wx=1190,wy=560,icon="ember",color={.96,.43,.16},requires={{"fire_score_filter",1}}},
+    {id="fire_score_ash",name="대형 재받이 개조",short="넓게 턴다",desc="벌목 기록 모드 착화 범위 +10",effect="scoreArea",value=10,wx=1190,wy=850,icon="ash",color={.62,.54,.48},requires={{"fire_score_filter",1}}},
+    {id="fire_score_procurement",name="자동화 공동구매",short="설비 단가 인하",desc="벌목 기록 모드 자동화 구매 비용 -4%",effect="scoreAutomationDiscount",value=.04,wx=1190,wy=1080,icon="document",color={.58,.76,.54},requires={{"fire_score_float",2}}},
+    {id="fire_score_drag",name="교대 없는 줄담배",short="재장전 단축",desc="벌목 기록 모드 흡연·투척 속도 +4%",effect="scoreAttackSpeed",value=.04,wx=1580,wy=560,icon="clock",color={.78,.76,.67},requires={{"fire_score_lighter",2}}},
+    {id="fire_score_heat",name="고온 불씨 압축",short="더 뜨겁게",desc="벌목 기록 모드 나무 피해 +0.5",effect="scoreTreeDamage",value=.5,wx=1580,wy=850,icon="warning",color={1,.34,.08},requires={{"fire_score_ash",2}}},
 }
-for _,node in ipairs(scoreFireNodes)do node.job="fire";node.max=5;node.costs={24,42,66,96,132};jobs.fire.nodes[#jobs.fire.nodes+1]=node end
+for _,node in ipairs(scoreFireNodes)do node.job="fire";node.scoreMode=true;node.max=5;node.costs=node.costs or{18,32,50,74,104};jobs.fire.nodes[#jobs.fire.nodes+1]=node end
 
 expand("toxic",{
     {id="toxic_bamboo",name="손잡이 두 칸 연장",short="긴 포크",desc="포크 사거리 +14",effect="range",value=14,requires={{"toxic_tongs",2}},icon="tongs",color={.55,.67,.38}},
@@ -314,7 +318,7 @@ expand("universal",{
     {id="universal_lumberbonus",name="목재 실적 인정",short="벤 만큼 잡힌다",desc="목재 획득량 +12%",effect="woodYield",value=.12,requires={{"universal_shuttle",1}},icon="coins",color={.78,.62,.30}},
     {id="universal_afforestation",name="선제적 조림 사업",short="미리 심어둔다",desc="스테이지 진행마다 나무 +6그루(스테이지 배수)",effect="forestRestock",value=6,requires={{"universal_shuttle",1}},icon="map",color={.42,.68,.40}},
     {id="universal_seedbank",name="다수종 조림 협약",short="한 종만 심지 않는다",desc="벌목지에 더 값나가는 수종이 함께 자란다",effect="treeVariety",value=1,max=1,requires={{"universal_afforestation",1}},icon="leaf",color={.55,.72,.35}},
-    {id="universal_yard",name="벌목장 부지 확장",short="쌓아둘 자리",desc="벌목 기록 모드의 나무 허용량 +4그루",effect="scoreTreeAllowance",value=4,max=7,costs={16,26,40,58,80,108,142},requires={{"universal_shuttle",1}},icon="map",color={.48,.72,.42}}
+    {id="universal_yard",name="벌목장 부지 확장",short="쌓아둘 자리",desc="벌목 기록 모드의 나무 허용량 +4그루",effect="scoreTreeAllowance",value=4,max=7,costs={16,26,40,58,80,108,142},wx=520,wy=850,icon="map",color={.48,.72,.42},scoreMode=true}
 })
 
 local byId = {}
@@ -378,6 +382,13 @@ end
 
 function CharacterTraits:getJobs() return jobs end
 function CharacterTraits:getNodes(job) return jobs[job] and jobs[job].nodes or {} end
+-- 현재 로비 연구망은 기록 모드에 실제 적용되는 노드만 노출한다. 일반 작전
+-- 노드와 구매 기록은 삭제하지 않고 getNodes/effects에 그대로 보존한다.
+function CharacterTraits:getScoreAttackNodes(job)
+    local visible={}
+    for _,node in ipairs(self:getNodes(job))do if node.scoreMode then visible[#visible+1]=node end end
+    return visible
+end
 function CharacterTraits:getNode(id) return byId[id] end
 function CharacterTraits:getLevel(id) return self.data.levels[id] or 0 end
 
@@ -444,7 +455,8 @@ function CharacterTraits:effects(job)
         dashSpeed=1, sterileChance=0, aftershockRadius=0, cooldownRefund=0,
         moveSpeed=1, pickupRadius=0, hpRegen=0, reviveCharges=0,
         woodYield=1, forestRestock=0, treeVariety=0, scoreTreeAllowance=0,
-        scoreRange=0,scoreIgnition=0,scoreArea=0,scoreAttackSpeed=0,scoreTreeDamage=0
+        scoreRange=0,scoreIgnition=0,scoreArea=0,scoreAttackSpeed=0,scoreTreeDamage=0,
+        scoreInitialIgnitionReduction=0,scoreStartingWood=0,scoreAutomationDiscount=0
     }
     local function accumulate(nodes)
         for _, node in ipairs(nodes) do
@@ -455,6 +467,25 @@ function CharacterTraits:effects(job)
     end
     accumulate(self:getNodes(job))
     accumulate(self:getNodes("universal"))
+    return effects
+end
+
+-- 기록 모드는 기존 캐릭터 트리의 누적 수치에 종속되지 않는다. 현재 활성 연구와
+-- 공용 허용량만 합산하며, 이전 모드의 구매 데이터는 저장 파일에 그대로 남긴다.
+function CharacterTraits:scoreAttackEffects()
+    local effects={
+        attackSpeed=1,range=0,area=0,maxHp=0,reward=1,extraTargets=0,treeDamage=0,
+        healOnFell=0,executeChance=0,burnSpeed=1,extraFires=0,spreadChance=0,
+        moveSpeed=1,pickupRadius=0,hpRegen=0,reviveCharges=0,woodYield=1,
+        scoreTreeAllowance=0,scoreRange=0,scoreIgnition=0,scoreArea=0,
+        scoreAttackSpeed=0,scoreTreeDamage=0,scoreInitialIgnitionReduction=0,
+        scoreStartingWood=0,scoreAutomationDiscount=0
+    }
+    for _,job in ipairs({"fire","universal"})do
+        for _,node in ipairs(self:getScoreAttackNodes(job))do
+            effects[node.effect]=(effects[node.effect]or 0)+self:getLevel(node.id)*node.value
+        end
+    end
     return effects
 end
 

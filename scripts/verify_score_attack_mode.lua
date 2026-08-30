@@ -109,8 +109,10 @@ end
 assert(unattendedEnd and unattendedEnd>=55 and unattendedEnd<=80,"fresh unattended run did not reflect the reduced opening forest supply")
 
 Traits.data.levels.universal_yard=7
-for _,id in ipairs({"fire_score_filter","fire_score_lighter","fire_score_ash","fire_score_drag","fire_score_heat"})do Traits.data.levels[id]=5 end
+for _,id in ipairs({"fire_score_prewarm","fire_score_filter","fire_score_float","fire_score_lighter","fire_score_ash","fire_score_procurement","fire_score_drag","fire_score_heat"})do Traits.data.levels[id]=5 end
 game:startClearcutScoreAttack()
 assert(game.clearcut.scoreTreeAllowance==40,"max permanent yard expansion did not raise the runtime allowance to 40")
 assert(game.clearcut.permanentTraits.range==60 and game.clearcut.permanentTraits.area==50 and game.clearcut.permanentTraits.treeDamage==2.5,"score-only permanent smoker research was not applied at runtime")
+assert(game.clearcut.totalWood==15 and game.clearcut:scoreAutomationCost("butt_launcher")==10,"score opening capital or automation discount was not applied")
+assert(game.clearcut.smoking and game.clearcut.smoking.dur<.75,"first ignition preparation trait did not shorten the opening load")
 print("SCORE_ATTACK_MODE_OK start=empty loss=tree_capacity base=12 supply=adaptive permanent=yard result=occupancy")

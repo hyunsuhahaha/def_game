@@ -21,13 +21,12 @@ local Lobby = require("src.lobby")
 local CharacterTraitBoard = require("src.character_trait_board")
 
 local lobby = setmetatable({
-    clearcutBox={x=0,y=0,w=100,h=50},
-    scoreAttackBox={x=0,y=60,w=100,h=50},
+    scoreAttackBox={x=0,y=0,w=100,h=50},
     traitsBox={x=110,y=0,w=100,h=50},
     settingsBox={x=220,y=0,w=100,h=50}
 }, Lobby)
-assert(lobby:keypressed("return") == "clearcut" and lobby:keypressed("m")=="score_attack" and lobby:keypressed("r") == nil, "lobby mode shortcuts are incorrect")
-assert(lobby:mousepressed(20,20,1) == "clearcut" and lobby:mousepressed(20,80,1)=="score_attack" and lobby:mousepressed(130,20,1) == "character_traits", "clearcut lobby navigation is not wired")
+assert(lobby:keypressed("return") == "score_attack" and lobby:keypressed("m")=="score_attack" and lobby:keypressed("c") == nil, "active lobby did not intentionally disable campaign shortcuts")
+assert(lobby:mousepressed(20,20,1)=="score_attack" and lobby:mousepressed(130,20,1) == "character_traits", "score-attack lobby navigation is not wired")
 
 local store = CharacterTraits.new(true)
 store.data.currency = 300
@@ -41,10 +40,13 @@ assert(physical.attackSpeed > 1 and physical.range == 14, "logger traits did not
 assert(smoker.attackSpeed == 1 and smoker.range == 0, "logger traits leaked into another character")
 store.data.levels.universal_yard=7
 assert(store:effects("fire").scoreTreeAllowance==28,"permanent logging-yard capacity did not reach +28 trees at max rank")
-for _,id in ipairs({"fire_score_filter","fire_score_lighter","fire_score_ash","fire_score_drag","fire_score_heat"})do store.data.levels[id]=5 end
+for _,id in ipairs({"fire_score_prewarm","fire_score_filter","fire_score_float","fire_score_lighter","fire_score_ash","fire_score_procurement","fire_score_drag","fire_score_heat"})do store.data.levels[id]=5 end
 local scoreSmoker=store:effects("fire")
 assert(scoreSmoker.scoreRange==60 and scoreSmoker.scoreIgnition==.15 and scoreSmoker.scoreArea==50,"score-mode permanent smoker geometry was not subdivided correctly")
 assert(scoreSmoker.scoreAttackSpeed==.20 and scoreSmoker.scoreTreeDamage==2.5,"score-mode permanent smoker output was not subdivided correctly")
+local activeScore=store:scoreAttackEffects()
+assert(activeScore.scoreInitialIgnitionReduction==.6 and activeScore.scoreStartingWood==15 and activeScore.scoreAutomationDiscount==.2,"score-mode opening economy traits are not active")
+assert(#store:getScoreAttackNodes("fire")==8 and #store:getScoreAttackNodes("universal")==1,"active research board did not isolate score-mode traits")
 for _, job in ipairs({"physical","fire","toxic","developer"}) do
     assert(#store:getNodes(job) >= 30, job .. " character graph has too few trait nodes")
 end
@@ -66,9 +68,10 @@ mode:finish(game, true)
 assert(store.data.currency == after, "character trait currency was awarded twice for one run")
 
 local fonts={small=font,body=font,heading=font,big=font,title=font}
-local visualLobby=setmetatable({fonts=fonts,labelFont=font,displayFont=font,background={getDimensions=function() return 1600,900 end},time=0,clearcutHover=0,scoreAttackHover=0},Lobby)
+local visualLobby=setmetatable({fonts=fonts,labelFont=font,displayFont=font,background={getDimensions=function() return 1600,900 end},time=0,scoreAttackHover=0,traitsHover=0},Lobby)
 assert(pcall(visualLobby.draw,visualLobby), "clearcut-only lobby draw contract failed")
 local sprites={physical={image=image},fire={image=image},toxic={image=image},developer={image=image}}
+store.data.levels.fire_score_prewarm=0
 local board=CharacterTraitBoard.new(store,fonts,sprites)
 assert(pcall(board.draw,board), "character trait board draw contract failed")
 store.data.currency=1000

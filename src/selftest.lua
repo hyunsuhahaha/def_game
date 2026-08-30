@@ -27,10 +27,10 @@ function SelfTest.run(game)
     assert(blocked == false, "선행 특성 잠금 실패")
     assert(game.progression:buy("quick_work") and game.progression:buy("quick_work"), "기초 특성 구매 실패")
     assert(game.progression:buy("cargo_rig"), "연결 특성 구매 실패")
-    game.lobby.clearcutBox = {x = 10, y = 10, w = 100, h = 50}
+    game.lobby.scoreAttackBox = {x = 10, y = 10, w = 100, h = 50}
     game.lobby.traitsBox = {x = 120, y = 10, w = 100, h = 50}
     game.lobby.settingsBox = {x = 230, y = 10, w = 100, h = 50}
-    assert(game.lobby:keypressed("return") == "clearcut" and game.lobby:mousepressed(30, 30, 1) == "clearcut", "숲 전멸 전용 로비 시작 버튼 실패")
+    assert(game.lobby:keypressed("return") == "score_attack" and game.lobby:mousepressed(30, 30, 1) == "score_attack", "활성 벌목 기록 로비 시작 버튼 실패")
     assert(game.lobby:keypressed("t") == "character_traits", "캐릭터 특성 단축키 실패")
     assert(game.lobby:mousepressed(140, 30, 1) == "character_traits" and game.lobby:mousepressed(250, 30, 1) == "settings", "로비 보조 메뉴 진입 실패")
     game:startRush()

@@ -4,7 +4,11 @@ local Frontend = require("src.frontend_ui")
 local CharacterTraitBoard = {}
 CharacterTraitBoard.__index = CharacterTraitBoard
 
-local jobOrder = {"physical", "fire", "toxic", "developer", "miner", "philosopher", "universal"}
+-- 기존 작업자 연구 화면은 삭제하지 않았다. 현재 프로토타입이 흡연자 기록전이므로
+-- 로비에서는 실제 적용되는 두 연구군만 의도적으로 노출한다.
+local archivedJobOrder = {"physical", "fire", "toxic", "developer", "miner", "philosopher", "universal"}
+local ACTIVE_DEVELOPMENT_MODE="score_attack"
+local jobOrder = ACTIVE_DEVELOPMENT_MODE=="score_attack" and {"fire","universal"} or archivedJobOrder
 local jobNames = {physical="생계형 나무꾼", fire="흡연자", toxic="비건 단체 회장", developer="부동산 개발업자", miner="코인 채굴꾼", philosopher="차라투스트라는 이렇게 말했다", universal="공용 복지"}
 local jobTabNames = {philosopher="차라투스트라"}
 
@@ -103,21 +107,28 @@ local function drawGlyph(icon, cx, cy, size)
 end
 
 function CharacterTraitBoard.new(store, fonts, sprites)
+    local first=store:getScoreAttackNodes("fire")[1]
     return setmetatable({
-        store=store, fonts=fonts, sprites=sprites, selectedJob="physical",
+        store=store, fonts=fonts, sprites=sprites, selectedJob="fire",activeDevelopmentMode=ACTIVE_DEVELOPMENT_MODE,
         tabBoxes={}, nodeBoxes={}, nodeHover={}, particles={}, time=0,
         message="", messageTime=0, messageKind="ok", unlockFx=nil,
-        selectedNodeId="physical_quota", blockedNode=nil, blockedTime=0, tabPulse=0,
-        canvasW=3300,canvasH=1900,panX=820,panY=950,zoom=.62,panVX=0,panVY=0,drag=nil,viewport=nil,
+        selectedNodeId=first and first.id or"fire_score_prewarm", blockedNode=nil, blockedTime=0, tabPulse=0,
+        canvasW=2200,canvasH=1700,panX=1000,panY=800,zoom=.62,panVX=0,panVY=0,drag=nil,viewport=nil,
         minimapBox=nil,resetViewBox=nil
     }, CharacterTraitBoard)
 end
 
+function CharacterTraitBoard:nodesFor(job)
+    if self.activeDevelopmentMode=="score_attack"then return self.store:getScoreAttackNodes(job)end
+    return self.store:getNodes(job)
+end
+
 function CharacterTraitBoard:selectJob(job)
     if self.selectedJob == job then return end
-    self.selectedJob, self.selectedNodeId = job, self.store:getNodes(job)[1].id
+    local nodes=self:nodesFor(job)
+    self.selectedJob, self.selectedNodeId = job, nodes[1]and nodes[1].id or nil
     self.tabPulse, self.messageTime, self.blockedTime = 1, 0, 0
-    self.panX,self.panY,self.zoom,self.panVX,self.panVY=820,950,.62,0,0
+    self.panX,self.panY,self.zoom,self.panVX,self.panVY=1000,800,.62,0,0
 end
 
 function CharacterTraitBoard:clampCamera()
@@ -214,7 +225,7 @@ function CharacterTraitBoard:mousepressed(x, y, button)
     end
     if button==1 and inside(self.buyButtonBox,x,y) then return self:buySelected() end
     if inside(self.resetViewBox,x,y) then
-        self.panX,self.panY,self.zoom,self.panVX,self.panVY=820,950,.62,0,0
+        self.panX,self.panY,self.zoom,self.panVX,self.panVY=1000,800,.62,0,0
         return "reset_view"
     end
     if inside(self.minimapBox,x,y) then
@@ -385,9 +396,9 @@ function CharacterTraitBoard:draw()
     end
     self.backBox={x=26,y=22,w=132,h=40}
     Frontend.button(self.backBox,"← 돌아가기",fonts.small,{accent=palette})
-    love.graphics.setFont(fonts.micro or fonts.small); love.graphics.setColor(palette); love.graphics.print("영구 특성",184,16)
-    love.graphics.setFont(fonts.title); love.graphics.setColor(.98,.96,.84); love.graphics.print("캐릭터 연구망",184,32)
-    love.graphics.setFont(fonts.small); love.graphics.setColor(.66,.73,.64); love.graphics.print("성과 포인트로 영구 노드를 활성화합니다",184,68)
+    love.graphics.setFont(fonts.micro or fonts.small); love.graphics.setColor(palette); love.graphics.print("벌목 기록 모드",184,16)
+    love.graphics.setFont(fonts.title); love.graphics.setColor(.98,.96,.84); love.graphics.print("기록전 영구 연구",184,32)
+    love.graphics.setFont(fonts.small); love.graphics.setColor(.66,.73,.64); love.graphics.print("첫 불씨·초기 자본·자동화·나무 허용량을 강화합니다",184,68)
     Frontend.frame(w-226,18,196,52,palette,{selected=true})
     love.graphics.setFont(fonts.small); love.graphics.setColor(.62,.68,.58); love.graphics.print("보유 성과 포인트",w-207,25)
     love.graphics.setFont(fonts.heading); love.graphics.setColor(1,.84,.38); love.graphics.print(tostring(self.store.data.currency).." P",w-207,42)
@@ -435,7 +446,7 @@ function CharacterTraitBoard:draw()
         love.graphics.line(graph.x,sy,graph.x+graph.w,sy)
     end
 
-    local nodes=self.store:getNodes(self.selectedJob)
+    local nodes=self:nodesFor(self.selectedJob)
     local nodeById={}
     for _,node in ipairs(nodes) do nodeById[node.id]=node end
     for _,node in ipairs(nodes) do
@@ -480,7 +491,7 @@ function CharacterTraitBoard:draw()
     -- 고정 HUD: 탐색 조작, 초기 위치, 미니맵을 월드 위에 겹쳐 둔다.
     love.graphics.setColor(.004,.008,.035,.96); love.graphics.rectangle("fill",graph.x+10,graph.y+10,graph.w-20,38,5,5)
     love.graphics.setFont(fonts.small); love.graphics.setColor(palette[1],palette[2],palette[3],.88)
-    love.graphics.print("대형 영구 연구망  ·  "..#nodes.."개 노드",graph.x+24,graph.y+22)
+    love.graphics.print("기록전 적용 연구  ·  "..#nodes.."개 노드",graph.x+24,graph.y+22)
     love.graphics.setColor(.72,.80,.86,.88)
     love.graphics.printf("좌/우 드래그 이동  ·  휠 확대/축소  ·  클릭 해금",graph.x+220,graph.y+22,graph.w-244,"right")
     self.resetViewBox={x=graph.x+16,y=graph.y+58,w=94,h=28}

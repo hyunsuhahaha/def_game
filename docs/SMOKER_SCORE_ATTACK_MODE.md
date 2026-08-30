@@ -40,15 +40,20 @@
 
 ## 영구 강화 재설계
 
-기록 모드의 반복 수치 성장은 랜덤 카드에서 분리한다. 흡연자 연구 트리에 다음 5개 전용 연구를 두며 각 연구는 5단계다.
+기록 모드의 반복 수치 성장은 랜덤 카드에서 분리한다. 현재 로비 연구 화면은 기존 일반 작전 특성을 숨기고 기록전에 실제 적용되는 흡연자 연구 8종과 공용 나무 허용량만 표시한다. 숨긴 연구와 구매 기록은 삭제하지 않았으며 일반 작전 코드 복구 시 다시 사용할 수 있다.
 
 | 영구 연구 | 단계당 효과 |
 |---|---:|
+| 출근 전 라이터 예열 | 최초 착화 준비시간 -0.12초 |
 | 기록용 장초 필터 | 꽁초 사거리 +12 |
+| 첫 설비 외상 장부 | 시작 목재 +3 |
 | 산업용 점화 코일 | 착화 확률 +3%p |
 | 대형 재받이 개조 | 착화 범위 +10 |
+| 자동화 공동구매 | 자동화 구매 비용 -4% |
 | 교대 없는 줄담배 | 투척 속도 +4% |
 | 고온 불씨 압축 | 나무 피해 +0.5 |
+
+`벌목장 부지 확장`은 별도 공용 연구로 단계당 활성 나무 허용량을 4그루 늘린다. 최초 착화 단축은 매 투척 재장전이 아니라 한 판의 첫 담배 준비에만 적용되고 최소 0.35초를 보장한다. 시작 목재는 결과의 벌목 획득량에 섞지 않으며 첫 자동화 구매를 앞당기는 초기 자본이다. 자동화 할인은 최대 20%다.
 
 일반 스테이지의 카드와 분기 시스템은 그대로 유지한다. 기록 모드에서만 목재 경험치와 랜덤 3택을 끄고 영구 기초 성능 + 런 내 자동화 조달 구조를 사용한다.
 
@@ -88,5 +93,7 @@ HUD 중앙은 `숲 과밀도 현재 / 허용량`을 표시한다.
 
 - 경제·자동화 로직: `scripts/verify_score_attack_mode.lua`
 - 영구 연구 동기화: `scripts/verify_character_traits.lua`, `scripts/verify_character_dossier.lua`
+- 활성 로비 오프스크린 렌더: `scripts/render_score_attack_lobby.py`
+- 기록전 영구 연구 오프스크린 렌더: `scripts/render_score_trait_board.py`
 - 자동화 HUD 오프스크린 렌더: `scripts/render_score_automation_hud.py`
-- 검수본: `docs/previews/score-automation-hud-v1.png`
+- 검수본: `docs/previews/score-attack-lobby-v1.png`, `docs/previews/score-trait-board-v1.png`, `docs/previews/score-automation-hud-v1.png`
