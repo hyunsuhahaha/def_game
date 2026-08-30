@@ -37,6 +37,20 @@ for _,node in ipairs(game.world.nodes)do
     assert(node.active and node.rushTree and node.treeEmergence and node.treeEmergence.source=="score_growth","generated tree is missing growth animation or harvest state")
 end
 
+local expansionInScore=false
+for _,def in ipairs(mode:upgradePool())do if def.id=="forest_expansion"then expansionInScore=true end end
+assert(expansionInScore,"forest expansion tradeoff card is missing from score mode")
+local sample=game.world.nodes[1];local baseHp=sample.scoreBaseHp;sample.rushHp=math.max(1,math.floor(sample.rushMaxHp/2))
+mode.levels.forest_expansion=2
+mode:syncScoreTreeHealth(game)
+assert(mode:scoreForestDensityMultiplier()==1.5 and sample.rushMaxHp==math.ceil(baseHp*1.5),"forest expansion did not scale spawn density and tree health proportionally")
+local damagedRatio=sample.rushHp/sample.rushMaxHp
+assert(damagedRatio>.35 and damagedRatio<.7,"forest expansion did not preserve existing tree damage ratio")
+mode.levels.forest_expansion=0;mode:syncScoreTreeHealth(game)
+mode.scoreAttack=false
+for _,def in ipairs(mode:upgradePool())do assert(def.id~="forest_expansion","score-only forest expansion leaked into normal stages")end
+mode.scoreAttack=true
+
 local schedule={1,2,4,8,16,32}
 for i,expected in ipairs(schedule)do assert(mode:scoreOvertimeRequirementAt((i-1)*30)==expected,"production requirement schedule is incorrect at tier "..i)end
 

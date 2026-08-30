@@ -19,7 +19,7 @@ for _,job in ipairs({"physical","fire","toxic","developer","miner","philosopher"
  for _,def in ipairs(mode:sandboxSkillList())do assert(#def.tags==2,def.id.." missing synergy tags");seen[def.id]=true end
 end
 local liveCount=0;for _ in pairs(seen)do liveCount=liveCount+1 end
-assert(liveCount==31,"live skill tag audit did not cover every definition: "..liveCount)
+assert(liveCount==32,"live skill tag audit did not cover every definition: "..liveCount)
 assert(not Synergies.skillTags.spore_cloud,"removed spore cloud returned through synergy data")
 assert(not mode:getUpgradeDefinition("forced_growth")and not Synergies.skillTags.forced_growth,"removed forced-growth skill returned")
 mode.levels={bat_swarm=1,crow_strike=6,seed_mine=2,thorn_aura=1}

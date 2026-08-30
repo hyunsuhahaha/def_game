@@ -70,6 +70,7 @@ local definitions = {
     {id="oil_drum", track="spread", name="라이터 기름 유출", desc="나무가 다 타버리면 레벨당 폭발 확률이 크게 올라(1렙 7.5%→5렙 63%), 6렙에서는 100% 확정 발동합니다.", max=6, color={1,.62,.1}, job="fire"},
     {id="straw_bale", track="spread", name="마른 건초더미 생성", desc="주기적으로 큰 건초더미를 둡니다. 꽁초가 닿으면 0.5초 뒤 불이 붙고, 레벨에 따라 넓어지는 화염 지대가 주변 나무와 적에게 지속 피해를 줍니다. 불이 옮겨붙어 다른 대상을 점화시키지는 않습니다.", max=6, color={.85,.72,.25}, job="fire"},
     {id="smoke_ring", track="spread", name="도넛 강화 — 니코틴 농축", desc="SPACE 도넛이 바닥 기울기와 분리된 둥근 연기로 날아가며, 보이는 외곽보다 후한 이동 궤적 판정으로 타격합니다. 강화하면 재사용 대기시간이 줄고 피해·넉백·크기가 늘어납니다. 6레벨 완충 시 초농축 도넛이 발사됩니다.", max=6, color={1,.68,.2}, job="fire"},
+    {id="forest_expansion", track="spread", name="산림 증설", desc="벌목 기록 모드 전용. 레벨마다 나무 공급량과 나무 체력이 함께 25% 증가합니다. 더 많은 재료를 받는 대신 같은 나무를 베는 데 더 큰 화력이 필요합니다.", max=6, color={.45,.82,.32}, job="fire", scoreOnly=true},
     -- 식탐력 (suppress) — 큰 포크로 찍고 마지막 한입까지 비운다 [비건 단체 회장 전용 + 공용]
     {id="fork_feast", track="suppress", name="대왕 포크", desc="기본 공격이 전방 다중 포크 찍기로 바뀝니다. 레벨마다 포크 피해와 사거리가 늘고, 이 타격으로 쓰러진 나무와 적은 끌어와 먹습니다.", max=6, color={.62,.92,.32}, job="toxic"},
     {id="buffet_fork", track="suppress", name="뷔페용 포크", desc="포크의 좌우 피격 폭과 동시에 찍는 대상 수가 늘어납니다. 6레벨에는 타격 순간 커다란 포크 잔상이 한 번 더 찍힙니다.", max=6, color={.48,.82,.66}, job="toxic"},
@@ -514,11 +515,36 @@ local function treeHpFor(mapId, variant)
 end
 
 function ClearcutMode:scoreTreeSpawnRate()
-    local base=math.max(0,(self.treeSpawnRate or .55)*(self.scoreSpawnRateMultiplier or 1))
+    local density=self:scoreForestDensityMultiplier()
+    local base=math.max(0,self.treeSpawnRate or .55)
     if self.scoreAttack then
-        return math.max(base,(self.scoreRequirement or 1)*1.15,(self.currentTreesPerSecond or 0)*1.25)
+        return math.max(base,(self.scoreRequirement or 1)*1.15,(self.currentTreesPerSecond or 0)*1.25)*density
     end
     return base
+end
+
+function ClearcutMode:scoreForestDensityMultiplier()
+    if not self.scoreAttack then return 1 end
+    return math.max(1,self.scoreSpawnRateMultiplier or 1)*(1+self:levelOf("forest_expansion")*.25)
+end
+
+function ClearcutMode:scoreTreeHealth(baseHp)
+    return math.max(1,math.ceil((baseHp or 1)*self:scoreForestDensityMultiplier()))
+end
+
+function ClearcutMode:syncScoreTreeHealth(game)
+    if not self.scoreAttack or not game or not game.world then return end
+    local multiplier=self:scoreForestDensityMultiplier()
+    for _,node in ipairs(game.world.nodes)do
+        if node.rushTree and node.active then
+            local oldMax=math.max(1,node.rushMaxHp or node.rushHp or 1)
+            local ratio=math.max(0,math.min(1,(node.rushHp or oldMax)/oldMax))
+            local baseHp=node.scoreBaseHp or treeHpFor(game.world.clearcutMap,node.treeVariant)
+            local newMax=math.max(1,math.ceil(baseHp*multiplier))
+            node.scoreBaseHp,node.scoreHpMultiplier=baseHp,multiplier
+            node.rushMaxHp,node.rushHp=newMax,math.max(1,math.ceil(newMax*ratio))
+        end
+    end
 end
 
 function ClearcutMode:scoreDynamicTreeCap()
@@ -547,9 +573,10 @@ function ClearcutMode:spawnScoreTree(game)
     local node
     for _,candidate in ipairs(world.nodes)do if candidate.rushTree and not candidate.active then node=candidate;break end end
     node=node or{};if not node.kind then world.nodes[#world.nodes+1]=node end
-    local hp=treeHpFor(world.clearcutMap,variant)
+    local baseHp=treeHpFor(world.clearcutMap,variant);local hp=self:scoreTreeHealth(baseHp)
     node.kind,node.x,node.y,node.work,node.workTime="tree",x,y,0,1
     node.active,node.respawn,node.rushTree,node.rushHp,node.rushMaxHp=true,0,true,hp,hp
+    node.scoreBaseHp,node.scoreHpMultiplier=baseHp,self:scoreForestDensityMultiplier()
     node.beehive,node.treeVariant,node.giantTree,node.sterile=false,variant,false,nil
     node.burning,node.burnTimer,node.fallT,node.uprooted,node.damageStage=nil,nil,nil,nil,nil
     node.forestZone,node.swayAngle,node.swayVel=nil,0,0
@@ -4313,7 +4340,8 @@ function ClearcutMode:upgradePool()
     local pool = {}
     for _, def in ipairs(definitions) do
         local jobOk = not def.job or not self.job or def.job == self.job
-        if jobOk and not self.banished[def.id] and self:levelOf(def.id) < def.max then pool[#pool+1]=def end
+        local modeOk = not def.scoreOnly or self.scoreAttack
+        if jobOk and modeOk and not self.banished[def.id] and self:levelOf(def.id) < def.max then pool[#pool+1]=def end
     end
     return pool
 end
@@ -4499,7 +4527,11 @@ function ClearcutMode:choose(index, game)
     local wasChest=self.chestPending
     self.chestPending=false
     if def.recovery then self.hp=math.min(self.maxHp,self.hp+20)
-    else self.levels[def.id]=self:levelOf(def.id)+1;Synergies.refresh(self) end
+    else
+        self.levels[def.id]=self:levelOf(def.id)+1
+        if def.id=="forest_expansion"then self:syncScoreTreeHealth(game)end
+        Synergies.refresh(self)
+    end
     if not wasChest then self.pending=math.max(0,self.pending-1) end
     if def.recovery then
         game:setNotice("현장 휴식 — 체력 +20","food")
@@ -6956,7 +6988,7 @@ function ClearcutMode:drawSelectionContent(game,fonts,w,h)
             drawCardBack(x,y,cardW,cardH,t,jobColor)
         else
         drawUpgradeCardFrame(x,y,cardW,cardH,jobColor,hovered,def.job,t)
-        local iconDef = ClearcutMode.icons[def.id == "molotov" and "cigarette" or def.id]
+        local iconDef = ClearcutMode.icons[def.id == "molotov" and "cigarette" or def.id == "forest_expansion" and "leaf" or def.id]
         local iconY=y+math.min(112,cardH*.25)
         local nameY=y+cardH*.42
         local tagY=nameY+31
