@@ -95,7 +95,12 @@ for _,id in ipairs({"fire_score_filter","fire_score_lighter","fire_score_launch"
     if math.abs(dx)>math.abs(dy)then directions[dx<0 and"left"or"right"]=true else directions[dy<0 and"up"or"down"]=true end
 end
 assert(directions.left and directions.right and directions.up and directions.down,"smoker root does not branch in four directions")
-assert(board.viewInitialized and board.zoom>=.40 and board.zoom<=1.38,"research tree did not auto-fit its first viewport")
+for i=1,#board.nodeBoxes do for j=i+1,#board.nodeBoxes do
+    local a,b=board.nodeBoxes[i],board.nodeBoxes[j]
+    local separated=a.x+a.w<=b.x or b.x+b.w<=a.x or a.y+a.h<=b.y or b.y+b.h<=a.y
+    assert(separated,"research nodes overlap at 1280x720: "..a.id.." / "..b.id)
+end end
+assert(board.viewInitialized and board.zoom>=.34 and board.zoom<=1.15,"research tree did not auto-fit its first viewport")
 store.data.currency=1000
 local rootBox
 for _,box in ipairs(board.nodeBoxes)do
