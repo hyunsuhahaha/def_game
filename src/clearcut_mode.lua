@@ -6064,8 +6064,8 @@ local function drawSynergyTooltip(mode,def,count,x,y,fonts,screenW,screenH)
     end
 end
 
--- The left rail is the build's trait board, not a duplicate list of skill
--- icons. Hovering a row explains every breakpoint just like the draft cards.
+-- ICON_ONLY_SYNERGY_RAIL: gameplay shows emblems only. Names, counts,
+-- breakpoints and descriptions belong exclusively to the hover tooltip.
 function ClearcutMode:drawSkillTracker(fonts)
     Synergies.refresh(self)
     local rows={}
@@ -6075,34 +6075,18 @@ function ClearcutMode:drawSkillTracker(fonts)
     if #rows==0 then return end
     table.sort(rows,function(a,b)if a.tier~=b.tier then return a.tier>b.tier end;if a.count~=b.count then return a.count>b.count end;return a.def.id<b.def.id end)
     local _,screenHeight=love.graphics.getDimensions();local compact=screenHeight<650
-    local x0,y0,w,rowH,gap=16,compact and 168 or 254,compact and 140 or 148,compact and 40 or 48,compact and 3 or 5
+    local x0,y0,iconSize,gap=16,compact and 168 or 254,compact and 40 or 48,compact and 4 or 6
     local mx,my=love.mouse.getPosition();local hovered
     self.synergyBoxes={}
     for i,row in ipairs(rows)do
-        local x,y=x0,y0+(i-1)*(rowH+gap);local def=row.def
-        local over=mx>=x and mx<=x+w and my>=y and my<=y+rowH
-        self.synergyBoxes[i]={x=x,y=y,w=w,h=rowH,id=def.id}
-        local nextAt,nextLevel
-        for _,threshold in ipairs(def.thresholds)do
-            if not Synergies.breakpointActive(self,def.id,threshold,row.count)then
-                nextAt=threshold;nextLevel=def.minLevel and def.minLevel[threshold] or 1;break
-            end
-        end
-        local waitingLevel=nextAt and row.count>=nextAt and (self.level or 1)<nextLevel
-        local progress=waitingLevel and math.min(1,(self.level or 1)/nextLevel) or (nextAt and math.min(1,row.count/nextAt) or 1)
-        SynergyUI.drawPanel(x+18,y+3,w-18,rowH-6,def.color,over and .98 or .88)
-        SynergyUI.drawSocket(def.id,x+22,y+rowH/2,compact and 42 or 48,row.tier>0,1)
-        love.graphics.setFont(fonts.small);love.graphics.setColor(1,.96,.84);love.graphics.print(def.name,x+48,y+(compact and 4 or 8))
-        local countText=waitingLevel and ("Lv"..nextLevel) or (row.count.." / "..tostring(nextAt or row.count))
-        love.graphics.setColor(row.tier>0 and def.color or {.72,.76,.72});love.graphics.printf(countText,x+48,y+(compact and 20 or 25),48,"left")
-        for tierIndex,threshold in ipairs(def.thresholds)do
-            local active=Synergies.breakpointActive(self,def.id,threshold,row.count)
-            SynergyUI.drawBreakpoint(x+104+(tierIndex-1)*22,y+rowH-17,20,threshold,active,fonts.small,def.color)
-        end
-        love.graphics.setColor(def.color[1],def.color[2],def.color[3],.60);love.graphics.rectangle("fill",x+48,y+rowH-4,48*progress,2)
+        local x,y=x0,y0+(i-1)*(iconSize+gap);local def=row.def
+        local over=mx>=x and mx<=x+iconSize and my>=y and my<=y+iconSize
+        self.synergyBoxes[i]={x=x,y=y,w=iconSize,h=iconSize,id=def.id}
+        local drawSize=over and iconSize+4 or iconSize
+        SynergyUI.drawSocket(def.id,x+iconSize/2,y+iconSize/2,drawSize,row.tier>0,over and 1 or .94)
         if over then hovered=row end
     end
-    if hovered then drawSynergyTooltip(self,hovered.def,hovered.count,x0+w+10,my-18,fonts,love.graphics.getWidth(),love.graphics.getHeight())end
+    if hovered then drawSynergyTooltip(self,hovered.def,hovered.count,x0+iconSize+12,my-18,fonts,love.graphics.getWidth(),love.graphics.getHeight())end
 end
 
 function ClearcutMode:drawHUD(game,fonts)

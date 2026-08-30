@@ -21,16 +21,18 @@ end
 
 function SynergyUI.drawPanel(x,y,w,h,color,alpha)
     load();alpha=alpha or .97
-    love.graphics.setScissor(x,y,w,h)
-    love.graphics.setColor(1,1,1,alpha)
-    for yy=y,y+h-1,32 do for xx=x,x+w-1,32 do
-        love.graphics.draw(images.chrome,chrome[1],xx,yy,0,.5,.5)
-    end end
-    love.graphics.setScissor()
+    -- Text surfaces must stay quiet. The old repeated chrome tile formed a
+    -- checkerboard behind every label and competed with the Korean glyphs.
+    love.graphics.setColor(.012,.022,.019,.97*alpha)
+    love.graphics.rectangle("fill",x,y,w,h,3,3)
+    love.graphics.setColor(.035,.060,.050,.92*alpha)
+    love.graphics.rectangle("fill",x+3,y+3,w-6,3)
+    love.graphics.setColor(.025,.043,.036,.72*alpha)
+    love.graphics.rectangle("fill",x+3,y+h-7,w-6,4)
     color=color or {.55,.72,.58}
-    love.graphics.setColor(.015,.025,.022,alpha);love.graphics.rectangle("line",x+.5,y+.5,w-1,h-1)
-    love.graphics.setColor(color[1],color[2],color[3],.62*alpha);love.graphics.setLineWidth(2)
-    love.graphics.line(x+7,y+.5,x+w-8,y+.5);love.graphics.line(x+7,y+h-.5,x+w-8,y+h-.5)
+    love.graphics.setColor(.006,.012,.010,alpha);love.graphics.rectangle("line",x+.5,y+.5,w-1,h-1,3,3)
+    love.graphics.setColor(color[1],color[2],color[3],.68*alpha);love.graphics.setLineWidth(2)
+    love.graphics.line(x+7,y+1.5,x+w-8,y+1.5);love.graphics.line(x+7,y+h-1.5,x+w-8,y+h-1.5)
     love.graphics.setColor(color[1],color[2],color[3],.95*alpha)
     for _,p in ipairs{{x+2,y+2},{x+w-5,y+2},{x+2,y+h-5},{x+w-5,y+h-5}}do love.graphics.rectangle("fill",p[1],p[2],3,3)end
 end

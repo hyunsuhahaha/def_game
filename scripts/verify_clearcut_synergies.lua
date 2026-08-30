@@ -74,11 +74,13 @@ assert(#burst.friendlyGrowthBursts>=2,"capstone synergies did not schedule clear
 
 local source=assert(io.open("src/clearcut_mode.lua","rb")):read("*a")
 assert(source:find("drawSynergyTooltip",1,true) and source:find("self.synergyBoxes",1,true),"hoverable synergy HUD missing")
+assert(source:find("ICON_ONLY_SYNERGY_RAIL",1,true),"gameplay synergy rail is not icon-only")
 assert(source:find("Synergies.previewCount",1,true),"draft cards do not preview synergy count changes")
-assert(source:find("waitingLevel",1,true) and source:find('"Lv"..nextLevel',1,true),"HUD does not expose level-gated breakpoints")
+assert(source:find('"레벨 대기"',1,true) and source:find('"Lv."..gate',1,true),"hover tooltip does not expose level-gated breakpoints")
 assert(source:find('require("src.synergy_ui")',1,true) and source:find("SynergyUI.drawBadge",1,true),"draft/HUD did not adopt icon-led synergy UI")
 local synergyUi=assert(io.open("src/synergy_ui.lua","rb")):read("*a")
 assert(synergyUi:find("synergy%-emblems%-pixel%-v1%.png") and synergyUi:find("synergy%-chrome%-pixel%-v1%.png"),"synergy atlas/chrome is not wired")
+assert(not synergyUi:find("for yy=y,y%+h%-1,32"),"repeating checkerboard panel returned")
 local dossier=assert(io.open("docs/character_dossier.html","rb")):read("*a")
 assert(dossier:find("const SYNERGIES",1,true) and dossier:find("const SYNERGY_TAGS",1,true) and dossier:find("synergy%-emblems%-pixel%-v1%.png"),"dossier has no icon synergy reference")
 for id in pairs(seen)do assert(dossier:find(id..':[',1,true),"dossier is missing tags for "..id)end

@@ -27,7 +27,13 @@ mode.selectionKind="branch";mode.choicesRevealAt=-2;mouseX,mouseY=-100,-100
 fixture.reset();mode:drawSelectionContent(game,fonts,width,height)
 fixture.save("docs/previews/clearcut-synergy-branch-ui-draws.json")
 
+-- The resting gameplay rail must contain icons and no text at all.
+mouseX,mouseY=-100,-100;fixture.reset();mode:drawSkillTracker(fonts)
+local resting=fixture.commands
+for _,op in ipairs(resting)do assert(op.op~="text","resting synergy rail rendered text")end
+fixture.save("docs/previews/clearcut-synergy-hud-icons-only-draws.json")
+
 -- Separate left-rail hover fixture at real HUD coordinates.
 mouseX,mouseY=60,272;fixture.reset();mode:drawSkillTracker(fonts)
 fixture.save("docs/previews/clearcut-synergy-hud-ui-draws.json")
-print("CLEARCUT_SYNERGY_UI_CAPTURE_OK card_hover=seed-growth HUD_hover=active window=none")
+print("CLEARCUT_SYNERGY_UI_CAPTURE_OK card_hover=seed-growth HUD=icons-only hover=details window=none")
