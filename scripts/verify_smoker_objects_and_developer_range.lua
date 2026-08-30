@@ -60,6 +60,8 @@ local m,g=setup({node});throw(m,0,0)
 love.math.random=function() return 0 end
 advance(m,g,.4)
 assert(#m.molotovs==0 and #m.cigaretteButts==1 and not node.burning,"landing must only leave a butt")
+assert(#m.cigaretteLandingImpacts==1 and math.abs((m.cigaretteLandingImpacts[1].expiresAt-m.cigaretteLandingImpacts[1].startAt)-.42)<1e-6,
+    "landing impact animation missing or mistimed")
 local butt=m.cigaretteButts[1]
 advance(m,g,.14)
 assert(butt.attempts==0 and #m.emberTransfers==0,"ignition rolled before warm-up")
@@ -72,6 +74,10 @@ assert(not node.burning,"tree ignited before spark arrival")
 advance(m,g,.002)
 assert(node.burning and node.burnTimer==0 and node.spreadDepth==0 and not node.cigaretteEmber,"spark arrival did not ignite exactly once")
 assert(#m.emberArrivals==1 and #m.emberTransfers==0,"arrival feedback missing")
+assert(node.hitFlash>=.18 and node.hitShake>=.11 and math.abs(node.swayVel)>=1.45,
+    "ignition has no local tree recoil")
+assert(math.abs((m.emberArrivals[1].expiresAt-m.emberArrivals[1].startAt)-.72)<1e-6,
+    "ignition impact atlas timing drifted")
 
 -- Failing all rolls still consumes lifetime and leaves brief cold ash.
 local failed=tree(45)

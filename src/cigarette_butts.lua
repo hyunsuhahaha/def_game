@@ -49,19 +49,24 @@ end
 function Butts.reset(mode)
     for _,transfer in ipairs(mode.emberTransfers or {}) do release(transfer) end
     for _,flight in ipairs(mode.molotovs or {}) do if flight.target then flight.target.igniting=nil end end
-    mode.cigaretteButts,mode.emberTransfers,mode.emberArrivals={}, {}, {}
+    mode.cigaretteButts,mode.emberTransfers,mode.emberArrivals,mode.cigaretteLandingImpacts={}, {}, {}, {}
     -- 나무→나무 확산 스파크(같은 이펙트를 재사용하는 별도 배열)도 함께 초기화한다.
     mode.treeSparks,mode.treeSparkArrivals={}, {}
     mode.smokerGroundTime=0
 end
 
 -- Landing only creates a ground object. No ignition or enemy damage here.
-local function land(mode,flight,at)
+local function land(mode,flight,at,game)
     if flight.target then flight.target.igniting=nil end
     local butt={x=flight.x1,y=flight.y1,bornAt=at,expiresAt=at+Butts.lifetime,
         nextAttemptAt=at+Butts.firstAttempt,radius=flight.radius or (90+mode:levelOf("molotov")*20),
         angle=flight.landingAngle or .25,phase="smolder",attempts=0,wildfire=flight.wildfire}
     mode.cigaretteButts[#mode.cigaretteButts+1]=butt
+    mode.cigaretteLandingImpacts=mode.cigaretteLandingImpacts or {}
+    mode.cigaretteLandingImpacts[#mode.cigaretteLandingImpacts+1]={
+        x=butt.x,y=butt.y,startAt=at,expiresAt=at+.42,angle=butt.angle
+    }
+    if game and game.feedback then game.feedback:play("ember_land",false) end
     return butt
 end
 
@@ -109,13 +114,22 @@ local function arrive(mode,transfer,at,game)
     if (node.x-transfer.butt.x)^2+(node.y-transfer.butt.y)^2>transfer.butt.radius^2 then return end
     if transfer.targetKind=="enemy" then
         if node.hp<=0 or not mode:igniteEnemy(node,game,0,at) then return end
+        node.visualHit=math.max(node.visualHit or 0,.16)
     else
         if not node.active then return end
         node.burning,node.burnTimer,node.fireTickTimer=true,0,0
         node.spreadDepth=0
         node.cigaretteIgnitedAt=at
+        -- Ignition has a rooted recoil of its own. It deliberately avoids camera
+        -- trauma and generic damage debris: the atlas supplies the visible hit.
+        node.hitFlash=math.max(node.hitFlash or 0,.18)
+        node.hitShake=math.max(node.hitShake or 0,.11)
+        local direction=(node.x-transfer.butt.x)>=0 and 1 or -1
+        node.swayVel=(node.swayVel or 0)+direction*1.45
     end
-    mode.emberArrivals[#mode.emberArrivals+1]={x=node.x,y=node.y,startAt=at,expiresAt=at+.65}
+    mode.emberArrivals[#mode.emberArrivals+1]={x=node.x,y=node.y,startAt=at,expiresAt=at+.72,
+        targetKind=transfer.targetKind,seed=transfer.butt.angle or 0}
+    if game and game.feedback then game.feedback:play("ignite",true) end
 end
 
 function Butts.update(mode,dt,game)
@@ -131,7 +145,7 @@ function Butts.update(mode,dt,game)
             if flight.fallsOffMap then
                 if flight.target then flight.target.igniting=nil end
             else
-                land(mode,flight,start+remaining)
+                land(mode,flight,start+remaining,game)
             end
             table.remove(mode.molotovs,i)
         end
@@ -170,6 +184,9 @@ function Butts.update(mode,dt,game)
         if butt.coldUntil and finish>=butt.coldUntil then table.remove(mode.cigaretteButts,i) end
     end
     for i=#mode.emberArrivals,1,-1 do if finish>=mode.emberArrivals[i].expiresAt then table.remove(mode.emberArrivals,i) end end
+    for i=#(mode.cigaretteLandingImpacts or {}),1,-1 do
+        if finish>=mode.cigaretteLandingImpacts[i].expiresAt then table.remove(mode.cigaretteLandingImpacts,i) end
+    end
     mode.smokerGroundTime=finish
 end
 

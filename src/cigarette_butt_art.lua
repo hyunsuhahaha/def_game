@@ -1,12 +1,34 @@
 local Butts=require("src.cigarette_butts")
 local Art={}
-local sprite,burnShader,fxShader
+local sprite,burnShader,fxShader,impactAtlas,impactQuads
 local function load()
-    if sprite then return end
+    if sprite and impactAtlas then return end
     sprite=love.graphics.newImage("assets/characters/ingame/smoker-cigarette-butt-pixel-v1.png")
     sprite:setFilter("nearest","nearest")
+    impactAtlas=love.graphics.newImage("assets/fx/cigarette-impact-atlas-pixel-v1.png")
+    impactAtlas:setFilter("nearest","nearest")
+    impactQuads={landing={},ignition={}}
+    for frame=0,9 do
+        impactQuads.landing[frame+1]=love.graphics.newQuad(frame*160,0,160,160,1600,320)
+        impactQuads.ignition[frame+1]=love.graphics.newQuad(frame*160,160,160,160,1600,320)
+    end
     burnShader=love.graphics.newShader("assets/shaders/cigarette-butt-burn.glsl")
     fxShader=love.graphics.newShader("assets/shaders/cigarette-ground-fx.glsl")
+end
+
+local function impactFrame(kind,event,time,duration,scale,baseY)
+    load()
+    local p=math.max(0,math.min(.999,(time-event.startAt)/duration))
+    local frame=math.min(10,math.floor(p*10)+1)
+    local previous=love.graphics.getShader()
+    love.graphics.setShader()
+    love.graphics.setColor(1,1,1,1)
+    love.graphics.draw(impactAtlas,impactQuads[kind][frame],event.x,event.y,0,scale,scale,80,baseY)
+    love.graphics.setShader(previous)
+end
+
+function Art.drawLandingImpact(impact,time)
+    impactFrame("landing",impact,time,.42,.50,104)
 end
 local function fx(kind,x,y,w,h,time,strength)
     load()
@@ -76,11 +98,7 @@ function Art.drawTransfer(transfer,time)
 end
 
 function Art.drawArrival(arrival,time)
-    local p=math.max(0,math.min(1,(time-arrival.startAt)/.65))
-    for i=1,5 do
-        local a=i*2.4
-        fx(0,arrival.x+math.cos(a)*p*32,arrival.y-6-math.abs(math.sin(a))*p*26,10,10,time,(1-p)*1.3)
-    end
+    impactFrame("ignition",arrival,time,.72,arrival.targetKind=="enemy" and .48 or .64,127)
 end
 
 function Art.drawTreeFire(node,time)

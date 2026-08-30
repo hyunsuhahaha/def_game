@@ -66,7 +66,7 @@ local definitions = {
     {id="berserker", track="destroy", name="이번 달 목표 초과", desc="쉬지 않고 벨수록 공격 속도가 빨라집니다 (멈추면 초기화).", max=6, color={1,.42,.22}, job="physical"},
     {id="shockwave", track="destroy", name="산재 위험수당", desc="나무를 쓰러뜨리면 주변 나무에도 충격파 피해를 줍니다.", max=6, color={1,.78,.2}, job="physical"},
     -- 확산력 (spread) — 한 번의 행동으로 얼마나 넓게 없애느냐 [흡연자 전용]
-    {id="molotov", track="spread", name="꽁초 투척", desc="사거리와 꽁초의 불씨 전이 범위, 비행 직격 피해가 늘어납니다. 3레벨에는 화염 농축/줄꽁초 경로를 고르고, 6레벨에는 선택 경로에 따라 전자담배/폭죽 발사기로 자동 진화합니다.", max=6, color={1,.35,.12}, job="fire"},
+    {id="molotov", track="spread", name="꽁초 투척", desc="사거리와 꽁초의 불씨 전이 범위, 비행 직격 피해가 늘어납니다. 착지 때 불티·재 파편이 튀고, 불씨가 도착하면 나무 밑동이 번쩍이며 수관이 짧게 흔들린 뒤 불꽃이 솟습니다. 3레벨에는 화염 농축/줄꽁초 경로를 고르고, 6레벨에는 선택 경로에 따라 전자담배/폭죽 발사기로 자동 진화합니다. 연습장에서 꽁초 투척 레벨과 분기를 직접 시험할 수 있습니다.", max=6, color={1,.35,.12}, job="fire"},
     {id="dry_forest", track="spread", name="건조주의보 무시", desc="꽁초의 착화 확률이 레벨당 +2%p 높아지고(최대 96%), 붙은 불이 주변 나무로 더 빠르고 넓게 번집니다.", max=6, color={1,.5,.15}, job="fire"},
     {id="oil_drum", track="spread", name="라이터 기름 유출", desc="나무가 다 타버리면 레벨당 폭발 확률이 크게 올라(1렙 7.5%→5렙 63%), 6렙에서는 100% 확정 발동합니다.", max=6, color={1,.62,.1}, job="fire"},
     {id="straw_bale", track="spread", name="마른 건초더미 생성", desc="주기적으로 큰 건초더미를 둡니다. 꽁초가 닿으면 0.5초 뒤 불이 붙고, 레벨에 따라 넓어지는 화염 지대가 주변 나무와 적에게 지속 피해를 줍니다. 불이 옮겨붙어 다른 대상을 점화시키지는 않습니다.", max=6, color={.85,.72,.25}, job="fire"},
@@ -188,7 +188,7 @@ function ClearcutMode.new()
         rootHazards={}, rootedTimer=0, rootedCount=0,
         bees={}, beeSlow=false, beeSwarmsTriggered=0, beehiveTotal=0,
         streak=0, lastHitAt=-10, molotovTimer=0, evolutions={}, molotovs={},
-        cigaretteButts={}, emberTransfers={}, emberArrivals={}, smokerGroundTime=0, secondhandSmokeClouds={},
+        cigaretteButts={}, emberTransfers={}, emberArrivals={}, cigaretteLandingImpacts={}, smokerGroundTime=0, secondhandSmokeClouds={},
         smokerWeaponProjectiles={},smokerWeaponCooldown=0,vapeCharge=0,vapeKick=0,vapeWindLeaves={},
         treeSparks={}, treeSparkArrivals={}, strawTimer=0, strawBales={}, strawBaleSequence=0,
         oilTrail={}, oilTrailTimer=0, oilTrailLastX=nil, oilTrailLastY=nil, oilTrailSequence=0,
@@ -5758,6 +5758,7 @@ end
 
 function ClearcutMode:drawCigaretteGroundEffects()
     local t=self.smokerGroundTime
+    for _,impact in ipairs(self.cigaretteLandingImpacts or {}) do CigaretteButtArt.drawLandingImpact(impact,t) end
     for _,butt in ipairs(self.cigaretteButts) do CigaretteButtArt.drawSmolder(butt,t) end
     for _,transfer in ipairs(self.emberTransfers) do CigaretteButtArt.drawTransfer(transfer,t) end
     for _,arrival in ipairs(self.emberArrivals) do CigaretteButtArt.drawArrival(arrival,t) end
@@ -5870,6 +5871,9 @@ function ClearcutMode:queueProjectedOverlay(game,t)
     BruteForceArt.queue(self,queue,t)
     MoleClawArt.queue(self,queue,game.camera)
     local groundTime=self.smokerGroundTime
+    for _,value in ipairs(self.cigaretteLandingImpacts or {}) do local impact=value
+        queueUpright(queue,impact.x,impact.y,function()CigaretteButtArt.drawLandingImpact(impact,groundTime)end)
+    end
     for _,value in ipairs(self.cigaretteButts) do local butt=value
         queueUpright(queue,butt.x,butt.y,function()CigaretteButtArt.drawSmolder(butt,groundTime)end)
     end
