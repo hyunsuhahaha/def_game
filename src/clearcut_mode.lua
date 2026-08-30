@@ -548,23 +548,23 @@ local function treeHpFor(mapId, variant)
     return list[variant or 1] or list[1] or 3
 end
 
+function ClearcutMode:scoreTimedTreeSpawnRate(elapsed)
+    local base=math.max(0,self.treeSpawnRate or .55)
+    elapsed=math.max(0,elapsed or self.stageElapsed or 0)
+    if elapsed<30 then return .16 end
+    if elapsed<60 then return .16+(elapsed-30)/30*.12 end
+    if elapsed<120 then return .28+(elapsed-60)/60*(base-.28)end
+    -- 2분 뒤에는 플레이어가 아무것도 사지 않아도 30초마다 산림 공급의
+    -- 시간 기반 하한이 22%씩 복리 상승한다. 벌목량 추종과 독립된 압박이다.
+    return base*1.22^((elapsed-120)/30)
+end
+
 function ClearcutMode:scoreTreeSpawnRate()
     local density=self:scoreForestDensityMultiplier()
     local base=math.max(0,self.treeSpawnRate or .55)
     if self.scoreAttack then
         local elapsed=math.max(0,self.stageElapsed or 0)
-        -- 초반 산림 공급을 대폭 낮춘다. 첫 30초는 기존 .55의 약 29%만
-        -- 생성하고, 2분에 걸쳐 원래 기초량으로 복귀한다.
-        local timePressure
-        if elapsed<30 then
-            timePressure=.16
-        elseif elapsed<60 then
-            timePressure=.16+(elapsed-30)/30*.12
-        elseif elapsed<120 then
-            timePressure=.28+(elapsed-60)/60*(base-.28)
-        else
-            timePressure=base*(1+(elapsed-120)/150)^.72
-        end
+        local timePressure=self:scoreTimedTreeSpawnRate(elapsed)
         -- 한두 그루를 막 베기 시작한 순간 공급이 즉시 폭증하지 않도록
         -- 실제 생산량 추종은 30초부터 열고 90초에 완전히 연결한다.
         local adaptation=math.max(0,math.min(1,(elapsed-30)/60))

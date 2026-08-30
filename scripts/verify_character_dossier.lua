@@ -45,7 +45,7 @@ for id,name,needs,desc in fusionSource:gmatch('{id="([^"]+)".-name="([^"]+)".-ne
 end
 assert(fusionChecked>=7,"dossier verifier found too few fusion definitions")
 assert(dossier:find('id="score-mode-summary"',1,true),"dossier is missing the visible score-mode rules summary")
-assert(dossier:find("시작 6그루 · 0.16그루/초 · 허용량 12",1,true)and dossier:find("첫 45초 없음",1,true),"dossier score-mode opening pacing is stale")
+assert(dossier:find("시작 6그루 · 0.16그루/초 · 2분부터 30초마다 ×1.22",1,true)and dossier:find("첫 45초 없음",1,true),"dossier score-mode opening pacing is stale")
 assert(dossier:find("목재 경험치 → 직업 카드 + 아기 로봇 3택",1,true),"dossier score-mode growth summary is stale")
 assert(dossier:find("목재를 얻으면 경험치가 올라",1,true),"dossier score-mode system note is stale")
 assert(dossier:find("공용 스킬 · 유틸리티 1종 활성",1,true),"dossier does not document the active shared utility card")

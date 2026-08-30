@@ -32,6 +32,9 @@ assert(#game.world.nodes==6 and mode:scoreActiveTreeCount()==6 and mode.totalTre
 assert(mode.remainingTrees==6 and mode.initialTrees==6 and mode.peakActiveTrees==6,"starting score trees were not included in occupancy metrics")
 assert(not mode:checkWorldTreeSpawn(game),"opening score field incorrectly summoned the world tree")
 assert(math.abs(mode:scoreTreeSpawnRate()-.16)<.001,"opening forest supply was not reduced to the new low rate")
+mode.currentTreesPerSecond=0
+assert(math.abs(mode:scoreTimedTreeSpawnRate(60)-.28)<.001 and math.abs(mode:scoreTimedTreeSpawnRate(120)-.55)<.001,"timed forest production did not reach its opening milestones")
+assert(mode:scoreTimedTreeSpawnRate(150)>.67 and mode:scoreTimedTreeSpawnRate(180)>.81 and mode:scoreTimedTreeSpawnRate(360)>2.6,"timed forest production did not keep compounding after two minutes")
 
 local openingTrees=#game.world.nodes
 mode:updateScoreTreeGrowth(7,game)
