@@ -70,7 +70,6 @@ local definitions = {
     {id="oil_drum", track="spread", name="라이터 기름 유출", desc="나무가 다 타버리면 레벨당 폭발 확률이 크게 올라(1렙 7.5%→5렙 63%), 6렙에서는 100% 확정 발동합니다.", max=6, color={1,.62,.1}, job="fire"},
     {id="straw_bale", track="spread", name="마른 건초더미 생성", desc="주기적으로 큰 건초더미를 둡니다. 꽁초가 닿으면 0.5초 뒤 불이 붙고, 레벨에 따라 넓어지는 화염 지대가 주변 나무와 적에게 지속 피해를 줍니다. 불이 옮겨붙어 다른 대상을 점화시키지는 않습니다.", max=6, color={.85,.72,.25}, job="fire"},
     {id="smoke_ring", track="spread", name="도넛 강화 — 니코틴 농축", desc="SPACE 도넛이 바닥 기울기와 분리된 둥근 연기로 날아가며, 보이는 외곽보다 후한 이동 궤적 판정으로 타격합니다. 강화하면 재사용 대기시간이 줄고 피해·넉백·크기가 늘어납니다. 6레벨 완충 시 초농축 도넛이 발사됩니다.", max=6, color={1,.68,.2}, job="fire"},
-    {id="forest_expansion", track="spread", name="산림 증설", desc="벌목 기록 모드 전용. 레벨마다 나무 공급량과 나무 체력이 함께 25% 증가합니다. 더 많은 재료를 받는 대신 같은 나무를 베는 데 더 큰 화력이 필요합니다.", max=6, color={.45,.82,.32}, job="fire", scoreOnly=true},
     -- 식탐력 (suppress) — 큰 포크로 찍고 마지막 한입까지 비운다 [비건 단체 회장 전용 + 공용]
     {id="fork_feast", track="suppress", name="대왕 포크", desc="기본 공격이 전방 다중 포크 찍기로 바뀝니다. 레벨마다 포크 피해와 사거리가 늘고, 이 타격으로 쓰러진 나무와 적은 끌어와 먹습니다.", max=6, color={.62,.92,.32}, job="toxic"},
     {id="buffet_fork", track="suppress", name="뷔페용 포크", desc="포크의 좌우 피격 폭과 동시에 찍는 대상 수가 늘어납니다. 6레벨에는 타격 순간 커다란 포크 잔상이 한 번 더 찍힙니다.", max=6, color={.48,.82,.66}, job="toxic"},
@@ -100,17 +99,6 @@ local definitions = {
     {id="seed_mine", track="supplement", name="씨앗 지뢰", desc="가장 가까운 생존 몬스터 방향에 씨앗 지뢰를 심습니다. 잠시 후 크게 터져 넓은 범위에 피해를 줍니다.", max=6, color={.65,.45,.2}},
     {id="chain_lightning", track="supplement", name="번개 사슬", desc="주기적으로 번개가 가까운 생존 몬스터 사이만 연쇄로 튀며 다단히트합니다.", max=6, color={.35,.75,.95}},
 }
-
--- 기록 모드는 무작위 카드 대신, 그 판에 번 목재를 바로 설비에 재투자한다.
--- 기존 스킬의 검증된 행동/FX를 자동화 설비가 구동하므로 별도의 저품질 임시 도형을 만들지 않는다.
-local scoreAutomationDefs={
-    {id="butt_launcher",name="자동 꽁초 투척기",desc="주변의 타지 않은 나무를 찾아 꽁초를 자동 투척합니다.",icon="cigarette",costs={12,24,44,72,110,160}},
-    {id="straw_feeder",name="건초 공급기",desc="건초더미 설치 주기와 화염 지대 성능을 높입니다.",icon="straw_bale",skill="straw_bale",costs={18,32,52,80,116,160}},
-    {id="oil_pump",name="폐유 회수 펌프",desc="불탄 나무의 폭발 확률과 연쇄 범위를 높입니다.",icon="oil_drum",skill="oil_drum",costs={24,42,68,102,146,200}},
-    {id="forest_contract",name="산림 증설 계약",desc="공급량과 나무 체력을 함께 25%씩 올립니다. 허용량은 늘지 않습니다.",icon="leaf",skill="forest_expansion",costs={30,52,84,126,180,248}},
-}
-local scoreAutomationById={}
-for _,def in ipairs(scoreAutomationDefs)do scoreAutomationById[def.id]=def end
 
 local upgradeById = {}
 Synergies.attach(definitions)
@@ -216,7 +204,7 @@ function ClearcutMode.new()
         timeSpawnTimer=35, scoreEnemyTimer=45, eliteTimer=200, reaperSpawned=false,
         stage=1, stageBossHpMul=1, stageElapsed=0, stageTimeLimit=stageTimeLimit(1), failureReason=nil,
         scoreAttack=false,scoreHardCap=720,scoreStartingTrees=6,scoreBaseTreeAllowance=12,scoreTreeAllowance=12,
-        scoreAutomation={},scoreAutomationTimer=0,scoreWoodEarned=0,scoreWoodSpent=0,scoreAutomationBoxes={},
+        scoreWoodEarned=0,
         scoreFellTimes={},scoreFellHead=1,currentTreesPerSecond=0,peakTreesPerSecond=0,
         treeSpawnRate=.55,scoreSpawnRateMultiplier=1,treeSpawnAccumulator=0,
         totalTreesSpawned=0,peakActiveTrees=0,scoreActiveTreeCap=180,scoreGrowthPulses=0,
@@ -231,7 +219,7 @@ function ClearcutMode.new()
             biteDamage=0, plagueDuration=0,
             dashSpeed=1, sterileChance=0, aftershockRadius=0, cooldownRefund=0,
             moveSpeed=1, pickupRadius=0, hpRegen=0, reviveCharges=0,
-            scoreInitialIgnitionReduction=0,scoreStartingWood=0,scoreAutomationDiscount=0
+            scoreInitialIgnitionReduction=0
         },
         reviveCharges=0,
         vinePlantTimer=60, vineSpawns={},
@@ -426,48 +414,6 @@ function ClearcutMode:checkScoreOvercrowding(game)
     return true
 end
 
-function ClearcutMode:scoreAutomationLevel(id)
-    return math.max(0,math.floor((self.scoreAutomation and self.scoreAutomation[id])or 0))
-end
-
-function ClearcutMode:scoreAutomationCost(id)
-    local def=scoreAutomationById[id];if not def then return nil end
-    local base=def.costs[self:scoreAutomationLevel(id)+1]
-    if not base then return nil end
-    local discount=math.max(0,math.min(.20,(self.permanentTraits and self.permanentTraits.scoreAutomationDiscount)or 0))
-    return math.max(1,math.floor(base*(1-discount)+.5))
-end
-
-function ClearcutMode:buyScoreAutomation(id,game)
-    if not self.scoreAttack then return false end
-    local def=scoreAutomationById[id];local cost=self:scoreAutomationCost(id)
-    if not def or not cost then
-        if def then game:setNotice(def.name.." — 최고 단계","food")end
-        return false
-    end
-    if self.totalWood<cost then game:setNotice(string.format("목재 부족 — %s %d 필요",def.name,cost),"ore");return false end
-    self.totalWood=self.totalWood-cost;self.scoreWoodSpent=(self.scoreWoodSpent or 0)+cost;game.wood=self.totalWood
-    local level=self:scoreAutomationLevel(id)+1;self.scoreAutomation[id]=level
-    if def.skill then
-        self.levels[def.skill]=level
-        if def.skill=="forest_expansion"then self:syncScoreTreeHealth(game)end
-    end
-    game:setNotice(string.format("%s Lv.%d 가동 — 목재 %d",def.name,level,cost),"food")
-    return true
-end
-
-function ClearcutMode:updateScoreAutomation(dt,game)
-    if not self.scoreAttack then return end
-    local level=self:scoreAutomationLevel("butt_launcher")
-    if level<=0 then return end
-    local interval=math.max(.72,4.2-level*.52)
-    self.scoreAutomationTimer=(self.scoreAutomationTimer or interval)-dt
-    if self.scoreAutomationTimer>0 then return end
-    self.scoreAutomationTimer=interval
-    local volleys=1+math.floor((level-1)/2)
-    for _=1,volleys do self:throwMolotov(game,false)end
-end
-
 function ClearcutMode:scoreProductionRate()
     local times=self.scoreFellTimes or{}
     local head=self.scoreFellHead or 1
@@ -527,9 +473,8 @@ function ClearcutMode:setup(game)
     if self.scoreAttack then
         self.scoreFellTimes,self.scoreFellHead={},1
         self.currentTreesPerSecond,self.peakTreesPerSecond=0,0
-        self.scoreAutomation,self.scoreAutomationTimer={},0
-        self.scoreWoodEarned,self.scoreWoodSpent=0,0
-        -- 기록 모드는 첫 수십 초가 숲 과밀과 자동화에 적응하는 구간이다.
+        self.scoreWoodEarned=0
+        -- 기록 모드는 첫 수십 초 동안 직접 착화와 레벨업 선택으로 빌드를 정한다.
         -- 일반 스테이지의 파괴율 웨이브와 별도로, 45초 뒤부터 소수만 투입한다.
         self.scoreEnemyTimer=45
     end
@@ -550,8 +495,8 @@ function ClearcutMode:setup(game)
         self.permanentTraits.spreadChance=(self.permanentTraits.spreadChance or 0)+(self.permanentTraits.scoreIgnition or 0)
         self.permanentTraits.treeDamage=(self.permanentTraits.treeDamage or 0)+(self.permanentTraits.scoreTreeDamage or 0)
         self.permanentTraits.attackSpeed=(self.permanentTraits.attackSpeed or 1)*(1+(self.permanentTraits.scoreAttackSpeed or 0))
-        self.totalWood=math.max(0,math.floor(self.permanentTraits.scoreStartingWood or 0))
-        game.wood=self.totalWood
+        self.totalWood=0
+        game.wood=0
     end
     if game.achievements then
         local ae=game.achievements:effects()
@@ -627,26 +572,11 @@ end
 
 function ClearcutMode:scoreForestDensityMultiplier()
     if not self.scoreAttack then return 1 end
-    return math.max(1,self.scoreSpawnRateMultiplier or 1)*(1+self:levelOf("forest_expansion")*.25)
+    return math.max(1,self.scoreSpawnRateMultiplier or 1)
 end
 
 function ClearcutMode:scoreTreeHealth(baseHp)
     return math.max(1,math.ceil((baseHp or 1)*self:scoreForestDensityMultiplier()))
-end
-
-function ClearcutMode:syncScoreTreeHealth(game)
-    if not self.scoreAttack or not game or not game.world then return end
-    local multiplier=self:scoreForestDensityMultiplier()
-    for _,node in ipairs(game.world.nodes)do
-        if node.rushTree and node.active then
-            local oldMax=math.max(1,node.rushMaxHp or node.rushHp or 1)
-            local ratio=math.max(0,math.min(1,(node.rushHp or oldMax)/oldMax))
-            local baseHp=node.scoreBaseHp or treeHpFor(game.world.clearcutMap,node.treeVariant)
-            local newMax=math.max(1,math.ceil(baseHp*multiplier))
-            node.scoreBaseHp,node.scoreHpMultiplier=baseHp,multiplier
-            node.rushMaxHp,node.rushHp=newMax,math.max(1,math.ceil(newMax*ratio))
-        end
-    end
 end
 
 function ClearcutMode:scoreDynamicTreeCap()
@@ -850,7 +780,6 @@ function ClearcutMode:update(dt, game)
     self.elapsed = self.elapsed + dt
     if self:updateStageClock(dt,game) then return end
     if self:updateScoreTreeGrowth(dt,game)then return end
-    self:updateScoreAutomation(dt,game)
     self:updateHeldAxe(dt, game)
     self:updateThrownTrees(dt, game)
     self:updateBurrowTracks(dt)
@@ -4463,10 +4392,7 @@ function ClearcutMode:onWood(amount, game)
     amount = amount * (self.woodGainMul or 1)
     self.totalWood = self.totalWood + amount
     game.wood = self.totalWood
-    if self.scoreAttack then
-        self.scoreWoodEarned=(self.scoreWoodEarned or 0)+amount
-        return
-    end
+    if self.scoreAttack then self.scoreWoodEarned=(self.scoreWoodEarned or 0)+amount end
     local xpMult = Synergies.woodXpMultiplier(self)
     self.xp = self.xp + amount * xpMult
     while self.xp >= self.xpNext do
@@ -4478,7 +4404,6 @@ function ClearcutMode:onWood(amount, game)
 end
 
 function ClearcutMode:upgradePool()
-    if self.scoreAttack then return {} end
     local pool = {}
     for _, def in ipairs(definitions) do
         local jobOk = not def.job or not self.job or def.job == self.job
@@ -4671,7 +4596,6 @@ function ClearcutMode:choose(index, game)
     if def.recovery then self.hp=math.min(self.maxHp,self.hp+20)
     else
         self.levels[def.id]=self:levelOf(def.id)+1
-        if def.id=="forest_expansion"then self:syncScoreTreeHealth(game)end
         Synergies.refresh(self)
     end
     if not wasChest then self.pending=math.max(0,self.pending-1) end
@@ -4851,7 +4775,7 @@ function ClearcutMode:finish(game, victory)
     local traitReward = math.max(1, math.floor(baseReward * (self.permanentTraits.reward or 1) + .5))
     if game.characterTraits then game.characterTraits:addCurrency(traitReward) end
     local zonesSecured,zonesTotal=ForestZones.status(self)
-    game.result={elapsed=math.floor(self.elapsed),wood=self.scoreAttack and math.floor(self.scoreWoodEarned or 0)or self.totalWood,woodBalance=math.floor(self.totalWood),woodSpent=math.floor(self.scoreWoodSpent or 0),automation=self.scoreAutomation,trees=self.treesFelled,total=self.initialTrees,maxMulti=self.maxMulti,maxChain=self.maxChain,level=self.level,stage=self.stage,stageCode=Maps.stageCode(self.mapId,self.stage),regrowPulses=self.regrowPulses,treesRevived=self.treesRevived,rootedCount=self.rootedCount,beeSwarms=self.beeSwarmsTriggered,victory=victory,kills=self.kills,zonesSecured=zonesSecured,zonesTotal=zonesTotal,traitEarned=traitReward,traitCurrency=game.characterTraits and game.characterTraits.data.currency or traitReward,mapId=self.mapId,operationName=BiomeBosses.operationName(self.mapId),bossName=self.operationBossName,failureReason=self.failureReason,scoreAttack=self.scoreAttack,totalTreesSpawned=self.totalTreesSpawned,peakActiveTrees=self.peakActiveTrees,treeAllowance=self.scoreTreeAllowance,treeSpawnRate=self:scoreTreeSpawnRate(),peakTreesPerSecond=self.peakTreesPerSecond or 0}
+    game.result={elapsed=math.floor(self.elapsed),wood=self.scoreAttack and math.floor(self.scoreWoodEarned or 0)or self.totalWood,woodBalance=math.floor(self.totalWood),trees=self.treesFelled,total=self.initialTrees,maxMulti=self.maxMulti,maxChain=self.maxChain,level=self.level,stage=self.stage,stageCode=Maps.stageCode(self.mapId,self.stage),regrowPulses=self.regrowPulses,treesRevived=self.treesRevived,rootedCount=self.rootedCount,beeSwarms=self.beeSwarmsTriggered,victory=victory,kills=self.kills,zonesSecured=zonesSecured,zonesTotal=zonesTotal,traitEarned=traitReward,traitCurrency=game.characterTraits and game.characterTraits.data.currency or traitReward,mapId=self.mapId,operationName=BiomeBosses.operationName(self.mapId),bossName=self.operationBossName,failureReason=self.failureReason,scoreAttack=self.scoreAttack,totalTreesSpawned=self.totalTreesSpawned,peakActiveTrees=self.peakActiveTrees,treeAllowance=self.scoreTreeAllowance,treeSpawnRate=self:scoreTreeSpawnRate(),peakTreesPerSecond=self.peakTreesPerSecond or 0}
     if game.achievements then game.achievements:recordRun(game.result) end
     game.mode="clearcut_results"
 end
@@ -6536,42 +6460,6 @@ function ClearcutMode:drawSkillTracker(fonts)
     if hovered then drawSynergyTooltip(self,hovered.def,hovered.count,x0+iconSize+12,my-18,fonts,love.graphics.getWidth(),love.graphics.getHeight())end
 end
 
-function ClearcutMode:drawScoreAutomationHUD(game,fonts)
-    local w,h=love.graphics.getDimensions();local size,gap=52,10
-    local startX=w-88-(size*#scoreAutomationDefs+gap*(#scoreAutomationDefs-1));local y=h-76
-    local mx,my=love.mouse.getPosition();local hovered
-    self.scoreAutomationBoxes={}
-    for index,def in ipairs(scoreAutomationDefs)do
-        local x=startX+(index-1)*(size+gap);local level=self:scoreAutomationLevel(def.id);local cost=self:scoreAutomationCost(def.id)
-        local over=mx>=x and mx<=x+size and my>=y and my<=y+size
-        self.scoreAutomationBoxes[index]={x=x,y=y,w=size,h=size,id=def.id}
-        local icon=ClearcutMode.icons[def.icon]
-        if icon then drawPixelGrid(icon.rows,icon.palette,x+size/2,y+21,over and 4.5 or 4)end
-        love.graphics.setColor(over and{1,.72,.18,1}or level>0 and{.46,.88,.34,1}or{.46,.50,.43,.9})
-        love.graphics.rectangle("fill",x,y+size-4,size,4)
-        love.graphics.setFont(fonts.micro or fonts.small);love.graphics.setColor(cost and(self.totalWood>=cost and{1,.90,.52,1}or{.62,.58,.50,.9})or{.48,1,.42,1})
-        love.graphics.printf(cost and tostring(cost)or"MAX",x,y+34,size,"center")
-        love.graphics.setColor(.92,.95,.82,1);love.graphics.printf(string.format("%s%d",({"Z","X","C","V"})[index],level),x,y-13,size,"center")
-        if over then hovered={def=def,level=level,cost=cost,x=x}end
-    end
-    if hovered then
-        local tw,th=300,70;local tx=math.max(12,math.min(w-tw-12,hovered.x+size-tw));local ty=y-th-12
-        love.graphics.setColor(.025,.035,.027,.94);love.graphics.rectangle("fill",tx,ty,tw,th,4,4)
-        love.graphics.setColor(.45,.72,.38,1);love.graphics.rectangle("fill",tx,ty,4,th)
-        love.graphics.setFont(fonts.small);love.graphics.setColor(1,.94,.74,1);love.graphics.print(hovered.def.name.."  Lv."..hovered.level,tx+14,ty+9)
-        love.graphics.setFont(fonts.micro or fonts.small);love.graphics.setColor(.72,.78,.68,1);love.graphics.printf(hovered.def.desc,tx+14,ty+34,tw-28,"left")
-    end
-end
-
-function ClearcutMode:scoreAutomationAt(x,y)
-    for _,box in ipairs(self.scoreAutomationBoxes or{})do if x>=box.x and x<=box.x+box.w and y>=box.y and y<=box.y+box.h then return box.id end end
-end
-
-function ClearcutMode:automationClick(x,y,game)
-    local id=self:scoreAutomationAt(x,y);if not id then return false end
-    self:buyScoreAutomation(id,game);return true
-end
-
 function ClearcutMode:drawHUD(game,fonts)
     local w,h=love.graphics.getDimensions()
     local t = love.timer.getTime()
@@ -6600,7 +6488,6 @@ function ClearcutMode:drawHUD(game,fonts)
     love.graphics.setFont(fonts.micro or fonts.small);love.graphics.setColor(1,.94,.88);love.graphics.printf("HP  "..math.ceil(self.hp).." / "..self.maxHp,20,134,hpW,"center")
 
     self:drawSkillTracker(fonts)
-    if self.scoreAttack then self:drawScoreAutomationHUD(game,fonts)end
 
     local pct = self:destructionPct()
     local barW = math.floor(330*uiScale)
@@ -7170,7 +7057,7 @@ function ClearcutMode:drawSelectionContent(game,fonts,w,h)
             drawCardBack(x,y,cardW,cardH,t,jobColor)
         else
         drawUpgradeCardFrame(x,y,cardW,cardH,jobColor,hovered,def.job,t)
-        local iconDef = ClearcutMode.icons[def.id == "molotov" and "cigarette" or def.id == "forest_expansion" and "leaf" or def.id]
+        local iconDef = ClearcutMode.icons[def.id == "molotov" and "cigarette" or def.id]
         local iconY=y+math.min(112,cardH*.25)
         local nameY=y+cardH*.42
         local tagY=nameY+31
@@ -7338,8 +7225,7 @@ function ClearcutMode:drawResults(game,fonts)
         love.graphics.setFont(fonts.big);love.graphics.setColor(1,.96,.82);love.graphics.printf(tostring(m[2]),cx,top+145*scale,colW,"center")
     end
     love.graphics.setColor(.25,.29,.25,.8);love.graphics.rectangle("fill",x,top+205*scale,contentW,2)
-    local automationTotal=0;if r.automation then for _,level in pairs(r.automation)do automationTotal=automationTotal+level end end
-    local details=r.scoreAttack and{{"획득 목재",r.wood},{"자동화 투자",r.woodSpent or 0},{"나무 허용량",string.format("%d그루",r.treeAllowance or 12)},{"자동화 단계 합",automationTotal},{"최고 과밀 나무",string.format("%d그루",r.peakActiveTrees or 0)},{"총 산림 공급",r.totalTreesSpawned or r.total}}or{{"총 목재",r.wood},{"처치",r.kills or 0},{"최대 동시 / 연쇄",r.maxMulti.." / "..r.maxChain},{"도달 레벨",r.level},{"재생 / 부활 나무",r.regrowPulses.."회 / "..r.treesRevived.."그루"},{"가시덩굴 / 벌집",r.rootedCount.." / "..r.beeSwarms}}
+    local details=r.scoreAttack and{{"획득 목재",r.wood},{"도달 레벨",r.level},{"나무 허용량",string.format("%d그루",r.treeAllowance or 12)},{"최종 생성 속도",string.format("%.1f/초",r.treeSpawnRate or 0)},{"최고 과밀 나무",string.format("%d그루",r.peakActiveTrees or 0)},{"총 산림 공급",r.totalTreesSpawned or r.total}}or{{"총 목재",r.wood},{"처치",r.kills or 0},{"최대 동시 / 연쇄",r.maxMulti.." / "..r.maxChain},{"도달 레벨",r.level},{"재생 / 부활 나무",r.regrowPulses.."회 / "..r.treesRevived.."그루"},{"가시덩굴 / 벌집",r.rootedCount.." / "..r.beeSwarms}}
     love.graphics.setFont(fonts.micro or fonts.small)
     for i,m in ipairs(details)do local col=(i-1)%2;local row=math.floor((i-1)/2);local dx=x+col*(contentW/2);local y=top+(236+row*34)*scale
         love.graphics.setColor(.60,.65,.59);love.graphics.print(m[1],dx+18,y);love.graphics.setColor(.95,.92,.78);love.graphics.printf(tostring(m[2]),dx+130,y,contentW/2-150,"right")

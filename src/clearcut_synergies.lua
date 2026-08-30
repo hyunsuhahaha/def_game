@@ -5,7 +5,7 @@ local Synergies={}
 Synergies.skillTags={
     wide_blade={"impact","momentum"},berserker={"momentum","impact"},shockwave={"impact","field"},
     molotov={"ignition","momentum"},dry_forest={"ignition","field"},oil_drum={"ignition","impact"},
-    straw_bale={"ignition","field"},smoke_ring={"field","momentum"},forest_expansion={"growth","field"},
+    straw_bale={"ignition","field"},smoke_ring={"field","momentum"},
     fork_feast={"harvest","impact"},buffet_fork={"harvest","momentum"},clean_plate={"harvest","field"},
     seconds_please={"harvest","momentum"},
     pile_driving={"impact","momentum"},heavy_machinery={"impact","momentum"},demolition={"impact","ignition"},

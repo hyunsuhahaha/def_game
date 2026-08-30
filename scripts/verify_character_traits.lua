@@ -40,13 +40,14 @@ assert(physical.attackSpeed > 1 and physical.range == 14, "logger traits did not
 assert(smoker.attackSpeed == 1 and smoker.range == 0, "logger traits leaked into another character")
 store.data.levels.universal_yard=7
 assert(store:effects("fire").scoreTreeAllowance==28,"permanent logging-yard capacity did not reach +28 trees at max rank")
-for _,id in ipairs({"fire_score_prewarm","fire_score_filter","fire_score_float","fire_score_lighter","fire_score_ash","fire_score_procurement","fire_score_drag","fire_score_heat"})do store.data.levels[id]=5 end
+for _,id in ipairs({"fire_score_prewarm","fire_score_filter","fire_score_lighter","fire_score_ash","fire_score_drag","fire_score_heat"})do store.data.levels[id]=5 end
 local scoreSmoker=store:effects("fire")
 assert(scoreSmoker.scoreRange==60 and scoreSmoker.scoreIgnition==.15 and scoreSmoker.scoreArea==50,"score-mode permanent smoker geometry was not subdivided correctly")
 assert(scoreSmoker.scoreAttackSpeed==.20 and scoreSmoker.scoreTreeDamage==2.5,"score-mode permanent smoker output was not subdivided correctly")
 local activeScore=store:scoreAttackEffects()
-assert(activeScore.scoreInitialIgnitionReduction==.6 and activeScore.scoreStartingWood==15 and activeScore.scoreAutomationDiscount==.2,"score-mode opening economy traits are not active")
-assert(#store:getScoreAttackNodes("fire")==8 and #store:getScoreAttackNodes("universal")==1,"active research board did not isolate score-mode traits")
+assert(activeScore.scoreInitialIgnitionReduction==.6,"score-mode opening ignition trait is not active")
+assert(activeScore.scoreStartingWood==nil and activeScore.scoreAutomationDiscount==nil,"removed score automation traits still affect runtime")
+assert(#store:getScoreAttackNodes("fire")==6 and #store:getScoreAttackNodes("universal")==1,"active research board did not isolate score-mode traits")
 for _, job in ipairs({"physical","fire","toxic","developer"}) do
     assert(#store:getNodes(job) >= 30, job .. " character graph has too few trait nodes")
 end

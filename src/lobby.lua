@@ -74,7 +74,7 @@ function Lobby:drawResearchButton(box,f)
  love.graphics.setColor(.94,.63,.20,1);love.graphics.rectangle("fill",x+14,y+12,46,h-24,3,3)
  love.graphics.setFont(f.small);love.graphics.setColor(.08,.055,.018,1);love.graphics.printf("LAB",x+14,y+h/2-f.small:getHeight()/2,46,"center")
  love.graphics.setColor(.92,.95,.79,1);love.graphics.setFont(f.heading);love.graphics.print("기록전 영구 연구",x+74,y+9)
- love.graphics.setFont(self.microFont or f.small);love.graphics.setColor(.59,.76,.65,1);love.graphics.print("첫 불씨 · 초기 목재 · 자동화 · 허용량",x+75,y+36)
+ love.graphics.setFont(self.microFont or f.small);love.graphics.setColor(.59,.76,.65,1);love.graphics.print("첫 불씨 · 투척 · 연소 · 허용량",x+75,y+36)
  love.graphics.setColor(.05,.13,.10,.88);love.graphics.rectangle("fill",x+w-50,y+h/2-13,36,26,3,3)
  love.graphics.setColor(.72,.90,.73,1);love.graphics.printf("T",x+w-50,y+h/2-(self.microFont or f.small):getHeight()/2,36,"center")
 end
@@ -83,7 +83,7 @@ function Lobby:drawActiveRules(x,y,w,f)
  love.graphics.setColor(.015,.055,.038,.90);love.graphics.rectangle("fill",x,y,w,132,6,6)
  love.graphics.setColor(.38,.78,.52,.76);love.graphics.rectangle("line",x+.5,y+.5,w-1,131,6,6)
  love.graphics.setFont(self.microFont or f.small);love.graphics.setColor(.95,.63,.20);love.graphics.print("ACTIVE BUILD  ·  SCORE ATTACK",x+18,y+14)
- local rows={{"종료","활성 나무 12그루"},{"산림","시작 6그루 · 0.16그루/초"},{"위협","첫 45초 몬스터 없음"},{"성장","목재로 자동화 설비 구매"}}
+ local rows={{"종료","활성 나무 12그루"},{"산림","시작 6그루 · 0.16그루/초"},{"위협","첫 45초 몬스터 없음"},{"성장","목재 경험치 · 레벨업 3택"}}
  for i,row in ipairs(rows)do local yy=y+36+(i-1)*22;love.graphics.setColor(.48,.67,.55);love.graphics.print(row[1],x+18,yy);love.graphics.setColor(.88,.91,.76);love.graphics.print(row[2],x+82,yy)end
 end
 function Lobby:drawScoreAttackButton(box,f)

@@ -184,16 +184,14 @@ expand("fire",{
     {id="fire_redsky",name="하늘이 붉은 건 노을",short="최종 산불",desc="착화 범위 +42",effect="area",value=42,requires={{"fire_claim",1}},icon="capstone",color={1,.18,.04},max=1,capstone=true,costs={190}}
 })
 
--- 벌목 기록 모드의 개인 장비 연구. 일반 스테이지의 카드 선택을 복사하지 않고,
--- 첫 불씨·초기 자본·자동화 조달과 투척 기초 성능을 영구 성장으로 나눈다.
+-- 벌목 기록 모드의 개인 장비 연구. 런 중 카드 성장은 목재 경험치가 담당하고,
+-- 여기서는 첫 불씨와 투척 기초 성능만 영구 성장으로 나눈다.
 -- 일반 흡연자 연구는 삭제하지 않고 저장 호환을 위해 위에 그대로 보존한다.
 local scoreFireNodes={
     {id="fire_score_prewarm",name="출근 전 라이터 예열",short="첫 불씨 단축",desc="벌목 기록 모드 최초 착화 준비시간 -0.12초",effect="scoreInitialIgnitionReduction",value=.12,wx=430,wy=850,icon="ember",color={1,.48,.12}},
     {id="fire_score_filter",name="기록용 장초 필터",short="멀리 튕긴다",desc="벌목 기록 모드 꽁초 사거리 +12",effect="scoreRange",value=12,wx=800,wy=680,icon="filter",color={.88,.66,.32},requires={{"fire_score_prewarm",1}}},
-    {id="fire_score_float",name="첫 설비 외상 장부",short="초기 목재",desc="벌목 기록 모드 시작 목재 +3",effect="scoreStartingWood",value=3,wx=800,wy=1080,icon="coins",color={.78,.62,.30},requires={{"fire_score_prewarm",1}}},
     {id="fire_score_lighter",name="산업용 점화 코일",short="불씨 고정",desc="벌목 기록 모드 착화 확률 +3%",effect="scoreIgnition",value=.03,wx=1190,wy=560,icon="ember",color={.96,.43,.16},requires={{"fire_score_filter",1}}},
     {id="fire_score_ash",name="대형 재받이 개조",short="넓게 턴다",desc="벌목 기록 모드 착화 범위 +10",effect="scoreArea",value=10,wx=1190,wy=850,icon="ash",color={.62,.54,.48},requires={{"fire_score_filter",1}}},
-    {id="fire_score_procurement",name="자동화 공동구매",short="설비 단가 인하",desc="벌목 기록 모드 자동화 구매 비용 -4%",effect="scoreAutomationDiscount",value=.04,wx=1190,wy=1080,icon="document",color={.58,.76,.54},requires={{"fire_score_float",2}}},
     {id="fire_score_drag",name="교대 없는 줄담배",short="재장전 단축",desc="벌목 기록 모드 흡연·투척 속도 +4%",effect="scoreAttackSpeed",value=.04,wx=1580,wy=560,icon="clock",color={.78,.76,.67},requires={{"fire_score_lighter",2}}},
     {id="fire_score_heat",name="고온 불씨 압축",short="더 뜨겁게",desc="벌목 기록 모드 나무 피해 +0.5",effect="scoreTreeDamage",value=.5,wx=1580,wy=850,icon="warning",color={1,.34,.08},requires={{"fire_score_ash",2}}},
 }
@@ -456,7 +454,7 @@ function CharacterTraits:effects(job)
         moveSpeed=1, pickupRadius=0, hpRegen=0, reviveCharges=0,
         woodYield=1, forestRestock=0, treeVariety=0, scoreTreeAllowance=0,
         scoreRange=0,scoreIgnition=0,scoreArea=0,scoreAttackSpeed=0,scoreTreeDamage=0,
-        scoreInitialIgnitionReduction=0,scoreStartingWood=0,scoreAutomationDiscount=0
+        scoreInitialIgnitionReduction=0
     }
     local function accumulate(nodes)
         for _, node in ipairs(nodes) do
@@ -478,8 +476,7 @@ function CharacterTraits:scoreAttackEffects()
         healOnFell=0,executeChance=0,burnSpeed=1,extraFires=0,spreadChance=0,
         moveSpeed=1,pickupRadius=0,hpRegen=0,reviveCharges=0,woodYield=1,
         scoreTreeAllowance=0,scoreRange=0,scoreIgnition=0,scoreArea=0,
-        scoreAttackSpeed=0,scoreTreeDamage=0,scoreInitialIgnitionReduction=0,
-        scoreStartingWood=0,scoreAutomationDiscount=0
+        scoreAttackSpeed=0,scoreTreeDamage=0,scoreInitialIgnitionReduction=0
     }
     for _,job in ipairs({"fire","universal"})do
         for _,node in ipairs(self:getScoreAttackNodes(job))do
