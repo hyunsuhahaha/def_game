@@ -13,7 +13,7 @@ smoker:updateFireAttack(smoker.smoking.dur+1,game,false)
 if type(smoker.drawSmokerCigarette)~="function" or not smoker:drawSmokerCigarette(game) then failures[#failures+1]="lit cigarette object missing from mouth" end
 
 smoker:hurlMolotovAt(320,0,game)
-if #smoker.molotovs~=1 or smoker.molotovs[1].dur<.34 then failures[#failures+1]="flying cigarette lifetime is unreadably short" end
+if #smoker.molotovs~=1 or smoker.molotovs[1].dur<.22 or smoker.molotovs[1].dur>=.34 then failures[#failures+1]="flying cigarette did not receive the faster readable arc" end
 smoker.molotovs[1].t=smoker.molotovs[1].dur*.5
 fixture.reset()
 assert(smoker:drawCigaretteProjectiles(0)==1)
@@ -61,7 +61,7 @@ love.math.random=function() return 0 end
 advance(m,g,.4)
 assert(#m.molotovs==0 and #m.cigaretteButts==1 and not node.burning,"landing must only leave a butt")
 local butt=m.cigaretteButts[1]
-advance(m,g,1.09)
+advance(m,g,.14)
 assert(butt.attempts==0 and #m.emberTransfers==0,"ignition rolled before warm-up")
 advance(m,g,.02)
 assert(butt.attempts==1 and #m.emberTransfers==1 and not node.burning,"success must launch a visible spark first")
@@ -78,7 +78,7 @@ local failed=tree(45)
 local f,fg=setup({failed});throw(f,0,0)
 love.math.random=function() return 1 end
 advance(f,fg,.4+7,.016)
-assert(not failed.burning and f.cigaretteButts[1].attempts==6,"failure was replaced by guaranteed ignition")
+assert(not failed.burning and f.cigaretteButts[1].attempts>=12,"failure was replaced by guaranteed ignition or retry cadence stayed slow")
 assert(f.cigaretteButts[1].phase=="cold" and #f.emberTransfers==0,"expired butt remains hot")
 advance(f,fg,1.51)
 assert(#f.cigaretteButts==0,"cold litter never cleaned up")
@@ -94,8 +94,8 @@ assert(rolls==0 and #isolated.emberTransfers==0 and not outside.burning,"ineligi
 -- Distance and dry-forest upgrades affect chance, not guaranteed landing ignition.
 local function probabilityAt(distance,dry)
     local n=tree(distance);local p,pg=setup({n});p.levels.dry_forest=dry;throw(p,0,0)
-    love.math.random=function() return .35 end
-    advance(p,pg,1.51)
+    love.math.random=function() return .82 end
+    advance(p,pg,.56)
     assert(not n.burning)
     return #p.emberTransfers
 end
@@ -104,7 +104,7 @@ assert(probabilityAt(0,0)==1 and probabilityAt(90,0)==0 and probabilityAt(90,3)=
 -- Pending targets are not duplicated across simultaneous butts.
 local shared=tree(35);local overlap,og=setup({shared})
 throw(overlap,0,0);throw(overlap,1,0);love.math.random=function() return 0 end
-advance(overlap,og,1.51)
+advance(overlap,og,.56)
 assert(#overlap.emberTransfers==1,"multiple butts reserved one tree")
 shared.active=false
 advance(overlap,og,1)
@@ -112,7 +112,7 @@ assert(not shared.burning and not shared.cigaretteEmber,"removed tree ignited or
 
 -- Rain cancels in-flight sparks, extinguishes ground butts, and never relights them.
 local wetTree=tree(50);local rain,rg=setup({wetTree});throw(rain,0,0)
-advance(rain,rg,1.51);assert(#rain.emberTransfers==1)
+advance(rain,rg,.56);assert(#rain.emberTransfers==1)
 rain.rainSuppressFire=true;advance(rain,rg,.01)
 assert(#rain.emberTransfers==0 and rain.cigaretteButts[1].phase=="wet" and not wetTree.cigaretteEmber)
 rain.rainSuppressFire=false;advance(rain,rg,1)
@@ -121,7 +121,7 @@ local rainy,rng=setup({tree(0)});rainy.rainSuppressFire=true;throw(rainy,0,0);ad
 assert(rainy.cigaretteButts[1].phase=="wet","landing in rain did not extinguish")
 
 -- An already burning target cancels an incoming spark without restarting its fire.
-local live=tree(40);local race,raceGame=setup({live});throw(race,0,0);advance(race,raceGame,1.51)
+local live=tree(40);local race,raceGame=setup({live});throw(race,0,0);advance(race,raceGame,.56)
 live.burning=true;live.burnTimer=2
 advance(race,raceGame,1)
 assert(live.burnTimer==2 and not live.cigaretteEmber,"arrival restarted an existing fire")
@@ -149,7 +149,7 @@ local a1,a2,a3=timeline(3);local b1,b2,b3=timeline(.016)
 assert(a1==b1 and math.abs(a2-b2)<1e-7 and a3==b3,"ground fire depends on FPS")
 
 -- Stage transition clears reservations and all new transient state.
-local resetTree=tree(40);local reset,resetGame=setup({resetTree});throw(reset,0,0);advance(reset,resetGame,1.51)
+local resetTree=tree(40);local reset,resetGame=setup({resetTree});throw(reset,0,0);advance(reset,resetGame,.56)
 reset.generateForest=function() end;reset.arcanaPool=function() return {} end;reset.openUpgradeChoices=function() end
 resetGame.world.width=1000;resetGame.world.height=1000;resetGame.camera={trauma=0};resetGame.setNotice=function() end
 reset:advanceStage(resetGame)

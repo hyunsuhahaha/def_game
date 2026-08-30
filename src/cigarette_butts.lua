@@ -1,6 +1,6 @@
 -- Gameplay-only lingering embers. Times/probabilities are game tuning, not physics.
 -- Absolute event times keep rolls and spark arrivals independent of render FPS.
-local Butts = {lifetime=7, firstAttempt=1.1, interval=1, coldLifetime=1.5, baseChance=.42}
+local Butts = {lifetime=7, firstAttempt=.15, interval=.55, coldLifetime=1.5, baseChance=.90}
 
 -- The flight owns endpoints and elapsed time, not a mutable x/y pair. Keep the
 -- visible arc, billboard anchor and swept hit test on this single trajectory so
@@ -87,12 +87,12 @@ local function attempt(mode,butt,at,game)
     butt.nextAttemptAt=at+Butts.interval
     local target,targetKind,distance=candidate(butt,mode,game.world.nodes)
     if not target then return end
-    local heat=1-.35*(at-butt.bornAt)/Butts.lifetime
+    local heat=1-.15*(at-butt.bornAt)/Butts.lifetime
     local routeMultiplier=mode.skillBranch and mode:skillBranch("molotov")=="flame_route"and 1.35 or 1
-    local chance=math.min(.90,math.min(.75,Butts.baseChance+mode:levelOf("dry_forest")*.06)*routeMultiplier)
-        *heat*(1-.35*distance/butt.radius)
+    local chance=math.min(.96,(Butts.baseChance+mode:levelOf("dry_forest")*.02)*routeMultiplier)
+        *heat*(1-.12*distance/butt.radius)
     if love.math.random()>=chance then return end
-    local duration=.55+.25*distance/butt.radius
+    local duration=.12+.10*distance/butt.radius
     local tipX,tipY=Butts.tip(butt,at)
     local transfer={x=tipX,y=tipY,tx=target.x,ty=target.y,target=target,targetKind=targetKind,
         startAt=at,arrivesAt=at+duration,duration=duration,butt=butt}

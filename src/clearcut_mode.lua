@@ -51,7 +51,7 @@ local jobFor = {berserker = "physical", molotov = "fire", fork_feast = "toxic", 
 local jobNames = {physical = "생계형 나무꾼", fire = "흡연자", toxic = "비건 단체 회장", developer = "부동산 개발업자", miner = "코인 채굴꾼", philosopher = "차라투스트라는 이렇게 말했다"}
 local jobDesc = {
     physical = "그냥 오늘 할당량을 채우러 왔을 뿐이다. 대출은 갚아야 하니까.",
-    fire = "마우스 위치에 꽁초를 튕깁니다. 날아가는 도중 스치는 적에게는 그 자리에서 피해를 줍니다. 꽁초는 바닥에 남아 타들어가며 주변 나무로 기본 42%(최대 75%) 확률로 불씨를 옮깁니다. 착지 즉시 불붙지는 않습니다.",
+    fire = "마우스 위치에 꽁초를 빠르게 튕깁니다. 날아가는 도중 스치는 적에게는 그 자리에서 피해를 줍니다. 꽁초는 바닥에 남고 약 0.15초 뒤 주변 나무로 기본 90%(최대 96%) 확률로 불씨를 옮깁니다.",
     toxic = "커다란 포크로 전방의 여러 나무와 적을 한꺼번에 찍습니다. 이 타격으로 쓰러진 대상은 포크에 꿰어 끌어당긴 뒤 먹어 치웁니다.",
     developer = "기본 공격이 도끼질 대신 마우스 방향으로 중장비 돌진하는 것으로 바뀝니다. 여기에 아파트 지으면 됨.",
     miner = "거대한 발톱으로 전방을 할퀴고, 땅속에 잠복해 지나치는 나무를 뿌리째 뽑아 던집니다.",
@@ -66,7 +66,7 @@ local definitions = {
     {id="shockwave", track="destroy", name="산재 위험수당", desc="나무를 쓰러뜨리면 주변 나무에도 충격파 피해를 줍니다.", max=6, color={1,.78,.2}, job="physical"},
     -- 확산력 (spread) — 한 번의 행동으로 얼마나 넓게 없애느냐 [흡연자 전용]
     {id="molotov", track="spread", name="꽁초 투척", desc="사거리와 꽁초의 불씨 전이 범위, 비행 직격 피해가 늘어납니다. 3레벨에는 화염 농축/줄꽁초 경로를 고르고, 6레벨에는 선택 경로에 따라 전자담배/폭죽 발사기로 자동 진화합니다.", max=6, color={1,.35,.12}, job="fire"},
-    {id="dry_forest", track="spread", name="건조주의보 무시", desc="꽁초의 착화 확률이 레벨당 +6%p 높아지고(최대 75%), 붙은 불이 주변 나무로 더 빠르고 넓게 번집니다.", max=6, color={1,.5,.15}, job="fire"},
+    {id="dry_forest", track="spread", name="건조주의보 무시", desc="꽁초의 착화 확률이 레벨당 +2%p 높아지고(최대 96%), 붙은 불이 주변 나무로 더 빠르고 넓게 번집니다.", max=6, color={1,.5,.15}, job="fire"},
     {id="oil_drum", track="spread", name="라이터 기름 유출", desc="나무가 다 타버리면 레벨당 폭발 확률이 크게 올라(1렙 7.5%→5렙 63%), 6렙에서는 100% 확정 발동합니다.", max=6, color={1,.62,.1}, job="fire"},
     {id="straw_bale", track="spread", name="마른 건초더미 생성", desc="주기적으로 큰 건초더미를 둡니다. 꽁초가 닿으면 0.5초 뒤 불이 붙고, 레벨에 따라 넓어지는 화염 지대가 주변 나무와 적에게 지속 피해를 줍니다. 불이 옮겨붙어 다른 대상을 점화시키지는 않습니다.", max=6, color={.85,.72,.25}, job="fire"},
     {id="smoke_ring", track="spread", name="도넛 강화 — 니코틴 농축", desc="SPACE 도넛이 바닥 기울기와 분리된 둥근 연기로 날아가며, 보이는 외곽보다 후한 이동 궤적 판정으로 타격합니다. 강화하면 재사용 대기시간이 줄고 피해·넉백·크기가 늘어납니다. 6레벨 완충 시 초농축 도넛이 발사됩니다.", max=6, color={1,.68,.2}, job="fire"},
@@ -1987,7 +1987,7 @@ function ClearcutMode:throwMolotov(game, wildfire)
         local _,mouthY,_,tipX=self:smokerMouthPose(game)
         self.molotovs[#self.molotovs+1] = {
             x0=tipX, y0=mouthY, x1=target.x+28, y1=target.y+22,
-            t=0, dur=math.max(.34, dist/850), target=target, wildfire=wildfire,
+            t=0, dur=math.max(.22,dist/1200), target=target, wildfire=wildfire,
             radius=(90+self:power("molotov")*20+self.permanentTraits.area)
                 *(self:skillBranch("molotov")=="flame_route"and 1.25 or 1),
             landingAngle=.18+math.sin(target.x*.013)*.6
@@ -2028,7 +2028,7 @@ function ClearcutMode:hurlMolotovAt(tx, ty, game, isBarrage)
         y1=bounds.y+2
     end
     local dist=math.sqrt((x1-tipX)^2+(y1-mouthY)^2)
-    local approachDur=math.max(.34,dist/850)
+    local approachDur=math.max(.22,dist/1200)
     local fallDuration=fallsOffMap and 1.45 or 0
     self.molotovs[#self.molotovs+1] = {
         x0=tipX, y0=mouthY, x1=x1, y1=y1,
