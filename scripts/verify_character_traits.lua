@@ -39,6 +39,8 @@ local physical = store:effects("physical")
 local smoker = store:effects("fire")
 assert(physical.attackSpeed > 1 and physical.range == 14, "logger traits did not produce runtime effects")
 assert(smoker.attackSpeed == 1 and smoker.range == 0, "logger traits leaked into another character")
+store.data.levels.universal_yard=7
+assert(store:effects("fire").scoreTreeAllowance==28,"permanent logging-yard capacity did not reach +28 trees at max rank")
 for _, job in ipairs({"physical","fire","toxic","developer"}) do
     assert(#store:getNodes(job) >= 30, job .. " character graph has too few trait nodes")
 end

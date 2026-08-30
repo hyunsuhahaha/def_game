@@ -71,7 +71,7 @@ function Lobby:drawScoreAttackButton(box,f)
  love.graphics.setColor(.94,.63,.20,1);love.graphics.rectangle("fill",x+14,y+12,46,h-24,3,3)
  love.graphics.setFont(f.small);love.graphics.setColor(.08,.055,.018,1);love.graphics.printf("LIVE",x+14,y+h/2-f.small:getHeight()/2,46,"center")
  love.graphics.setColor(.92,.95,.79,1);love.graphics.setFont(f.heading);love.graphics.print("벌목 기록 모드",x+74,y+9)
- love.graphics.setFont(self.microFont or f.small);love.graphics.setColor(.59,.76,.65,1);love.graphics.print("벌목 유지량으로 기록 경쟁",x+75,y+36)
+ love.graphics.setFont(self.microFont or f.small);love.graphics.setColor(.59,.76,.65,1);love.graphics.print("나무가 허용량에 닿으면 종료",x+75,y+36)
  love.graphics.setColor(.05,.13,.10,.88);love.graphics.rectangle("fill",x+w-50,y+h/2-13,36,26,3,3)
  love.graphics.setColor(.72,.90,.73,1);love.graphics.printf("M",x+w-50,y+h/2-(self.microFont or f.small):getHeight()/2,36,"center")
 end

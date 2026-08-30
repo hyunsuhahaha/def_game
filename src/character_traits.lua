@@ -302,7 +302,8 @@ jobs.universal = {
 expand("universal",{
     {id="universal_lumberbonus",name="목재 실적 인정",short="벤 만큼 잡힌다",desc="목재 획득량 +12%",effect="woodYield",value=.12,requires={{"universal_shuttle",1}},icon="coins",color={.78,.62,.30}},
     {id="universal_afforestation",name="선제적 조림 사업",short="미리 심어둔다",desc="스테이지 진행마다 나무 +6그루(스테이지 배수)",effect="forestRestock",value=6,requires={{"universal_shuttle",1}},icon="map",color={.42,.68,.40}},
-    {id="universal_seedbank",name="다수종 조림 협약",short="한 종만 심지 않는다",desc="벌목지에 더 값나가는 수종이 함께 자란다",effect="treeVariety",value=1,max=1,requires={{"universal_afforestation",1}},icon="leaf",color={.55,.72,.35}}
+    {id="universal_seedbank",name="다수종 조림 협약",short="한 종만 심지 않는다",desc="벌목지에 더 값나가는 수종이 함께 자란다",effect="treeVariety",value=1,max=1,requires={{"universal_afforestation",1}},icon="leaf",color={.55,.72,.35}},
+    {id="universal_yard",name="벌목장 부지 확장",short="쌓아둘 자리",desc="벌목 기록 모드의 나무 허용량 +4그루",effect="scoreTreeAllowance",value=4,max=7,costs={16,26,40,58,80,108,142},requires={{"universal_shuttle",1}},icon="map",color={.48,.72,.42}}
 })
 
 local byId = {}
@@ -431,7 +432,7 @@ function CharacterTraits:effects(job)
         biteDamage=0, plagueDuration=0,
         dashSpeed=1, sterileChance=0, aftershockRadius=0, cooldownRefund=0,
         moveSpeed=1, pickupRadius=0, hpRegen=0, reviveCharges=0,
-        woodYield=1, forestRestock=0, treeVariety=0
+        woodYield=1, forestRestock=0, treeVariety=0, scoreTreeAllowance=0
     }
     local function accumulate(nodes)
         for _, node in ipairs(nodes) do
