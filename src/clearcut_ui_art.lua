@@ -30,4 +30,40 @@ function Art.button(x,y,w,h,label,font,kind,active)
     love.graphics.setFont(font);love.graphics.setColor(active==false and {.5,.5,.48,.7}or{1,.96,.84,1});love.graphics.printf(label,x,y+h/2-font:getHeight()/2,w,"center")
     return hover
 end
+
+-- Results use a compact physical-control silhouette instead of the old flat
+-- colour strip: clipped pixel corners, a separate key well, and three stepped
+-- material bands keep it readable without turning it into a large card.
+function Art.resultButton(x,y,w,h,label,key,font,kind,active)
+    x,y,w,h=math.floor(x+.5),math.floor(y+.5),math.floor(w+.5),math.floor(h+.5)
+    local mx,my=love.mouse.getPosition();local hover=active~=false and mx>=x and mx<=x+w and my>=y and my<=y+h
+    local amber=kind=="amber";local lift=hover and-2 or 0;y=y+lift
+    local cut=math.max(3,math.floor(h*.12));local shape={x+cut,y,x+w-cut,y,x+w,y+cut,x+w,y+h-cut,x+w-cut,y+h,x+cut,y+h,x,y+h-cut,x,y+cut}
+    local shadow={};for i=1,#shape,2 do shadow[#shadow+1]=shape[i]+3;shadow[#shadow+1]=shape[i+1]+4 end
+    love.graphics.setColor(0,0,0,.58);love.graphics.polygon("fill",shadow)
+    local edge=amber and(hover and{1,.72,.20}or{.76,.39,.09})or(hover and{.52,.86,.61}or{.29,.49,.35})
+    love.graphics.setColor(edge);love.graphics.polygon("fill",shape)
+    local inset=2;local inner={x+cut+inset,y+inset,x+w-cut-inset,y+inset,x+w-inset,y+cut+inset,x+w-inset,y+h-cut-inset,x+w-cut-inset,y+h-inset,x+cut+inset,y+h-inset,x+inset,y+h-cut-inset,x+inset,y+cut+inset}
+    local top=amber and(hover and{.35,.17,.045}or{.20,.105,.035})or(hover and{.095,.18,.125}or{.055,.105,.073})
+    love.graphics.setColor(top);love.graphics.polygon("fill",inner)
+    love.graphics.setColor(top[1]*.58,top[2]*.58,top[3]*.58,.98);love.graphics.rectangle("fill",x+2,y+math.floor(h*.63),w-4,math.floor(h*.32))
+    love.graphics.setColor(edge[1],edge[2],edge[3],.34);love.graphics.rectangle("fill",x+cut+3,y+3,w-cut*2-6,2)
+
+    local keyW=key=="ENTER"and math.floor(h*1.12)or math.floor(h*.72);local keyH=math.floor(h*.62)
+    local keyX=x+math.floor(h*.25);local keyY=y+math.floor((h-keyH)/2)
+    love.graphics.setColor(.018,.025,.020,1);love.graphics.rectangle("fill",keyX-2,keyY-2,keyW+4,keyH+5)
+    love.graphics.setColor(edge[1],edge[2],edge[3],.78);love.graphics.rectangle("fill",keyX,keyY,keyW,keyH)
+    love.graphics.setColor(.07,.08,.07,1);love.graphics.rectangle("fill",keyX+2,keyY+2,keyW-4,keyH-5)
+    love.graphics.setColor(.20,.22,.19,1);love.graphics.rectangle("fill",keyX+3,keyY+3,keyW-6,2)
+    love.graphics.setFont(font);love.graphics.setColor(.94,.92,.80,1)
+    local keyScale=key=="ENTER"and .78 or 1
+    love.graphics.push();love.graphics.translate(keyX+keyW/2,keyY+keyH/2);love.graphics.scale(keyScale,keyScale)
+    love.graphics.printf(key,-keyW/(2*keyScale),-font:getHeight()/2,keyW/keyScale,"center");love.graphics.pop()
+    local labelX=keyX+keyW+math.floor(h*.22);local labelW=x+w-labelX-math.floor(h*.35)
+    love.graphics.setColor(active==false and{.48,.49,.45,.65}or{.96,.93,.80,1});love.graphics.printf(label,labelX,y+h/2-font:getHeight()/2,labelW,"left")
+    -- A two-pixel action chevron adds direction without a decorative icon tile.
+    local ax=x+w-math.floor(h*.28);local ay=y+math.floor(h*.50)
+    love.graphics.setColor(edge);love.graphics.rectangle("fill",ax-4,ay-3,2,2);love.graphics.rectangle("fill",ax-2,ay-1,2,2);love.graphics.rectangle("fill",ax-4,ay+1,2,2)
+    return hover
+end
 return Art

@@ -7384,10 +7384,10 @@ local function drawScoreSettlementResults(self,game,fonts)
         end
     end
 
-    local buttonH=42*scale;local buttonW=210*scale;local by=h-buttonH-18*scale;local bx=w/2-buttonW-7*scale
-    game.clearcutResultButtons={research={x=bx,y=by,w=buttonW,h=buttonH},retry={x=w/2+7*scale,y=by,w=buttonW,h=buttonH}}
-    HUDArt.button(bx,by,buttonW,buttonH,"영구 연구  [T]",fonts.small,"neutral",true)
-    HUDArt.button(w/2+7*scale,by,buttonW,buttonH,"다시 도전  [ENTER]",fonts.small,"amber",true)
+    local buttonH=50*scale;local buttonW=230*scale;local by=h-buttonH-16*scale;local bx=w/2-buttonW-8*scale
+    game.clearcutResultButtons={research={x=bx,y=by,w=buttonW,h=buttonH},retry={x=w/2+8*scale,y=by,w=buttonW,h=buttonH}}
+    HUDArt.resultButton(bx,by,buttonW,buttonH,"영구 연구","T",fonts.small,"neutral",true)
+    HUDArt.resultButton(w/2+8*scale,by,buttonW,buttonH,"다시 도전","ENTER",fonts.small,"amber",true)
 end
 
 function ClearcutMode:drawResults(game,fonts)
@@ -7423,10 +7423,10 @@ function ClearcutMode:drawResults(game,fonts)
     love.graphics.setFont(fonts.micro or fonts.small);love.graphics.setColor(.62,.68,.60)
     love.graphics.printf("보유 "..tostring(r.traitCurrency or r.traitEarned or 0).." P",x+134,rewardY+46*scale,150,"left")
 
-    local buttonH=46*scale;local buttonW=224*scale;local by=rewardY+98*scale;local bx=w/2-buttonW-8
+    local buttonH=50*scale;local buttonW=230*scale;local by=rewardY+96*scale;local bx=w/2-buttonW-8
     game.clearcutResultButtons={research={x=bx,y=by,w=buttonW,h=buttonH},retry={x=w/2+8,y=by,w=buttonW,h=buttonH}}
-    HUDArt.button(bx,by,buttonW,buttonH,"영구 연구  [T]",fonts.small,"neutral",true)
-    HUDArt.button(w/2+8,by,buttonW,buttonH,"다시 도전  [ENTER]",fonts.small,"amber",true)
+    HUDArt.resultButton(bx,by,buttonW,buttonH,"영구 연구","T",fonts.small,"neutral",true)
+    HUDArt.resultButton(w/2+8,by,buttonW,buttonH,"다시 도전","ENTER",fonts.small,"amber",true)
     love.graphics.setFont(fonts.micro or fonts.small);love.graphics.setColor(.58,.64,.58);love.graphics.printf("ESC  로비",x,by+buttonH+16*scale,contentW,"center")
 end
 ClearcutMode.characters = {
