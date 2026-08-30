@@ -7390,7 +7390,7 @@ local function drawScoreSettlementResults(self,game,fonts)
 
     local buttonH=50*scale;local buttonW=230*scale;local by=h-buttonH-16*scale;local bx=w/2-buttonW-8*scale
     game.clearcutResultButtons={research={x=bx,y=by,w=buttonW,h=buttonH},retry={x=w/2+8*scale,y=by,w=buttonW,h=buttonH}}
-    HUDArt.resultButton(bx,by,buttonW,buttonH,"영구 연구","T",fonts.small,"neutral",true)
+    HUDArt.resultButton(bx,by,buttonW,buttonH,"강화하기","T",fonts.small,"neutral",true)
     HUDArt.resultButton(w/2+8*scale,by,buttonW,buttonH,"다시 도전","ENTER",fonts.small,"amber",true)
 end
 
@@ -7429,7 +7429,7 @@ function ClearcutMode:drawResults(game,fonts)
 
     local buttonH=50*scale;local buttonW=230*scale;local by=rewardY+96*scale;local bx=w/2-buttonW-8
     game.clearcutResultButtons={research={x=bx,y=by,w=buttonW,h=buttonH},retry={x=w/2+8,y=by,w=buttonW,h=buttonH}}
-    HUDArt.resultButton(bx,by,buttonW,buttonH,"영구 연구","T",fonts.small,"neutral",true)
+    HUDArt.resultButton(bx,by,buttonW,buttonH,"강화하기","T",fonts.small,"neutral",true)
     HUDArt.resultButton(w/2+8,by,buttonW,buttonH,"다시 도전","ENTER",fonts.small,"amber",true)
     love.graphics.setFont(fonts.micro or fonts.small);love.graphics.setColor(.58,.64,.58);love.graphics.printf("ESC  로비",x,by+buttonH+16*scale,contentW,"center")
 end

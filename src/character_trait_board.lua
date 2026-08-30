@@ -495,7 +495,7 @@ function CharacterTraitBoard:draw()
     self.backBox={x=26*textScale,y=18*textScale,w=132*textScale,h=40*textScale}
     Frontend.button(self.backBox,"← 돌아가기",fonts.small,{accent=STRUCTURE})
     local titleX=184*textScale
-    love.graphics.setFont(fonts.title); love.graphics.setColor(.18,.19,.17); love.graphics.print("영구 연구",titleX,titleY)
+    love.graphics.setFont(fonts.title); love.graphics.setColor(.18,.19,.17); love.graphics.print("강화하기",titleX,titleY)
     love.graphics.setFont(fonts.small); love.graphics.setColor(.38,.40,.37); love.graphics.print("중앙 장비에서 네 방향으로 연구를 확장합니다",titleX,subtitleY)
     love.graphics.setFont(fonts.small);love.graphics.setColor(.38,.40,.37);love.graphics.printf("연구 코인",w-250*textScale,20*textScale,118*textScale,"right")
     love.graphics.setFont(fonts.big);love.graphics.setColor(.24,.54,.32);love.graphics.printf(tostring(self.store.data.currency),w-126*textScale,16*textScale,100*textScale,"right")
