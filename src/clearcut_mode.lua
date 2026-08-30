@@ -2132,9 +2132,6 @@ function ClearcutMode:igniteNear(source, game, radius, count, depth)
     for i = 1, math.min(count, #candidates) do
         candidates[i].burning, candidates[i].burnTimer, candidates[i].spreadDepth, candidates[i].fireTickTimer = true, 0, depth, 0
         game.world:igniteFx(candidates[i].x, candidates[i].y, false)
-        source.burnPulseAge=0
-        source.burnJoltTimer=.075
-        source.burnJoltDir=(candidates[i].x-source.x)>=0 and 1 or -1
         self:spawnFireSpark(source.x, source.y, candidates[i].x, candidates[i].y)
     end
 end
