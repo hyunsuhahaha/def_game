@@ -3295,7 +3295,7 @@ function ClearcutMode:updateBoomerangAxe(dt, game)
     local speed=480*Synergies.projectileSpeedMultiplier(self)*(branch=="rapid_return" and 1.55 or 1)
     self.boomerangs[#self.boomerangs+1] = {
         x=game.player.x, y=game.player.y, dx=math.cos(a), dy=math.sin(a),
-        traveled=0,maxDist=200+growth*244,phase="out",hitSet={},dmg=(.75+growth*13.45)*damage,
+        traveled=0,maxDist=(200+growth*244)*2,phase="out",hitSet={},dmg=(.75+growth*13.45)*damage,
         radius=(64+growth*24)*area,angle=a,target=target,speed=speed,branch=branch,ricochets=0
     }
 end

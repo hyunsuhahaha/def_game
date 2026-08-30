@@ -56,6 +56,7 @@ assert(64>30*2)
 a=tree(20,0);e=enemy(0,300);m,g=setup("boomerang_axe",{a},{e});m:updateBoomerangAxe(0,g)
 assert(m.boomerangs[1].target==e,"boomerang did not select the monster")
 near(m.boomerangs[1].dx,0);near(m.boomerangs[1].dy,1)
+near(m.boomerangs[1].maxDist,(200+openingGrowth*244)*2)
 m,g=setup("boomerang_axe",{tree(30)},{});m:updateBoomerangAxe(0,g);assert(#m.boomerangs==0,"boomerang substituted a tree target")
 -- Mine keeps its fuse. Explosion persists after the gameplay object is removed.
 a,b=tree(20),tree(71);m,g=setup("seed_mine",{a,b});m.seedTimer=99
