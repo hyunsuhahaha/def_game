@@ -528,7 +528,8 @@ function Game:keypressed(key)
         return
     end
     if self.mode == "clearcut_results" then
-        if key=="return" or key=="r" then if self.clearcut and self.clearcut.scoreAttack then self:startClearcutScoreAttack()else self:startClearcut(self.clearcut and self.clearcut.job)end elseif key=="escape" then self.mode="lobby" end
+        if key=="t" or key=="u" then self.characterTraitReturnMode="lobby";self.mode="character_traits"
+        elseif key=="return" or key=="r" then if self.clearcut and self.clearcut.scoreAttack then self:startClearcutScoreAttack()else self:startClearcut(self.clearcut and self.clearcut.job)end elseif key=="escape" then self.mode="lobby" end
         return
     end
     if self.mode == "results" then
@@ -731,7 +732,7 @@ function Game:mousepressed(x, y, button)
         return
     end
     if self.mode == "clearcut_results" then
-        if button==1 then local boxes=self.clearcutResultButtons or{};local function inside(b)return b and x>=b.x and x<=b.x+b.w and y>=b.y and y<=b.y+b.h end;if inside(boxes.lobby)then self.mode="lobby"elseif inside(boxes.retry)then if self.clearcut and self.clearcut.scoreAttack then self:startClearcutScoreAttack()else self:startClearcut(self.clearcut and self.clearcut.job)end end end
+        if button==1 then local boxes=self.clearcutResultButtons or{};local function inside(b)return b and x>=b.x and x<=b.x+b.w and y>=b.y and y<=b.y+b.h end;if inside(boxes.research)then self.characterTraitReturnMode="lobby";self.mode="character_traits"elseif inside(boxes.retry)then if self.clearcut and self.clearcut.scoreAttack then self:startClearcutScoreAttack()else self:startClearcut(self.clearcut and self.clearcut.job)end end end
         return
     end
     if self.mode == "results" then

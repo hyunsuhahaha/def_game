@@ -17,7 +17,7 @@ for _,size in ipairs({{960,540},{1280,720},{1920,1080}})do
         if cmd.text and cmd.text:find("철거 완료",1,true)then successText=true end
         if cmd.text and cmd.text:find("다시 도전",1,true)then retry=true end
     end
-    assert(successText and retry,"minimal result UI did not render")
+    assert(successText and retry and game.clearcutResultButtons.research,"focused result UI did not render")
     for _,box in pairs(game.clearcutResultButtons or{})do assert(box.x>=0 and box.y>=0 and box.x+box.w<=width and box.y+box.h<=height,"result button escaped viewport")end
 end
 fixture.reset();Art.bar(10,10,320,14,.64,"health");local rectangles=0;for _,cmd in ipairs(fixture.commands)do if cmd.op=="rectangle"then rectangles=rectangles+1 end;assert(not cmd.file,"minimal bar loaded a decorative asset")end
@@ -28,4 +28,4 @@ assert(not modeText:find("연속 채집 ×",1,true),"boxed harvest combo copy re
 assert(not modeText:find("HUDArt.panel",1,true)and not modeText:find("resultBoard",1,true),"decorative card/board returned to clearcut UI")
 local intro=assert(io.open("src/clearcut_intro.lua","rb"));local source=intro:read("*a");intro:close()
 assert(not source:find("작전 개시",1,true)and not source:find("전투 시작",1,true)and not source:find("작업 시작",1,true),"start banner copy returned")
-print("CLEARCUT_UI_V4_OK hud=minimal_pixel_bars combo=number_only results=typography_only responsive=960..1920 start_banner=removed")
+print("CLEARCUT_UI_V5_OK hud=minimal_pixel_bars combo=number_only results=record_reward_actions responsive=960..1920 start_banner=removed")

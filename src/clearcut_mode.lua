@@ -7275,30 +7275,40 @@ end
 function ClearcutMode:drawResults(game,fonts)
     local w,h,r=love.graphics.getWidth(),love.graphics.getHeight(),game.result
     local victory=r.victory~=false
-    local scale=math.max(.78,math.min(1.18,w/1280,h/720));local contentW=math.min(760,w-48);local x=(w-contentW)/2;local top=math.max(38,(h-510*scale)/2)
-    love.graphics.setColor(.006,.009,.007,.84);love.graphics.rectangle("fill",0,0,w,h)
-    love.graphics.setFont(fonts.title);love.graphics.setColor(victory and{1,.87,.40}or{1,.37,.24})
-    love.graphics.printf(r.scoreAttack and "벌목 기록"or(victory and((r.operationName or"벌목 작전").." 완료")or"작업 중단"),x,top,contentW,"center")
-    love.graphics.setFont(fonts.micro or fonts.small);love.graphics.setColor(.72,.76,.68)
-    love.graphics.printf(r.scoreAttack and "흡연자 · 숲 과밀로 작업 종료"or((r.stageCode or Maps.stageCode(r.mapId,r.stage)).." · "..(victory and((r.bossName or"지역 보스").." 격파")or(r.failureReason=="timeout" and "제한 시간 초과 · 다음 구역 진입 실패" or "회수 기록"))),x,top+48*scale,contentW,"center")
-    local ratio=(r.total or 0)>0 and(r.trees or 0)/(r.total or 1)or 0;local scoreSec=r.elapsed or 0;local rank=r.scoreAttack and(scoreSec>=360 and"S"or scoreSec>=180 and"A"or scoreSec>=60 and"B"or scoreSec>=30 and"C"or"D")or(victory and(ratio>=.95 and"S"or ratio>=.75 and"A"or"B")or(ratio>=.5 and"C"or"D"))
-    love.graphics.setColor(.35,.40,.34,.75);love.graphics.rectangle("fill",x,top+83*scale,contentW,2)
-    love.graphics.setFont(fonts.big);love.graphics.setColor(victory and{1,.70,.18}or{1,.35,.24});love.graphics.printf(rank,x+contentW-70,top,70,"right")
-    local metrics=r.scoreAttack and{{"버틴 시간",formatTime(r.elapsed)},{"최고 생산력",string.format("%d/초",r.peakTreesPerSecond or 0)},{"총 벌목",r.trees.."그루"}}or{{"작업 시간",formatTime(r.elapsed)},{"벌목",r.trees.." / "..r.total},{"확보 구역",(r.zonesSecured or 0).." / "..(r.zonesTotal or 0)}}
-    for i,m in ipairs(metrics)do local colW=contentW/3;local cx=x+(i-1)*colW
-        love.graphics.setFont(fonts.micro or fonts.small);love.graphics.setColor(.62,.67,.60);love.graphics.printf(m[1],cx,top+116*scale,colW,"center")
-        love.graphics.setFont(fonts.big);love.graphics.setColor(1,.96,.82);love.graphics.printf(tostring(m[2]),cx,top+145*scale,colW,"center")
+    local scale=math.max(.76,math.min(1.16,w/1280,h/720));local contentW=math.min(720,w-48);local x=(w-contentW)/2
+    local top=math.max(24,(h-590*scale)/2)
+    love.graphics.setColor(.004,.010,.007,.68);love.graphics.rectangle("fill",0,0,w,h)
+    local title=r.scoreAttack and "산림 과밀"or(victory and((r.operationName or"벌목 작전").." 완료")or"작업 중단")
+    love.graphics.setFont(fonts.title);love.graphics.setColor(victory and{1,.92,.64}or{1,.44,.30});love.graphics.printf(title,x,top,contentW,"center")
+    love.graphics.setFont(fonts.small);love.graphics.setColor(.70,.77,.68)
+    love.graphics.printf(r.scoreAttack and("재생 "..tostring(r.highestRegenTier or r.regenTier or 1).."단계")or((r.stageCode or Maps.stageCode(r.mapId,r.stage)).."  ·  "..(r.bossName or"지역 보스")),x,top+48*scale,contentW,"center")
+
+    local heroY=top+82*scale
+    love.graphics.setColor(.006,.018,.013,.72);love.graphics.rectangle("fill",x+80,heroY,contentW-160,94*scale,7,7)
+    love.graphics.setColor(1,.74,.24,.9);love.graphics.rectangle("fill",x+80,heroY,5,94*scale,3,3)
+    love.graphics.setFont(fonts.micro or fonts.small);love.graphics.setColor(.68,.74,.66);love.graphics.printf(r.scoreAttack and"생존 기록"or"작업 시간",x+80,heroY+15*scale,contentW-160,"center")
+    love.graphics.setFont(fonts.display or fonts.big);love.graphics.setColor(1,.97,.84);love.graphics.printf(formatTime(r.elapsed),x+80,heroY+40*scale,contentW-160,"center")
+
+    local statY=heroY+116*scale;local gap=10*scale;local statW=(contentW-gap*2)/3
+    local stats=r.scoreAttack and{{"총 벌목",(r.trees or 0).."그루"},{"최고 생산",(r.peakTreesPerSecond or 0).."/초"},{"도달 레벨",r.level or 1}}or{{"총 벌목",(r.trees or 0).."그루"},{"확보 구역",(r.zonesSecured or 0).." / "..(r.zonesTotal or 0)},{"도달 레벨",r.level or 1}}
+    for i,stat in ipairs(stats)do local sx=x+(i-1)*(statW+gap)
+        love.graphics.setColor(.006,.018,.013,.70);love.graphics.rectangle("fill",sx,statY,statW,72*scale,5,5)
+        love.graphics.setFont(fonts.micro or fonts.small);love.graphics.setColor(.63,.70,.62);love.graphics.printf(stat[1],sx,statY+11*scale,statW,"center")
+        love.graphics.setFont(fonts.heading);love.graphics.setColor(.96,.94,.80);love.graphics.printf(tostring(stat[2]),sx,statY+37*scale,statW,"center")
     end
-    love.graphics.setColor(.25,.29,.25,.8);love.graphics.rectangle("fill",x,top+205*scale,contentW,2)
-    local details=r.scoreAttack and{{"획득 목재",r.wood},{"운영 레벨",r.level},{"영구 재생 단계",r.highestRegenTier or r.regenTier or 1},{"나무 허용량",string.format("%d그루",r.treeAllowance or 12)},{"최종 생성 속도",string.format("%.2f/초",r.treeSpawnRate or 0)},{"총 산림 공급",r.totalTreesSpawned or r.total}}or{{"총 목재",r.wood},{"처치",r.kills or 0},{"최대 동시 / 연쇄",r.maxMulti.." / "..r.maxChain},{"도달 레벨",r.level},{"재생 / 부활 나무",r.regrowPulses.."회 / "..r.treesRevived.."그루"},{"가시덩굴 / 벌집",r.rootedCount.." / "..r.beeSwarms}}
-    love.graphics.setFont(fonts.micro or fonts.small)
-    for i,m in ipairs(details)do local col=(i-1)%2;local row=math.floor((i-1)/2);local dx=x+col*(contentW/2);local y=top+(236+row*34)*scale
-        love.graphics.setColor(.60,.65,.59);love.graphics.print(m[1],dx+18,y);love.graphics.setColor(.95,.92,.78);love.graphics.printf(tostring(m[2]),dx+130,y,contentW/2-150,"right")
-    end
-    love.graphics.setColor(1,.72,.22);love.graphics.setFont(fonts.small);love.graphics.printf("특성 연구  +"..tostring(r.traitEarned or 0).." P",x,top+352*scale,contentW,"center")
-    local buttonH=44*scale;local buttonW=220*scale;local by=top+407*scale;local bx=w/2-buttonW-8
-    game.clearcutResultButtons={lobby={x=bx,y=by,w=buttonW,h=buttonH},retry={x=w/2+8,y=by,w=buttonW,h=buttonH}}
-    HUDArt.button(bx,by,buttonW,buttonH,"로비로  [ESC]",fonts.small,"neutral",true);HUDArt.button(w/2+8,by,buttonW,buttonH,"다시 도전  [ENTER]",fonts.small,"amber",true)
+
+    local rewardY=statY+92*scale
+    love.graphics.setColor(.006,.018,.013,.80);love.graphics.rectangle("fill",x+110,rewardY,contentW-220,74*scale,6,6)
+    love.graphics.setFont(fonts.small);love.graphics.setColor(.68,.75,.66);love.graphics.print("이번 작업 성과",x+134,rewardY+14*scale)
+    love.graphics.setFont(fonts.big);love.graphics.setColor(.50,1,.62);love.graphics.printf("+"..tostring(r.traitEarned or 0).." P",x+110,rewardY+29*scale,contentW-244,"right")
+    love.graphics.setFont(fonts.micro or fonts.small);love.graphics.setColor(.62,.68,.60)
+    love.graphics.printf("보유 "..tostring(r.traitCurrency or r.traitEarned or 0).." P",x+134,rewardY+46*scale,150,"left")
+
+    local buttonH=46*scale;local buttonW=224*scale;local by=rewardY+98*scale;local bx=w/2-buttonW-8
+    game.clearcutResultButtons={research={x=bx,y=by,w=buttonW,h=buttonH},retry={x=w/2+8,y=by,w=buttonW,h=buttonH}}
+    HUDArt.button(bx,by,buttonW,buttonH,"영구 연구  [T]",fonts.small,"neutral",true)
+    HUDArt.button(w/2+8,by,buttonW,buttonH,"다시 도전  [ENTER]",fonts.small,"amber",true)
+    love.graphics.setFont(fonts.micro or fonts.small);love.graphics.setColor(.58,.64,.58);love.graphics.printf("ESC  로비",x,by+buttonH+16*scale,contentW,"center")
 end
 ClearcutMode.characters = {
     {id="physical", name="생계형 나무꾼", icon="axe", color={1,.42,.22},

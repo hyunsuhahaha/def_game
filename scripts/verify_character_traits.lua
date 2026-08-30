@@ -99,13 +99,14 @@ assert(board:mousepressed(mouseX,mouseY,1)=="dragging", "graph did not enter poi
 board:update(.016); mouseDown=false; board:update(.016)
 assert(board.selectedNodeId==rootBox.id and board:buySelected()=="bought", "selected trait node was not purchased")
 assert(board.unlockFx and #board.particles>=30, "graph unlock effect did not spawn")
-local oldPan=board.panX
+local oldPan=board.panY
+board:wheelmoved(0,1)
 mouseX,mouseY,mouseDown=board.viewport.x+board.viewport.w/2,board.viewport.y+board.viewport.h/2,true
 board:mousepressed(mouseX,mouseY,1)
-mouseX=mouseX-100; board:update(.016)
-assert(board.panX~=oldPan,"dragging did not pan the research canvas")
+mouseY=mouseY-100; board:update(.016)
+assert(board.panY~=oldPan,"dragging did not pan the research canvas")
 mouseDown=false; board:update(.016)
-assert(math.abs(board.panVX)>0,"released research canvas has no inertial velocity")
+assert(math.abs(board.panVY)>0,"released research canvas has no inertial velocity")
 local oldZoom=board.zoom
 board:wheelmoved(0,1)
 assert(board.zoom>oldZoom,"mouse wheel did not zoom the research canvas")

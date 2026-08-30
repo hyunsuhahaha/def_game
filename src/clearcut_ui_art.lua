@@ -20,8 +20,13 @@ end
 
 function Art.button(x,y,w,h,label,font,kind,active)
     local mx,my=love.mouse.getPosition();local hover=active~=false and mx>=x and mx<=x+w and my>=y and my<=y+h
-    love.graphics.setColor(hover and {.96,.52,.12,1}or{.18,.21,.18,.94});love.graphics.rectangle("fill",x,y,w,h)
-    love.graphics.setColor(hover and {1,.82,.34,1}or{.58,.64,.54,1});love.graphics.rectangle("fill",x,y+h-3,w,3)
+    local amber=kind=="amber"
+    local base=amber and (hover and {.96,.47,.08,1}or{.64,.25,.035,.98}) or (hover and {.20,.43,.30,1}or{.14,.20,.16,.96})
+    local edge=amber and (hover and {1,.84,.36,1}or{.96,.52,.10,1}) or (hover and {.56,.92,.68,1}or{.38,.65,.48,1})
+    love.graphics.setColor(base);love.graphics.rectangle("fill",x,y,w,h)
+    love.graphics.setColor(base[1]*.72,base[2]*.72,base[3]*.72,1);love.graphics.rectangle("fill",x,y+h*.68,w,h*.32)
+    love.graphics.setColor(math.min(1,base[1]+.12),math.min(1,base[2]+.12),math.min(1,base[3]+.12),1);love.graphics.rectangle("fill",x,y,w,2)
+    love.graphics.setColor(edge);love.graphics.rectangle("fill",x,y+h-3,w,3)
     love.graphics.setFont(font);love.graphics.setColor(active==false and {.5,.5,.48,.7}or{1,.96,.84,1});love.graphics.printf(label,x,y+h/2-font:getHeight()/2,w,"center")
     return hover
 end
