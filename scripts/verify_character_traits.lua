@@ -22,11 +22,12 @@ local CharacterTraitBoard = require("src.character_trait_board")
 
 local lobby = setmetatable({
     clearcutBox={x=0,y=0,w=100,h=50},
+    scoreAttackBox={x=0,y=60,w=100,h=50},
     traitsBox={x=110,y=0,w=100,h=50},
     settingsBox={x=220,y=0,w=100,h=50}
 }, Lobby)
-assert(lobby:keypressed("return") == "clearcut" and lobby:keypressed("r") == nil, "lobby still exposes a non-clearcut mode")
-assert(lobby:mousepressed(20,20,1) == "clearcut" and lobby:mousepressed(130,20,1) == "character_traits", "clearcut lobby navigation is not wired")
+assert(lobby:keypressed("return") == "clearcut" and lobby:keypressed("m")=="score_attack" and lobby:keypressed("r") == nil, "lobby mode shortcuts are incorrect")
+assert(lobby:mousepressed(20,20,1) == "clearcut" and lobby:mousepressed(20,80,1)=="score_attack" and lobby:mousepressed(130,20,1) == "character_traits", "clearcut lobby navigation is not wired")
 
 local store = CharacterTraits.new(true)
 store.data.currency = 300
@@ -59,16 +60,22 @@ mode:finish(game, true)
 assert(store.data.currency == after, "character trait currency was awarded twice for one run")
 
 local fonts={small=font,body=font,heading=font,big=font,title=font}
-local visualLobby=setmetatable({fonts=fonts,labelFont=font,displayFont=font,background={getDimensions=function() return 1600,900 end},time=0,clearcutHover=0},Lobby)
+local visualLobby=setmetatable({fonts=fonts,labelFont=font,displayFont=font,background={getDimensions=function() return 1600,900 end},time=0,clearcutHover=0,scoreAttackHover=0},Lobby)
 assert(pcall(visualLobby.draw,visualLobby), "clearcut-only lobby draw contract failed")
 local sprites={physical={image=image},fire={image=image},toxic={image=image},developer={image=image}}
 local board=CharacterTraitBoard.new(store,fonts,sprites)
 assert(pcall(board.draw,board), "character trait board draw contract failed")
 store.data.currency=1000
-local rootBox=board.nodeBoxes[1]
+local rootBox
+for _,box in ipairs(board.nodeBoxes)do
+    local purchasable=store:status(box.id)
+    if purchasable and box.cx>=board.viewport.x and box.cx<=board.viewport.x+board.viewport.w and box.cy>=board.viewport.y and box.cy<=board.viewport.y+board.viewport.h then rootBox=box;break end
+end
+rootBox=assert(rootBox,"no visible purchasable trait node found")
 mouseX,mouseY,mouseDown=rootBox.cx,rootBox.cy,true
 assert(board:mousepressed(mouseX,mouseY,1)=="dragging", "graph did not enter pointer interaction")
 board:update(.016); mouseDown=false; board:update(.016)
+assert(board.selectedNodeId==rootBox.id and board:buySelected()=="bought", "selected trait node was not purchased")
 assert(board.unlockFx and #board.particles>=30, "graph unlock effect did not spawn")
 local oldPan=board.panX
 mouseX,mouseY,mouseDown=board.viewport.x+board.viewport.w/2,board.viewport.y+board.viewport.h/2,true

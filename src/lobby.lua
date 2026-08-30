@@ -3,15 +3,19 @@ local Lobby={}; Lobby.__index=Lobby
 local function inside(b,x,y) return F.inside(b,x,y) end
 function Lobby.new(images,fonts)
  local bg=love.graphics.newImage("assets/lobby-forest-lofi-day-pixel-v4.png"); bg:setFilter("nearest","nearest")
- return setmetatable({images=images,fonts=fonts,background=bg,time=0,clearcutHover=0,microFont=love.graphics.newFont("assets/font-korean-bold.ttf",12)},Lobby)
+ return setmetatable({images=images,fonts=fonts,background=bg,time=0,clearcutHover=0,scoreAttackHover=0,microFont=love.graphics.newFont("assets/font-korean-bold.ttf",12)},Lobby)
 end
-function Lobby:update(dt) self.time=self.time+dt; local mx,my=love.mouse.getPosition(); local target=inside(self.clearcutBox,mx,my) and 1 or 0; self.clearcutHover=self.clearcutHover+(target-self.clearcutHover)*math.min(1,dt*11) end
+function Lobby:update(dt)
+ self.time=self.time+dt;local mx,my=love.mouse.getPosition();local k=math.min(1,dt*11)
+ local target=inside(self.clearcutBox,mx,my)and 1 or 0;self.clearcutHover=self.clearcutHover+(target-self.clearcutHover)*k
+ local scoreTarget=inside(self.scoreAttackBox,mx,my)and 1 or 0;self.scoreAttackHover=self.scoreAttackHover+(scoreTarget-self.scoreAttackHover)*k
+end
 function Lobby:keypressed(key)
- if key=="return" or key=="space" or key=="c" then return "clearcut" elseif key=="a" then return "achievements" elseif key=="t" then return "character_traits" elseif key=="d" then return "character_codex" elseif key=="p" then return "skill_sandbox" end
+ if key=="return" or key=="space" or key=="c" then return "clearcut" elseif key=="m" then return "score_attack" elseif key=="a" then return "achievements" elseif key=="t" then return "character_traits" elseif key=="d" then return "character_codex" elseif key=="p" then return "skill_sandbox" end
 end
 function Lobby:mousepressed(x,y,button)
  if button~=1 then return end
- if inside(self.clearcutBox,x,y) then return "clearcut" elseif inside(self.achievementBox,x,y) then return "achievements" elseif inside(self.traitsBox,x,y) then return "character_traits" elseif inside(self.codexBox,x,y) then return "character_codex" elseif inside(self.sandboxBox,x,y) then return "skill_sandbox" elseif inside(self.settingsBox,x,y) then return "settings" end
+ if inside(self.clearcutBox,x,y) then return "clearcut" elseif inside(self.scoreAttackBox,x,y) then return "score_attack" elseif inside(self.achievementBox,x,y) then return "achievements" elseif inside(self.traitsBox,x,y) then return "character_traits" elseif inside(self.codexBox,x,y) then return "character_codex" elseif inside(self.sandboxBox,x,y) then return "skill_sandbox" elseif inside(self.settingsBox,x,y) then return "settings" end
 end
 function Lobby:drawBackground(w,h)
  local iw,ih=self.background:getDimensions(); local scale=math.max(w/iw,h/ih)*1.025; local dw,dh=iw*scale,ih*scale
@@ -58,6 +62,19 @@ function Lobby:drawStartButton(box,f)
  love.graphics.printf("ENT",x+w-64,by+h/2-f.small:getHeight()/2,48,"center")
  return inside(box,love.mouse.getPosition())
 end
+function Lobby:drawScoreAttackButton(box,f)
+ local x,y,w,h=box.x,box.y,box.w,box.h;local hover=self.scoreAttackHover or 0;local lift=hover*2;y=y-lift
+ love.graphics.setColor(0,0,0,.42);love.graphics.rectangle("fill",x+4,y+7,w,h,5,5)
+ local bands={{.055,.18,.14},{.065,.23,.17},{.075,.28,.20},{.085,.32,.23}}
+ for i,c in ipairs(bands)do local yy=y+math.floor((i-1)*h/#bands);local yn=y+math.floor(i*h/#bands);love.graphics.setColor(c[1]+hover*.018,c[2]+hover*.035,c[3]+hover*.025,1);love.graphics.rectangle("fill",x+1,yy,w-2,yn-yy)end
+ love.graphics.setColor(.34,.82,.56,.78+hover*.18);love.graphics.rectangle("line",x+.5,y+.5,w-1,h-1,5,5)
+ love.graphics.setColor(.94,.63,.20,1);love.graphics.rectangle("fill",x+14,y+12,46,h-24,3,3)
+ love.graphics.setFont(f.small);love.graphics.setColor(.08,.055,.018,1);love.graphics.printf("10:00",x+14,y+h/2-f.small:getHeight()/2,46,"center")
+ love.graphics.setColor(.92,.95,.79,1);love.graphics.setFont(f.heading);love.graphics.print("벌목 기록 모드",x+74,y+9)
+ love.graphics.setFont(self.microFont or f.small);love.graphics.setColor(.59,.76,.65,1);love.graphics.print("빈 땅에서 시작 · 나무가 계속 자람",x+75,y+36)
+ love.graphics.setColor(.05,.13,.10,.88);love.graphics.rectangle("fill",x+w-50,y+h/2-13,36,26,3,3)
+ love.graphics.setColor(.72,.90,.73,1);love.graphics.printf("M",x+w-50,y+h/2-(self.microFont or f.small):getHeight()/2,36,"center")
+end
 function Lobby:draw()
  local w,h=love.graphics.getDimensions(); local f=self.fonts; local micro=self.microFont or self.labelFont or f.small; self:drawBackground(w,h)
  local left=math.max(34,w*.045); local compact=w<1080
@@ -74,6 +91,8 @@ function Lobby:draw()
  local bw=math.min(370,w*.34); local bh=82
  self.clearcutBox={x=left,y=math.max(205,h*.39),w=bw,h=bh}
  self:drawStartButton(self.clearcutBox,f)
+ self.scoreAttackBox={x=left,y=self.clearcutBox.y+bh+14,w=bw,h=62}
+ self:drawScoreAttackButton(self.scoreAttackBox,f)
  local py=h-74; love.graphics.setColor(.008,.018,.025,.88); love.graphics.rectangle("fill",left,py,math.min(420,w*.40),48,5,5)
  love.graphics.setColor(.28,.70,.66,.7); love.graphics.rectangle("line",left+.5,py+.5,math.min(420,w*.40)-1,47,5,5)
  love.graphics.setFont(f.heading); love.graphics.setColor(.91,.91,.80); love.graphics.print("◀",left+18,py+10); love.graphics.print("Ⅱ",left+64,py+9); love.graphics.print("▶",left+108,py+10)

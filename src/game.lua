@@ -174,6 +174,22 @@ function Game:startClearcut(characterId, mapId, stage)
     ClearcutIntro.begin(self)
     if self.clearcut.pending>0 then self.clearcut:openUpgradeChoices(self) end
 end
+function Game:startClearcutScoreAttack()
+    self:resetRun()
+    self.clearcut=ClearcutMode.new()
+    self.clearcut.job="fire"
+    self.clearcut.mapId="forest"
+    self.clearcut.stage=1
+    self.clearcut.scoreAttack=true
+    self.selectedClearcutMap="forest"
+    self.selectedClearcutStage=1
+    self.player:setClearcutSprite(self.clearcutSprites.fire or self.clearcutSprites.physical,"fire")
+    self.clearcut:setup(self)
+    self:consumeTestNextRunLevels()
+    self:enableClearcutPerspective()
+    self.mode="playing"
+    if self.clearcut.pending>0 then self.clearcut:openUpgradeChoices(self) end
+end
 function Game:setNotice(text, kind) self.notice, self.noticeKind, self.noticeTime = text, kind or "core", 2.2 end
 
 function Game:viewTiltAmount()
@@ -421,6 +437,8 @@ function Game:keypressed(key)
         local action=self.lobby:keypressed(key)
         if action=="clearcut" then
             self.mode="clearcut_select"
+        elseif action=="score_attack" then
+            self:startClearcutScoreAttack()
         elseif action=="character_traits" then
             self.characterTraitReturnMode="lobby"
             self.mode="character_traits"
@@ -504,7 +522,7 @@ function Game:keypressed(key)
         return
     end
     if self.mode == "clearcut_results" then
-        if key=="return" or key=="r" then self:startClearcut(self.clearcut and self.clearcut.job) elseif key=="escape" then self.mode="lobby" end
+        if key=="return" or key=="r" then if self.clearcut and self.clearcut.scoreAttack then self:startClearcutScoreAttack()else self:startClearcut(self.clearcut and self.clearcut.job)end elseif key=="escape" then self.mode="lobby" end
         return
     end
     if self.mode == "results" then
@@ -596,6 +614,7 @@ function Game:mousepressed(x, y, button)
     if self.mode == "lobby" then
         local action = self.lobby:mousepressed(x, y, button)
         if action == "clearcut" then self.mode = "clearcut_select"
+        elseif action == "score_attack" then self:startClearcutScoreAttack()
         elseif action == "character_traits" then self.characterTraitReturnMode="lobby"; self.mode = "character_traits"
         elseif action == "character_codex" then self.mode = "character_codex"
         elseif action == "achievements" then self.mode = "achievements"
@@ -706,7 +725,7 @@ function Game:mousepressed(x, y, button)
         return
     end
     if self.mode == "clearcut_results" then
-        if button==1 then local boxes=self.clearcutResultButtons or{};local function inside(b)return b and x>=b.x and x<=b.x+b.w and y>=b.y and y<=b.y+b.h end;if inside(boxes.lobby)then self.mode="lobby"elseif inside(boxes.retry)then self:startClearcut(self.clearcut and self.clearcut.job)end end
+        if button==1 then local boxes=self.clearcutResultButtons or{};local function inside(b)return b and x>=b.x and x<=b.x+b.w and y>=b.y and y<=b.y+b.h end;if inside(boxes.lobby)then self.mode="lobby"elseif inside(boxes.retry)then if self.clearcut and self.clearcut.scoreAttack then self:startClearcutScoreAttack()else self:startClearcut(self.clearcut and self.clearcut.job)end end end
         return
     end
     if self.mode == "results" then
