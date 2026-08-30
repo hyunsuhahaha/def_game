@@ -184,6 +184,17 @@ expand("fire",{
     {id="fire_redsky",name="하늘이 붉은 건 노을",short="최종 산불",desc="착화 범위 +42",effect="area",value=42,requires={{"fire_claim",1}},icon="capstone",color={1,.18,.04},max=1,capstone=true,costs={190}}
 })
 
+-- 벌목 기록 모드의 개인 장비 연구. 일반 스테이지의 카드 선택을 복사하지 않고,
+-- 투척·착화·범위·화력의 기초 수치만 영구 성장으로 잘게 나눈다.
+local scoreFireNodes={
+    {id="fire_score_filter",name="기록용 장초 필터",short="멀리 튕긴다",desc="벌목 기록 모드 꽁초 사거리 +12",effect="scoreRange",value=12,wx=3380,wy=470,icon="filter",color={.88,.66,.32},requires={{"fire_filter",2}}},
+    {id="fire_score_lighter",name="산업용 점화 코일",short="불씨 고정",desc="벌목 기록 모드 착화 확률 +3%",effect="scoreIgnition",value=.03,wx=3660,wy=330,icon="ember",color={.96,.43,.16},requires={{"fire_score_filter",1}}},
+    {id="fire_score_ash",name="대형 재받이 개조",short="넓게 턴다",desc="벌목 기록 모드 착화 범위 +10",effect="scoreArea",value=10,wx=3660,wy=610,icon="ash",color={.62,.54,.48},requires={{"fire_score_filter",1}}},
+    {id="fire_score_drag",name="교대 없는 줄담배",short="재장전 단축",desc="벌목 기록 모드 흡연·투척 속도 +4%",effect="scoreAttackSpeed",value=.04,wx=3940,wy=330,icon="clock",color={.78,.76,.67},requires={{"fire_score_lighter",2}}},
+    {id="fire_score_heat",name="고온 불씨 압축",short="더 뜨겁게",desc="벌목 기록 모드 나무 피해 +0.5",effect="scoreTreeDamage",value=.5,wx=3940,wy=610,icon="warning",color={1,.34,.08},requires={{"fire_score_ash",2}}},
+}
+for _,node in ipairs(scoreFireNodes)do node.job="fire";node.max=5;node.costs={24,42,66,96,132};jobs.fire.nodes[#jobs.fire.nodes+1]=node end
+
 expand("toxic",{
     {id="toxic_bamboo",name="손잡이 두 칸 연장",short="긴 포크",desc="포크 사거리 +14",effect="range",value=14,requires={{"toxic_tongs",2}},icon="tongs",color={.55,.67,.38}},
     {id="toxic_organic",name="포크 끝 재연마",short="뾰족하게",desc="포크 피해 +1",effect="biteDamage",value=1,requires={{"toxic_bamboo",1}},icon="sharpen",color={.78,.72,.48}},
@@ -432,7 +443,8 @@ function CharacterTraits:effects(job)
         biteDamage=0, plagueDuration=0,
         dashSpeed=1, sterileChance=0, aftershockRadius=0, cooldownRefund=0,
         moveSpeed=1, pickupRadius=0, hpRegen=0, reviveCharges=0,
-        woodYield=1, forestRestock=0, treeVariety=0, scoreTreeAllowance=0
+        woodYield=1, forestRestock=0, treeVariety=0, scoreTreeAllowance=0,
+        scoreRange=0,scoreIgnition=0,scoreArea=0,scoreAttackSpeed=0,scoreTreeDamage=0
     }
     local function accumulate(nodes)
         for _, node in ipairs(nodes) do

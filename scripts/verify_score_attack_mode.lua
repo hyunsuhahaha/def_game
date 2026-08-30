@@ -37,15 +37,13 @@ for _,node in ipairs(game.world.nodes)do
     assert(node.active and node.rushTree and node.treeEmergence and node.treeEmergence.source=="score_growth","generated tree is missing its growth animation or harvest state")
 end
 
-local expansionInScore=false
-for _,def in ipairs(mode:upgradePool())do if def.id=="forest_expansion"then expansionInScore=true end end
-assert(expansionInScore,"forest expansion tradeoff card is missing from score mode")
 local sample=game.world.nodes[1];local baseHp=sample.scoreBaseHp;sample.rushHp=math.max(1,math.floor(sample.rushMaxHp/2))
 mode.levels.forest_expansion=2
 mode:syncScoreTreeHealth(game)
 assert(mode:scoreForestDensityMultiplier()==1.5 and sample.rushMaxHp==math.ceil(baseHp*1.5),"forest expansion did not scale supply and tree health proportionally")
 assert(sample.rushHp/sample.rushMaxHp>.35 and sample.rushHp/sample.rushMaxHp<.7,"forest expansion did not preserve existing damage ratio")
 mode.levels.forest_expansion=0;mode:syncScoreTreeHealth(game)
+assert(#mode:upgradePool()==0,"random level-up cards remained enabled in score mode")
 mode.scoreAttack=false
 for _,def in ipairs(mode:upgradePool())do assert(def.id~="forest_expansion","score-only forest expansion leaked into normal stages")end
 mode.scoreAttack=true
@@ -66,9 +64,15 @@ assert(mode.currentTreesPerSecond==5 and mode:scoreTreeSpawnRate()>=5.4,"adaptiv
 
 local pending=mode.pending
 mode:onWood(999,game)
-assert(mode.pending>pending,"score mode no longer allows run-build progression")
-if game.mode~="playing"then game.mode="playing"end
-mode.pending=0
+assert(mode.pending==pending and mode.xp==0 and mode.scoreWoodEarned==999,"score wood still opened random level-up cards")
+local beforeFlights=#mode.molotovs
+assert(mode:buyScoreAutomation("butt_launcher",game),"automatic butt launcher purchase failed")
+assert(mode:buyScoreAutomation("straw_feeder",game)and mode:levelOf("straw_bale")==1,"straw automation did not activate the existing authored system")
+assert(mode:buyScoreAutomation("oil_pump",game)and mode:levelOf("oil_drum")==1,"oil automation did not activate the existing authored system")
+assert(mode:buyScoreAutomation("forest_contract",game)and mode:levelOf("forest_expansion")==1,"forest contract did not activate supply and durability scaling")
+sample.x,sample.y=game.player.x+120,game.player.y;sample.active,sample.burning,sample.igniting=true,nil,nil
+mode.scoreAutomationTimer=0;mode:updateScoreAutomation(.1,game)
+assert(#mode.molotovs>beforeFlights,"automatic butt launcher did not fire an authored cigarette projectile")
 
 mode.scoreTreeAllowance=ordinary+1
 assert(not mode:checkScoreOvercrowding(game),"score mode ended below its tree allowance")
@@ -76,6 +80,8 @@ nodes[#nodes+1]={rushTree=true,active=true,giantTree=false}
 assert(mode:checkScoreOvercrowding(game)and game.mode=="clearcut_results","reaching the active-tree allowance did not end the run")
 assert(game.result.scoreAttack and game.result.victory and game.result.failureReason=="score_overcrowded","score result omitted the overcrowding cause")
 assert(game.result.treeAllowance==ordinary+1 and game.result.peakActiveTrees>=ordinary+1 and game.result.peakTreesPerSecond>=5,"score result omitted capacity metrics")
+assert(game.result.woodSpent>0 and game.result.wood>=game.result.woodSpent,"score result omitted earned-versus-invested wood")
+assert(game.result.automation.butt_launcher==1 and game.result.automation.forest_contract==1,"score result omitted the purchased automation build")
 
 game:startClearcutScoreAttack()
 mode=assert(game.clearcut)
@@ -87,6 +93,8 @@ end
 assert(unattendedEnd and unattendedEnd>=10 and unattendedEnd<=30,"fresh unattended run did not end inside the intended 10-30 second window")
 
 Traits.data.levels.universal_yard=7
+for _,id in ipairs({"fire_score_filter","fire_score_lighter","fire_score_ash","fire_score_drag","fire_score_heat"})do Traits.data.levels[id]=5 end
 game:startClearcutScoreAttack()
 assert(game.clearcut.scoreTreeAllowance==40,"max permanent yard expansion did not raise the runtime allowance to 40")
+assert(game.clearcut.permanentTraits.range==60 and game.clearcut.permanentTraits.area==50 and game.clearcut.permanentTraits.treeDamage==2.5,"score-only permanent smoker research was not applied at runtime")
 print("SCORE_ATTACK_MODE_OK start=empty loss=tree_capacity base=12 supply=adaptive permanent=yard result=occupancy")
