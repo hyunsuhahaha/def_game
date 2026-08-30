@@ -28,13 +28,15 @@ game:startClearcutScoreAttack()
 local mode=assert(game.clearcut)
 assert(game.mode=="playing"and mode.scoreAttack and mode.job=="fire"and mode.stageTimeLimit==math.huge,"score mode still has a visible fixed timer")
 assert(mode.scoreTreeAllowance==12,"fresh score mode did not use the 12-tree base allowance")
-assert(#game.world.nodes==0 and mode:scoreActiveTreeCount()==0 and mode.totalTreesSpawned==0,"score mode did not start on empty ground")
-assert(not mode:checkWorldTreeSpawn(game),"empty score field incorrectly summoned the world tree")
+assert(#game.world.nodes==6 and mode:scoreActiveTreeCount()==6 and mode.totalTreesSpawned==6,"score mode did not start with exactly six active trees")
+assert(mode.remainingTrees==6 and mode.initialTrees==6 and mode.peakActiveTrees==6,"starting score trees were not included in occupancy metrics")
+assert(not mode:checkWorldTreeSpawn(game),"opening score field incorrectly summoned the world tree")
 assert(math.abs(mode:scoreTreeSpawnRate()-.16)<.001,"opening forest supply was not reduced to the new low rate")
 
+local openingTrees=#game.world.nodes
 mode:updateScoreTreeGrowth(7,game)
-assert(mode:scoreActiveTreeCount()>0 and mode.totalTreesSpawned>0,"adaptive forest supply did not begin growing trees")
-for _,node in ipairs(game.world.nodes)do
+assert(mode:scoreActiveTreeCount()>openingTrees and mode.totalTreesSpawned>openingTrees,"adaptive forest supply did not grow beyond the six opening trees")
+for i=openingTrees+1,#game.world.nodes do local node=game.world.nodes[i]
     assert(node.active and node.rushTree and node.treeEmergence and node.treeEmergence.source=="score_growth","generated tree is missing its growth animation or harvest state")
 end
 
@@ -106,7 +108,7 @@ for second=1,90 do
     mode.stageElapsed=second
     if mode:updateScoreTreeGrowth(1,game)then unattendedEnd=second;break end
 end
-assert(unattendedEnd and unattendedEnd>=55 and unattendedEnd<=80,"fresh unattended run did not reflect the reduced opening forest supply")
+assert(unattendedEnd and unattendedEnd>=30 and unattendedEnd<=50,"six-tree unattended run did not end in the intended 35-40 second opening window")
 
 Traits.data.levels.universal_yard=7
 for _,id in ipairs({"fire_score_prewarm","fire_score_filter","fire_score_float","fire_score_lighter","fire_score_ash","fire_score_procurement","fire_score_drag","fire_score_heat"})do Traits.data.levels[id]=5 end
@@ -115,4 +117,4 @@ assert(game.clearcut.scoreTreeAllowance==40,"max permanent yard expansion did no
 assert(game.clearcut.permanentTraits.range==60 and game.clearcut.permanentTraits.area==50 and game.clearcut.permanentTraits.treeDamage==2.5,"score-only permanent smoker research was not applied at runtime")
 assert(game.clearcut.totalWood==15 and game.clearcut:scoreAutomationCost("butt_launcher")==10,"score opening capital or automation discount was not applied")
 assert(game.clearcut.smoking and game.clearcut.smoking.dur<.75,"first ignition preparation trait did not shorten the opening load")
-print("SCORE_ATTACK_MODE_OK start=empty loss=tree_capacity base=12 supply=adaptive permanent=yard result=occupancy")
+print("SCORE_ATTACK_MODE_OK start=6 loss=tree_capacity base=12 supply=adaptive permanent=yard result=occupancy")

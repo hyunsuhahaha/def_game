@@ -215,7 +215,7 @@ function ClearcutMode.new()
         chests={}, bossMagnetPickups={}, worldTreeDebris={}, chestPending=false, molotovShots=0, wildburstTimer=10, plagued={}, dodges=0,
         timeSpawnTimer=35, scoreEnemyTimer=45, eliteTimer=200, reaperSpawned=false,
         stage=1, stageBossHpMul=1, stageElapsed=0, stageTimeLimit=stageTimeLimit(1), failureReason=nil,
-        scoreAttack=false,scoreHardCap=720,scoreBaseTreeAllowance=12,scoreTreeAllowance=12,
+        scoreAttack=false,scoreHardCap=720,scoreStartingTrees=6,scoreBaseTreeAllowance=12,scoreTreeAllowance=12,
         scoreAutomation={},scoreAutomationTimer=0,scoreWoodEarned=0,scoreWoodSpent=0,scoreAutomationBoxes={},
         scoreFellTimes={},scoreFellHead=1,currentTreesPerSecond=0,peakTreesPerSecond=0,
         treeSpawnRate=.55,scoreSpawnRateMultiplier=1,treeSpawnAccumulator=0,
@@ -569,7 +569,13 @@ function ClearcutMode:setup(game)
     self.reviveCharges = math.floor(self.permanentTraits.reviveCharges or 0)
     self.stageBossHpMul=1+(self.stage-1)*.55
     self.regrowInterval=self.stage==1 and 12 or (self.stage==2 and 9 or 7)
-    self:generateForest(game,self.scoreAttack and 0 or Maps.treeTarget(self.mapId,self.stage))
+    self:generateForest(game,self.scoreAttack and(self.scoreStartingTrees or 6)or Maps.treeTarget(self.mapId,self.stage))
+    if self.scoreAttack then
+        -- 시작 수목도 실제 과밀도와 총 공급 기록에 포함한다. 이후 발아 수목만
+        -- spawnScoreTree의 등장 애니메이션을 사용한다.
+        self.totalTreesSpawned=self.remainingTrees
+        self.peakActiveTrees=self.remainingTrees
+    end
     if not self.scoreAttack then self:initForestZones(game)else self.forestZones={};self.treeSpawnAccumulator=0 end
     local notice=self.scoreAttack and string.format("벌목 기록 — 활성 나무가 %d그루에 닿으면 종료",self.scoreTreeAllowance)or(Maps.get(self.mapId).name.." — 마우스를 누른 채 나무 근처로 이동하세요")
     if self.job=="miner" then notice=Maps.get(self.mapId).name.." — 좌클릭 할퀴기 · SPACE/우클릭 잠복" end
@@ -755,7 +761,7 @@ function ClearcutMode:generateForest(game, target)
             local giantTree=isDefaultForest and treeVariant==1 and treeIndex%17==0
             if clearSpawn then
                 local beehive = hiveCount<hiveCap and love.math.random()<hiveChance
-                game.world.nodes[treeIndex] = {kind="tree",x=x,y=y,work=0,workTime=1,active=true,respawn=0,rushTree=true,rushHp=hp,rushMaxHp=hp,beehive=beehive,treeVariant=treeVariant,giantTree=giantTree}
+                game.world.nodes[treeIndex] = {kind="tree",x=x,y=y,work=0,workTime=1,active=true,respawn=0,rushTree=true,rushHp=hp,rushMaxHp=hp,beehive=beehive,treeVariant=treeVariant,giantTree=giantTree,scoreBaseHp=self.scoreAttack and hp or nil,scoreHpMultiplier=self.scoreAttack and 1 or nil}
                 if beehive then hiveCount=hiveCount+1;self.beehiveTotal=self.beehiveTotal+1 end
             end
         end
@@ -4438,7 +4444,7 @@ function ClearcutMode:demolitionEcho(x, y, game)
 end
 
 function ClearcutMode:checkMilestones(game)
-    -- 빈 땅에서 시작하는 기록 모드는 첫 벌목 때 파괴율이 곧바로 100%가 된다.
+    -- 소수 수목으로 시작하는 기록 모드는 일반 작전보다 파괴율이 훨씬 빠르게 오른다.
     -- 일반 스테이지용 25/50/75% 웨이브를 실행하면 초반 몬스터가 한꺼번에
     -- 쏟아지므로 기록전에서는 파괴율 마일스톤 전체를 사용하지 않는다.
     if self.scoreAttack then return end

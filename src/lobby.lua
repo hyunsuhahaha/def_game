@@ -83,7 +83,7 @@ function Lobby:drawActiveRules(x,y,w,f)
  love.graphics.setColor(.015,.055,.038,.90);love.graphics.rectangle("fill",x,y,w,132,6,6)
  love.graphics.setColor(.38,.78,.52,.76);love.graphics.rectangle("line",x+.5,y+.5,w-1,131,6,6)
  love.graphics.setFont(self.microFont or f.small);love.graphics.setColor(.95,.63,.20);love.graphics.print("ACTIVE BUILD  ·  SCORE ATTACK",x+18,y+14)
- local rows={{"종료","활성 나무 12그루"},{"산림","0.16그루/초에서 점진 상승"},{"위협","첫 45초 몬스터 없음"},{"성장","목재로 자동화 설비 구매"}}
+ local rows={{"종료","활성 나무 12그루"},{"산림","시작 6그루 · 0.16그루/초"},{"위협","첫 45초 몬스터 없음"},{"성장","목재로 자동화 설비 구매"}}
  for i,row in ipairs(rows)do local yy=y+36+(i-1)*22;love.graphics.setColor(.48,.67,.55);love.graphics.print(row[1],x+18,yy);love.graphics.setColor(.88,.91,.76);love.graphics.print(row[2],x+82,yy)end
 end
 function Lobby:drawScoreAttackButton(box,f)
