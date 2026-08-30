@@ -615,8 +615,11 @@ function ClearcutMode:initMoleCompanion(game)
         frames.action[i+1]=love.graphics.newQuad(i*fw,fh,fw,fh,sprite.image:getDimensions())
     end
     local x,y=require("src.clearcut_maps").constrain(game.world,game.player.x-86,game.player.y+54,42)
+    local rank=math.max(1,math.min(6,math.floor((self.permanentTraits and self.permanentTraits.scoreMoleCompanion)or 1)))
+    local upgrades=rank-1
     self.moleCompanion={x=x,y=y,sprite=sprite,frames=frames,fw=fw,fh=fh,state="seek",target=nil,
-        facing=-1,walkClock=0,attackT=0,attackDuration=.62,struck=false,speed=225,damage=2,treesFelled=0}
+        rank=rank,facing=-1,walkClock=0,attackT=0,attackDuration=.62/(1+upgrades*.10),struck=false,
+        speed=225*(1+upgrades*.08),damage=1+rank,treesFelled=0}
     return true
 end
 
@@ -644,7 +647,7 @@ function ClearcutMode:moleCompanionImpact(companion,game)
     local contactX,contactY=companion.x+nx*math.min(72,distance),companion.y+ny*math.min(72,distance)
     local angle=moleCompanionAngle(ny,nx)
     local curveFlip=(companion.facing or 1)>0 and -1 or 1
-    MoleClawArt.spawn(self,contactX,contactY,angle,1,curveFlip,24,1,false)
+    MoleClawArt.spawn(self,contactX,contactY,angle,companion.rank or 1,curveFlip,nil,1,(companion.rank or 1)>=6)
     node.rushHp=(node.rushHp or node.rushMaxHp)-companion.damage
     game.world:impactNode(node,game,true)
     SupplementArt.impact(self,"axe",contactX,contactY,20)

@@ -323,7 +323,7 @@ expand("universal",{
     {id="universal_yard",name="벌목장 부지 확장",short="쌓아둘 자리",desc="벌목 기록 모드의 나무 허용량 +4그루",effect="scoreTreeAllowance",value=4,max=7,costs={16,26,40,58,80,108,142},wx=520,wy=850,icon="map",color={.48,.72,.42},scoreMode=true},
     {id="universal_robot_start",name="아기 로봇 기본 지급",short="첫 출근 동행",desc="벌목 기록 모드를 아기 운반 로봇 Lv.1로 시작",effect="scoreStartingBabyRobot",value=1,max=1,costs={42},wx=900,wy=680,icon="basket",color={.40,.86,1},scoreMode=true},
     {id="universal_robot_motor",name="아기 로봇 고속 모터",short="더 빨리 줍는다",desc="아기 운반 로봇 이동속도 +10%",effect="scoreRobotSpeed",value=.10,max=5,costs={22,38,58,82,112},wx=1260,wy=680,icon="clock",color={.55,.90,1},requires={{"universal_robot_start",1}},scoreMode=true},
-    {id="universal_mole_companion",name="두더지 작업반 채용",short="혼자서도 캔다",desc="벌목 기록 모드에 두더지 동료 1마리가 합류해 맵의 나무를 찾아다니며 직접 할퀴어 벱니다.",effect="scoreMoleCompanion",value=1,max=1,costs={78},wx=900,wy=1020,icon="fist",color={.78,.62,.30},requires={{"universal_robot_start",1}},scoreMode=true},
+    {id="universal_mole_companion",name="두더지 작업반 채용",short="복리로 세지는 발톱",desc="1단계에 두더지 동료가 합류합니다. 이후 단계마다 발톱 피해 +1, 이동속도 +8%, 공격속도 +10%가 적용되며 3/5단계에는 발톱 자국이 커지고 6단계에는 양손으로 할큅니다.",effect="scoreMoleCompanion",value=1,max=6,costs={78,32,48,68,92,124},wx=900,wy=1020,icon="fist",color={.78,.62,.30},requires={{"universal_robot_start",1}},scoreMode=true},
 })
 
 local byId = {}

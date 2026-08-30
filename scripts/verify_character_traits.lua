@@ -30,6 +30,14 @@ assert(lobby:mousepressed(20,20,1)=="score_attack" and lobby:mousepressed(130,20
 
 local store = CharacterTraits.new(true)
 assert(store:getRegenTier()==1 and store:unlockRegenTier(3) and store:getRegenTier()==3 and not store:unlockRegenTier(2),"persistent regeneration tier did not advance monotonically")
+local moleUpgradeStore=CharacterTraits.new(true)
+moleUpgradeStore.data.currency=1000
+moleUpgradeStore.data.levels.universal_robot_start=1
+for rank=1,6 do
+    assert(moleUpgradeStore:buy("universal_mole_companion"),"mole companion rank "..rank.." was not purchasable")
+end
+assert(moleUpgradeStore:getLevel("universal_mole_companion")==6 and not moleUpgradeStore:buy("universal_mole_companion"),
+    "mole companion research did not stop at rank six")
 local roundTrip=CharacterTraits.decode(CharacterTraits.encode(store.data))
 assert(roundTrip.regenTier==3,"persistent regeneration tier did not survive save encoding")
 local migrated=CharacterTraits.decode("fire_score_filter=6\nfire_score_lighter=6\nfire_score_ash=6\nfire_score_drag=6\nfire_score_heat=6\n")
@@ -47,7 +55,7 @@ assert(smoker.attackSpeed == 1 and smoker.range == 0, "logger traits leaked into
 store.data.levels.universal_yard=7
 store.data.levels.universal_robot_start=1
 store.data.levels.universal_robot_motor=5
-store.data.levels.universal_mole_companion=1
+store.data.levels.universal_mole_companion=6
 assert(store:effects("fire").scoreTreeAllowance==28,"permanent logging-yard capacity did not reach +28 trees at max rank")
 for _,id in ipairs({"fire_score_prewarm","fire_score_filter","fire_score_lighter","fire_score_spark","fire_score_launch","fire_score_ash","fire_score_drag","fire_score_heat"})do store.data.levels[id]=5 end
 store.data.levels.fire_score_stock=1
@@ -58,7 +66,7 @@ assert(math.abs(scoreSmoker.scoreAttackSpeed-.20)<1e-9 and math.abs(scoreSmoker.
 local activeScore=store:scoreAttackEffects()
 assert(activeScore.scoreInitialIgnitionReduction==.4,"score-mode opening ignition trait is not active")
 assert(activeScore.scoreStartingBabyRobot==1 and activeScore.scoreRobotSpeed==.5,"score-mode baby robot permanent research is not active")
-assert(activeScore.scoreMoleCompanion==1,"score-mode mole companion trait is not active")
+assert(activeScore.scoreMoleCompanion==6,"score-mode mole companion upgrades are not active")
 assert(activeScore.scoreStartingWood==nil and activeScore.scoreAutomationDiscount==nil,"removed score automation traits still affect runtime")
 assert(#store:getScoreAttackNodes("fire")==9 and #store:getScoreAttackNodes("universal")==4,"active research board did not isolate score-mode traits")
 for _, job in ipairs({"physical","fire","toxic","developer"}) do

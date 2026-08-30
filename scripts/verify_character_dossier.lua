@@ -53,5 +53,6 @@ assert(dossier:find("목재 경험치 드래프트에는 아기 로봇",1,true),
 assert(dossier:find("공용 스킬 · 운영 6종 활성",1,true),"dossier does not document the active operation cards")
 assert(dossier:find("fire_score_prewarm",1,true)and dossier:find("fire_score_stock",1,true),"dossier score-mode permanent traits are stale")
 assert(dossier:find("universal_robot_start",1,true)and dossier:find("universal_robot_motor",1,true),"dossier baby robot permanent research is stale")
+assert(dossier:find('id:"universal_mole_companion"',1,true)and dossier:find('max:6',1,true),"dossier mole companion upgrades are stale")
 assert(not dossier:find("fire_score_procurement",1,true)and not dossier:find('id:"forest_expansion"',1,true),"removed automation content remains in dossier")
 print("CHARACTER_DOSSIER_OK skills="..checked.." fusions="..fusionChecked.." names/descriptions/max=synced")
