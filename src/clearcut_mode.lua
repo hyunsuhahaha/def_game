@@ -850,12 +850,12 @@ function ClearcutMode:spillOilDrum(drum,source)
     local radiusScale=radius/105
     local lifetime=20+(self.permanentTraits.scoreOilDuration or 0)
     local oilDamage=self.permanentTraits.scoreOilDamage or 0
-    self.oilDrumSpills[#self.oilDrumSpills+1]={
-        x=drum.x,y=drum.y,age=0,frameDuration=.12,lifetime=lifetime,scale=radiusScale,
-        facing=drum.spillFacing or 1,source=source,drumId=drum.id
-    }
     self.oilTrailSequence=(self.oilTrailSequence or 0)+1
     local group="drum_"..tostring(drum.id or self.oilTrailSequence)
+    self.oilDrumSpills[#self.oilDrumSpills+1]={
+        x=drum.x,y=drum.y,age=0,frameDuration=.12,lifetime=lifetime,scale=radiusScale,
+        facing=drum.spillFacing or 1,source=source,drumId=drum.id,group=group
+    }
     local spots={}
     for index=1,11 do
         local ring=(index==1 and 0 or(index<=5 and 34 or 68))*radiusScale
@@ -2348,7 +2348,7 @@ function ClearcutMode:updateOilTrail(dt, game)
     if not playerTrailActive then
         self.oilTrailLastX,self.oilTrailLastY=nil,nil
     end
-    if not playerTrailActive and #self.oilTrail==0 then return end
+    if not playerTrailActive and #self.oilTrail==0 and next(self.oilPuddleGroups or{})==nil then return end
     local now = self.smokerGroundTime
     self.oilTrailTimer = self.oilTrailTimer - dt
     if playerTrailActive and game.player.isMoving and self.oilTrailTimer <= 0 then
@@ -2396,8 +2396,15 @@ function ClearcutMode:updateOilTrail(dt, game)
             live=true;ignited=ignited or spot.ignited
         end end
         if not live then
+            for _,spill in ipairs(self.oilDrumSpills or{})do if spill.group==id then
+                spill.ignited=false;spill.ignitedAge=nil
+            end end
             self.oilPuddleGroups[id]=nil
         elseif ignited then
+            group.ignited=true
+            for _,spill in ipairs(self.oilDrumSpills or{})do if spill.group==id then
+                spill.ignited=true;spill.ignitedAge=(spill.ignitedAge or 0)+dt
+            end end
             group.tickTimer=(group.tickTimer or 0)-dt
             if group.tickTimer<=0 then
                 group.tickTimer=.45
@@ -6444,7 +6451,7 @@ function ClearcutMode:queueWorldActors(queue,t)
         if not spot.hiddenGround then
             queue[#queue+1]={y=-100000+spot.y*.001,ground=true,draw=function() OilTrailArt.drawGround(spot,groundTime) end}
         end
-        if spot.ignited then
+        if spot.ignited and not spot.hiddenGround then
             queue[#queue+1]={x=spot.x,y=spot.y+.1,anchorY=spot.y,draw=function() OilTrailArt.drawFlame(spot,groundTime) end}
         end
         local previous=self.oilTrail[index-1]

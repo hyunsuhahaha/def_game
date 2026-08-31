@@ -84,10 +84,16 @@ local damageGame={player={isMoving=false,x=0,y=0},world={nodes={tree}}}
 local spot={x=100,y=100,spawnedAt=0,ignited=true,ignitedAt=1,group="drum_3",lifetime=20}
 damageMode.oilTrail={spot}
 damageMode.oilPuddleGroups={drum_3={x=100,y=100,radius=105,tickTimer=0}}
+damageMode.oilDrumSpills={{group="drum_3",ignited=false}}
 damageMode.damageEnemiesInRadius=function()end
 damageMode.igniteEnemiesInRadius=function()end
 damageMode.damageTreeWithSmokerWeapon=function(_,node,amount)node.hp=node.hp-amount;return false end
 damageMode:updateOilTrail(.5,damageGame)
 assert(tree.hp==1,"ignited drum puddle did not damage a tree in its visible radius")
+assert(damageMode.oilDrumSpills[1].ignited and damageMode.oilDrumSpills[1].ignitedAge==.5,
+    "drum puddle did not switch from the new ground-oil atlas to the new burning-oil atlas")
+damageMode.oilTrail={}
+damageMode:updateOilTrail(.1,damageGame)
+assert(not damageMode.oilDrumSpills[1].ignited,"expired oil fire did not switch back to the ground-oil atlas")
 
 print("GRAY_OIL_CAT_OK exact-approved-atlas runtime-flow=enter,push,spill,jump oil-spots=11")
