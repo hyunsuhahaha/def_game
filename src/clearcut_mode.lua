@@ -5866,19 +5866,19 @@ function ClearcutMode:finish(game, victory)
         baseReward=(self.scoreStartingRegenTier or 1)*3+math.min(20,math.floor(self.treesFelled/8))+tierGain*10
     else baseReward=math.floor(self.treesFelled/5)+self.kills*2+math.floor(self.level*1.5)+(victory and 30 or 0)end
     local traitReward = math.max(1, math.floor(baseReward * (self.permanentTraits.reward or 1) + .5))
-    local lumberRows,lumberCoinTotal
+    local lumberRows,lumberCoinTotal,tierMultiplier
     if self.scoreAttack then
-        lumberRows,lumberCoinTotal=WoodEconomy.settlement(self.mapId,self.lumberInventory)
+        lumberRows,lumberCoinTotal,tierMultiplier=WoodEconomy.settlement(self.mapId,self.lumberInventory,self.scoreStartingRegenTier,self.scoreHighestRegenTier)
         -- Results from older fixtures/runs still settle instead of opening an empty panel.
         if #lumberRows==0 and self.treesFelled>0 then
             local fallback=WoodEconomy.forTree(self.mapId,1)
             self.lumberInventory={[fallback.id]=self.treesFelled}
-            lumberRows,lumberCoinTotal=WoodEconomy.settlement(self.mapId,self.lumberInventory)
+            lumberRows,lumberCoinTotal,tierMultiplier=WoodEconomy.settlement(self.mapId,self.lumberInventory,self.scoreStartingRegenTier,self.scoreHighestRegenTier)
         end
         traitReward=0
     elseif game.characterTraits then game.characterTraits:addCurrency(traitReward) end
     local zonesSecured,zonesTotal=ForestZones.status(self)
-    game.result={elapsed=math.floor(self.elapsed),wood=self.scoreAttack and math.floor(self.scoreWoodEarned or 0)or self.totalWood,woodBalance=math.floor(self.totalWood),trees=self.treesFelled,total=self.initialTrees,maxMulti=self.maxMulti,maxChain=self.maxChain,level=self.level,stage=self.stage,stageCode=Maps.stageCode(self.mapId,self.stage),regrowPulses=self.regrowPulses,treesRevived=self.treesRevived,rootedCount=self.rootedCount,beeSwarms=self.beeSwarmsTriggered,victory=victory,kills=self.kills,zonesSecured=zonesSecured,zonesTotal=zonesTotal,traitEarned=traitReward,traitCurrency=game.characterTraits and game.characterTraits.data.currency or traitReward,mapId=self.mapId,operationName=BiomeBosses.operationName(self.mapId),bossName=self.operationBossName,failureReason=self.failureReason,scoreAttack=self.scoreAttack,totalTreesSpawned=self.totalTreesSpawned,peakActiveTrees=self.peakActiveTrees,treeAllowance=self.scoreTreeAllowance,treeSpawnRate=self:scoreTreeSpawnRate(),peakTreesPerSecond=self.peakTreesPerSecond or 0,regenTier=self.scoreRegenTier,startingRegenTier=self.scoreStartingRegenTier,highestRegenTier=self.scoreHighestRegenTier,lumberRows=lumberRows,lumberCoinTotal=lumberCoinTotal or traitReward}
+    game.result={elapsed=math.floor(self.elapsed),wood=self.scoreAttack and math.floor(self.scoreWoodEarned or 0)or self.totalWood,woodBalance=math.floor(self.totalWood),trees=self.treesFelled,total=self.initialTrees,maxMulti=self.maxMulti,maxChain=self.maxChain,level=self.level,stage=self.stage,stageCode=Maps.stageCode(self.mapId,self.stage),regrowPulses=self.regrowPulses,treesRevived=self.treesRevived,rootedCount=self.rootedCount,beeSwarms=self.beeSwarmsTriggered,victory=victory,kills=self.kills,zonesSecured=zonesSecured,zonesTotal=zonesTotal,traitEarned=traitReward,traitCurrency=game.characterTraits and game.characterTraits.data.currency or traitReward,mapId=self.mapId,operationName=BiomeBosses.operationName(self.mapId),bossName=self.operationBossName,failureReason=self.failureReason,scoreAttack=self.scoreAttack,totalTreesSpawned=self.totalTreesSpawned,peakActiveTrees=self.peakActiveTrees,treeAllowance=self.scoreTreeAllowance,treeSpawnRate=self:scoreTreeSpawnRate(),peakTreesPerSecond=self.peakTreesPerSecond or 0,regenTier=self.scoreRegenTier,startingRegenTier=self.scoreStartingRegenTier,highestRegenTier=self.scoreHighestRegenTier,lumberRows=lumberRows,lumberCoinTotal=lumberCoinTotal or traitReward,tierMultiplier=tierMultiplier or 1}
     if self.scoreAttack then
         local settlementUnits=0
         for _,row in ipairs(lumberRows or{})do settlementUnits=settlementUnits+(row.remaining or 0)end
@@ -8418,7 +8418,12 @@ function ClearcutMode:drawResults(game,fonts)
     local title=r.scoreAttack and "산림 과밀"or(victory and((r.operationName or"벌목 작전").." 완료")or"작업 중단")
     love.graphics.setFont(fonts.title);love.graphics.setColor(victory and{1,.92,.64}or{1,.44,.30});love.graphics.printf(title,x,top,contentW,"center")
     love.graphics.setFont(fonts.small);love.graphics.setColor(.70,.77,.68)
-    love.graphics.printf(r.scoreAttack and("재생 "..tostring(r.highestRegenTier or r.regenTier or 1).."단계")or((r.stageCode or Maps.stageCode(r.mapId,r.stage)).."  ·  "..(r.bossName or"지역 보스")),x,top+48*scale,contentW,"center")
+    -- 단계 배수를 숨기면 "왜 단계를 올려야 하는지"가 플레이어에게 전달되지 않는다.
+    local tierLabel="재생 "..tostring(r.highestRegenTier or r.regenTier or 1).."단계"
+    if r.scoreAttack and (r.tierMultiplier or 1)>1.001 then
+        tierLabel=tierLabel..string.format("  ·  목재 수입 x%.2f",r.tierMultiplier)
+    end
+    love.graphics.printf(r.scoreAttack and tierLabel or((r.stageCode or Maps.stageCode(r.mapId,r.stage)).."  ·  "..(r.bossName or"지역 보스")),x,top+48*scale,contentW,"center")
 
     local heroY=top+82*scale
     love.graphics.setColor(.006,.018,.013,.72);love.graphics.rectangle("fill",x+80,heroY,contentW-160,94*scale,7,7)

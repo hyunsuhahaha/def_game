@@ -321,4 +321,22 @@ local bulkExpected=130*2+110*2+125*4+132*4
 for _=1,240 do bulkMode:updateResults(1/60,game)end
 assert(bulkMode.resultSettlement.complete and game.result.traitEarned==bulkExpected and Traits.data.currency==bulkCoinsBefore+bulkExpected,
     "bulk lumber settlement did not finish within four seconds or lost coins")
+-- 재생 단계는 난이도만 올리고 보상이 없었다. 프레스티지의 절반만 있던 셈이라
+-- 단계를 올릴 이유가 없었다. 이제 시작 단계와 이번 판 상승분이 수입 배수가 된다.
+assert(math.abs(WoodEconomy.tierMultiplier(1,1)-1)<1e-9,"1단계 배수가 1이 아니다 - 초반 밸런스가 바뀐다")
+assert(math.abs(WoodEconomy.tierMultiplier(6,6)-1.75)<1e-9,"6단계 시작 배수가 1.75가 아니다")
+assert(math.abs(WoodEconomy.tierMultiplier(10,10)-2.35)<1e-9,"10단계 시작 배수가 2.35가 아니다")
+assert(WoodEconomy.tierMultiplier(3,6)>WoodEconomy.tierMultiplier(3,3),"이번 판에 단계를 올려도 보상이 늘지 않는다")
+local plainRows,plainTotal=WoodEconomy.settlement("forest",{broadleaf=10},1,1)
+local richRows,richTotal,richMul=WoodEconomy.settlement("forest",{broadleaf=10},10,10)
+assert(richTotal>plainTotal and math.abs(richMul-2.35)<1e-9,"높은 단계에서 목재 수입이 오르지 않는다")
+local rowSum=0
+for _,row in ipairs(richRows)do rowSum=rowSum+row.count*row.coin end
+assert(rowSum==richTotal,"행 단가 합계와 총액이 어긋난다 - 정산 연출이 총액과 맞지 않는다")
+assert(#richRows==#plainRows+1 and richRows[#richRows].bonus,"재생 단계 보너스가 별도 행으로 보이지 않는다")
+-- 배수를 개당 코인에 곱하면 정수 반올림에 먹혀 2단계 수입이 1단계와 같아졌다.
+local _,t1=WoodEconomy.settlement("forest",{broadleaf=100},1,1)
+local _,t2=WoodEconomy.settlement("forest",{broadleaf=100},2,2)
+assert(t2>t1,"2단계 수입이 1단계와 같다 - 배수가 반올림에 먹히고 있다")
+
 print("SCORE_ATTACK_MODE_OK start=6 persistent_regen_tier run_upgrades=disabled combat=permanent")
