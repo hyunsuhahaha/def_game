@@ -153,6 +153,19 @@ local autoTree=tree(80,20);local auto,ag=setup({autoTree})
 auto:throwMolotov(ag);assert(autoTree.igniting and #auto.molotovs==1)
 advance(auto,ag,auto.molotovs[1].dur)
 assert(not autoTree.igniting and autoTree.burning and #auto.cigaretteButts==1,"auto throw lacks immediate landing contact")
+-- Fresh drum oil overrides the ordinary tree target. Once that puddle group is
+-- already burning, the exact old tree-selection path resumes.
+local oilTree=tree(80,20);local oilAuto,oilGame=setup({oilTree})
+local freshOil={x=210,y=45,source="drum",spawnedAt=0,lifetime=20,group="drum_auto",ignited=false}
+oilAuto.smokerGroundTime=1;oilAuto.oilTrail={freshOil};oilAuto.oilPuddleGroups={drum_auto={ignited=false}}
+oilAuto:throwMolotov(oilGame)
+assert(oilAuto.molotovs[1].target==freshOil and oilAuto.molotovs[1].x1==freshOil.x and oilAuto.molotovs[1].y1==freshOil.y,
+    "automatic cigarette did not prioritize the center of fresh drum oil")
+oilAuto.molotovs={};freshOil.igniting=nil;oilAuto.oilTrail[#oilAuto.oilTrail+1]=
+    {x=225,y=50,source="drum",spawnedAt=0,lifetime=20,group="drum_auto",ignited=true}
+oilAuto:throwMolotov(oilGame)
+assert(oilAuto.molotovs[1].target==oilTree and oilTree.igniting,
+    "burning drum oil did not restore the original tree targeting")
 local barrage,bg=setup({});barrage.levels.molotov=6;bg.setNotice=function() end -- barrage bonus now gates on the new max (6), not the old max (3)
 for i=1,3 do barrage:hurlMolotovAt(40,0,bg) end
 assert(#barrage.molotovs==5,"barrage throw count changed")

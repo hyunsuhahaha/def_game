@@ -242,7 +242,7 @@ local scoreFireNodes={
     {id="fire_score_axe_chain",name="연속 벌목",short="연속 벌목",desc="나무를 쓰러뜨리면 단계마다 18% 확률로 도끼 재사용 대기시간이 즉시 초기화됩니다.",effect="scoreAxeChain",value=.18,max=3,costs={90,150,230},wx=200,wy=1790,icon="clock",color={.78,.70,.42},requires={{"fire_score_axe_execute",3}}},
     -- 도끼 갈래의 졸업. 마스터한 빌드를 동료에게 전수해 자동 벌목을 추가한다.
     {id="fire_score_axe_crew",name="도끼 원숭이 해금",short="도끼 원숭이",desc="내 도끼 빌드의 절반 성능을 물려받은 졸업 원숭이 1마리가 자동 벌목합니다.",effect="scoreAxeCrew",value=1,max=1,costs={800},wx=200,wy=2100,icon="capstone",color={.94,.52,.20},requires={{"fire_score_axe_shock",3},{"fire_score_axe_chain",3}},capstone=true},
-    {id="fire_score_autothrow",name="담배 자동 투척",short="자동 투척",desc="근접 도끼질이나 폭죽 공격 중에도 2.6초마다 꽁초가 자동으로 날아갑니다.",effect="scoreAutoThrow",value=1,max=1,costs={240},wx=2020,wy=900,icon="cigarette",color={1,.46,.14},requires={{"fire_score_alwayssmoke",1}},capstone=true},
+    {id="fire_score_autothrow",name="담배 자동 투척",short="자동 투척",desc="근접 도끼질이나 폭죽 공격 중에도 2.6초마다 꽁초가 자동으로 날아갑니다. 불붙지 않은 드럼통 기름이 있으면 그곳을 먼저 노립니다.",effect="scoreAutoThrow",value=1,max=1,costs={240},wx=2020,wy=900,icon="cigarette",color={1,.46,.14},requires={{"fire_score_alwayssmoke",1}},capstone=true},
     -- 자동 투척 간격은 updateFire에 2.6초 상수로 박혀 있어, 손이 도끼·폭죽으로 넘어간
     -- 뒤로는 담배 화력이 공격속도와 무관하게 고정됐다. 그 상수를 여는 노드다.
     {id="fire_score_autothrow_rate",name="자동 투척 주기 단축",short="자동 투척 주기",desc="자동 투척 간격이 단계마다 9% 짧아집니다. (기본 2.6초)",effect="scoreAutoThrowRate",value=.09,max=4,costs={48,80,124,180},wx=1450,wy=1350,icon="clock",color={1,.58,.20},requires={{"fire_score_autothrow",1}}},

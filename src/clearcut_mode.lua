@@ -2671,10 +2671,32 @@ end
 -- 부채꼴로 던지고, 비행 중 불타는 꼬리를 남겨 눈에 띄게 다르게 보이도록 flight.wildfire로 표시한다.
 function ClearcutMode:throwMolotov(game, wildfire)
     local candidates = {}
-    for _, node in ipairs(game.world.nodes) do
-        if node.rushTree and node.active and node.x and node.y and not node.giantTree and not node.burning and not node.igniting then
-            local dx, dy = node.x - game.player.x, node.y - game.player.y
-            if dx*dx + dy*dy <= 620*620 then candidates[#candidates+1] = node end
+    -- 자동 꽁초는 새로 쏟아져 아직 불붙지 않은 드럼통 기름을 가장 먼저 노린다.
+    -- 한 자국이라도 예약 가능하면 나무 후보를 섞지 않는다. 그룹에 이미 불이 붙은
+    -- 뒤에는 남은 가장자리 자국을 재조준하지 않고 기존 나무 선택으로 돌아간다.
+    local now=self.smokerGroundTime or 0
+    local burningOilGroups={}
+    for _,spot in ipairs(self.oilTrail or{})do
+        if spot.group and spot.ignited then burningOilGroups[spot.group]=true end
+    end
+    for id,group in pairs(self.oilPuddleGroups or{})do
+        if group.ignited then burningOilGroups[id]=true end
+    end
+    for _,spot in ipairs(self.oilTrail or{})do
+        local live=now>=(spot.spawnedAt or 0)and now-(spot.spawnedAt or 0)<(spot.lifetime or 6)
+        if spot.source=="drum"and live and not spot.ignited and not spot.igniting
+            and not burningOilGroups[spot.group]then
+            local dx,dy=spot.x-game.player.x,spot.y-game.player.y
+            if dx*dx+dy*dy<=620*620 then candidates[#candidates+1]=spot end
+        end
+    end
+    local oilPriority=#candidates>0
+    if not oilPriority then
+        for _, node in ipairs(game.world.nodes) do
+            if node.rushTree and node.active and node.x and node.y and not node.giantTree and not node.burning and not node.igniting then
+                local dx, dy = node.x - game.player.x, node.y - game.player.y
+                if dx*dx + dy*dy <= 620*620 then candidates[#candidates+1] = node end
+            end
         end
     end
     if #candidates == 0 then return end
@@ -2686,8 +2708,9 @@ function ClearcutMode:throwMolotov(game, wildfire)
         target.igniting = true
         local dist = math.sqrt((target.x-game.player.x)^2 + (target.y-game.player.y)^2)
         local _,mouthY,_,tipX=self:smokerMouthPose(game)
+        local landingX,landingY=target.x+(oilPriority and 0 or 28),target.y+(oilPriority and 0 or 22)
         self.molotovs[#self.molotovs+1] = {
-            x0=tipX, y0=mouthY, x1=target.x+28, y1=target.y+22,
+            x0=tipX, y0=mouthY, x1=landingX, y1=landingY,
             t=0, dur=math.max(.18,dist/(1200*(self.permanentTraits.cigaretteProjectileSpeed or 1))), target=target, wildfire=wildfire,
             radius=(90+self:power("molotov")*20+self.permanentTraits.area+ScoreOperations.weaponArea(self))
                 *(self:skillBranch("molotov")=="flame_route"and 1.25 or 1),

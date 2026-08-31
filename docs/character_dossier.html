@@ -525,7 +525,7 @@ const TRAITS = {
       {id:"fire_score_axe_shock",name:"도끼 충격파",short:"충격파",desc:"나무를 쓰러뜨리면 주변 나무에 단계마다 2 피해를 줍니다. 범위는 단계마다 34 넓어집니다.",max:3,costs:[90,150,230],requires:[["fire_score_axe_targets",2]]},
       {id:"fire_score_axe_chain",name:"연속 벌목",short:"연속 벌목",desc:"나무를 쓰러뜨리면 단계마다 18% 확률로 도끼 재사용 대기시간이 즉시 초기화됩니다.",max:3,costs:[90,150,230],requires:[["fire_score_axe_execute",3]]},
       {id:"fire_score_axe_crew",name:"도끼 원숭이 해금",short:"도끼 원숭이",desc:"내 도끼 빌드의 절반 성능을 물려받은 졸업 원숭이 1마리가 자동 벌목합니다.",max:1,costs:[800],requires:[["fire_score_axe_shock",3],["fire_score_axe_chain",3]],capstone:true},
-      {id:"fire_score_autothrow",name:"담배 자동 투척",short:"자동 투척",desc:"근접 도끼질이나 폭죽 공격 중에도 2.6초마다 꽁초가 자동으로 날아갑니다.",max:1,costs:[240],requires:[["fire_score_alwayssmoke",1]],capstone:true},
+      {id:"fire_score_autothrow",name:"담배 자동 투척",short:"자동 투척",desc:"근접 도끼질이나 폭죽 공격 중에도 2.6초마다 꽁초가 자동으로 날아갑니다. 불붙지 않은 드럼통 기름이 있으면 그곳을 먼저 노립니다.",max:1,costs:[240],requires:[["fire_score_alwayssmoke",1]],capstone:true},
       {id:"fire_score_autothrow_rate",name:"자동 투척 주기 단축",short:"자동 투척 주기",desc:"자동 투척 간격이 단계마다 9% 짧아집니다. (기본 2.6초)",max:4,costs:[48,80,124,180],requires:[["fire_score_autothrow",1]]},
       {id:"fire_score_rocket_unlock",name:"폭죽 로켓 해금",short:"폭죽 해금",desc:"근접 대상이 없을 때의 원거리 공격이 폭죽 로켓으로 자동 전환됩니다.",max:1,costs:[260],requires:[["fire_score_autothrow",1]],capstone:true},
       {id:"fire_score_rocket_radius",name:"폭죽 폭발 반경 상승",short:"폭발 반경",desc:"폭죽 로켓의 폭발 반경 +16",max:5,costs:[18,32,50,74,104],requires:[["fire_score_rocket_unlock",1]]},
