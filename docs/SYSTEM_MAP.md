@@ -58,6 +58,15 @@
 | 담배 | 담배 자동 투척 | 240 | **예외** — 자동화되지만 핫바에 그대로 남는다 |
 | 폭죽 | (예정) | — | |
 
+**모든 졸업 동료는 같은 원숭이다.** 몸체 아틀라스 하나를 공유하고 손에 든 무기만 바꾼다. 그래서 졸업 동료를 새로 추가할 때는 무기 프롭 하나만 그리면 되고, 크루가 늘어도 화면이 한 가족으로 읽힌다. 무기는 몸체에 굽지 않고 프레임별 손 앵커에 붙이는 별도 스프라이트다(AGENTS.md 장비 규칙).
+
+```text
+몸체  assets/characters/companions/graduate-monkey-atlas-pixel-v1.png   6프레임 x 2행
+프롭  assets/characters/companions/graduate-monkey-props-pixel-v1.png   무기 하나당 1행
+빌드  python scripts/build_graduate_monkey.py
+검수  python scripts/render_graduate_monkey_preview.py   (창 없이 실제 그리기 경로 재생)
+```
+
 담배만 예외인 이유는 배워서 얻은 무기가 아니라 **시작부터 내 것**이기 때문이다. 나머지는 전부 핫바에서 빠지므로, 무기가 늘어도 손은 붐비지 않는다.
 
 동료 성능은 일부러 내 것보다 낮다. 손을 비워주는 게 보상이지 출력을 두 배로 만드는 게 아니다 — 자동 투척이 수동(약 2.2초)보다 느린 2.6초인 것과 같은 이유다.

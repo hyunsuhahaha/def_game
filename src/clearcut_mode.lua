@@ -40,6 +40,7 @@ local SkillBranches = require("src.clearcut_skill_branches")
 local SmokerWeaponArt = require("src.smoker_weapon_art")
 local ScoreOperations = require("src.score_operations")
 local ScoreWeaponHotbarArt = require("src.score_weapon_hotbar_art")
+local GraduateMonkeyArt = require("src.graduate_monkey_art")
 local ScoreTierUpArt = require("src.score_tier_up_art")
 local ScoreAxeArt = require("src.score_axe_art")
 local WoodEconomy = require("src.wood_economy")
@@ -707,20 +708,15 @@ end
 -- 탐색/이동/타격 루프는 두더지와 같고 목록도 공유한다 — 그래야 서로 다른 나무를 맡는다.
 -- 성능은 내 도끼의 절반이다. 손을 비워주는 게 보상이지 출력을 두 배로 만드는 게 아니다.
 function ClearcutMode:initLumberjackCompanion(game)
-    local sprite=game.clearcutSprites and game.clearcutSprites.physical
-    if not sprite or not sprite.image then return false end
-    local fw,fh=sprite.image:getWidth()/6,sprite.image:getHeight()/2
-    local frames={walk={},action={}}
-    for i=0,5 do
-        frames.walk[i+1]=love.graphics.newQuad(i*fw,0,fw,fh,sprite.image:getDimensions())
-        frames.action[i+1]=love.graphics.newQuad(i*fw,fh,fw,fh,sprite.image:getDimensions())
-    end
+    -- 졸업 동료는 사람이 아니라 공용 원숭이 몸체를 쓰고 손에 든 무기만 다르다.
+    local sprite,frames,fw,fh=GraduateMonkeyArt.sprite()
+    if not sprite then return false end
     local traits=self.permanentTraits or{}
     local axeDamage=4+math.max(0,traits.treeDamage or 0)
     local x,y=require("src.clearcut_maps").constrain(game.world,game.player.x+96,game.player.y+48,42)
     self.moleCompanions=self.moleCompanions or{}
     self.moleCompanions[#self.moleCompanions+1]={
-        kind="lumberjack",x=x,y=y,sprite=sprite,frames=frames,fw=fw,fh=fh,state="seek",target=nil,
+        kind="lumberjack",prop="axe",x=x,y=y,sprite=sprite,frames=frames,fw=fw,fh=fh,state="seek",target=nil,
         index=#self.moleCompanions+1,facing=-1,walkClock=.21,attackT=0,drawScale=.34,
         attackDuration=.62/(1+math.max(0,traits.scoreAxeSpeed or 0)),struck=false,
         speed=210*(1+math.max(0,traits.moveSpeed and traits.moveSpeed-1 or 0)),
@@ -851,6 +847,9 @@ function ClearcutMode:drawMoleCompanion(companion)
     local drawScale=companion.drawScale or .30
     love.graphics.draw(sprite.image,companion.frames[row][frame],companion.x,companion.y-bob,0,
         drawScale*flip*poseScale,drawScale*poseScale,companion.fw/2,foot)
+    if sprite.graduateMonkey then
+        GraduateMonkeyArt.drawProp(companion,row,frame,flip,foot,bob,drawScale*poseScale)
+    end
 end
 
 local function clearcutDistance(ax,ay,bx,by)

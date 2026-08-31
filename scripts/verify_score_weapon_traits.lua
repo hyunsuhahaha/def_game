@@ -12,7 +12,12 @@ package.path = "./?.lua;./?/init.lua;" .. package.path
 
 love = {
     math = {random = math.random}, filesystem = {},
-    graphics = {getDimensions = function() return 1600, 900 end, newQuad = function() return {} end},
+    graphics = {
+        getDimensions = function() return 1600, 900 end, newQuad = function() return {} end,
+        newImage = function() return {setFilter = function() end,
+            getWidth = function() return 768 end, getHeight = function() return 256 end,
+            getDimensions = function() return 768, 256 end} end,
+    },
     mouse = {getPosition = function() return 0, 0 end, isDown = function() return true end},
     keyboard = {isDown = function() return false end},
 }
@@ -271,10 +276,7 @@ assert(crewReq.fire_score_axe_shock == 3 and crewReq.fire_score_axe_chain == 3,
 assert(crew.costs[1] > nodeOf("fire_score_axe_shock").costs[3],
     "나무꾼 고용이 상위 강화보다 싸다 — 졸업 보상이 가장 비싸야 한다")
 
-local sprite = {image = {getWidth = function() return 576 end, getHeight = function() return 384 end,
-    getDimensions = function() return 576, 384 end}}
 local crewGame = axeGame({})
-crewGame.clearcutSprites = {physical = sprite}
 crewGame.world.width, crewGame.world.height = 3000, 3000
 local hire = ClearcutMode.new()
 hire.scoreAttack, hire.sandbox, hire.job, hire.mapId = true, true, "fire", "forest"
