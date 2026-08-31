@@ -31,9 +31,17 @@ for _, id in ipairs(axeNodes) do assert(nodeOf(id).scoreMode, id .. "가 기록 
 for _, id in ipairs(rocketNodes) do assert(nodeOf(id).scoreMode, id .. "가 기록 모드 연구판에 없다") end
 assert(nodeOf("fire_score_edge").effect == "scoreTreeDamage", "공용 나무 피해 노드가 treeDamage를 올리지 않는다")
 
--- 2. 강화 이름은 효과를 그대로 드러낸다 (AGENTS.md 규칙). 담배 전용처럼 읽히면 안 된다.
-for _, id in ipairs({"fire_score_filter", "fire_score_drag"}) do
-    assert(nodeOf(id).desc:find("3무기", 1, true), id .. " 설명이 3무기 공용임을 밝히지 않는다")
+-- 2. 공용 수치의 설명에는 무기 이름을 나열하지 않는다. "담배·도끼·폭죽의 사거리"처럼
+-- 적으면 무기가 늘거나 바뀔 때마다 설명을 전부 고쳐야 하므로, "무기 사거리"처럼 공용
+-- 단어만 쓴다. 특정 무기에만 걸리는 수치는 그 무기 이름을 쓰는 게 맞으므로 제외한다.
+local sharedNodes = {"fire_score_filter", "fire_score_drag", "fire_score_edge"}
+for _, id in ipairs(sharedNodes) do
+    local desc = nodeOf(id).desc
+    for _, weapon in ipairs({"담배", "도끼", "폭죽", "꽁초", "로켓"}) do
+        assert(not desc:find(weapon, 1, true),
+            id .. " 공용 설명이 무기 이름 '" .. weapon .. "'을 하드코딩했다: " .. desc)
+    end
+    assert(desc:find("무기", 1, true), id .. " 공용 설명이 공용 단어 '무기'를 쓰지 않는다")
 end
 
 -- 3. 만렙 효과가 실제 수치로 합산된다.
