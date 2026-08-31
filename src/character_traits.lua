@@ -189,18 +189,18 @@ expand("fire",{
 -- 위해 유지하되 scoreSkill 연결은 두지 않는다.
 -- 일반 흡연자 연구는 삭제하지 않고 저장 호환을 위해 위에 그대로 보존한다.
 local scoreFireNodes={
-    {id="fire_score_prewarm",name="출근 전 라이터 예열",short="첫 불씨 단축",desc="벌목 기록 모드 최초 흡연 준비시간 -0.08초",effect="scoreInitialIgnitionReduction",value=.08,wx=390,wy=710,icon="ember",color={1,.48,.12}},
-    {id="fire_score_filter",name="긴 필터 밀어 던지기",short="무기 사거리",desc="무기 사거리 +16",effect="scoreRange",value=16,max=6,costs={18,32,50,74,104,142},wx=730,wy=520,icon="filter",color={.88,.66,.32},requires={{"fire_score_prewarm",1}}},
-    {id="fire_score_lighter",name="불씨 반경 넓히기",short="착화 범위",desc="꽁초가 불씨를 옮기는 착화 반경 +12",effect="scoreArea",value=12,max=6,costs={18,32,50,74,104,142},wx=730,wy=900,icon="ember",color={.96,.43,.16},requires={{"fire_score_prewarm",1}}},
-    {id="fire_score_spark",name="심지 끝까지 달구기",short="착화 확률",desc="꽁초의 착화 성공 확률 +1.2%p",effect="scoreIgnitionChance",value=.012,wx=1080,wy=380,icon="ember",color={1,.56,.16},requires={{"fire_score_filter",2}}},
-    {id="fire_score_launch",name="손가락 튕기기 연습",short="비행 속도",desc="꽁초 비행 속도 +7%",effect="scoreProjectileSpeed",value=.07,wx=1080,wy=650,icon="wind",color={.82,.72,.42},requires={{"fire_score_prewarm",1}}},
+    {id="fire_score_prewarm",name="최초 흡연 준비시간 감소",short="첫 불씨 단축",desc="벌목 기록 모드 최초 흡연 준비시간 -0.08초",effect="scoreInitialIgnitionReduction",value=.08,wx=390,wy=710,icon="ember",color={1,.48,.12}},
+    {id="fire_score_filter",name="무기 사거리 상승",short="무기 사거리",desc="무기 사거리 +16",effect="scoreRange",value=16,max=6,costs={18,32,50,74,104,142},wx=730,wy=520,icon="filter",color={.88,.66,.32},requires={{"fire_score_prewarm",1}}},
+    {id="fire_score_lighter",name="착화 범위 상승",short="착화 범위",desc="꽁초가 불씨를 옮기는 착화 반경 +12",effect="scoreArea",value=12,max=6,costs={18,32,50,74,104,142},wx=730,wy=900,icon="ember",color={.96,.43,.16},requires={{"fire_score_prewarm",1}}},
+    {id="fire_score_spark",name="꽁초 착화 확률 상승",short="착화 확률",desc="꽁초의 착화 성공 확률 +1.2%p",effect="scoreIgnitionChance",value=.012,wx=1080,wy=380,icon="ember",color={1,.56,.16},requires={{"fire_score_filter",2}}},
+    {id="fire_score_launch",name="꽁초 비행 속도 상승",short="비행 속도",desc="꽁초 비행 속도 +7%",effect="scoreProjectileSpeed",value=.07,wx=1080,wy=650,icon="wind",color={.82,.72,.42},requires={{"fire_score_prewarm",1}}},
     -- 값은 초당 확률 단위로 저장하고 런타임이 기준 연소시간(3.6초)을 곱해 "옮겨붙는
     -- 기대 그루 수"로 쓴다. 0레벨 0.43그루 → 6레벨 1.45그루로, 만렙이 임계점 1.00을
     -- 확실히 넘겨 산불이 스스로 번지게 한다.
-    {id="fire_score_ash",name="마른 재 흩뿌리기",short="확산량",desc="불붙은 나무가 옮겨붙이는 기대 그루 +0.17 (만렙 1.45그루 — 1.00을 넘으면 산불이 스스로 번집니다)",effect="scoreSpreadChance",value=.047,max=6,costs={18,32,50,74,104,142},wx=1080,wy=940,icon="ash",color={.72,.52,.36},requires={{"fire_score_lighter",2}}},
-    {id="fire_score_drag",name="한 모금만 피우기",short="공격속도",desc="무기 공격속도 +4%",effect="scoreAttackSpeed",value=.04,max=6,costs={18,32,50,74,104,142},wx=1430,wy=470,icon="clock",color={.78,.76,.67},requires={{"fire_score_launch",2}}},
-    {id="fire_score_heat",name="송진 묻은 불씨",short="연소 속도",desc="불이 나무를 태우는 주기 6% 단축 (기본 1초마다 4피해, 연소 3.6초)",effect="scoreBurnSpeed",value=.06,max=6,costs={18,32,50,74,104,142},wx=1430,wy=820,icon="warning",color={1,.34,.08},requires={{"fire_score_prewarm",1}}},
-    {id="fire_score_stock",name="주머니 속 마지막 한 개비",short="추가 꽁초",desc="투척할 때 추가 꽁초 +1",effect="scoreExtraFires",value=1,max=1,costs={180},wx=1780,wy=650,icon="pack",color={1,.30,.08},requires={{"fire_score_heat",3}},capstone=true},
+    {id="fire_score_ash",name="불 확산량 상승",short="확산량",desc="불붙은 나무가 옮겨붙이는 기대 그루 +0.17 (만렙 1.45그루 — 1.00을 넘으면 산불이 스스로 번집니다)",effect="scoreSpreadChance",value=.047,max=6,costs={18,32,50,74,104,142},wx=1080,wy=940,icon="ash",color={.72,.52,.36},requires={{"fire_score_lighter",2}}},
+    {id="fire_score_drag",name="무기 공격속도 상승",short="공격속도",desc="무기 공격속도 +4%",effect="scoreAttackSpeed",value=.04,max=6,costs={18,32,50,74,104,142},wx=1430,wy=470,icon="clock",color={.78,.76,.67},requires={{"fire_score_launch",2}}},
+    {id="fire_score_heat",name="연소속도 상승",short="연소 속도",desc="불이 나무를 태우는 주기 6% 단축 (기본 1초마다 4피해, 연소 3.6초)",effect="scoreBurnSpeed",value=.06,max=6,costs={18,32,50,74,104,142},wx=1430,wy=820,icon="warning",color={1,.34,.08},requires={{"fire_score_prewarm",1}}},
+    {id="fire_score_stock",name="추가 꽁초 투척",short="추가 꽁초",desc="투척할 때 추가 꽁초 +1",effect="scoreExtraFires",value=1,max=1,costs={180},wx=1780,wy=650,icon="pack",color={1,.30,.08},requires={{"fire_score_heat",3}},capstone=true},
 
     -- 무기 슬롯 공용 갈래. 공용 수치의 설명에는 무기 이름을 나열하지 않는다 —
     -- "무기 사거리", "무기 공격속도"처럼 공용 단어만 쓴다. 무기가 늘거나 바뀔 때마다
@@ -352,19 +352,19 @@ jobs.universal = {
 -- 사업으로 스테이지당 나무 수를 늘리며, 그 조림 사업이 있어야 비로소 더 값나가는
 -- 수종(=지금 숲에 이미 있던 소나무/자작나무/단풍나무)이 함께 자라기 시작한다.
 expand("universal",{
-    {id="universal_lumberbonus",name="목재 실적 인정",short="벤 만큼 잡힌다",desc="목재 획득량 +12%",effect="woodYield",value=.12,requires={{"universal_shuttle",1}},icon="coins",color={.78,.62,.30}},
-    {id="universal_afforestation",name="선제적 조림 사업",short="미리 심어둔다",desc="스테이지 진행마다 나무 +6그루(스테이지 배수)",effect="forestRestock",value=6,requires={{"universal_shuttle",1}},icon="map",color={.42,.68,.40}},
-    {id="universal_seedbank",name="다수종 조림 협약",short="한 종만 심지 않는다",desc="벌목지에 더 값나가는 수종이 함께 자란다",effect="treeVariety",value=1,max=1,requires={{"universal_afforestation",1}},icon="leaf",color={.55,.72,.35}},
-    {id="universal_yard",name="벌목장 부지 확장",short="쌓아둘 자리",desc="벌목 기록 모드의 나무 허용량 +4그루",effect="scoreTreeAllowance",value=4,max=7,costs={16,26,40,58,80,108,142},wx=520,wy=850,icon="map",color={.48,.72,.42},scoreMode=true},
-    {id="universal_robot_start",name="아기 로봇 기본 지급",short="첫 출근 동행",desc="벌목 기록 모드를 아기 운반 로봇 Lv.1로 시작",effect="scoreStartingBabyRobot",value=1,max=1,costs={42},wx=900,wy=680,icon="basket",color={.40,.86,1},scoreMode=true},
-    {id="universal_robot_motor",name="아기 로봇 고속 모터",short="더 빨리 줍는다",desc="아기 운반 로봇 이동속도 +10%",effect="scoreRobotSpeed",value=.10,max=5,costs={22,38,58,82,112},wx=1260,wy=680,icon="clock",color={.55,.90,1},requires={{"universal_robot_start",1}},scoreMode=true},
-    {id="universal_mole_companion",name="두더지 동료 채용",short="두더지 채용",desc="벌목 기록 모드에 두더지 동료 1마리가 합류합니다.",effect="scoreMoleCompanion",value=1,max=1,costs={78},wx=1100,wy=1100,icon="fist",color={.78,.62,.30},requires={{"universal_robot_start",1}},scoreMode=true},
+    {id="universal_lumberbonus",name="목재 획득량 상승",short="목재 획득량",desc="목재 획득량 +12%",effect="woodYield",value=.12,requires={{"universal_shuttle",1}},icon="coins",color={.78,.62,.30}},
+    {id="universal_afforestation",name="스테이지 시작 나무 증가",short="시작 나무 증가",desc="스테이지 진행마다 나무 +6그루(스테이지 배수)",effect="forestRestock",value=6,requires={{"universal_shuttle",1}},icon="map",color={.42,.68,.40}},
+    {id="universal_seedbank",name="다수 수종 생성",short="다수 수종",desc="벌목지에 더 값나가는 수종이 함께 자란다",effect="treeVariety",value=1,max=1,requires={{"universal_afforestation",1}},icon="leaf",color={.55,.72,.35}},
+    {id="universal_yard",name="나무 허용량 증가",short="허용량 증가",desc="벌목 기록 모드의 나무 허용량 +4그루",effect="scoreTreeAllowance",value=4,max=7,costs={16,26,40,58,80,108,142},wx=520,wy=850,icon="map",color={.48,.72,.42},scoreMode=true},
+    {id="universal_robot_start",name="아기 로봇 기본 지급",short="로봇 기본 지급",desc="벌목 기록 모드를 아기 운반 로봇 Lv.1로 시작",effect="scoreStartingBabyRobot",value=1,max=1,costs={42},wx=900,wy=680,icon="basket",color={.40,.86,1},scoreMode=true},
+    {id="universal_robot_motor",name="아기 로봇 이동속도 상승",short="로봇 이동속도",desc="아기 운반 로봇 이동속도 +10%",effect="scoreRobotSpeed",value=.10,max=5,costs={22,38,58,82,112},wx=1260,wy=680,icon="clock",color={.55,.90,1},requires={{"universal_robot_start",1}},scoreMode=true},
+    {id="universal_mole_companion",name="두더지 동료 해금",short="두더지 해금",desc="벌목 기록 모드에 두더지 동료 1마리가 합류합니다.",effect="scoreMoleCompanion",value=1,max=1,costs={78},wx=1100,wy=1100,icon="fist",color={.78,.62,.30},requires={{"universal_robot_start",1}},scoreMode=true},
     {id="universal_mole_damage",name="두더지 피해 상승",short="피해 상승",desc="두더지 발톱 피해가 단계마다 1 증가합니다.",effect="scoreMoleDamage",value=1,max=3,costs={30,48,72},wx=700,wy=1320,icon="fist",color={.86,.48,.24},requires={{"universal_mole_companion",1}},scoreMode=true},
     {id="universal_mole_speed",name="두더지 이동속도 상승",short="이동속도 상승",desc="두더지 이동속도가 단계마다 10% 증가합니다.",effect="scoreMoleSpeed",value=.10,max=3,costs={26,44,66},wx=1100,wy=1370,icon="road",color={.48,.72,.82},requires={{"universal_mole_companion",1}},scoreMode=true},
     {id="universal_mole_attack_speed",name="두더지 공격속도 상승",short="공격속도 상승",desc="두더지 공격속도가 단계마다 12% 증가합니다.",effect="scoreMoleAttackSpeed",value=.12,max=3,costs={32,52,78},wx=1500,wy=1320,icon="clock",color={.82,.68,.30},requires={{"universal_mole_companion",1}},scoreMode=true},
     {id="universal_mole_claw",name="두더지 공격범위 상승",short="공격범위 상승",desc="두더지의 공격 가능 거리와 발톱 자국 크기가 단계마다 증가합니다.",effect="scoreMoleClawTier",value=1,max=2,costs={56,92},wx=500,wy=1570,icon="split",color={.92,.42,.22},requires={{"universal_mole_damage",2}},scoreMode=true},
     {id="universal_mole_dual",name="두더지 양손 공격",short="양손 공격",desc="두더지가 한 번의 공격에 양손 발톱 자국을 남깁니다.",effect="scoreMoleDualClaw",value=1,max=1,costs={125},wx=500,wy=1820,icon="capstone",color={1,.32,.16},requires={{"universal_mole_claw",2}},scoreMode=true},
-    {id="universal_mole_extra",name="두더지 추가 채용",short="추가 동료 채용",desc="단계마다 두더지 동료 1마리가 추가로 합류합니다.",effect="scoreMoleExtraCompanions",value=1,max=2,costs={110,180},wx=1100,wy=1650,icon="split",color={.72,.58,.32},requires={{"universal_mole_speed",2},{"universal_mole_attack_speed",2}},scoreMode=true},
+    {id="universal_mole_extra",name="두더지 추가 동료",short="추가 동료",desc="단계마다 두더지 동료 1마리가 추가로 합류합니다.",effect="scoreMoleExtraCompanions",value=1,max=2,costs={110,180},wx=1100,wy=1650,icon="split",color={.72,.58,.32},requires={{"universal_mole_speed",2},{"universal_mole_attack_speed",2}},scoreMode=true},
     {id="universal_oil_drum",name="기름 드럼통 생성",short="드럼통 생성",desc="벌목 기록 모드에서 22초마다 기름 드럼통이 떨어집니다. 도끼로 두 번 타격하면 드럼통이 넘어지고 전용 8프레임 유출 애니메이션으로 기름이 넓게 퍼집니다.",effect="scoreOilDrum",value=1,max=1,costs={64},wx=1740,wy=930,icon="oil_drum",color={.42,.50,.52},requires={{"universal_robot_start",1}},scoreMode=true},
     {id="universal_oil_interval",name="드럼통 등장 주기",short="등장 주기 감소",desc="단계마다 기름 드럼통 등장 주기가 2초 감소합니다.",effect="scoreOilDrumInterval",value=2,max=3,costs={38,64,96},wx=2050,wy=700,icon="clock",color={.48,.58,.60},requires={{"universal_oil_drum",1}},scoreMode=true},
     {id="universal_oil_radius",name="기름 범위",short="기름 범위 상승",desc="단계마다 기름 웅덩이의 보이는 크기와 피해 범위가 18 증가합니다.",effect="scoreOilRadius",value=18,max=3,costs={32,54,82},wx=2350,wy=700,icon="split",color={.55,.45,.30},requires={{"universal_oil_interval",1}},scoreMode=true},
