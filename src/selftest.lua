@@ -19,8 +19,10 @@ function SelfTest.run(game)
     game.progression.data.levels.quick_work = 3
     game.progression:reset()
     assert(game.progression.data.currency == 0 and game.progression:getLevel("quick_work") == 0, "테스트 영구 데이터 초기화 실패")
+    game.characterTraits.data.currency = 0
     game:useTestOption(1)
-    assert(game.progression.data.currency == 1000000, "테스트 영구 재화 지급 실패")
+    assert(game.characterTraits.data.currency == 1000000, "테스트 연구 코인 지급 실패")
+    game.characterTraits:reset()
     game.progression:reset()
     game.progression.data.currency = 200
     local blocked = game.progression:buy("cargo_rig")

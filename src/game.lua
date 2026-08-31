@@ -304,7 +304,7 @@ end
 function Game:useTestOption(index)
     local activeRun=self.testReturnMode=="playing" or self.testReturnMode=="upgrade" or self.testReturnMode=="rush_upgrade" or self.testReturnMode=="clearcut_upgrade"
     if index==1 then
-        self.progression:addCurrency(1000000); self.testMessage="유산 부품 1,000,000개를 지급했습니다."
+        self.characterTraits:addCurrency(1000000); self.testMessage="연구 코인 1,000,000개를 지급했습니다."
     elseif index==2 then
         if activeRun then self:grantTestRunResources(); self.testMessage="현재 런 자원을 각각 1,000,000개 지급했습니다."
         else self.testGrantNextRun=true; self.testMessage="다음 런 자원 1,000,000개 지급을 예약했습니다." end
@@ -1615,9 +1615,9 @@ function Game:drawTestOptions()
     UI.panel(w/2-360,84,720,640,{.42,1,.6,1},.98)
     love.graphics.setFont(f.title); love.graphics.setColor(1,1,1); love.graphics.printf("테스트 옵션",w/2-330,105,660,"center")
     love.graphics.setFont(f.small); love.graphics.setColor(.62,.78,.72); love.graphics.printf("개발 중인 특성·생산·방어 시스템을 빠르게 확인하는 메뉴",w/2-330,153,660,"center")
-    love.graphics.setColor(1,.72,.25); love.graphics.printf("보유 유산 부품  "..self.progression.data.currency,w/2-330,181,660,"center")
+    love.graphics.setColor(1,.72,.25); love.graphics.printf("보유 연구 코인  "..self.characterTraits.data.currency,w/2-330,181,660,"center")
     local bx=w/2-290
-    UI.button(bx,220,580,58,"유산 부품 +1,000,000",true,f.heading)
+    UI.button(bx,220,580,58,"연구 코인 +1,000,000",true,f.heading)
     UI.button(bx,300,580,58,"런 자원 각 +1,000,000  (식량·광석·목재·돌)",true,f.body)
     local activeRun=self.testReturnMode=="playing" or self.testReturnMode=="upgrade" or self.testReturnMode=="rush_upgrade" or self.testReturnMode=="clearcut_upgrade"
     UI.button(bx,380,580,58,activeRun and "현재 런 레벨 +10  (강화 3택 테스트)" or "다음 런 시작 레벨 +20  (자동 선택)",true,f.body)

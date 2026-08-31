@@ -22,7 +22,7 @@ function love.load()
     end
     if os.getenv("LAST_HAUL_CAPTURE_META") then game.progression.data.currency = 42; game.mode = "meta" end
     if os.getenv("LAST_HAUL_CAPTURE_TEST_OPTIONS") then
-        game.progression.data.currency = 1234567
+        game.characterTraits.data.currency = 1234567
         game:openTestOptions("lobby")
     end
     if os.getenv("LAST_HAUL_CAPTURE_RESULTS") then
