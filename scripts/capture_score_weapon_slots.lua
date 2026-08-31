@@ -7,8 +7,9 @@ love.mouse={getPosition=function()return -100,-100 end,isDown=function()return f
 love.keyboard={isDown=function()return false end}
 
 local Mode=require("src.clearcut_mode")
+-- 폭죽은 영구 연구로 열린다. 해금 전 상태를 그대로 잡아 잠금 표시를 눈으로 확인한다.
 local mode=Mode.new();mode.scoreAttack=true;mode.job="fire";mode.scoreWeaponSlot=2
 local fonts={small=love.graphics.newFont("assets/font-korean-regular.ttf",16),micro=love.graphics.newFont("assets/font-korean-regular.ttf",13)}
 mode:drawScoreWeaponSlots(fonts,1280,720)
 fixture.save("docs/previews/score-weapon-hotbar-draws.json")
-print("SCORE_WEAPON_SLOTS_CAPTURE_OK 1280x720 selected=axe window=none")
+print("SCORE_WEAPON_SLOTS_CAPTURE_OK 1280x720 selected=axe firework=locked window=none")

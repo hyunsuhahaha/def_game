@@ -6541,7 +6541,9 @@ end
 
 function ClearcutMode:drawScoreWeaponSlots(fonts,w,h)
     if not self.scoreAttack then return end
-    ScoreWeaponHotbarArt.draw(self.scoreWeaponSlot or 1,w,h)
+    local locked={}
+    for index=1,#scoreWeaponDefinitions do locked[index]=not self:scoreWeaponUnlocked(index)end
+    ScoreWeaponHotbarArt.draw(self.scoreWeaponSlot or 1,w,h,locked)
 end
 
 local function queueUpright(queue,x,y,draw,sortY,anchorY)

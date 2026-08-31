@@ -220,4 +220,20 @@ end
 assert(burnTotalWith(5) > burnTotalWith(0),
     "무기 피해가 불의 타격 피해에 더해지지 않는다 — 공용 이름인데 도끼·폭죽 전용이다")
 
+-- 12. 잠긴 무기는 핫바에도 잠금으로 보여야 한다. 쓸 수 있는 것처럼 그려놓고 누르면
+-- 조용히 거부하는 상태가 되면 안 된다.
+local Hotbar = require("src.score_weapon_hotbar_art")
+local realDraw = Hotbar.draw
+local seen
+Hotbar.draw = function(_, _, _, lockedSlots) seen = lockedSlots end
+local hud = ClearcutMode.new()
+hud.scoreAttack, hud.sandbox, hud.job, hud.mapId = true, true, "fire", "forest"
+hud:drawScoreWeaponSlots({}, 1280, 720)
+assert(seen and seen[3] == true and seen[1] ~= true and seen[2] ~= true,
+    "해금 전 폭죽이 핫바에 잠금으로 표시되지 않는다")
+hud.permanentTraits.scoreRocketUnlock = 1
+hud:drawScoreWeaponSlots({}, 1280, 720)
+assert(seen[3] ~= true, "폭죽을 해금해도 핫바가 계속 잠금으로 표시한다")
+Hotbar.draw = realDraw
+
 print("SCORE_WEAPON_TRAITS_OK shared=tree_damage axe=area+speed+targets+execute rocket=radius+damage+speed+ignite+cooldown")
