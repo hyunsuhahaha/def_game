@@ -193,6 +193,10 @@ function SelfTest.run(game)
     helper.x, helper.y = game.world.core.x, game.world.core.y
     game.world.drops = {}
     game.world:spawnDrop("stone", 1, helper.x + 300, helper.y, 0, 0)
+    -- 아기 로봇은 공중에 뜬 드롭을 낚아채지 않고 착지한 것만 회수한다(world.lua의 height<=18).
+    -- 이 검사는 updateHelpers만 돌리고 updateDrops(낙하 처리)는 돌리지 않으므로,
+    -- 드롭이 영원히 공중에 남는다. 낙하를 건너뛰고 착지 상태로 만들어 회수 경로만 검사한다.
+    game.world.drops[1].height, game.world.drops[1].vz = 0, 0
     local stoneBefore = game.stone
     for _ = 1, 400 do
         game.world:updateHelpers(.1, game)
