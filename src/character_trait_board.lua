@@ -317,6 +317,8 @@ function CharacterTraitBoard:nodeWorld(node)
         -- 한 판으로 합치면서 흡연자 오른쪽으로 통째로 옮긴다.
         universal_yard={2600,850},universal_robot_start={3000,850},universal_robot_motor={3400,850},
         universal_oil_drum={3800,850},universal_gray_cat={3800,1100},
+        universal_gray_cat_chance={3800,1350},universal_gray_cat_delay={3800,1600},
+        universal_gray_cat_speed={3400,1100},
         universal_mole_companion={3000,1100},
         universal_mole_damage={2600,1350},universal_mole_speed={3000,1350},universal_mole_attack_speed={3400,1350},
         universal_mole_claw={2600,1600},universal_mole_extra={3000,1600},universal_mole_dual={2600,1850},

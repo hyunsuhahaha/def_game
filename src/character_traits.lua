@@ -371,9 +371,9 @@ expand("universal",{
     {id="universal_oil_duration",name="기름 지속시간",short="지속시간 상승",desc="단계마다 기름 웅덩이의 지속시간이 3초 증가합니다.",effect="scoreOilDuration",value=3,max=3,costs={28,48,74},wx=2050,wy=930,icon="clock",color={.44,.40,.34},requires={{"universal_oil_drum",1}},scoreMode=true},
     {id="universal_oil_damage",name="기름 피해",short="기름 피해 상승",desc="단계마다 불붙은 기름의 나무 및 적 피해가 1 증가합니다.",effect="scoreOilDamage",value=1,max=3,costs={45,72,110},wx=2350,wy=930,icon="ember",color={.78,.40,.20},requires={{"universal_oil_radius",2},{"universal_oil_duration",2}},scoreMode=true},
     {id="universal_gray_cat",name="회색 고양이 동료",short="고양이 동료 해금",desc="드럼통마다 기본 35% 확률로 회색 고양이가 2.2초 뒤 출동해 드럼통을 밀어 넘어뜨립니다.",effect="scoreGrayCat",value=1,max=1,costs={92},wx=1740,wy=1270,icon="gray_cat",color={.56,.62,.68},requires={{"universal_oil_drum",1}},scoreMode=true},
-    {id="universal_gray_cat_chance",name="고양이 출현 확률",short="출현 확률 상승",desc="단계마다 고양이 출현 확률이 20% 증가합니다.",effect="scoreGrayCatChance",value=.20,max=3,costs={40,68,104},wx=2050,wy=1210,icon="gray_cat",color={.62,.66,.70},requires={{"universal_gray_cat",1}},scoreMode=true},
-    {id="universal_gray_cat_delay",name="고양이 출동 대기시간",short="대기시간 감소",desc="단계마다 고양이 출동 대기시간이 0.45초 감소합니다.",effect="scoreGrayCatDelay",value=.45,max=3,costs={34,58,88},wx=2350,wy=1210,icon="clock",color={.50,.66,.72},requires={{"universal_gray_cat_chance",1}},scoreMode=true},
-    {id="universal_gray_cat_speed",name="고양이 이동속도",short="이동속도 상승",desc="단계마다 고양이의 진입 및 퇴장 이동속도가 15% 증가합니다.",effect="scoreGrayCatSpeed",value=.15,max=3,costs={30,52,80},wx=2050,wy=1470,icon="road",color={.52,.64,.68},requires={{"universal_gray_cat",1}},scoreMode=true},
+    {id="universal_gray_cat_chance",name="고양이 출현 확률",short="고양이 출현 확률",desc="단계마다 고양이 출현 확률이 20% 증가합니다.",effect="scoreGrayCatChance",value=.20,max=3,costs={40,68,104},wx=2050,wy=1210,icon="gray_cat",color={.62,.66,.70},requires={{"universal_gray_cat",1}},scoreMode=true},
+    {id="universal_gray_cat_delay",name="고양이 출동 대기시간",short="고양이 대기시간",desc="단계마다 고양이 출동 대기시간이 0.45초 감소합니다.",effect="scoreGrayCatDelay",value=.45,max=3,costs={34,58,88},wx=2350,wy=1210,icon="clock",color={.50,.66,.72},requires={{"universal_gray_cat_chance",1}},scoreMode=true},
+    {id="universal_gray_cat_speed",name="고양이 이동속도",short="고양이 이동속도",desc="단계마다 고양이의 진입 및 퇴장 이동속도가 15% 증가합니다.",effect="scoreGrayCatSpeed",value=.15,max=3,costs={30,52,80},wx=2050,wy=1470,icon="road",color={.52,.64,.68},requires={{"universal_gray_cat",1}},scoreMode=true},
 })
 
 local byId = {}

@@ -138,6 +138,18 @@ assert(maxMoleY-minMoleY>=700,"mole research graph is still compressed into one 
 local oilX,oilY=board:nodeWorld(store:getNode("universal_oil_drum"))
 local catX,catY=board:nodeWorld(store:getNode("universal_gray_cat"))
 assert(math.sqrt((oilX-catX)^2+(oilY-catY)^2)<=260,"gray cat unlock is not placed next to the oil drum unlock")
+local chanceX,chanceY=board:nodeWorld(store:getNode("universal_gray_cat_chance"))
+local delayX,delayY=board:nodeWorld(store:getNode("universal_gray_cat_delay"))
+local speedX,speedY=board:nodeWorld(store:getNode("universal_gray_cat_speed"))
+local function catDistance(ax,ay,bx,by)return math.sqrt((ax-bx)^2+(ay-by)^2)end
+assert(catDistance(catX,catY,chanceX,chanceY)<=320,
+    "gray cat chance upgrade is not attached to the cat unlock")
+assert(catDistance(chanceX,chanceY,delayX,delayY)<=320,
+    "gray cat delay upgrade is not the next node in the cat branch")
+assert(catDistance(catX,catY,speedX,speedY)<=430,
+    "gray cat speed upgrade is not visibly grouped with the cat unlock")
+assert(not(chanceX==delayX and chanceY==delayY)and not(chanceX==speedX and chanceY==speedY),
+    "gray cat upgrades overlap instead of forming visible branches")
 local root=store:getNode("fire_score_prewarm")
 local rx,ry=board:nodeWorld(root)
 local directions={left=false,right=false,up=false,down=false}
