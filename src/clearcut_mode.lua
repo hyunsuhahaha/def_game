@@ -39,6 +39,7 @@ local CombatGeometry = require("src.combat_geometry")
 local Maps = require("src.clearcut_maps")
 local SkillBranches = require("src.clearcut_skill_branches")
 local SmokerWeaponArt = require("src.smoker_weapon_art")
+local FlamethrowerArt = require("src.flamethrower_art")
 local ScoreOperations = require("src.score_operations")
 local GraduateMonkeyArt = require("src.graduate_monkey_art")
 local ScoreTierUpArt = require("src.score_tier_up_art")
@@ -53,12 +54,12 @@ ClearcutMode.GrayOilCatArt = require("src.gray_oil_cat_art")
 ClearcutMode.OilDrumSpillArt = require("src.oil_drum_spill_art")
 ClearcutMode.OIL_BASE_RADIUS=180
 
-local scoreWeaponDefinitions = {
+ClearcutMode.scoreWeaponDefinitions = {
     {id="cigarette",name="담배"},
     {id="axe",name="도끼"},
     {id="firework",name="폭죽 로켓"},
+    {id="flamethrower",name="화염방사기"},
 }
-ClearcutMode.scoreWeaponDefinitions=scoreWeaponDefinitions
 
 local trackLabels = {destroy = "파괴력", spread = "확산력", suppress = "식탐력", develop = "개발력", dig = "굴착력", venom = "독설력", supplement = "보조력"}
 
@@ -203,7 +204,7 @@ function ClearcutMode.new()
         bees={}, beeSlow=false, beeSwarmsTriggered=0, beehiveTotal=0,
         streak=0, lastHitAt=-10, molotovTimer=0, evolutions={}, molotovs={},
         cigaretteButts={}, emberTransfers={}, emberArrivals={}, cigaretteLandingImpacts={}, smokerGroundTime=0,cigaretteHitStop=0, secondhandSmokeClouds={},
-        smokerWeaponProjectiles={},smokerWeaponCooldown=0,vapeCharge=0,vapeKick=0,vapeWindLeaves={},
+        smokerWeaponProjectiles={},smokerWeaponCooldown=0,vapeCharge=0,vapeKick=0,vapeWindLeaves={},flameStream=nil,
         treeSparks={}, treeSparkArrivals={}, strawTimer=0, strawBales={}, strawBaleSequence=0,
         oilTrail={}, oilTrailTimer=0, oilTrailLastX=nil, oilTrailLastY=nil, oilTrailSequence=0,
         oilDrums={},oilDrumSpills={},oilDrumTimer=0,oilDrumSequence=0,oilPuddleGroups={},grayOilCat=nil,
@@ -242,7 +243,8 @@ function ClearcutMode.new()
             scoreOilDuration=0,scoreOilBurnDuration=0,scoreOilDamage=0,scoreOilSplashCount=0,scoreOilPatchScale=0,
             scoreGrayCat=0,scoreGrayCatChance=0,scoreGrayCatDelay=0,scoreGrayCatSpeed=0,scoreGrayCatExitSpeed=0,
             scoreReloadSpeed=0,scoreCartonSize=0,scoreCartonReload=0,scoreAutoThrowRate=0,
-            scoreRocketTwin=0,scoreRocketCluster=0,scoreRocketFinale=0
+            scoreRocketTwin=0,scoreRocketCluster=0,scoreRocketFinale=0,
+            scoreRocketCrew=0,scoreFlameUnlock=0,scoreFlameDamage=0,scoreFlameRange=0,scoreFlameWidth=0,scoreFlameIgnite=0
         },
         reviveCharges=0,
         vinePlantTimer=60, vineSpawns={},
@@ -267,7 +269,7 @@ function ClearcutMode:applySmokerEvolution(game)
     local changed=self.smokerEvolution~=evolution
     self.smokerEvolution=evolution
     if changed then
-        self.smoking=nil;self.smokerWeaponCooldown=0;self.vapeCharge=0;self.vapeKick=0;self.vapeWindLeaves={}
+        self.smoking=nil;self.smokerWeaponCooldown=0;self.vapeCharge=0;self.vapeKick=0;self.vapeWindLeaves={};self.flameStream=nil
         if game and game.player and game.player.clearClearcutAction then game.player:clearClearcutAction()end
         if game and game.setNotice then
             local def=SkillBranches.get(evolution)
@@ -589,10 +591,16 @@ function ClearcutMode:setup(game)
         -- weapon: nearby authored targets use the axe, otherwise the current
         -- progression ranged weapon is used. A graduated monkey keeps the axe.
         self.scoreActiveWeapon=self:scoreRangedWeaponId()
-        self.savedMonkeyWeapons={(self.permanentTraits.scoreAxeCrew or 0)>0 and"axe"or nil}
+        -- 졸업한 무기는 순서대로 원숭이에게 넘어간다. 도끼를 졸업하면 도끼 원숭이가,
+        -- 폭죽까지 졸업하면 폭죽 원숭이가 추가로 따라붙는다.
+        self.savedMonkeyWeapons={}
+        if (self.permanentTraits.scoreAxeCrew or 0)>0 then self.savedMonkeyWeapons[#self.savedMonkeyWeapons+1]="axe" end
+        if (self.permanentTraits.scoreRocketCrew or 0)>0 then self.savedMonkeyWeapons[#self.savedMonkeyWeapons+1]="firework" end
     end
     if self.scoreAttack and (self.permanentTraits.scoreMoleCompanion or 0)>0 then self:initMoleCompanion(game) end
-    if self.scoreAttack and (self.permanentTraits.scoreAxeCrew or 0)>0 then self:initLumberjackCompanion(game) end
+    if self.scoreAttack then
+        for slot,prop in ipairs(self.savedMonkeyWeapons or {})do self:initLumberjackCompanion(game,prop,slot) end
+    end
     if self.scoreAttack and (self.permanentTraits.scoreOilDrum or 0)>0 then
         ClearcutMode.GrayOilCatArt.load()
         ClearcutMode.OilDrumSpillArt.load()
@@ -720,16 +728,19 @@ end
 -- 도끼 갈래의 졸업 보상. 마스터한 빌드를 동료에게 전수해 자동 벌목을 추가한다.
 -- 탐색/이동/타격 루프는 두더지와 같고 목록도 공유한다 — 그래야 서로 다른 나무를 맡는다.
 -- 성능은 내 도끼의 절반이다. 별도 조작 없이 출력을 보존하되 두 배가 되지 않게 한다.
-function ClearcutMode:initLumberjackCompanion(game)
+function ClearcutMode:initLumberjackCompanion(game,prop,slot)
     -- 졸업 동료는 사람이 아니라 공용 원숭이 몸체를 쓰고 손에 든 무기만 다르다.
     local sprite,frames,fw,fh=GraduateMonkeyArt.sprite()
     if not sprite then return false end
     local traits=self.permanentTraits or{}
+    local weapon=prop or self.savedMonkeyWeapons[1]or"axe"
     local axeDamage=4+math.max(0,traits.treeDamage or 0)
-    local x,y=require("src.clearcut_maps").constrain(game.world,game.player.x+96,game.player.y+48,42)
+    -- 두 마리 이상이면 같은 자리에 겹쳐 소환되지 않도록 슬롯마다 옆으로 밀어 세운다.
+    local spread=((slot or 1)-1)*74
+    local x,y=require("src.clearcut_maps").constrain(game.world,game.player.x+96+spread,game.player.y+48,42)
     self.moleCompanions=self.moleCompanions or{}
     self.moleCompanions[#self.moleCompanions+1]={
-        kind="lumberjack",prop=self.savedMonkeyWeapons[1]or"axe",x=x,y=y,sprite=sprite,frames=frames,fw=fw,fh=fh,state="seek",target=nil,
+        kind="lumberjack",prop=weapon,x=x,y=y,sprite=sprite,frames=frames,fw=fw,fh=fh,state="seek",target=nil,
         index=#self.moleCompanions+1,facing=-1,walkClock=.21,attackT=0,drawScale=.34,
         attackDuration=.62/(1+math.max(0,traits.scoreAxeSpeed or 0)),struck=false,
         speed=210*(1+math.max(0,traits.moveSpeed and traits.moveSpeed-1 or 0)),
@@ -741,6 +752,11 @@ function ClearcutMode:initLumberjackCompanion(game)
         shockLevel=math.max(0,math.floor(traits.scoreAxeShock or 0)),
         executeChance=traits.scoreAxeExecute or 0,
         chainChance=traits.scoreAxeChain or 0}
+    -- 도끼 기준으로 세워둔 사거리·피해·공격주기를 실제로 든 무기 기준으로 덮어쓴다.
+    -- 폭죽 원숭이는 도끼 갈래가 아니라 폭죽 갈래의 수치를 물려받아야 한다.
+    local companion=self.moleCompanions[#self.moleCompanions]
+    self:configureGraduateMonkeyWeapon(companion)
+    if weapon~="axe"then companion.shockLevel,companion.executeChance,companion.chainChance=0,0,0 end
     self.moleCompanion=self.moleCompanion or self.moleCompanions[1]
     return true
 end
@@ -1350,7 +1366,7 @@ function ClearcutMode:advanceStage(game)
     -- the reward would be deleted on the same frame it dropped.
     self.rootHazards, self.bees, self.molotovs, self.chests, self.plagued, self.worldTreeDebris = {}, {}, {}, {}, {}, {}
     self.secondhandSmokeClouds={}
-    self.smokerWeaponProjectiles={};self.smokerWeaponCooldown=0;self.vapeCharge=0;self.vapeKick=0;self.vapeWindLeaves={}
+    self.smokerWeaponProjectiles={};self.smokerWeaponCooldown=0;self.vapeCharge=0;self.vapeKick=0;self.vapeWindLeaves={};self.flameStream=nil
     self.eternalFields,self.revivalChorusShots,self.revivalChorusImpacts={},{},{}
     self.veganForkImpacts,self.veganConsumeFx,self.veganHaste={},{},0
     self.milestoneFired, self.worldTreeSpawned, self.worldTree, self.activeBoss, self.operationFinalBoss, self.operationBossName = {}, false, nil, nil, false, nil
@@ -3149,6 +3165,7 @@ function ClearcutMode:updateHeldAxe(dt, game, heldOverride)
         game.player.hideAxeRange=weapon=="axe"
         if weapon~="cigarette" then self:tickSmokerReload(dt,game)end
         if weapon=="axe" then return self:updateScoreAxeAttack(dt,game,heldOverride)end
+        if weapon=="flamethrower" then return self:updateFlamethrowerAttack(dt,game,held)end
         if weapon=="firework" then return self:updateFireworkAttack(dt,game,held)end
         return self:updateFireAttack(dt,game,heldOverride,true)
     end
@@ -3165,6 +3182,9 @@ function ClearcutMode:scoreWeaponId()
 end
 
 function ClearcutMode:scoreRangedWeaponId()
+    -- 손은 한 번에 하나만 쓴다. 뒤에 해금한 무기가 앞의 무기를 대체하고, 대체된
+    -- 무기는 졸업 원숭이가 이어받는다 — 도끼 -> 폭죽 -> 화염방사기 순서다.
+    if self:scoreWeaponUnlocked(4)then return"flamethrower"end
     return self:scoreWeaponUnlocked(3)and"firework"or"cigarette"
 end
 
@@ -3188,8 +3208,12 @@ end
 -- 폭죽은 담배 자동 투척 다음 노드로 해금한다. 담배가 알아서 날아가기 시작해 손이
 -- 비는 시점에 손으로 쏘는 무기가 열리는 순서다.
 function ClearcutMode:scoreWeaponUnlocked(index)
-    if scoreWeaponDefinitions[index] and scoreWeaponDefinitions[index].id=="firework"then
+    local definition=ClearcutMode.scoreWeaponDefinitions[index]
+    if definition and definition.id=="firework"then
         return (self.permanentTraits.scoreRocketUnlock or 0)>0
+    end
+    if definition and definition.id=="flamethrower"then
+        return (self.permanentTraits.scoreFlameUnlock or 0)>0
     end
     return true
 end
@@ -3406,10 +3430,76 @@ function ClearcutMode:updateVapeAttack(dt,game,held)
     return false
 end
 
+-- 부채꼴 판정. 거리와 각도를 따로 보므로 반경만 쓰는 원형 판정과 달리 "앞으로
+-- 뿜는다"는 무기 성격이 판정에 그대로 드러난다. 총구 바로 앞(28 이내)은 각도를
+-- 묻지 않는다 — 나무에 붙어 선 채로 쏘면 각도 계산이 불안정해지기 때문이다.
+function ClearcutMode.flameConeCovers(ox,oy,nx,ny,reach,halfAngle,x,y)
+    local dx,dy=x-ox,y-oy
+    local distance=math.sqrt(dx*dx+dy*dy)
+    if distance>reach then return false end
+    if distance<28 then return true end
+    return (dx*nx+dy*ny)/distance>=math.cos(halfAngle)
+end
+
+-- 화염방사기는 담배·도끼·폭죽과 달리 단발이 아니다. 쿨다운으로 한 발을 끊는 대신
+-- 누르고 있는 동안 이 간격마다 부채꼴 안의 모든 나무를 한꺼번에 지진다. 공격속도는
+-- 틱 간격을 줄여 초당 피해와 착화 기회를 함께 올린다. 이 파일은 Lua 5.1의 청크당
+-- 지역변수 200개 한도에 닿아 있어 새 상수는 모듈 테이블에 붙인다.
+ClearcutMode.FLAME_TICK=.12
+
+function ClearcutMode:updateFlamethrowerAttack(dt,game,held)
+    local traits=self.permanentTraits
+    self.smokerWeaponCooldown=math.max(0,(self.smokerWeaponCooldown or 0)-dt)
+    local reach=250+(traits.scoreFlameRange or 0)+ScoreOperations.weaponRange(self)*.4
+    local halfAngle=.42+(traits.scoreFlameWidth or 0)
+    local tx,ty,nx,ny=smokerAim(self,game,reach)
+    self.aimX,self.aimY,self.aimRadius=tx,ty,reach*.5
+    if not held then
+        self.flameStream=nil
+        if game.player.clearClearcutAction then game.player:clearClearcutAction()end
+        return false
+    end
+    game.player.facing=nx<0 and -1 or 1
+    local originX,originY=game.player.x+nx*34,game.player.y-58+ny*10
+    self.flameStream={x=originX,y=originY,nx=nx,ny=ny,reach=reach,halfAngle=halfAngle,
+        angle=(math.atan2 and math.atan2(ny,nx)or math.atan(ny/(nx==0 and 1e-6 or nx))),
+        t=(self.flameStream and self.flameStream.t or 0)+dt}
+    if game.player.setClearcutAction then game.player:setClearcutAction(.5+math.sin(self.flameStream.t*22)*.16)end
+    if self.smokerWeaponCooldown>0 then return false end
+    local speed=(game.tools.axe.speed or 1)*game.player.gather*traits.attackSpeed
+        *ScoreOperations.attackSpeedMultiplier(self)
+    self.smokerWeaponCooldown=ClearcutMode.FLAME_TICK/math.max(.25,speed)
+    -- 노드 설명은 "초당"으로 읽히므로 틱 피해와 착화 확률 모두 틱 간격을 곱해 나눈다.
+    local damage=(3+(traits.treeDamage or 0)+(traits.scoreFlameDamage or 0)
+        +ScoreOperations.weaponDamage(self))*ClearcutMode.FLAME_TICK
+    local igniteChance=(.18+(traits.scoreFlameIgnite or 0))*ClearcutMode.FLAME_TICK
+    local hit=false
+    for _,node in ipairs(game.world.nodes)do
+        if node.rushTree and node.active and not node.treeEmergence
+            and ClearcutMode.flameConeCovers(originX,originY,nx,ny,reach,halfAngle,node.x,node.y)then
+            hit=true
+            local felled=self:damageTreeWithSmokerWeapon(node,damage,game)
+            if not felled and not self.rainSuppressFire and not node.burning
+                and love.math.random()<igniteChance then
+                self:beginTreeBurn(node,0);game.world:igniteFx(node.x,node.y,false)
+            end
+        end
+    end
+    for _,enemy in ipairs(self.enemies)do
+        if enemy.hp>0 and ClearcutMode.flameConeCovers(originX,originY,nx,ny,reach,halfAngle,enemy.x,enemy.y)then
+            hit=true
+            enemy.hp=enemy.hp-(6+damage*2);enemy.visualHit=.12
+            self:igniteEnemy(enemy,game,self.smokerGroundTime)
+        end
+    end
+    if hit then self.actionAudit.flameTick=(self.actionAudit.flameTick or 0)+1 end
+    return hit
+end
+
 function ClearcutMode:updateFireworkAttack(dt,game,held)
-    -- 도끼·담배·화염방사기와 같은 규약을 지킨다. 실제 게임 루프는
-    -- heldOverride 없이 부르므로, nil을 그대로 "안 누름"으로 읽으면 아무리
-    -- 클릭해도 발사가 되지 않는다. 여기서 마우스 상태를 직접 확인한다.
+    -- 도끼·담배·화염방사기와 같은 규약을 지킨다. 실제 게임 루프는 heldOverride
+    -- 없이 부르므로, nil을 그대로 "안 누름"으로 읽으면 아무리 클릭해도 발사가
+    -- 되지 않는다. 여기서 마우스 상태를 직접 확인한다.
     if held==nil then held=love.mouse.isDown(1)end
     self.smokerWeaponCooldown=math.max(0,(self.smokerWeaponCooldown or 0)-dt)
     -- 폭발 반경은 담배용 착화 범위(area)를 ×0.3으로 얻어 쓰던 것을 전용 수치로 분리했다.
@@ -5479,7 +5569,7 @@ function ClearcutMode:chooseBranch(index,game)
     if not def or def.skill~=self.branchChoiceSkill then return false end
     self.skillBranches[def.skill]=def.id
     if def.skill=="molotov" then
-        self.smoking=nil;self.smokerWeaponCooldown=0
+        self.smoking=nil;self.smokerWeaponCooldown=0;self.flameStream=nil
         if game.player.clearClearcutAction then game.player:clearClearcutAction()end
         self:applySmokerEvolution(game)
     end
@@ -6808,6 +6898,11 @@ function ClearcutMode:drawHeldSmoker(game,t)
     if self.scoreAttack and self:scoreWeaponId()=="axe"then
         return
     end
+    -- 화염방사기는 담배를 입에 물지 않는다. 재장전 바와 꽁초 그리기로 떨어지면
+    -- 손에 없는 담배가 화면에 남는다.
+    if self.scoreAttack and self:scoreWeaponId()=="flamethrower"then
+        FlamethrowerArt.drawHeld(self,game,t);return
+    end
     if SmokerWeaponArt.drawHeld(self,game,t)then return end
     local smoking=self.smoking
     if not smoking or smoking.phase=="flick" then return end
@@ -6895,11 +6990,21 @@ function ClearcutMode:queueProjectedOverlay(game,t)
     for _,value in ipairs(self.molotovs) do local flight=value;local x,y=CigaretteButts.flightPosition(flight)
         queueUpright(queue,x,y,function()CigaretteButtArt.drawFlight(flight,self.smokerGroundTime)end)
     end
+    -- 화염방사기는 투사체가 없는 지속 무기다. 부채꼴 판정과 같은 각도·거리로 그려
+    -- 보이는 불길과 실제로 타는 범위가 어긋나지 않게 한다.
+    if self.flameStream then
+        local stream=self.flameStream
+        queueUpright(queue,stream.x+stream.nx*stream.reach*.5,stream.y+stream.ny*stream.reach*.5,
+            function()FlamethrowerArt.drawStream(stream)end)
+    end
     for _,value in ipairs(self.smokerWeaponProjectiles or {})do local projectile=value
-        -- The burst is an aerial firework, not a ground actor. Keeping it in
-        -- ordinary foot-depth order lets the dense score-attack canopy cover
-        -- almost the entire authored sprite even though it was drawn.
+        -- 삼단 대단원의 `firework_echo`는 착탄 지점만 들고 시간을 세는 예약 항목이라
+        -- 그릴 좌표(x,y)가 없다. 그리는 목록에 넣으면 빌보드 정렬에서 nil 연산으로
+        -- 폭발 프레임에서 게임이 죽는다. 좌표가 있는 투사체만 큐에 넣는다.
         if projectile.x and projectile.y then
+            -- The burst is an aerial firework, not a ground actor. Keeping it in
+            -- ordinary foot-depth order lets the dense score-attack canopy cover
+            -- almost the entire authored sprite even though it was drawn.
             local sortY=projectile.kind=="firework_burst"and projectile.y+100000 or projectile.y+.03
             queueUpright(queue,projectile.x,projectile.y,function()SmokerWeaponArt.drawProjectile(projectile)end,sortY,projectile.y)
         end

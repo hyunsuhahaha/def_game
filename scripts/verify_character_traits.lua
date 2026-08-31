@@ -177,11 +177,54 @@ assert(math.abs(2.6/(1+throwEffects.scoreAutoThrowRate)-2.6/1.36)<1e-9,"auto-thr
 
 -- 추가 꽁초는 자동 투척에도 그대로 실린다. 1단계에서 멈춰 있던 상한을 2단계로 연다.
 assert(store:getNode("fire_score_stock").max==2,"extra-butt research is still capped at a single rank")
--- 불 갈래 33 = 기존 30개 + 폭죽 시각 특성 3개(쌍발·자탄·삼단 대단원).
+
+-- 무기 졸업 사슬. 도끼 -> 폭죽 -> 화염방사기 순으로 손이 넘어가고, 넘긴 무기는
+-- 졸업 원숭이가 이어받는다. 손에 드는 무기는 항상 마지막 해금 하나뿐이어야 한다.
+local gradStore=CharacterTraits.new(true)
+local gradMode=ClearcutMode.new()
+gradMode.scoreAttack=true
+gradMode.permanentTraits=gradStore:scoreAttackEffects()
+assert(gradMode:scoreRangedWeaponId()=="cigarette","score mode did not start on the cigarette")
+gradMode.permanentTraits.scoreRocketUnlock=1
+assert(gradMode:scoreRangedWeaponId()=="firework","rocket unlock did not take over the ranged hand")
+gradMode.permanentTraits.scoreFlameUnlock=1
+assert(gradMode:scoreRangedWeaponId()=="flamethrower","flamethrower unlock did not take over the ranged hand")
+
+-- 폭죽 원숭이는 폭죽 갈래 수치를 물려받아야 한다. 도끼 갈래 수치를 그대로 쓰면
+-- 사거리 104짜리 근접 원숭이가 폭죽을 들고 서 있게 된다.
+local crewMode=ClearcutMode.new()
+crewMode.scoreAttack=true
+crewMode.permanentTraits=gradStore:scoreAttackEffects()
+crewMode.permanentTraits.scoreAxeCrew=1
+crewMode.permanentTraits.scoreRocketCrew=1
+crewMode.permanentTraits.scoreRocketDamage=4
+crewMode.savedMonkeyWeapons={}
+if (crewMode.permanentTraits.scoreAxeCrew or 0)>0 then crewMode.savedMonkeyWeapons[#crewMode.savedMonkeyWeapons+1]="axe" end
+if (crewMode.permanentTraits.scoreRocketCrew or 0)>0 then crewMode.savedMonkeyWeapons[#crewMode.savedMonkeyWeapons+1]="firework" end
+assert(crewMode.savedMonkeyWeapons[1]=="axe" and crewMode.savedMonkeyWeapons[2]=="firework",
+    "graduating both weapons did not hand them to two separate monkeys")
+local fireworkMonkey={kind="lumberjack",prop="firework"}
+crewMode:configureGraduateMonkeyWeapon(fireworkMonkey)
+local axeMonkey={kind="lumberjack",prop="axe"}
+crewMode:configureGraduateMonkeyWeapon(axeMonkey)
+assert(fireworkMonkey.attackReach>axeMonkey.attackReach and fireworkMonkey.damage==6,
+    "firework monkey did not inherit the rocket branch numbers")
+
+-- 화염방사기 부채꼴. 판정은 거리와 각도를 따로 보므로 옆이나 뒤의 나무는 사거리
+-- 안이어도 타지 않는다. 그리기와 판정이 같은 각도를 쓰는 것이 전제다.
+local cone=ClearcutMode.flameConeCovers
+assert(cone(0,0,1,0,250,.42,200,0),"flame cone missed a tree straight ahead")
+assert(not cone(0,0,1,0,250,.42,300,0),"flame cone reached past its range")
+assert(not cone(0,0,1,0,250,.42,-200,0),"flame cone burned a tree behind the player")
+assert(not cone(0,0,1,0,250,.42,0,200),"flame cone burned a tree at right angles")
+assert(cone(0,0,1,0,250,.42,10,4),"flame cone dropped a target at point blank")
+-- 분사 폭 4단계(+0.42rad)면 좌우 90도에 가까워져 옆 나무까지 들어온다.
+assert(cone(0,0,1,0,250,.42+.42,140,140),"widened flame cone did not cover the diagonal")
+-- 불 갈래 33 = 담배 9 + 탄약 관리 3(개비 재장전·보루 용량·보루 교체) + 공용 나무 피해 1
 -- + 도끼 4 + 도끼 상위 3(충격파·연속 벌목·나무꾼 고용) + 후반 해금 3(상시 흡연·자동 투척·폭죽)
 -- + 자동 투척 주기 1 + 폭죽 5. 탄약 관리 갈래는 startSmoking의 세 상수(개비 재장전 하한,
--- 보루 재장전 하한, 보루 크기 20)를 각각 여는 노드다.
-assert(#store:getScoreAttackNodes("fire")==33 and #store:getScoreAttackNodes("universal")==24,"active research board did not expose the split companion graphs and the weapon-slot branches")
+-- 보루 재장전 하한, 보루 크기 20)를 각각 여는 노드이며 폭죽 시각 특성 3개가 추가된다.
+assert(#store:getScoreAttackNodes("fire")==39 and #store:getScoreAttackNodes("universal")==24,"active research board did not expose the split companion graphs and the weapon-slot branches")
 for _, job in ipairs({"physical","fire","toxic","developer"}) do
     assert(#store:getNodes(job) >= 30, job .. " character graph has too few trait nodes")
 end

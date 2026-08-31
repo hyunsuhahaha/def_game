@@ -255,6 +255,17 @@ local scoreFireNodes={
     {id="fire_score_rocket_twin",name="폭죽 쌍발 발사대",short="동시 2발",desc="폭죽을 조준점 좌우로 동시에 2발 발사합니다.",effect="scoreRocketTwin",value=1,max=1,costs={240},wx=1420,wy=1900,icon="blast",color={1,.72,.24},requires={{"fire_score_rocket_speed",4},{"fire_score_rocket_cooldown",3}}},
     {id="fire_score_rocket_cluster",name="폭죽 자탄 불꽃",short="자탄 5발",desc="주 폭발에서 소형 폭죽 5발이 별 모양으로 퍼진 뒤 다시 폭발합니다.",effect="scoreRocketCluster",value=1,max=1,costs={320},wx=1810,wy=1980,icon="ember",color={1,.46,.16},requires={{"fire_score_rocket_radius",5},{"fire_score_rocket_ignite",3}}},
     {id="fire_score_rocket_finale",name="폭죽 삼단 대단원",short="삼단 폭발",desc="주 폭발 뒤 크기가 줄어드는 두 번의 지연 폭발이 연속으로 터집니다.",effect="scoreRocketFinale",value=1,max=1,costs={650},wx=1630,wy=2290,icon="capstone",color={1,.34,.12},requires={{"fire_score_rocket_twin",1},{"fire_score_rocket_cluster",1}},capstone=true},
+    -- 폭죽 갈래의 졸업. 도끼와 같은 계약이다 — 마스터한 무기를 원숭이에게 넘기고
+    -- 손은 다음 무기로 넘어간다. 원숭이 몸체와 폭죽 프롭은 이미 아틀라스에 있고
+    -- configureGraduateMonkeyWeapon / moleCompanionImpact가 prop="firework"를 이미 처리한다.
+    {id="fire_score_rocket_crew",name="폭죽 원숭이 해금",short="폭죽 원숭이",desc="내 폭죽 빌드의 절반 성능을 물려받은 졸업 원숭이 1마리가 자동으로 폭죽을 쏩니다.",effect="scoreRocketCrew",value=1,max=1,costs={900},wx=1100,wy=2600,icon="capstone",color={1,.62,.22},requires={{"fire_score_rocket_finale",1}},capstone=true},
+    -- 폭죽까지 넘기고 빈 손에 드는 마지막 무기. 담배·도끼·폭죽이 전부 단발이었던 것과
+    -- 달리 누르고 있는 동안 계속 뿜는 지속 무기라, 후반 과밀 숲을 훑어서 태운다.
+    {id="fire_score_flame_unlock",name="화염방사기 해금",short="화염방사기",desc="근접 대상이 없을 때의 원거리 공격이 화염방사기로 자동 전환됩니다. 누르고 있는 동안 부채꼴로 계속 화염을 뿜습니다.",effect="scoreFlameUnlock",value=1,max=1,costs={380},wx=1100,wy=2850,icon="ember",color={1,.44,.12},requires={{"fire_score_rocket_crew",1}},capstone=true},
+    {id="fire_score_flame_damage",name="화염 피해 상승",short="화염 피해",desc="화염이 나무에 주는 초당 피해 +1 (기본 초당 3)",effect="scoreFlameDamage",value=1,max=5,costs={30,52,80,116,158},wx=750,wy=3100,icon="fist",color={1,.56,.20},requires={{"fire_score_flame_unlock",1}}},
+    {id="fire_score_flame_range",name="화염 분사 거리 상승",short="분사 거리",desc="화염이 닿는 거리 +26 (기본 250)",effect="scoreFlameRange",value=26,max=5,costs={26,46,72,104,142},wx=1100,wy=3100,icon="wind",color={.94,.66,.28},requires={{"fire_score_flame_unlock",1}}},
+    {id="fire_score_flame_width",name="화염 분사 폭 상승",short="분사 폭",desc="화염 부채꼴의 좌우 각도가 단계마다 6도씩 넓어집니다. (기본 좌우 24도)",effect="scoreFlameWidth",value=.105,max=4,costs={34,58,88,126},wx=1450,wy=3100,icon="split",color={1,.50,.16},requires={{"fire_score_flame_unlock",1}}},
+    {id="fire_score_flame_ignite",name="화염 착화 확률 상승",short="착화 확률",desc="화염에 닿아 있는 나무가 초당 불붙을 확률 +8%p (기본 18%)",effect="scoreFlameIgnite",value=.08,max=4,costs={38,64,98,140},wx=1100,wy=3350,icon="ember",color={1,.36,.10},requires={{"fire_score_flame_range",2},{"fire_score_flame_width",2}}},
 }
 for _,node in ipairs(scoreFireNodes)do node.job="fire";node.scoreMode=true;node.max=node.max or 5;node.costs=node.costs or{18,32,50,74,104};jobs.fire.nodes[#jobs.fire.nodes+1]=node end
 
@@ -622,6 +633,8 @@ function CharacterTraits:scoreAttackEffects()
         scoreAxeShock=0,scoreAxeChain=0,scoreAxeCrew=0,
         scoreRocketRadius=0,scoreRocketDamage=0,scoreRocketSpeed=0,scoreRocketIgnite=0,scoreRocketCooldown=0,
         scoreRocketTwin=0,scoreRocketCluster=0,scoreRocketFinale=0,
+        -- 폭죽 졸업과 화염방사기 갈래.
+        scoreRocketCrew=0,scoreFlameUnlock=0,scoreFlameDamage=0,scoreFlameRange=0,scoreFlameWidth=0,scoreFlameIgnite=0,
         scoreAutoThrow=0,scoreRocketUnlock=0,scoreAlwaysSmoking=0,
         -- 담배 탄약 관리 갈래.
         scoreReloadSpeed=0,scoreCartonSize=0,scoreCartonReload=0,scoreAutoThrowRate=0

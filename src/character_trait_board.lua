@@ -348,6 +348,11 @@ function CharacterTraitBoard:nodeWorld(node)
         fire_score_rocket_radius={400,2350},fire_score_rocket_damage={750,2350},
         fire_score_rocket_speed={1100,2350},fire_score_rocket_ignite={1450,2350},
         fire_score_rocket_cooldown={1800,2350},
+        -- 폭죽 졸업과 화염방사기는 폭죽 줄 아래로 새 층을 쌓는다. 도끼가 원숭이로
+        -- 졸업한 뒤 폭죽으로 넘어갔듯, 폭죽도 원숭이로 졸업하고 화염방사기로 넘어간다.
+        fire_score_rocket_crew={1100,2600},fire_score_flame_unlock={1100,2850},
+        fire_score_flame_damage={750,3100},fire_score_flame_range={1100,3100},fire_score_flame_width={1450,3100},
+        fire_score_flame_ignite={1100,3350},
         -- 공용 연구는 흡연자 갈래와 같은 좌표를 쓰고 있었다(각자 다른 탭이었으므로).
         -- 한 판으로 합치면서 흡연자 오른쪽으로 통째로 옮긴다.
         universal_yard={2600,850},universal_robot_start={3000,850},universal_robot_motor={3400,850},
