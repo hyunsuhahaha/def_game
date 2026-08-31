@@ -368,6 +368,60 @@ function love.load()
         game.clearcut.regrowPulses, game.clearcut.treesRevived, game.clearcut.rootedCount, game.clearcut.beeSwarmsTriggered = 6, 41, 3, 4
         game.clearcut:finish(game)
     end
+    -- 인게임 재현용: 기록 모드에서 폭죽을 해금하고 실제 좌클릭 경로로 한 발 쏜다.
+    -- 폭발 프레임을 화면에 남긴 채 스크린샷을 찍어 이펙트가 실제로 보이는지 검수한다.
+    if os.getenv("LAST_HAUL_CAPTURE_SCORE_FIREWORK") then
+        game:startClearcutScoreAttack()
+        local c = game.clearcut
+        c.permanentTraits.scoreRocketUnlock = 1
+        if os.getenv("LAST_HAUL_SCORE_FIREWORK_MAX") then
+            c.permanentTraits.scoreRocketTwin = 1
+            c.permanentTraits.scoreRocketCluster = 1
+            c.permanentTraits.scoreRocketFinale = 1
+        end
+        game.camera:update(0, game.player, game.world)
+        local target, best = nil, math.huge
+        for _, node in ipairs(game.world.nodes) do
+            if node.rushTree and node.active then
+                local dx, dy = node.x - game.player.x, node.y - game.player.y
+                local distance = math.sqrt(dx * dx + dy * dy)
+                local score = math.abs(distance - 340)
+                if distance > 240 and score < best then target, best = node, score end
+            end
+        end
+        assert(target, "score firework capture found no ranged target tree")
+        local sx, sy = game.camera:worldToScreen(target.x, target.y)
+        love.mouse.setPosition(sx, sy)
+        c.smokerWeaponCooldown = 0
+        assert(c:updateHeldAxe(0, game, true), "score firework capture did not fire the rocket")
+        local requested = tonumber(os.getenv("LAST_HAUL_SCORE_FIREWORK_AGE")) or .40
+        if requested < 0 then
+            -- Negative age holds the shot mid-flight so the rocket itself can be
+            -- reviewed instead of the detonation.
+            local rocket = c.smokerWeaponProjectiles[1]
+            for _ = 1, 240 do
+                if rocket.t >= rocket.dur * .55 then break end
+                c:updateSmokerWeaponProjectiles(1 / 60, game)
+            end
+            print(string.format("SCORE_FIREWORK_CAPTURE flight x=%.1f y=%.1f t=%.2f/%.2f",
+                rocket.x, rocket.y, rocket.t, rocket.dur))
+        else
+            local burst
+            for _ = 1, 240 do
+                c:updateSmokerWeaponProjectiles(1 / 60, game)
+                for _, projectile in ipairs(c.smokerWeaponProjectiles) do
+                    if projectile.kind == "firework_burst" then burst = projectile break end
+                end
+                if burst then break end
+            end
+            assert(burst, "score firework capture never reached the burst")
+            burst.age = requested
+            print(string.format("SCORE_FIREWORK_CAPTURE burst x=%.1f y=%.1f radius=%.1f age=%.2f",
+                burst.x, burst.y, burst.radius, burst.age))
+        end
+        game.mode = "playing"
+        captureFrames = 1
+    end
     if os.getenv("LAST_HAUL_CAPTURE_CLEARCUT_CHAR_SELECT") then
         game.mode = "clearcut_select"
     end

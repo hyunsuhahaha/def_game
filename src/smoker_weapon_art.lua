@@ -89,7 +89,10 @@ function Art.drawProjectile(projectile)
         love.graphics.draw(fx,fxQuads[1][index],projectile.x,projectile.y,angle,.58,.58,96,96)
     elseif projectile.kind=="firework" then
         local index=frame(age,projectile.dur or .55);local angle=projectile.angle or 0
-        love.graphics.setColor(1,1,1,1);love.graphics.draw(fx,fxQuads[2][index],projectile.x,projectile.y,angle,.62,.62,96,96)
+        -- 로켓은 폭발 반경(≈260)에 비해 너무 작아 날아가는 게 안 보였다. 시트를 키우고
+        -- 런타임 배율도 함께 올려 비행 구간이 읽히게 한다.
+        local scale=.78*(projectile.clusterChild and .62 or 1)
+        love.graphics.setColor(1,1,1,1);love.graphics.draw(fx,fxQuads[2][index],projectile.x,projectile.y,angle,scale,scale,96,96)
     elseif projectile.kind=="firework_burst" then
         local life=projectile.life or 1;local index=frame(age,life,BURST_FRAMES)
         local fade=age<life*.82 and 1 or math.max(0,(life-age)/(life*.18))

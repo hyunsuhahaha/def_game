@@ -80,16 +80,22 @@ for frame in range(6):
  for k in range(3):
   x=55+k*31+(frame%2)*5;qline(0,frame,[(x,75),(x-7,88)],(0,0,0,0),3)
 
-# Row 1: accelerating paper rocket with a changing multicolor spark train.
+# Row 1: accelerating firework rocket. The old silhouette was a 90 px pencil in
+# a 192 px cell, which shrank to an unreadable sliver at gameplay scale, so the
+# shell is larger, carries a lit nozzle flame and drags a denser spark train.
 for frame in range(6):
- x=52+frame*14;y=96+round(math.sin(frame*.9)*5);trail=32+frame*7
- qpoly(1,frame,[(x-22,y-8),(x+15,y-8),(x+28,y),(x+15,y+8),(x-22,y+8)],paper[2],ink,2)
- qpoly(1,frame,[(x+15,y-8),(x+31,y),(x+15,y+8)],(230,57,39,255),ink,1)
- qrect(1,frame,(x-15,y-5,x-10,y),burst[(frame+3)%len(burst)])
- qpoly(1,frame,[(x-23,y-6),(x-trail,y),(x-23,y+6)],paper[4],None)
- for k in range(13):
-  sx=x-25-(k*trail/13);sy=y+math.sin(k*1.8+frame)*12*(k/13)
-  color=burst[(k+frame*2)%len(burst)];size=1+(k+frame)%3
+ x=74+frame*13;y=96+round(math.sin(frame*.9)*6);trail=44+frame*9
+ qpoly(1,frame,[(x-27,y-10),(x-27-trail*.34,y),(x-27,y+10)],(255,170,42,255),None)
+ qpoly(1,frame,[(x-27,y-6),(x-27-trail*.21,y),(x-27,y+6)],(255,247,206,255),None)
+ qpoly(1,frame,[(x-26,y-11),(x+18,y-11),(x+36,y),(x+18,y+11),(x-26,y+11)],paper[2],ink,3)
+ qpoly(1,frame,[(x-26,y-11),(x+18,y-11),(x+18,y-4),(x-26,y-4)],paper[4],None)
+ qpoly(1,frame,[(x+18,y-11),(x+38,y),(x+18,y+11)],(230,57,39,255),ink,2)
+ qrect(1,frame,(x-17,y-7,x-7,y+7),burst[(frame+3)%len(burst)])
+ qrect(1,frame,(x+2,y-7,x+11,y+7),burst[(frame+5)%len(burst)])
+ for k in range(22):
+  sx=x-31-(k*trail/22);sy=y+math.sin(k*1.35+frame)*15*(k/22)
+  color=burst[(k+frame*2)%len(burst)];size=2+(k+frame)%3
+  qrect(1,frame,(sx-size-1,sy-size-1,sx+size+1,sy+size+1),ink)
   qrect(1,frame,(sx-size,sy-size,sx+size,sy+size),color)
 
 # Row 2: one authored six-beat multicolour burst, not a translated static star.
@@ -119,10 +125,14 @@ for frame in range(6):
 
 FX.parent.mkdir(parents=True,exist_ok=True);fx.save(FX)
 
-# Dedicated 30 fps firework bloom. The old shared six-frame row expanded one
-# radial star in large steps; this sheet follows continuous comet paths through
-# ignition, branching bloom, falling sparks and smoke decay.
+# Dedicated 30 fps firework bloom. The old sheet spent only nine frames on a
+# 38 px flash and then twenty-one frames on thin confetti, so at the real blast
+# scale (cell 384 px stretched over a ~520 px world diameter) the explosion read
+# as scattered dust over grass. This sheet keeps the same 30-frame contract but
+# gives the burst a growing fireball, a stepped shockwave ring and a much denser
+# comet bloom that still fills the damage silhouette while it decays.
 BCELL=384;BFRAMES=30;BCOLS=6;BROWS=5
+BCX,BCY=192,194
 burst_fx=Image.new('RGBA',(BCELL*BCOLS,BCELL*BROWS),(0,0,0,0));bd=ImageDraw.Draw(burst_fx)
 bright=[(255,76,48),(255,170,42),(255,235,116),(53,229,235),(91,233,111),(246,81,202),(179,120,255)]
 mid=[(163,42,33),(196,101,28),(189,157,54),(24,139,157),(42,151,79),(164,45,139),(103,67,173)]
@@ -142,31 +152,48 @@ def ease_out(u):return 1-(1-u)**2.15
 # Three related blooms start close together rather than making one geometric
 # wheel. The main bloom owns the damage silhouette; satellites add animation
 # richness without increasing the gameplay footprint.
-blooms=[(192,194,0.00,1.00,0.08,13),(157,171,0.11,.54,.31,7),(228,178,0.19,.48,-.22,6)]
+blooms=[(192,194,0.00,1.00,0.08,20),(150,168,0.09,.58,.31,12),(236,176,0.15,.52,-.22,10)]
 for frame in range(BFRAMES):
  t=frame/(BFRAMES-1)
- # Layered ignition flash with irregular stepped corona.
- if t<.31:
-  u=t/.31;core=max(2,round(8+30*math.sin(min(1,u)*math.pi*.72)))
-  fade=(1-u)**.42
+ # Layered ignition fireball. It grows into the blast silhouette instead of
+ # staying a small point, then burns off before the comets take the frame over.
+ if t<.26:
+  u=t/.26;grow=ease_out(min(1,u/.34));core=round(16+58*grow)
+  # The flash has to stay opaque while it is on screen: an alpha ramp that
+  # starts falling immediately washes the fireball out against lit grass.
+  fade=1 if u<.46 else ((1-u)/.54)**1.15
   pts=[]
-  for k in range(20):
-   a=k/20*math.pi*2;rr=core*(1+(.20 if (k+frame)%3==0 else -.08))
-   pts.append((192+math.cos(a)*rr,194+math.sin(a)*rr))
-  bpoly(frame,pts,alpha_color((255,108,38),190*fade))
-  bellipse(frame,(192-core*.58,194-core*.58,192+core*.58,194+core*.58),alpha_color((255,231,113),235*fade))
-  bellipse(frame,(192-core*.25,194-core*.25,192+core*.25,194+core*.25),alpha_color((255,255,225),255*fade))
-  ring=core+7+u*18
-  for k in range(16):
+  for k in range(22):
+   a=k/22*math.pi*2;rr=core*(1.34 if (k+frame)%2 else .92)*(1+math.sin(k*3.1+frame)*.06)
+   pts.append((BCX+math.cos(a)*rr,BCY+math.sin(a)*rr))
+  bpoly(frame,pts,alpha_color((236,74,26),225*fade))
+  for radius_scale,rgb,alpha in ((.86,(255,124,34),248),(.60,(255,178,52),255),(.36,(255,232,120),255),(.16,(255,255,231),255)):
+   rr=core*radius_scale
+   bellipse(frame,(BCX-rr,BCY-rr,BCX+rr,BCY+rr),alpha_color(rgb,alpha*fade))
+  # Stepped ember collar riding the fireball edge keeps the ball from reading
+  # as one smooth vector circle.
+  for k in range(28):
    if (k+frame)%3:
-    a=k/16*math.pi*2;brect(frame,(192+math.cos(a)*ring-1,194+math.sin(a)*ring-1,192+math.cos(a)*ring+1,194+math.sin(a)*ring+1),alpha_color(bright[(k+frame)%7],180*fade))
+    a=k/28*math.pi*2;rr=core*1.18+u*26;size=2+(k+frame)%3
+    brect(frame,(BCX+math.cos(a)*rr-size,BCY+math.sin(a)*rr-size,BCX+math.cos(a)*rr+size,BCY+math.sin(a)*rr+size),alpha_color(bright[(k+frame)%7],245*fade))
+
+ # Stepped shockwave ring. It reaches the authored damage edge so the player can
+ # read the blast footprint from the effect alone.
+ if t<.52:
+  u=t/.52;ring=48+ease_out(u)*138;ring_alpha=255*(1-u)**.85
+  for k in range(44):
+   a=k/44*math.pi*2
+   if (k+frame)%4==0:continue
+   size=2+(k+frame)%2
+   rx,ry=BCX+math.cos(a)*ring,BCY+math.sin(a)*ring
+   brect(frame,(rx-size,ry-size,rx+size,ry+size),alpha_color((255,238,170) if (k+frame)%3 else bright[(k+frame)%7],ring_alpha))
 
  for bloom_index,(cx,cy,delay,scale,angle_offset,count) in enumerate(blooms):
   if t<delay:continue
-  u=min(1,(t-delay)/(1-delay));travel=ease_out(min(1,u/.80));decay=max(0,1-max(0,u-.48)/.52)
+  u=min(1,(t-delay)/(1-delay));travel=ease_out(min(1,u/.80));decay=max(0,1-max(0,u-.58)/.42)
   for k in range(count):
    angle=angle_offset+k/count*math.pi*2+math.sin(k*2.17)*.055
-   speed=150*scale*(.86+(k%4)*.075)
+   speed=168*scale*(.86+(k%4)*.075)
    curve=(10+((k*7)%13))*scale*(1 if k%2 else -1)
    def point(at):
     p=ease_out(min(1,at/.80));dist=12*scale+speed*p
@@ -174,43 +201,47 @@ for frame in range(BFRAMES):
     gravity=(34+(k%3)*6)*scale*at*at
     return cx+math.cos(angle)*dist-math.sin(angle)*side,cy+math.sin(angle)*dist+math.cos(angle)*side+gravity
    head=point(u);trail=[]
-   for j in range(9,-1,-1):
+   for j in range(11,-1,-1):
     pu=max(0,u-j*.016/(.72+.28*scale))
     if pu<=0 and j>0:continue
     # Detached gaps emerge during the decay instead of cutting the whole ray.
-    if u>.52 and (j+frame+k)%5==0:continue
+    if u>.62 and (j+frame+k)%6==0:continue
     trail.append(point(pu))
    color_index=(k*2+bloom_index+1)%7;color=bright[color_index];shadow=mid[color_index]
    a=255*decay
    if len(trail)>1:
-    bline(frame,trail,alpha_color((19,16,28),a*.82),5 if scale>.7 else 4)
-    bline(frame,trail,alpha_color(shadow,a*.94),3 if scale>.7 else 2)
+    bline(frame,trail,alpha_color((19,16,28),a*.82),8 if scale>.7 else 6)
+    bline(frame,trail,alpha_color(shadow,a*.94),5 if scale>.7 else 4)
     # Highlight lives only near the moving head, preserving a stepped trail.
-    bline(frame,trail[-4:],alpha_color(color,a),2)
-   hx,hy=head;hs=(3 if scale>.7 else 2)+(1 if (frame+k)%4==0 else 0)
+    bline(frame,trail[-5:],alpha_color(color,a),3 if scale>.7 else 2)
+   hx,hy=head;hs=(5 if scale>.7 else 4)+(1 if (frame+k)%4==0 else 0)
    brect(frame,(hx-hs-1,hy-hs-1,hx+hs+1,hy+hs+1),alpha_color((18,15,27),a*.85))
    brect(frame,(hx-hs,hy-hs,hx+hs,hy+hs),alpha_color(color,a))
-   brect(frame,(hx-1,hy-1,hx+1,hy+1),alpha_color((255,255,218),a))
+   brect(frame,(hx-2,hy-2,hx+2,hy+2),alpha_color((255,255,218),a))
    # Each comet sheds smaller sparks that inherit its curve and then fall.
-   if u>.26:
-    for s in range(2):
-     lag=.055+s*.047;su=max(0,u-lag);sx,sy=point(su)
+   if u>.22:
+    for s in range(3):
+     lag=.050+s*.042;su=max(0,u-lag);sx,sy=point(su)
      fall=max(0,u-.30)*(18+s*11)*scale
      sx+=math.sin(k*1.7+s*2.3)*8*scale*(u-.18);sy+=fall
-     ss=1+(s+k)%2;brect(frame,(sx-ss,sy-ss,sx+ss,sy+ss),alpha_color(bright[(color_index+s+2)%7],a*(.76-s*.14)))
+     ss=2+(s+k)%2
+     brect(frame,(sx-ss-1,sy-ss-1,sx+ss+1,sy+ss+1),alpha_color((18,15,27),a*(.55-s*.10)))
+     brect(frame,(sx-ss,sy-ss,sx+ss,sy+ss),alpha_color(bright[(color_index+s+2)%7],a*(.86-s*.14)))
 
  # Smoke is a clustered afterimage, not a translucent full-screen circle.
  if t>.34:
   su=(t-.34)/.66;sa=max(7,150*(1-su))
-  for k in range(11):
-   angle=k*.91;dist=8+su*(24+(k%4)*5);sx=192+math.cos(angle)*dist;sy=194+math.sin(angle)*dist*.52-su*20
-   rr=5+(k%3)*2+su*7
+  for k in range(14):
+   angle=k*.91;dist=10+su*(38+(k%4)*7);sx=BCX+math.cos(angle)*dist;sy=BCY+math.sin(angle)*dist*.52-su*20
+   rr=9+(k%3)*4+su*11
    bellipse(frame,(sx-rr,sy-rr*.58,sx+rr,sy+rr*.58),alpha_color(smoke[(k+frame//6)%4],sa*(.55+(k%3)*.1)))
   # Repaint a few late embers above smoke so the tail remains legible.
-  if t>.56:
-   for k in range(15):
-    fall=(t-.56)*95*(.5+(k%4)*.13);sx=142+(k*29%104)+math.sin(frame*.34+k)*5;sy=178+(k*17%55)+fall
-    a=max(8,190*(1-t));brect(frame,(sx-1,sy-1,sx+1+(k%2),sy+1+(k%2)),alpha_color(bright[(k*3)%7],a))
+  if t>.50:
+   for k in range(26):
+    fall=(t-.50)*95*(.5+(k%4)*.13);sx=112+(k*29%164)+math.sin(frame*.34+k)*5;sy=168+(k*17%75)+fall
+    a=max(10,205*(1-t));size=2+(k%2)
+    brect(frame,(sx-size-1,sy-size-1,sx+size+1,sy+size+1),alpha_color((18,15,27),a*.6))
+    brect(frame,(sx-size,sy-size,sx+size,sy+size),alpha_color(bright[(k*3)%7],a))
 
 BURST_FX.parent.mkdir(parents=True,exist_ok=True);burst_fx.save(BURST_FX)
 print(f'WROTE {EQUIP} {eq.width}x{eq.height} cells=2')
