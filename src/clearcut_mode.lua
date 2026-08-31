@@ -6858,7 +6858,11 @@ function ClearcutMode:queueProjectedOverlay(game,t)
         queueUpright(queue,x,y,function()CigaretteButtArt.drawFlight(flight,self.smokerGroundTime)end)
     end
     for _,value in ipairs(self.smokerWeaponProjectiles or {})do local projectile=value
-        queueUpright(queue,projectile.x,projectile.y,function()SmokerWeaponArt.drawProjectile(projectile)end,projectile.y+.03,projectile.y)
+        -- The burst is an aerial firework, not a ground actor. Keeping it in
+        -- ordinary foot-depth order lets the dense score-attack canopy cover
+        -- almost the entire authored sprite even though it was drawn.
+        local sortY=projectile.kind=="firework_burst"and projectile.y+100000 or projectile.y+.03
+        queueUpright(queue,projectile.x,projectile.y,function()SmokerWeaponArt.drawProjectile(projectile)end,sortY,projectile.y)
     end
     for _,value in ipairs(self.vapeWindLeaves or {})do local leaf=value
         queueUpright(queue,leaf.x,leaf.y,function()SmokerWeaponArt.drawWindLeaf(leaf)end,leaf.y+.04,leaf.y)

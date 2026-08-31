@@ -57,4 +57,24 @@ assert(actual:updateHeldAxe(1,attackGame,true)and actual.smokerWeaponProjectiles
     "firework slot did not launch its real projectile")
 actual:updateSmokerWeaponProjectiles(2,attackGame)
 assert(tree.rushHp<96,"firework projectile did not detonate against its displayed target area")
+local burst
+for _,projectile in ipairs(actual.smokerWeaponProjectiles)do
+    if projectile.kind=="firework_burst"then burst=projectile;break end
+end
+assert(burst,"score firework did not retain its authored burst for rendering")
+fixture.reset();attackGame.world.billboardQueue={}
+actual:queueProjectedOverlay(attackGame,0)
+local burstActor
+for _,actor in ipairs(attackGame.world.billboardQueue)do
+    if actor.x==burst.x and actor.y==burst.y and(actor.sortBias or 0)>90000 then burstActor=actor;break end
+end
+assert(burstActor,"score firework burst was not queued above the dense world canopy")
+burstActor.draw()
+local drewExistingBurst=false
+for _,command in ipairs(fixture.commands)do
+    if command.op=="draw"and command.file=="assets/effects/smoker-firework-burst-v2.png"then
+        drewExistingBurst=true;break
+    end
+end
+assert(drewExistingBurst,"score firework did not draw the existing 30-frame burst effect")
 print("SCORE_WEAPON_SLOTS_OK equipped_slots=2 inventory_weapons=3 attacks=cigarette+axe+firework")
