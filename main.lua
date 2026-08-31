@@ -390,10 +390,19 @@ function love.load()
             end
         end
         assert(target, "score firework capture found no ranged target tree")
-        local sx, sy = game.camera:worldToScreen(target.x, target.y)
-        love.mouse.setPosition(sx, sy)
-        c.smokerWeaponCooldown = 0
-        assert(c:updateHeldAxe(0, game, true), "score firework capture did not fire the rocket")
+        -- 실제 좌클릭과 같은 경로로 쏜다. heldOverride를 넘겨 강제로 발사하면
+        -- "클릭해도 발사가 안 된다"는 입력 배선 문제를 캡처가 그대로 지나친다.
+        local realIsDown = love.mouse.isDown
+        love.mouse.isDown = function(button) return button == 1 or realIsDown(button) end
+        local fired = false
+        for _ = 1, 180 do
+            local sx, sy = game.camera:worldToScreen(target.x, target.y)
+            love.mouse.setPosition(sx, sy)
+            game:update(1 / 60)
+            if #c.smokerWeaponProjectiles > 0 then fired = true break end
+        end
+        love.mouse.isDown = realIsDown
+        assert(fired, "holding the left button on a ranged target never launched the firework")
         local requested = tonumber(os.getenv("LAST_HAUL_SCORE_FIREWORK_AGE")) or .40
         if requested < 0 then
             -- Negative age holds the shot mid-flight so the rocket itself can be

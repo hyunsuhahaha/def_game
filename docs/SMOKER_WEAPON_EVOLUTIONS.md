@@ -40,7 +40,7 @@
 - 30프레임 중 뒤 3분의 2가 낙하 불티·연기 구간이므로, 그 구간에도 색점이 폭발 반경 전체에 남아 있어야 한다.
 - 비행 로켓도 셀 안에서 충분히 크게 그리고(런타임 배율 0.78) 불꽃 노즐과 긴 스파크 꼬리를 붙인다.
 
-인게임 검수는 `LAST_HAUL_CAPTURE_SCORE_FIREWORK=1`로 실제 기록 모드를 띄워 찍는다. `LAST_HAUL_SCORE_FIREWORK_AGE`로 폭발 경과 시간을 고르고(음수면 비행 중간), `LAST_HAUL_SCORE_FIREWORK_MAX=1`이면 쌍발·자탄·삼단까지 켠 최종 빌드를 재현한다. 결과물: `score-firework-rocket.png`, `score-firework-burst.png`, `score-firework-finale.png`.
+인게임 검수는 `LAST_HAUL_CAPTURE_SCORE_FIREWORK=1`로 실제 기록 모드를 띄워 찍는다. **캡처는 `heldOverride`를 넘겨 강제로 발사하지 않고 `love.mouse.isDown`을 눌린 상태로 두고 `game:update`를 돌린다** — 실제 게임 루프와 같은 경로여야 "클릭해도 발사가 안 되는" 입력 배선 문제를 캡처가 지나치지 않는다. 실제로 `updateHeldAxe`가 폭죽에만 원본 `heldOverride`(실게임에서는 nil)를 넘기고 있어서, 아무리 클릭해도 발사되지 않았는데도 강제 발사 캡처는 멀쩡히 통과했었다. 회귀 검사는 `scripts/verify_score_weapon_slots.lua`가 오버라이드 없는 경로로 한 번 더 쏴 본다. `LAST_HAUL_SCORE_FIREWORK_AGE`로 폭발 경과 시간을 고르고(음수면 비행 중간), `LAST_HAUL_SCORE_FIREWORK_MAX=1`이면 쌍발·자탄·삼단까지 켠 최종 빌드를 재현한다. 결과물: `score-firework-rocket.png`, `score-firework-burst.png`, `score-firework-finale.png`.
 
 ## 자산과 검증
 

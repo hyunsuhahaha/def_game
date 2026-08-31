@@ -3149,7 +3149,7 @@ function ClearcutMode:updateHeldAxe(dt, game, heldOverride)
         game.player.hideAxeRange=weapon=="axe"
         if weapon~="cigarette" then self:tickSmokerReload(dt,game)end
         if weapon=="axe" then return self:updateScoreAxeAttack(dt,game,heldOverride)end
-        if weapon=="firework" then return self:updateFireworkAttack(dt,game,heldOverride)end
+        if weapon=="firework" then return self:updateFireworkAttack(dt,game,held)end
         return self:updateFireAttack(dt,game,heldOverride,true)
     end
     if self.job == "fire" then return self:updateFireAttack(dt, game, heldOverride) end
@@ -3407,6 +3407,10 @@ function ClearcutMode:updateVapeAttack(dt,game,held)
 end
 
 function ClearcutMode:updateFireworkAttack(dt,game,held)
+    -- 도끼·담배·화염방사기와 같은 규약을 지킨다. 실제 게임 루프는
+    -- heldOverride 없이 부르므로, nil을 그대로 "안 누름"으로 읽으면 아무리
+    -- 클릭해도 발사가 되지 않는다. 여기서 마우스 상태를 직접 확인한다.
+    if held==nil then held=love.mouse.isDown(1)end
     self.smokerWeaponCooldown=math.max(0,(self.smokerWeaponCooldown or 0)-dt)
     -- 폭발 반경은 담배용 착화 범위(area)를 ×0.3으로 얻어 쓰던 것을 전용 수치로 분리했다.
     local blastRadius=(self.permanentTraits.scoreRocketRadius or 0)+ScoreOperations.weaponArea(self)

@@ -37,6 +37,20 @@ mode.permanentTraits.scoreRocketUnlock=1
 mode.smokerWeaponCooldown=0;aimX=600
 assert(mode:updateHeldAxe(1,game,true)and mode.scoreActiveWeapon=="firework",
     "unlocked far click did not automatically select the firework")
+
+-- 실제 게임 루프는 heldOverride 없이 부르고 각 무기가 직접 마우스를 읽는다.
+-- 폭죽만 이 규약을 어겨 nil을 "안 누름"으로 읽는 바람에 아무리 클릭해도 발사가
+-- 되지 않았다. 오버라이드 없는 경로를 그대로 한 번 더 검사한다.
+mode.smokerWeaponProjectiles={}
+mode.smokerWeaponCooldown=0
+love.mouse.isDown=function(button)return button==1 end
+assert(mode:updateHeldAxe(1,game),"real held-mouse loop did not fire the firework")
+assert(mode.smokerWeaponProjectiles[1]and mode.smokerWeaponProjectiles[1].kind=="firework",
+    "real held-mouse loop launched no firework projectile")
+love.mouse.isDown=function()return false end
+mode.smokerWeaponProjectiles={}
+mode.smokerWeaponCooldown=0
+assert(mode:updateHeldAxe(1,game,true),"re-arm shot for the burst path failed")
 assert(mode.smokerWeaponProjectiles[1]and mode.smokerWeaponProjectiles[1].kind=="firework",
     "contextual ranged attack did not launch the real firework projectile")
 mode:updateSmokerWeaponProjectiles(2,game)
