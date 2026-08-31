@@ -7,7 +7,7 @@ love.mouse={getPosition=function()return 640,360 end}
 local Mode=require("src.clearcut_mode")
 local mode=Mode.new();mode.scoreAttack=true;mode.scoreWeaponSlot=1
 mode.permanentTraits.scoreRocketUnlock=1
-mode.scoreEquippedWeapons={"cigarette","firework"}
+mode.scoreEquippedWeapons={"cigarette",nil}
 mode.moleCompanions={{kind="lumberjack",prop="axe"}}
 mode.companionInventoryOpen=true;mode:refreshCompanionInventory()
 local fonts={small=love.graphics.newFont("assets/font-korean-regular.ttf",14),heading=love.graphics.newFont("assets/font-korean-bold.ttf",21)}

@@ -3144,7 +3144,12 @@ function ClearcutMode:graduationMonkeys()
 end
 function ClearcutMode:refreshCompanionInventory()
     self.inventoryBag={}
-    for index,def in ipairs(scoreWeaponDefinitions)do if self:scoreWeaponUnlocked(index)then self.inventoryBag[index]=def.id end end
+    local assigned={}
+    for _,id in ipairs(self.scoreEquippedWeapons or{})do if id then assigned[id]=true end end
+    for _,monkey in ipairs(self:graduationMonkeys())do if monkey.prop then assigned[monkey.prop]=true end end
+    for index,def in ipairs(scoreWeaponDefinitions)do
+        if self:scoreWeaponUnlocked(index)and not assigned[def.id]then self.inventoryBag[#self.inventoryBag+1]=def.id end
+    end
 end
 function ClearcutMode:saveCompanionInventory(game)
     if not game or not game.characterTraits or not game.characterTraits.saveEquipmentState then return end
@@ -3165,18 +3170,12 @@ end
 function ClearcutMode:companionInventoryClick(x,y,game)
     local layout=self.companionInventoryLayout;if not layout then return false end
     local kind,index=ClearcutMode.CompanionInventory.hit(layout,x,y)
-    if kind=="close"then self.companionInventoryOpen=false;self.inventoryHeld=nil;self:refreshCompanionInventory();return true end
+    if kind=="close"then
+        self.companionInventoryOpen=false;self.inventoryHeld=nil;self:refreshCompanionInventory();self:saveCompanionInventory(game);return true
+    end
     local monkeys=self:graduationMonkeys();local list=kind=="player"and self.scoreEquippedWeapons or nil
     if kind=="bag"then
-        local id=scoreWeaponDefinitions[index]and scoreWeaponDefinitions[index].id
-        if not id or not self:scoreWeaponUnlocked(index)then return false end
-        if self.inventoryHeld then
-            if self.inventoryHeld~=id then return false end
-            self.inventoryHeld=nil;self:saveCompanionInventory(game);return true
-        end
-        for i,value in ipairs(self.scoreEquippedWeapons or{})do if value==id then self.scoreEquippedWeapons[i]=nil;self.inventoryHeld=id;break end end
-        if not self.inventoryHeld then for _,monkey in ipairs(monkeys)do if monkey.prop==id then monkey.prop=nil;self.inventoryHeld=id;break end end end
-        if not self.inventoryHeld then self.inventoryHeld=id end
+        self.inventoryBag[index],self.inventoryHeld=self.inventoryHeld,self.inventoryBag[index]
     elseif kind=="monkey"then
         local monkey=monkeys[index];if not monkey then return false end
         monkey.prop,self.inventoryHeld=self.inventoryHeld,monkey.prop
