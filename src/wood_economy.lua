@@ -1,5 +1,9 @@
 local WoodEconomy={}
 
+-- 짧아진 기록 모드 한 판으로도 로비 연구를 실제 구매할 수 있도록, 모든 수종의
+-- 목재→연구 코인 변환 단가에 동일한 전역 배율을 적용한다.
+WoodEconomy.researchCoinMultiplier=2
+
 local catalogs={
     forest={
         {id="broadleaf",name="활엽수 목재",coin=1,color={.72,.45,.20}},
@@ -34,8 +38,9 @@ function WoodEconomy.settlement(mapId,inventory)
     for _,def in ipairs(WoodEconomy.catalog(mapId))do
         local count=math.max(0,math.floor((inventory or{})[def.id]or 0))
         if count>0 then
-            rows[#rows+1]={id=def.id,name=def.name,count=count,remaining=count,converted=0,coin=def.coin,color=def.color}
-            total=total+count*def.coin
+            local coin=def.coin*WoodEconomy.researchCoinMultiplier
+            rows[#rows+1]={id=def.id,name=def.name,count=count,remaining=count,converted=0,coin=coin,color=def.color}
+            total=total+count*coin
         end
     end
     return rows,total

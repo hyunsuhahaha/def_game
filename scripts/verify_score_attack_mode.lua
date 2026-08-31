@@ -12,7 +12,20 @@ local World=require("src.world")
 local Player=require("src.player")
 local Camera=require("src.camera")
 local Traits=require("src.character_traits").new(true)
+local WoodEconomy=require("src.wood_economy")
 local function expectedSpawn(tier,seconds)return .14*1.75^(tier-1)*2^(seconds/30)end
+
+assert(WoodEconomy.researchCoinMultiplier==2,"global research-coin reward multiplier drifted")
+for _,mapId in ipairs({"forest","mangrove","madagascar","island"})do
+    local inventory={}
+    for _,def in ipairs(WoodEconomy.catalog(mapId))do inventory[def.id]=1 end
+    local rows,total=WoodEconomy.settlement(mapId,inventory);local expected=0
+    for index,def in ipairs(WoodEconomy.catalog(mapId))do
+        expected=expected+def.coin*2
+        assert(rows[index].coin==def.coin*2,mapId.." lumber did not receive the global 2x research-coin reward")
+    end
+    assert(total==expected,mapId.." doubled research-coin total is incorrect")
+end
 
 local loader
 for i=1,30 do local name,value=debug.getupvalue(Game.new,i);if name=="loadClearcutSprites"then loader=value;break end end
@@ -251,12 +264,13 @@ settleMode.scoreStartingRegenTier=1;settleMode.scoreRegenTier=1;settleMode.score
 game.result=nil;game.ended=false;game.achievements=nil
 local coinsBefore=Traits.data.currency
 settleMode:finish(game,true)
-assert(#game.result.lumberRows==2 and game.result.lumberCoinTotal==8,"species lumber did not retain its distinct coin values")
+assert(#game.result.lumberRows==2 and game.result.lumberRows[1].coin==2 and game.result.lumberRows[2].coin==4 and game.result.lumberCoinTotal==16,
+    "research-coin settlement did not double every species value")
 assert(Traits.data.currency==coinsBefore and game.result.traitEarned==0,"result coins were granted before the visible settlement")
 settleMode:updateResults(.35,game);settleMode:updateResults(.15,game)
-assert(game.result.traitEarned>0 and game.result.traitEarned<8,"sequential settlement did not begin one unit at a time")
+assert(game.result.traitEarned>0 and game.result.traitEarned<16,"sequential settlement did not begin one unit at a time")
 settleMode:completeResultSettlement(game)
-assert(Traits.data.currency==coinsBefore+8 and game.result.traitEarned==8 and settleMode.resultSettlement.complete,"skipping result settlement lost or duplicated coins")
+assert(Traits.data.currency==coinsBefore+16 and game.result.traitEarned==16 and settleMode.resultSettlement.complete,"skipping result settlement lost or duplicated doubled coins")
 local completedVisualTime=settleMode.resultSettlement.elapsed
 settleMode.resultSettlement.bursts={{t=.44,dur=.48,rowIndex=1,seed=1}}
 settleMode:updateResults(.12,game)
