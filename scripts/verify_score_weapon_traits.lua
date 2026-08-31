@@ -140,4 +140,20 @@ auto.permanentTraits.scoreAutoThrow = 1
 auto:updateFire(3, autoGame)
 assert(#auto.molotovs > 0, "담배 자동 투척 특성이 자동 투척을 켜지 않는다")
 
+-- 10. 인벤토리로 담배를 잠깐 바꿔 들고 바로 던질 수 있어야 한다.
+-- 도끼를 든 동안에도 담배 재장전이 흘러야 슬롯 전환이 "휙"이 된다.
+local swap = ClearcutMode.new()
+swap.scoreAttack, swap.sandbox, swap.job, swap.mapId = true, true, "fire", "forest"
+local swapGame = axeGame({tree(120)})
+swap.scoreWeaponSlot = 1
+swap:updateHeldAxe(0, swapGame, false)
+assert(swap.smoking and swap.smoking.phase == "reload", "담배를 들었는데 재장전이 시작되지 않았다")
+swap:setScoreWeaponSlot(2, swapGame)
+for _ = 1, 200 do swap:updateHeldAxe(1 / 60, swapGame, false) end
+assert(swap.smoking.phase == "loaded",
+    "도끼를 드는 동안 담배 재장전이 멈춰 있다 — 슬롯을 바꿔도 바로 던질 수 없다")
+swap:setScoreWeaponSlot(1, swapGame)
+assert(swap:updateHeldAxe(1 / 60, swapGame, true) == false and swap.smoking.phase == "flick",
+    "슬롯을 담배로 되돌린 직후 투척 동작이 바로 시작되지 않았다")
+
 print("SCORE_WEAPON_TRAITS_OK shared=tree_damage axe=area+speed+targets+execute rocket=radius+damage+speed+ignite+cooldown")
