@@ -28,6 +28,11 @@ function game:setNotice(message)self.notice=message end
 game:startClearcutScoreAttack()
 local mode=assert(game.clearcut)
 assert(game.mode=="playing"and mode.scoreAttack and mode.job=="fire"and mode.stageTimeLimit==math.huge,"score mode still has a visible fixed timer")
+local lobbySource=assert(io.open("src/lobby.lua","rb")):read("*a")
+local modeSource=assert(io.open("src/clearcut_mode.lua","rb")):read("*a")
+assert(not lobbySource:find("SMOKER ONLY",1,true)and not lobbySource:find("흡연자 벌목 기록 실험",1,true),
+    "active lobby still presents a smoker/character premise")
+assert(not modeSource:find("벌목 기록 · 흡연자",1,true),"score HUD still presents a selected character")
 assert(mode.scoreTreeAllowance==12,"fresh score mode did not use the 12-tree base allowance")
 assert(mode.xpNext==5,"score mode did not start with the fast five-wood first upgrade")
 assert(#game.world.nodes==6 and mode:scoreActiveTreeCount()==6 and mode.totalTreesSpawned==6,"score mode did not start with exactly six active trees")

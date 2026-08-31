@@ -82,7 +82,7 @@ end
 function Lobby:drawActiveRules(x,y,w,f)
  love.graphics.setColor(.015,.055,.038,.90);love.graphics.rectangle("fill",x,y,w,132,6,6)
  love.graphics.setColor(.38,.78,.52,.76);love.graphics.rectangle("line",x+.5,y+.5,w-1,131,6,6)
- love.graphics.setFont(self.microFont or f.small);love.graphics.setColor(.95,.63,.20);love.graphics.print("ACTIVE BUILD  ·  SCORE ATTACK",x+18,y+14)
+ love.graphics.setFont(self.microFont or f.small);love.graphics.setColor(.95,.63,.20);love.graphics.print("ACTIVE BUILD  ·  DIRECT START",x+18,y+14)
  local rows={{"종료","활성 나무 12그루"},{"산림","시작 6그루 · 영구 재생 단계"},{"위협","첫 45초 몬스터 없음"},{"성장","목재 경험치 · 운영 3택"}}
  for i,row in ipairs(rows)do local yy=y+36+(i-1)*22;love.graphics.setColor(.48,.67,.55);love.graphics.print(row[1],x+18,yy);love.graphics.setColor(.88,.91,.76);love.graphics.print(row[2],x+82,yy)end
 end
@@ -104,11 +104,11 @@ function Lobby:draw()
  local left=math.max(34,w*.045); local compact=w<1080
  love.graphics.setColor(.96,.92,.70,.76); love.graphics.rectangle("fill",left-14,18,math.min(410,w*.37),166,6,6)
  love.graphics.setColor(.08,.27,.20,.58); love.graphics.rectangle("line",left-13.5,18.5,math.min(410,w*.37)-1,165,6,6)
- love.graphics.setColor(.08,.19,.12,.95); love.graphics.setFont(micro); love.graphics.print("ACTIVE PROTOTYPE  /  SCORE ATTACK",left,30)
+ love.graphics.setColor(.08,.19,.12,.95); love.graphics.setFont(micro); love.graphics.print("ACTIVE PROTOTYPE  /  FOREST CLEARING",left,30)
  love.graphics.setColor(.05,.31,.28); love.graphics.setFont(f.display); love.graphics.print("LAST HAUL",left,52)
- love.graphics.setColor(.12,.15,.08,.96); love.graphics.setFont(f.heading); love.graphics.print("흡연자 벌목 기록 실험",left,111)
+ love.graphics.setColor(.12,.15,.08,.96); love.graphics.setFont(f.heading); love.graphics.print("숲 전멸 기록 실험",left,111)
  love.graphics.setColor(.08,.36,.31,.75); love.graphics.rectangle("fill",left,145,math.min(390,w*.35),2)
- love.graphics.setFont(micro); love.graphics.setColor(.12,.28,.18,.9); love.graphics.print("TREE CAPACITY BUILD  ·  SMOKER ONLY",left,158)
+ love.graphics.setFont(micro); love.graphics.setColor(.12,.28,.18,.9); love.graphics.print("WEAPON  ·  COMPANION  ·  FACILITY BUILD",left,158)
  local nav={{"연습","sandboxBox"},{"업적","achievementBox"},{"설정","settingsBox"}}
  local nw,ng=compact and 58 or 72,6; local navY=h-62; local nx=w-34-(nw*#nav+ng*(#nav-1))
  for i,item in ipairs(nav) do local b={x=nx+(i-1)*(nw+ng),y=navY,w=nw,h=36}; self[item[2]]=b; F.button(b,item[1],micro,{accent=i==4 and F.colors.teal or F.colors.amber}) end

@@ -358,6 +358,8 @@ local SPREAD_REFERENCE_BURN = 3.6
 -- 들어가는 타격 횟수가 늘어난다.
 --   기본: 3.6초 동안 1초마다 4 -> 3회 12피해. 활엽수 12/소나무 9/자작 7은 넘어가고
 --         단풍 16과 바오밥 25는 그을린 채 살아남는다.
+--   타격 피해에는 공용 `무기 피해` 특성이 더해진다(연소속도는 "더 자주",
+--   무기 피해는 "더 세게").
 --   연소속도 만렙(x1.36): 주기 0.74초 -> 4회 16피해 -> 단풍까지 넘어간다.
 --   + 런 카드까지(x2.09): 주기 0.48초 -> 7회 28피해 -> 바오밥까지 넘어간다.
 local BURN_WINDOW = 3.6
@@ -2709,6 +2711,9 @@ function ClearcutMode:updateFire(dt, game)
     local burnDuration = BURN_WINDOW
     local burnTickInterval = BURN_TICK_INTERVAL
         / (self.permanentTraits.burnSpeed * ScoreOperations.burnSpeedMultiplier(self))
+    -- `무기 피해`는 공용 수치이므로 도끼·폭죽뿐 아니라 불에도 걸린다. 연소속도가
+    -- "더 자주", 무기 피해가 "더 세게"를 맡아 두 갈래가 총 피해를 함께 올린다.
+    local burnTickDamage = BURN_TICK_DAMAGE + (self.permanentTraits.treeDamage or 0)
     self:updateStrawBales(dt, game)
     self:updateOilTrail(dt, game)
     self:updateSecondhandSmoke(dt, game)
@@ -2737,7 +2742,7 @@ function ClearcutMode:updateFire(dt, game)
             node.burnDamageTimer = (node.burnDamageTimer or burnTickInterval) - dt
             if node.burnDamageTimer <= 0 then
                 node.burnDamageTimer = node.burnDamageTimer + burnTickInterval
-                node.rushHp = (node.rushHp or node.rushMaxHp or 1) - BURN_TICK_DAMAGE
+                node.rushHp = (node.rushHp or node.rushMaxHp or 1) - burnTickDamage
                 -- 한 번 씹을 때마다 눈에 보이게. 몇 번 더 타야 넘어가는지 읽혀야 한다.
                 node.hitFlash = math.max(node.hitFlash or 0, .14)
             end
@@ -3078,6 +3083,7 @@ function ClearcutMode:updateScoreAxeAttack(dt,game,heldOverride)
     self.maxMulti=math.max(self.maxMulti or 0,#targets)
     self.actionAudit.scoreAxe=(self.actionAudit.scoreAxe or 0)+1
     local speed=(game.tools.axe.speed or 1)*game.player.gather*self.permanentTraits.attackSpeed
+        *ScoreOperations.attackSpeedMultiplier(self)
     self.axeCooldown=.62/(speed*(1+(self.permanentTraits.scoreAxeSpeed or 0)))
     return true
 end
@@ -3194,7 +3200,8 @@ function ClearcutMode:updateFireworkAttack(dt,game,held)
     }
     self.actionAudit.fireworkShot=(self.actionAudit.fireworkShot or 0)+1
     self.smokerWeaponCooldown=.86
-        /((game.tools.axe.speed or 1)*game.player.gather*self.permanentTraits.attackSpeed*(1+(self.permanentTraits.scoreRocketCooldown or 0)))
+        /((game.tools.axe.speed or 1)*game.player.gather*self.permanentTraits.attackSpeed
+            *ScoreOperations.attackSpeedMultiplier(self)*(1+(self.permanentTraits.scoreRocketCooldown or 0)))
     return true
 end
 
@@ -7159,7 +7166,7 @@ function ClearcutMode:drawHUD(game,fonts)
     local occupancy=overtime and self:scoreOccupancy()or 0;local urgent=overtime and occupancy>=.85 or remaining<=60
     local timeText=overtime and formatTime(self.stageElapsed or 0)or formatTime(remaining)
     love.graphics.setFont(fonts.big);love.graphics.setColor(urgent and {1,.30,.18} or {1,.96,.82});love.graphics.print(timeText,18,16)
-    love.graphics.setFont(fonts.micro or fonts.small);love.graphics.setColor(urgent and {1,.55,.30} or {.82,.84,.76});love.graphics.print(self.scoreAttack and"벌목 기록 · 흡연자"or("제한 시간 · "..Maps.stageCode(self.mapId,self.stage).." · "..(jobNames[self.job]or"벌목꾼")),20,51)
+    love.graphics.setFont(fonts.micro or fonts.small);love.graphics.setColor(urgent and {1,.55,.30} or {.82,.84,.76});love.graphics.print(self.scoreAttack and"벌목 기록"or("제한 시간 · "..Maps.stageCode(self.mapId,self.stage).." · "..(jobNames[self.job]or"벌목꾼")),20,51)
     love.graphics.setColor(.92,.90,.72);love.graphics.print(self.scoreAttack and string.format("목재 %d   벌목 %d   생성 %d",self.totalWood,self.treesFelled,self.totalTreesSpawned or 0)or string.format("목재 %d   벌목 %d/%d",self.totalWood,self.treesFelled,self.initialTrees),20,71)
     local statusColor = (self.rootedTimer > 0 or self.beeSlow) and {1,.6,.35} or {.6,.72,.66}
     love.graphics.setColor(statusColor)

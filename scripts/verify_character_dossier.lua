@@ -10,7 +10,13 @@ for _,removed in ipairs({
     assert(not dossier:find(removed,1,true),"removed skill/synergy dossier content remains: "..removed)
 end
 assert(dossier:find('let mode = "traits"',1,true),"dossier does not open on permanent traits")
-assert(dossier:find('traits: { label: "로비 특성"',1,true),"permanent trait dossier mode is missing")
+assert(dossier:find('<h1 class="masthead-title" id="masthead-title">영구 연구 기록부</h1>',1,true),"dossier still uses the character personnel-file framing")
+assert(dossier:find('traits: { label: "영구 연구"',1,true),"permanent research dossier mode is missing")
+assert(dossier:find('const ORDER = ["fire","universal"]',1,true),"dossier still exposes archived character selection tabs")
+assert(dossier:find('label: "무기·전투"',1,true)and dossier:find('label: "동료·설비"',1,true),
+    "active research groups are not presented without character classes")
+assert(dossier:find('document.getElementById("score-mode-summary").hidden = false',1,true),
+    "score rules disappear when switching active research groups")
 assert(dossier:find("기존 조합 보너스의 계산·연계 파동·HUD·선택 카드 표시는 제거",1,true),
     "dossier system note does not record the removed combination system")
 assert(dossier:find('id="score-mode-summary"',1,true),"dossier is missing the visible score-mode rules summary")
@@ -34,4 +40,4 @@ for _,id in ipairs({
     assert(dossier:find('id:"'..id..'"',1,true),"dossier permanent trait is missing: "..id)
 end
 
-print("CHARACTER_DOSSIER_OK permanent-traits-only synergy+legacy-skills=removed")
+print("CHARACTER_DOSSIER_OK permanent-research-only active-groups=weapon+companion archived-character-data=preserved")

@@ -5,12 +5,12 @@ local TraitNodeArt = require("src.trait_node_art")
 local CharacterTraitBoard = {}
 CharacterTraitBoard.__index = CharacterTraitBoard
 
--- 기존 작업자 연구 화면은 삭제하지 않았다. 현재 프로토타입이 흡연자 기록전이므로
+-- 기존 캐릭터별 연구 데이터는 삭제하지 않았다. 활성 플레이에는 선택 단계가 없으므로
 -- 로비에서는 실제 적용되는 두 연구군만 의도적으로 노출한다.
 local archivedJobOrder = {"physical", "fire", "toxic", "developer", "miner", "philosopher", "universal"}
 local ACTIVE_DEVELOPMENT_MODE="score_attack"
--- 기록 모드의 작업자는 흡연자 하나뿐이라 캐릭터 구분이 의미가 없다. 흡연자 연구와
--- 공용 연구를 한 판에 합쳐 보여주고 탭 줄 자체를 없앤다.
+-- 활성 게임에는 캐릭터/직업 선택이 없다. 기존 저장 호환용 "fire"와 "universal"
+-- 연구 그룹만 한 연구망에 합쳐 보여주고 선택 탭은 만들지 않는다.
 local scoreAttackGroups = {"fire","universal"}
 local jobOrder = ACTIVE_DEVELOPMENT_MODE=="score_attack" and {"all"} or archivedJobOrder
 local jobNames = {physical="생계형 나무꾼", fire="흡연자", toxic="비건 단체 회장", developer="부동산 개발업자", miner="코인 채굴꾼", philosopher="차라투스트라는 이렇게 말했다", universal="공용 복지"}
@@ -18,8 +18,8 @@ local jobTabNames = {philosopher="차라투스트라"}
 local STRUCTURE={.32,.78,.62}
 local WARM={1,.73,.24}
 local scoreBoardCopy={
-    fire={title="꽁초 투척 · 착화",detail="투척 거리·불씨 확산·재장전·연소 속도를 영구 강화한다."},
-    universal={title="운반 · 작업장",detail="아기 운반 로봇과 나무 허용량을 영구 강화한다."},
+    fire={title="무기 · 전투",detail="담배·도끼·폭죽과 착화 성능을 영구 강화한다."},
+    universal={title="동료 · 설비",detail="로봇·두더지·고양이와 현장 설비를 영구 강화한다."},
 }
 
 local function inside(box, x, y)

@@ -180,6 +180,8 @@ end
 function Game:startClearcutScoreAttack()
     self:resetRun()
     self.clearcut=ClearcutMode.new()
+    -- "fire" is the archived runtime loadout id used by the current weapon set.
+    -- It is not a player-selectable character or class in the active game flow.
     self.clearcut.job="fire"
     self.clearcut.mapId="forest"
     self.clearcut.stage=1
@@ -455,7 +457,7 @@ function Game:keypressed(key)
             self.mode="achievements"
         elseif action=="skill_sandbox" then
             self.sandboxMode=true
-            self.mode="clearcut_select"
+            self:startClearcutSandbox("fire")
         end
         return
     end
@@ -631,7 +633,7 @@ function Game:mousepressed(x, y, button)
         elseif action == "character_traits" then self.characterTraitReturnMode="lobby"; self.mode = "character_traits"
         elseif action == "character_codex" then self.mode = "character_codex"
         elseif action == "achievements" then self.mode = "achievements"
-        elseif action == "skill_sandbox" then self.sandboxMode = true; self.mode = "clearcut_select"
+        elseif action == "skill_sandbox" then self.sandboxMode = true; self:startClearcutSandbox("fire")
         elseif action == "settings" then self.mode = "settings" end
         return
     end

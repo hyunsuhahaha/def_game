@@ -2,7 +2,7 @@
 <html lang="ko">
 <head>
 <meta charset="utf-8">
-<title>특성 인사기록부</title>
+<title>영구 연구 기록부</title>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Noto+Serif+KR:wght@500;600;700&family=Noto+Sans+KR:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap">
 <style>
   :root {
@@ -393,8 +393,8 @@
 <div class="sheet">
   <div class="masthead">
     <div>
-      <h1 class="masthead-title" id="masthead-title">특성 인사기록부</h1>
-      <p class="masthead-sub" id="masthead-sub">직업별 전용 특성 6종 + 전 직군 공용 복지 특성 — LAST HAUL 벌목지 연구망 전체 목록</p>
+      <h1 class="masthead-title" id="masthead-title">영구 연구 기록부</h1>
+      <p class="masthead-sub" id="masthead-sub">무기·전투 / 동료·설비 — 현재 플레이에 적용되는 영구 연구</p>
     </div>
     <div class="masthead-stamp" id="masthead-stamp">연구 코인 결재 완료</div>
   </div>
@@ -469,9 +469,9 @@ const TRAITS = {
     ]
   },
   fire: {
-    label: "흡연자", accent: "var(--c-fire)",
-    tagline: "불씨 하나쯤은 자연이 알아서 처리하겠지.",
-    doctrine: "긴 흡연 준비 끝에 꽁초를 초당 1200 월드 단위로 빠르게 날린다. 꽁초는 착지 후 0.15초에 기본 90% 확률로 첫 착화를 시도하고, 불씨 이동까지 포함해 가까운 나무는 약 0.3초 안에 반응한다. SPACE 도넛 연기는 캐릭터가 바라보는 방향으로 날아가는 공중 빌보드라 2.5D 바닥 기울기와 분리되어 항상 둥글게 보인다. 보이는 연기 외곽보다 후한 이동 궤적 판정으로 나무와 적을 타격하고 적을 밀어낸다.",
+    label: "무기·전투", accent: "var(--c-fire)",
+    tagline: "직접 사용하는 무기와 착화 성능을 확장한다.",
+    doctrine: "담배·도끼·폭죽을 중심으로 투척 거리, 불씨 확산, 공격 속도와 연소 성능을 영구 강화한다.",
     nodes: [
       {id:"fire_nicotine",name:"니코틴 내성",short:"한 모금 더",desc:"흡연·투척 속도 +7%",max:3,costs:[18,32,50]},
       {id:"fire_filter",name:"장초 필터",short:"끝까지 태우기",desc:"꽁초 투척 사거리 +24",max:3,costs:[22,38,58],requires:[["fire_nicotine",1]]},
@@ -676,9 +676,9 @@ const TRAITS = {
     ]
   },
   universal: {
-    label: "공용 복지", accent: "var(--c-universal)",
-    tagline: "복지는 직무를 가리지 않는다.",
-    doctrine: "어떤 현장에 배치되든 몸과 통장은 공통으로 챙긴다 — 선택한 직업과 무관하게 항상 적용된다.",
+    label: "동료·설비", accent: "var(--c-universal)",
+    tagline: "현장에 투입되는 동료와 설비를 확장한다.",
+    doctrine: "로봇·두더지·회색 고양이와 기름 드럼통을 해금하고 각 동료의 성능과 설비 운용 능력을 영구 강화한다.",
     nodes: [
       {id:"universal_shuttle",name:"통근버스 신설",short:"출근 단축",desc:"이동 속도 +6%",max:3,costs:[18,32,50]},
       {id:"universal_checkup",name:"정기 건강검진",short:"이상 무",desc:"최대 체력 +12",max:3,costs:[22,38,58],requires:[["universal_shuttle",1]]},
@@ -717,9 +717,11 @@ const TRAITS = {
   }
 };
 
-const ORDER = ["physical","fire","toxic","developer","miner","philosopher","universal"];
+// 기존 캐릭터별 연구 데이터는 저장 호환과 향후 재사용을 위해 TRAITS에 보존한다.
+// 현재 문서와 실제 플레이에는 캐릭터 선택이 없으므로 활성 연구 그룹만 노출한다.
+const ORDER = ["fire","universal"];
 const MODE_META = {
-  traits: { label: "로비 특성", sub: "영구 · 연구 코인 구매", masthead: "직업별 전용 특성과 공용 연구 — 현재 영구 성장 목록", stamp: "연구 코인 결재 완료", data: TRAITS },
+  traits: { label: "영구 연구", sub: "연구 코인 구매", masthead: "무기·전투 / 동료·설비 — 현재 플레이에 적용되는 영구 연구", stamp: "연구 코인 결재 완료", data: TRAITS },
 };
 
 let mode = "traits";
@@ -807,7 +809,7 @@ function renderTraitsPanel(job, q) {
 function renderPanel(filterText) {
   const data = MODE_META[mode].data;
   const job = data[active];
-  document.getElementById("score-mode-summary").hidden = active !== "fire";
+  document.getElementById("score-mode-summary").hidden = false;
   const q = (filterText || "").trim().toLowerCase();
   const { html, visibleCount } = renderTraitsPanel(job, q);
 
@@ -827,9 +829,7 @@ function renderPanel(filterText) {
 function renderAll() {
   document.getElementById("masthead-sub").textContent = MODE_META[mode].masthead;
   document.getElementById("masthead-stamp").textContent = MODE_META[mode].stamp;
-  document.getElementById("footer").textContent = mode === "traits"
-    ? "src/character_traits.lua 기준 · 노드 순서는 선행 조건 깊이(단계) 순"
-    : "src/clearcut_mode.lua + score_operations.lua + character_traits.lua 기준 · 현재 로비는 흡연자 벌목 기록 모드만 활성화 · 저장된 재생 단계에서 6그루로 시작하고 0그루 달성 시 0.86초 전투 정지·잎/프리즘 단계 상승 FX·6그루 순차 발아 후 다음 단계가 영구 해금 · 재생 속도 0.14×1.75^(단계-1)×2^(플레이 시간/60초), HP 1.03^(단계-1) 정수 반올림으로 체력보다 재생 물량이 난도를 주도하며 같은 단계 무한 유지를 차단 · 허용량 60% 이상에서 최근 5초 벌목량이 자연 재생보다 낮은 상태가 5초 지속되면 별도 HUD 문구 없이 내부 재생이 가속되어 약한 런을 빠르게 종료 · 첫 강화는 목재 5, 이후 8·11 순서이며 운영 6종과 공격속도·추가 꽁초·착화 범위·연소속도 상승 4종을 선택 · 기름 드럼통 연구는 생성 뒤 등장 주기·기름 범위·지속시간·피해로 분기되며, 회색 고양이는 기본 35% 확률과 2.2초 대기시간으로 출동하고 출현 확률·대기시간·이동속도를 별도 강화 · 두더지 영구 연구는 동료 채용 루트에서 피해·이동속도·공격속도·발톱 범위·양손 공격·추가 동료 채용의 독립 노드로 갈라지고 최대 3마리를 실제 투입 · 강화하기 화면은 밝은 회백색 작업면 위 중앙 루트에서 여러 갈래로 뻗으며 선택한 노드의 이름·효과·단계·비용을 상단 한 곳에 표시하고 미니맵·숲 배경·중복 설명을 두지 않음 · 결과 화면은 생존 기록·핵심 통계 3개·연구 코인·강화하기/재도전 순서로 표시 · 로비 영구 성장은 스킬 레벨을 지급하지 않고 투척 거리·착화 반경·착화/확산 확률·흡연/비행/연소 속도·추가 꽁초 특성으로 분리 · 기존 조합 보너스의 계산·연계 파동·HUD·선택 카드 표시는 제거했으며 이 문서는 현재 영구 특성만 표시";
+  document.getElementById("footer").textContent = "src/character_traits.lua 기준 · 활성 플레이는 캐릭터 선택 없이 무기·전투와 동료·설비 연구를 함께 적용 · 기존 캐릭터별 데이터는 저장 호환용으로 보존 · 기존 조합 보너스의 계산·연계 파동·HUD·선택 카드 표시는 제거";
   buildModeSwitch();
   buildTabs();
   renderPanel(document.getElementById("search").value);

@@ -27,6 +27,13 @@ mode:sandboxSetAllSkills(false)
 assert(mode:levelOf("molotov")==0 and mode:levelOf("chain_lightning")==0,"practice reset did not clear skills")
 
 local gameSource=assert(io.open("src/game.lua","rb")):read("*a")
+local _,directSandboxEntries=gameSource:gsub('self:startClearcutSandbox%("fire"%)','')
+local multilineDirect=gameSource:find('elseif action=="skill_sandbox" then',1,true)
+    and gameSource:find('self:startClearcutSandbox("fire")',gameSource:find('elseif action=="skill_sandbox" then',1,true),true)
+assert(directSandboxEntries==2 and multilineDirect,"practice still routes through character selection")
+assert(gameSource:find("function Game:startClearcut(characterId, mapId, stage)",1,true)
+    and gameSource:find("function Game:drawClearcutSelect()",1,true),
+    "archived character/campaign code was deleted instead of merely bypassed")
 assert(gameSource:find("sandboxBranchBoxes",1,true) and gameSource:find("sandboxMaxBox",1,true) and gameSource:find("sandboxPanelScroll",1,true),"practice controls are not wired to the panel")
 assert(gameSource:find('UI.button(plusBox.x,plusBox.y,plusBox.w,plusBox.h,"+",level<def.max',1,true),"practice skill plus control is not explicit/enabled")
 assert(gameSource:find("sandboxSetLevel(box.id,1,self)",1,true),"practice plus button does not open the real rank-three branch flow")
