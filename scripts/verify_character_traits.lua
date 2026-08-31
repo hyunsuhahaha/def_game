@@ -72,7 +72,9 @@ for _,id in ipairs({"fire_score_prewarm","fire_score_filter","fire_score_lighter
 store.data.levels.fire_score_stock=1
 local scoreSmoker=store:effects("fire")
 assert(scoreSmoker.scoreRange==80 and scoreSmoker.scoreArea==60,"score-mode permanent smoker geometry was not subdivided correctly")
-assert(math.abs(scoreSmoker.scoreIgnitionChance-.06)<1e-9 and scoreSmoker.scoreSpreadChance==.15,"score-mode ignition traits were not separated")
+-- 확산은 런타임이 기준 연소시간 3.6초를 곱해 "옮겨붙는 기대 그루 수"로 쓴다.
+-- 5레벨 .235 → 만렙(6) .282, 즉 (.12+.282)*3.6 = 1.45그루로 임계점 1.00을 넘긴다.
+assert(math.abs(scoreSmoker.scoreIgnitionChance-.06)<1e-9 and math.abs(scoreSmoker.scoreSpreadChance-.235)<1e-9,"score-mode ignition traits were not separated")
 assert(math.abs(scoreSmoker.scoreAttackSpeed-.20)<1e-9 and math.abs(scoreSmoker.scoreProjectileSpeed-.35)<1e-9 and math.abs(scoreSmoker.scoreBurnSpeed-.30)<1e-9 and scoreSmoker.scoreExtraFires==1,"score-mode permanent smoker pacing was not subdivided correctly")
 local activeScore=store:scoreAttackEffects()
 assert(activeScore.scoreInitialIgnitionReduction==.4,"score-mode opening ignition trait is not active")

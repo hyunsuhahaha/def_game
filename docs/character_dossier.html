@@ -519,7 +519,7 @@ const TRAITS = {
       {id:"fire_score_lighter",name:"불씨 반경 넓히기",short:"착화 범위",desc:"꽁초가 불씨를 옮기는 착화 반경 +12",max:6,costs:[18,32,50,74,104,142],requires:[["fire_score_prewarm",1]]},
       {id:"fire_score_spark",name:"심지 끝까지 달구기",short:"착화 확률",desc:"꽁초의 착화 성공 확률 +1.2%p",max:5,costs:[18,32,50,74,104],requires:[["fire_score_filter",2]]},
       {id:"fire_score_launch",name:"손가락 튕기기 연습",short:"비행 속도",desc:"꽁초 비행 속도 +7%",max:5,costs:[18,32,50,74,104],requires:[["fire_score_filter",1]]},
-      {id:"fire_score_ash",name:"마른 재 흩뿌리기",short:"확산 확률",desc:"불붙은 나무의 주변 확산 확률 +3%p",max:6,costs:[18,32,50,74,104,142],requires:[["fire_score_lighter",2]]},
+      {id:"fire_score_ash",name:"마른 재 흩뿌리기",short:"확산량",desc:"불붙은 나무가 옮겨붙이는 기대 그루 +0.17 (만렙 1.45그루 — 1.00을 넘으면 산불이 스스로 번집니다)",max:6,costs:[18,32,50,74,104,142],requires:[["fire_score_lighter",2]]},
       {id:"fire_score_drag",name:"한 모금만 피우기",short:"흡연 속도",desc:"흡연·재장전 속도 +4%",max:6,costs:[18,32,50,74,104,142],requires:[["fire_score_spark",2],["fire_score_launch",2]]},
       {id:"fire_score_heat",name:"송진 묻은 불씨",short:"연소 속도",desc:"불붙은 나무의 연소 속도 +6%",max:6,costs:[18,32,50,74,104,142],requires:[["fire_score_launch",2],["fire_score_ash",2]]},
       {id:"fire_score_stock",name:"주머니 속 마지막 한 개비",short:"추가 꽁초",desc:"투척할 때 추가 꽁초 +1",max:1,costs:[180],requires:[["fire_score_drag",3],["fire_score_heat",3]],capstone:true},

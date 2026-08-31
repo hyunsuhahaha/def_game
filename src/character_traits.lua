@@ -194,7 +194,10 @@ local scoreFireNodes={
     {id="fire_score_lighter",name="불씨 반경 넓히기",short="착화 범위",desc="꽁초가 불씨를 옮기는 착화 반경 +12",effect="scoreArea",value=12,max=6,costs={18,32,50,74,104,142},wx=730,wy=900,icon="ember",color={.96,.43,.16},requires={{"fire_score_prewarm",1}}},
     {id="fire_score_spark",name="심지 끝까지 달구기",short="착화 확률",desc="꽁초의 착화 성공 확률 +1.2%p",effect="scoreIgnitionChance",value=.012,wx=1080,wy=380,icon="ember",color={1,.56,.16},requires={{"fire_score_filter",2}}},
     {id="fire_score_launch",name="손가락 튕기기 연습",short="비행 속도",desc="꽁초 비행 속도 +7%",effect="scoreProjectileSpeed",value=.07,wx=1080,wy=650,icon="wind",color={.82,.72,.42},requires={{"fire_score_prewarm",1}}},
-    {id="fire_score_ash",name="마른 재 흩뿌리기",short="확산 확률",desc="불붙은 나무의 주변 확산 확률 +3%p",effect="scoreSpreadChance",value=.03,max=6,costs={18,32,50,74,104,142},wx=1080,wy=940,icon="ash",color={.72,.52,.36},requires={{"fire_score_lighter",2}}},
+    -- 값은 초당 확률 단위로 저장하고 런타임이 기준 연소시간(3.6초)을 곱해 "옮겨붙는
+    -- 기대 그루 수"로 쓴다. 0레벨 0.43그루 → 6레벨 1.45그루로, 만렙이 임계점 1.00을
+    -- 확실히 넘겨 산불이 스스로 번지게 한다.
+    {id="fire_score_ash",name="마른 재 흩뿌리기",short="확산량",desc="불붙은 나무가 옮겨붙이는 기대 그루 +0.17 (만렙 1.45그루 — 1.00을 넘으면 산불이 스스로 번집니다)",effect="scoreSpreadChance",value=.047,max=6,costs={18,32,50,74,104,142},wx=1080,wy=940,icon="ash",color={.72,.52,.36},requires={{"fire_score_lighter",2}}},
     {id="fire_score_drag",name="한 모금만 피우기",short="흡연 속도",desc="흡연·재장전 속도 +4%",effect="scoreAttackSpeed",value=.04,max=6,costs={18,32,50,74,104,142},wx=1430,wy=470,icon="clock",color={.78,.76,.67},requires={{"fire_score_launch",2}}},
     {id="fire_score_heat",name="송진 묻은 불씨",short="연소 속도",desc="불붙은 나무의 연소 속도 +6%",effect="scoreBurnSpeed",value=.06,max=6,costs={18,32,50,74,104,142},wx=1430,wy=820,icon="warning",color={1,.34,.08},requires={{"fire_score_prewarm",1}}},
     {id="fire_score_stock",name="주머니 속 마지막 한 개비",short="추가 꽁초",desc="투척할 때 추가 꽁초 +1",effect="scoreExtraFires",value=1,max=1,costs={180},wx=1780,wy=650,icon="pack",color={1,.30,.08},requires={{"fire_score_heat",3}},capstone=true},

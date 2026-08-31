@@ -339,6 +339,15 @@ end
 -- 초반 픽은 완만하고, 3레벨이 옛 만렙과 거의 같고, 6레벨에서 옛 만렙의 약 1.87배로 마무리된다.
 -- 파워 스케일링(범위/피해/사거리 등)엔 이걸 쓰고, "만렙에서만" 발동하는 보너스 판정은 levelOf(id)>=6으로 확인한다.
 local levelCurve = {0, .5, 1.2, 2.0, 3.0, 4.2, 5.6}
+
+-- 확산의 기준 연소 시간. 확산 수치는 원래 "초당 확률"이라 연소속도를 올릴수록 나무가
+-- 빨리 타 없어져서 불씨를 옮길 시간 창이 줄었다. 즉 연소속도 특성이 확산 특성을
+-- 직접 깎아먹어, 확산 만렙(초당 .30)이 연소속도 투자만으로 임계점 아래로 떨어졌다.
+-- 이제 확산은 점화 시점에 "이 나무가 옮겨붙일 나무 수"를 확정하고 연소 구간에 균등
+-- 배치한다. 연소속도는 회전율에만 영향을 주고 연쇄 규모는 건드리지 않는다.
+local SPREAD_REFERENCE_BURN = 3.6
+ClearcutMode.SPREAD_REFERENCE_BURN = SPREAD_REFERENCE_BURN
+
 function ClearcutMode:power(id)
     local lvl = self:levelOf(id)
     if lvl <= 0 then return 0 end
@@ -2176,6 +2185,40 @@ function ClearcutMode:updateTreeSparks()
     end
 end
 
+-- 불붙은 나무 한 그루가 다 탈 때까지 옮겨붙일 나무의 기대 개수. 1.0을 넘으면 산불이
+-- 스스로 번지고(임계 돌파), 그 아래면 반드시 꺼진다. 연소속도와 무관하게 계산한다.
+function ClearcutMode:spreadFactor()
+    local dryPower = self:power("dry_forest")
+    local routeFire = self:skillBranch("molotov") == "flame_route" and 1.3 or 1
+    return (.12 + dryPower * .14 + (self.permanentTraits.spreadChance or 0))
+        * Synergies.ignitionChanceMultiplier(self) * routeFire * SPREAD_REFERENCE_BURN
+end
+
+-- 기대값을 정수 전파 횟수로 바꾼다. 소수부는 확률로 처리해 평균이 정확히 factor가 된다.
+function ClearcutMode:rollSpreadBudget()
+    local factor = self:spreadFactor()
+    local whole = math.floor(factor)
+    if love.math.random() < factor - whole then whole = whole + 1 end
+    return whole
+end
+
+-- 나무 점화의 단일 진입점. 모든 점화 경로가 확산 예산을 같은 방식으로 받도록 한다.
+function ClearcutMode:beginTreeBurn(node, depth)
+    node.burning, node.burnTimer, node.fireTickTimer = true, 0, 0
+    node.spreadDepth = depth or 0
+    node.spreadBudget, node.spreadDone = self:rollSpreadBudget(), 0
+end
+
+-- 확정된 확산 예산을 연소 구간에 균등 배치한다. 예산 n은 연소의 1/(n+1), 2/(n+1) …
+-- 지점에서 하나씩 나가므로, 연소가 빨라지면 간격만 좁아지고 총 전파량은 그대로다.
+function ClearcutMode:releaseSpread(node, burnDuration)
+    local budget, done = node.spreadBudget or 0, node.spreadDone or 0
+    if done >= budget or burnDuration <= 0 then return false end
+    if node.burnTimer / burnDuration < (done + 1) / (budget + 1) then return false end
+    node.spreadDone = done + 1
+    return true
+end
+
 function ClearcutMode:igniteNear(source, game, radius, count, depth)
     if self.rainSuppressFire then return end
     local candidates = {}
@@ -2188,7 +2231,7 @@ function ClearcutMode:igniteNear(source, game, radius, count, depth)
     for i = #candidates, 2, -1 do local j = love.math.random(i); candidates[i], candidates[j] = candidates[j], candidates[i] end
     depth = depth or ((source.spreadDepth or 0) + 1)
     for i = 1, math.min(count, #candidates) do
-        candidates[i].burning, candidates[i].burnTimer, candidates[i].spreadDepth, candidates[i].fireTickTimer = true, 0, depth, 0
+        self:beginTreeBurn(candidates[i], depth)
         game.world:igniteFx(candidates[i].x, candidates[i].y, false)
         self:spawnFireSpark(source.x, source.y, candidates[i].x, candidates[i].y)
     end
@@ -2399,8 +2442,6 @@ function ClearcutMode:updateFire(dt, game)
     end
     local dryLevel = self:levelOf("dry_forest")
     local dryPower = self:power("dry_forest")
-    local routeFire=self:skillBranch("molotov")=="flame_route"and 1.3 or 1
-    local spreadChancePerSec = (.12 + dryPower * .14 + self.permanentTraits.spreadChance) * Synergies.ignitionChanceMultiplier(self)*routeFire
     local spreadRadius = (130 + dryPower * 45) * Synergies.ignitionRadiusMultiplier(self)
     local burnDuration = math.max(2.2, (3.6 - dryPower * .35) /
         (self.permanentTraits.burnSpeed*ScoreOperations.burnSpeedMultiplier(self)))
@@ -2433,7 +2474,7 @@ function ClearcutMode:updateFire(dt, game)
                 node.burning = false
                 self:onTreeBurnedDown(node, game)
                 self:fellTree(node, game)
-            elseif love.math.random() < spreadChancePerSec * dt then
+            elseif self:releaseSpread(node, burnDuration) then
                 self:igniteNear(node, game, spreadRadius, 1)
             end
         end
@@ -2760,7 +2801,7 @@ function ClearcutMode:detonateFirework(projectile,game)
     local radius=projectile.radius;local felled=0
     for _,node in ipairs(game.world.nodes)do if node.rushTree and node.active and CombatGeometry.circleOverlapsTarget(projectile.x1,projectile.y1,radius,node,24)then
         if self:damageTreeWithSmokerWeapon(node,projectile.damage,game)then felled=felled+1
-        elseif not self.rainSuppressFire and love.math.random()<.38 then node.burning=true;node.burnTimer=0;node.fireTickTimer=0;node.spreadDepth=0 end
+        elseif not self.rainSuppressFire and love.math.random()<.38 then self:beginTreeBurn(node,0) end
     end end
     for _,enemy in ipairs(self.enemies)do if enemy.hp>0 and CombatGeometry.circleOverlapsTarget(projectile.x1,projectile.y1,radius,enemy)then
         enemy.hp=enemy.hp-(28+projectile.damage*1.5);enemy.visualHit=.18

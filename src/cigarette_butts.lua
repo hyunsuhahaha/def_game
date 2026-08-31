@@ -118,8 +118,7 @@ local function arrive(mode,transfer,at,game)
         node.visualHit=math.max(node.visualHit or 0,.16)
     else
         if not node.active then return end
-        node.burning,node.burnTimer,node.fireTickTimer=true,0,0
-        node.spreadDepth=0
+        mode:beginTreeBurn(node,0)
         node.cigaretteIgnitedAt=at
         -- Ignition has a rooted recoil of its own. It deliberately avoids camera
         -- trauma and generic damage debris: the atlas supplies the visible hit.
