@@ -83,7 +83,6 @@ python scripts/verify_asset_versions.py
 
 ```bash
 python scripts/render_score_trait_board.py      # 연구판
-python scripts/render_score_weapon_slots.py     # 무기 핫바
 python scripts/render_graduate_monkey_preview.py # 졸업 동료
 ```
 

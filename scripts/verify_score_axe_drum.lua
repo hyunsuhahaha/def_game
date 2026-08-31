@@ -26,7 +26,6 @@ game.feedback={last=nil,play=function(self,kind,strong)self.last={kind=kind,stro
 
 game:startClearcutScoreAttack()
 local mode=game.clearcut
-mode.scoreWeaponSlot=2
 game.world.nodes={}
 local drum={id=99,x=game.player.x+110,y=game.player.y,state="settled",hp=8,maxHp=8,angle=0,squash=1,hitFlash=0}
 mode.oilDrums={drum}

@@ -329,10 +329,14 @@ function CharacterTraitBoard:nodeWorld(node)
         fire_score_impact={750,600},
         fire_score_filter={750,850},fire_score_spark={400,850},
         fire_score_lighter={1450,850},fire_score_ash={1800,850},
+        -- 탄약 관리 갈래는 루트 왼쪽 위로 세운다. 개비 회전 → 보루 용량 → 보루 교체 순의
+        -- 한 줄기라 기존 착화/확산 갈래와 선이 겹치지 않는다.
+        fire_score_reload={400,600},fire_score_carton_size={400,350},fire_score_carton_reload={750,350},
         fire_score_launch={1100,600},fire_score_drag={1100,350},
         -- 상시 흡연은 루트 바로 아래 두 번째 노드다. 자동 투척과 폭죽 해금은 그 아래로
         -- 이어지고, 기존 연소속도→추가 꽁초 갈래는 오른쪽으로 빼서 겹치지 않게 한다.
         fire_score_alwayssmoke={1100,1100},fire_score_autothrow={1100,1350},
+        fire_score_autothrow_rate={1450,1350},
         fire_score_rocket_unlock={1100,1600},
         fire_score_heat={1450,1100},fire_score_stock={1800,1100},
         -- 공용/도끼는 왼쪽, 폭죽 강화는 해금 아래 한 줄로 편다.

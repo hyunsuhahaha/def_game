@@ -193,10 +193,18 @@ local scoreFireNodes={
     {id="fire_score_impact",name="꽁초 즉시 타격 반응",short="즉시 타격 반응",desc="꽁초 착지 즉시 최근접 대상 1개를 점화하고 짧은 정지·반동·전용 타격음을 적용합니다.",effect="scoreCigaretteImpact",value=1,max=1,costs={32},wx=750,wy=600,icon="ember",color={1,.42,.10},requires={{"fire_score_prewarm",1}}},
     -- 루트 바로 다음 두 번째 노드. 도끼·폭죽을 들고 있는 동안에도 한 갑을 다 쓴
     -- 긴 재장전을 포함한 흡연 상태가 계속 진행된다.
-    {id="fire_score_alwayssmoke",name="상시 흡연",short="상시 흡연",desc="다른 무기를 들고 있어도 계속 담배를 피웁니다. 담배로 바꾼 즉시 던질 수 있습니다.",effect="scoreAlwaysSmoking",value=1,max=1,costs={200},wx=2020,wy=760,icon="cigarette",color={.94,.72,.36},requires={{"fire_score_prewarm",1}}},
+    {id="fire_score_alwayssmoke",name="상시 흡연",short="상시 흡연",desc="근접 도끼질이나 폭죽 공격 중에도 담배 재장전이 계속됩니다.",effect="scoreAlwaysSmoking",value=1,max=1,costs={200},wx=2020,wy=760,icon="cigarette",color={.94,.72,.36},requires={{"fire_score_prewarm",1}}},
     {id="fire_score_filter",name="무기 사거리 상승",short="무기 사거리",desc="무기 사거리 +16",effect="scoreRange",value=16,max=6,costs={18,32,50,74,104,142},wx=730,wy=520,icon="filter",color={.88,.66,.32},requires={{"fire_score_prewarm",1}}},
     {id="fire_score_lighter",name="착화 범위 상승",short="착화 범위",desc="꽁초가 불씨를 옮기는 착화 반경 +12",effect="scoreArea",value=12,max=6,costs={18,32,50,74,104,142},wx=730,wy=900,icon="ember",color={.96,.43,.16},requires={{"fire_score_prewarm",1}}},
     {id="fire_score_spark",name="꽁초 착화 확률 상승",short="착화 확률",desc="꽁초의 착화 성공 확률 +1.2%p",effect="scoreIgnitionChance",value=.012,wx=1080,wy=380,icon="ember",color={1,.56,.16},requires={{"fire_score_filter",2}}},
+    -- 탄약 관리 갈래. 흡연자는 한 보루(기본 20개비) 단위로 탄창을 굴리는데(startSmoking),
+    -- 개비 재장전 하한 0.75초 · 보루 재장전 하한 2.4초 · 보루 크기 20개비가 전부 상수로
+    -- 박혀 있어서 공격속도를 아무리 올려도 이 세 벽에 그대로 막혔다. 셋을 각각 노드로 연다 —
+    -- 개비 회전(얼마나 자주 무는가), 보루 용량(긴 재장전이 얼마나 드문가), 보루 교체 비용
+    -- (그 긴 재장전이 얼마나 아픈가)은 서로 다른 축이라 한 노드로 묶으면 안 된다.
+    {id="fire_score_reload",name="개비 재장전 속도 상승",short="개비 재장전",desc="담배 한 개비를 무는 재장전 시간이 단계마다 8% 단축됩니다. (기본 1.25초, 하한 0.75초 — 하한도 함께 내려갑니다)",effect="scoreReloadSpeed",value=.08,max=5,costs={20,34,54,78,108},wx=400,wy=600,icon="clock",color={.86,.78,.58},requires={{"fire_score_prewarm",1}}},
+    {id="fire_score_carton_size",name="보루 개비 수 증가",short="보루 용량",desc="보루 하나에 담기는 담배가 단계마다 6개비 늘어납니다. 보루를 다 피울 때만 오는 긴 재장전이 그만큼 드물어집니다. (기본 20개비)",effect="scoreCartonSize",value=6,max=5,costs={24,42,64,92,126},wx=400,wy=350,icon="pack",color={.90,.62,.30},requires={{"fire_score_reload",2}}},
+    {id="fire_score_carton_reload",name="보루 교체 속도 상승",short="보루 교체",desc="보루를 다 피우고 새 보루를 뜯는 긴 재장전이 단계마다 12% 단축됩니다. (기본 4.4초, 하한 2.4초 — 하한도 함께 내려갑니다)",effect="scoreCartonReload",value=.12,max=4,costs={30,52,80,116},wx=750,wy=350,icon="cigarette",color={.78,.70,.46},requires={{"fire_score_carton_size",2}}},
     {id="fire_score_launch",name="꽁초 비행 속도 상승",short="비행 속도",desc="꽁초 비행 속도 +7%",effect="scoreProjectileSpeed",value=.07,wx=1080,wy=650,icon="wind",color={.82,.72,.42},requires={{"fire_score_prewarm",1}}},
     -- 값은 초당 확률 단위로 저장하고 런타임이 기준 연소시간(3.6초)을 곱해 "옮겨붙는
     -- 기대 그루 수"로 쓴다. 0레벨 0.43그루 → 6레벨 1.45그루로, 만렙이 임계점 1.00을
@@ -204,9 +212,9 @@ local scoreFireNodes={
     {id="fire_score_ash",name="불 확산량 상승",short="확산량",desc="불붙은 나무가 옮겨붙이는 기대 그루 +0.17 (만렙 1.45그루 — 1.00을 넘으면 산불이 스스로 번집니다)",effect="scoreSpreadChance",value=.047,max=6,costs={18,32,50,74,104,142},wx=1080,wy=940,icon="ash",color={.72,.52,.36},requires={{"fire_score_lighter",2}}},
     {id="fire_score_drag",name="무기 공격속도 상승",short="공격속도",desc="무기 공격속도 +4%",effect="scoreAttackSpeed",value=.04,max=6,costs={18,32,50,74,104,142},wx=1430,wy=470,icon="clock",color={.78,.76,.67},requires={{"fire_score_launch",2}}},
     {id="fire_score_heat",name="연소속도 상승",short="연소 속도",desc="불이 나무를 태우는 주기 6% 단축 (기본 1초마다 4피해, 연소 3.6초)",effect="scoreBurnSpeed",value=.06,max=6,costs={18,32,50,74,104,142},wx=1430,wy=820,icon="warning",color={1,.34,.08},requires={{"fire_score_prewarm",1}}},
-    {id="fire_score_stock",name="추가 꽁초 투척",short="추가 꽁초",desc="투척할 때 추가 꽁초 +1",effect="scoreExtraFires",value=1,max=1,costs={180},wx=1780,wy=650,icon="pack",color={1,.30,.08},requires={{"fire_score_heat",3}},capstone=true},
+    {id="fire_score_stock",name="추가 꽁초 투척",short="추가 꽁초",desc="투척할 때 추가 꽁초 +1 (자동 투척에도 그대로 적용됩니다)",effect="scoreExtraFires",value=1,max=2,costs={180,310},wx=1780,wy=650,icon="pack",color={1,.30,.08},requires={{"fire_score_heat",3}},capstone=true},
 
-    -- 무기 슬롯 공용 갈래. 공용 수치의 설명에는 무기 이름을 나열하지 않는다 —
+    -- 문맥 자동 무기 공용 갈래. 공용 수치의 설명에는 무기 이름을 나열하지 않는다 —
     -- "무기 사거리", "무기 공격속도"처럼 공용 단어만 쓴다. 무기가 늘거나 바뀔 때마다
     -- 설명을 전부 고쳐야 하는 하드코딩을 피하기 위한 규칙이다. 특정 무기에만 걸리는
     -- 수치(도끼 범위, 폭죽 반경 등)는 그 무기 이름을 그대로 쓴다. 도끼는 3+treeDamage, 폭죽은
@@ -226,17 +234,19 @@ local scoreFireNodes={
     -- 담배 갈래의 종착점. 여기서부터 손이 비고, 그 빈손이 폭죽 해금으로 이어진다.
     -- 자동 투척 루프 자체는 updateFire에 이미 있고(캠페인의 molotov 레벨용), 이 노드가
     -- 기록 모드에서 그 루프를 깨운다.
-    -- 기본 흡연자는 담배를 손에 들어야만 한 모금 빨고 던진다. 다른 무기를 들면
-    -- 재장전이 멈추므로, 슬롯을 바꿔 던지려면 매번 기다려야 한다. 이 특성을 찍으면
-    -- 무엇을 들고 있든 계속 피우고 있어서 바꾸는 즉시 던질 수 있다.
+    -- 기본 흡연자는 담배 공격 중에만 한 모금 빤다. 이 특성을 찍으면 근접 도끼질이나
+    -- 폭죽 공격 중에도 재장전이 계속된다.
     -- 도끼 상위 갈래. 기본 도끼는 동시 타격 3그루가 하드캡이라 후반 공급량을 못 따라간다.
     -- 충격파와 연속 벌목은 그 천장을 밀도에 비례하게 바꿔, 만렙 도끼가 후반까지 살아남게 한다.
     {id="fire_score_axe_shock",name="도끼 충격파",short="충격파",desc="나무를 쓰러뜨리면 주변 나무에 단계마다 2 피해를 줍니다. 범위는 단계마다 34 넓어집니다.",effect="scoreAxeShock",value=1,max=3,costs={90,150,230},wx=200,wy=1470,icon="blast",color={.86,.58,.30},requires={{"fire_score_axe_targets",2}}},
     {id="fire_score_axe_chain",name="연속 벌목",short="연속 벌목",desc="나무를 쓰러뜨리면 단계마다 18% 확률로 도끼 재사용 대기시간이 즉시 초기화됩니다.",effect="scoreAxeChain",value=.18,max=3,costs={90,150,230},wx=200,wy=1790,icon="clock",color={.78,.70,.42},requires={{"fire_score_axe_execute",3}}},
-    -- 도끼 갈래의 졸업. 마스터한 무기를 동료에게 넘기고 손은 다음 무기로 넘어간다.
-    {id="fire_score_axe_crew",name="도끼 원숭이 해금",short="도끼 원숭이",desc="졸업 원숭이 1마리가 합류하고 도끼를 넘겨받습니다. I 장비 가방에서 원숭이 무기를 담배·도끼·폭죽으로 교체할 수 있습니다.",effect="scoreAxeCrew",value=1,max=1,costs={800},wx=200,wy=2100,icon="capstone",color={.94,.52,.20},requires={{"fire_score_axe_shock",3},{"fire_score_axe_chain",3}},capstone=true},
-    {id="fire_score_autothrow",name="담배 자동 투척",short="자동 투척",desc="어떤 무기를 들고 있든 2.6초마다 꽁초가 자동으로 날아갑니다. 담배를 직접 들면 수동 투척이 그 위에 더해집니다.",effect="scoreAutoThrow",value=1,max=1,costs={240},wx=2020,wy=900,icon="cigarette",color={1,.46,.14},requires={{"fire_score_alwayssmoke",1}},capstone=true},
-    {id="fire_score_rocket_unlock",name="폭죽 로켓 해금",short="폭죽 해금",desc="장비 가방에 폭죽 로켓이 추가됩니다. 플레이어의 장착 무기 2칸이나 졸업 원숭이 장비 칸에 넣을 수 있습니다.",effect="scoreRocketUnlock",value=1,max=1,costs={260},wx=1150,wy=1250,icon="blast",color={1,.34,.10},requires={{"fire_score_autothrow",1}},capstone=true},
+    -- 도끼 갈래의 졸업. 마스터한 빌드를 동료에게 전수해 자동 벌목을 추가한다.
+    {id="fire_score_axe_crew",name="도끼 원숭이 해금",short="도끼 원숭이",desc="내 도끼 빌드의 절반 성능을 물려받은 졸업 원숭이 1마리가 자동 벌목합니다.",effect="scoreAxeCrew",value=1,max=1,costs={800},wx=200,wy=2100,icon="capstone",color={.94,.52,.20},requires={{"fire_score_axe_shock",3},{"fire_score_axe_chain",3}},capstone=true},
+    {id="fire_score_autothrow",name="담배 자동 투척",short="자동 투척",desc="근접 도끼질이나 폭죽 공격 중에도 2.6초마다 꽁초가 자동으로 날아갑니다.",effect="scoreAutoThrow",value=1,max=1,costs={240},wx=2020,wy=900,icon="cigarette",color={1,.46,.14},requires={{"fire_score_alwayssmoke",1}},capstone=true},
+    -- 자동 투척 간격은 updateFire에 2.6초 상수로 박혀 있어, 손이 도끼·폭죽으로 넘어간
+    -- 뒤로는 담배 화력이 공격속도와 무관하게 고정됐다. 그 상수를 여는 노드다.
+    {id="fire_score_autothrow_rate",name="자동 투척 주기 단축",short="자동 투척 주기",desc="자동 투척 간격이 단계마다 9% 짧아집니다. (기본 2.6초)",effect="scoreAutoThrowRate",value=.09,max=4,costs={48,80,124,180},wx=1450,wy=1350,icon="clock",color={1,.58,.20},requires={{"fire_score_autothrow",1}}},
+    {id="fire_score_rocket_unlock",name="폭죽 로켓 해금",short="폭죽 해금",desc="근접 대상이 없을 때의 원거리 공격이 폭죽 로켓으로 자동 전환됩니다.",effect="scoreRocketUnlock",value=1,max=1,costs={260},wx=1150,wy=1250,icon="blast",color={1,.34,.10},requires={{"fire_score_autothrow",1}},capstone=true},
     {id="fire_score_rocket_radius",name="폭죽 폭발 반경 상승",short="폭발 반경",desc="폭죽 로켓의 폭발 반경 +16",effect="scoreRocketRadius",value=16,max=5,wx=1700,wy=1300,icon="blast",color={1,.52,.18},requires={{"fire_score_rocket_unlock",1}}},
     {id="fire_score_rocket_damage",name="폭죽 폭발 피해 상승",short="폭발 피해",desc="폭죽 폭발이 나무에 주는 피해 +2",effect="scoreRocketDamage",value=2,max=5,wx=2050,wy=1350,icon="ember",color={1,.38,.14},requires={{"fire_score_rocket_unlock",1}}},
     {id="fire_score_rocket_speed",name="폭죽 비행 속도 상승",short="비행 속도",desc="폭죽 로켓이 목표까지 날아가는 속도 +12%",effect="scoreRocketSpeed",value=.12,max=4,costs={22,38,58,82},wx=1420,wy=1560,icon="wind",color={.82,.74,.46},requires={{"fire_score_rocket_radius",2}}},
@@ -599,13 +609,15 @@ function CharacterTraits:scoreAttackEffects()
         scoreOilDrum=0,scoreOilDrumInterval=0,scoreOilRadius=0,scoreOilIgnitionRadius=0,
         scoreOilDuration=0,scoreOilBurnDuration=0,scoreOilDamage=0,
         scoreGrayCat=0,scoreGrayCatChance=0,scoreGrayCatDelay=0,scoreGrayCatSpeed=0,
-        -- 무기 슬롯 3종용. scoreTreeDamage는 도끼·폭죽 공용이고, 나머지는 각 무기가
+        -- 문맥 자동 무기 3종용. scoreTreeDamage는 도끼·폭죽 공용이고, 나머지는 각 무기가
         -- 담배용 수치를 계수로 나눠 쓰던 것을 전용으로 분리한 값이다.
         scoreTreeDamage=0,
         scoreAxeArea=0,scoreAxeSpeed=0,scoreAxeTargets=0,scoreAxeExecute=0,
         scoreAxeShock=0,scoreAxeChain=0,scoreAxeCrew=0,
         scoreRocketRadius=0,scoreRocketDamage=0,scoreRocketSpeed=0,scoreRocketIgnite=0,scoreRocketCooldown=0,
-        scoreAutoThrow=0,scoreRocketUnlock=0,scoreAlwaysSmoking=0
+        scoreAutoThrow=0,scoreRocketUnlock=0,scoreAlwaysSmoking=0,
+        -- 담배 탄약 관리 갈래.
+        scoreReloadSpeed=0,scoreCartonSize=0,scoreCartonReload=0,scoreAutoThrowRate=0
     }
     for _,job in ipairs({"fire","universal"})do
         for _,node in ipairs(self:getScoreAttackNodes(job))do

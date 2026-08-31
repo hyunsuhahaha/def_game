@@ -40,7 +40,6 @@ local Maps = require("src.clearcut_maps")
 local SkillBranches = require("src.clearcut_skill_branches")
 local SmokerWeaponArt = require("src.smoker_weapon_art")
 local ScoreOperations = require("src.score_operations")
-local ScoreWeaponHotbarArt = require("src.score_weapon_hotbar_art")
 local GraduateMonkeyArt = require("src.graduate_monkey_art")
 local ScoreTierUpArt = require("src.score_tier_up_art")
 local ScoreAxeArt = require("src.score_axe_art")
@@ -54,7 +53,6 @@ ClearcutMode.GrayOilCatArt = require("src.gray_oil_cat_art")
 ClearcutMode.OilDrumSpillArt = require("src.oil_drum_spill_art")
 ClearcutMode.OIL_BASE_RADIUS=140
 ClearcutMode.OIL_ART_RADIUS=105
-ClearcutMode.CompanionInventory = require("src.companion_inventory")
 
 local scoreWeaponDefinitions = {
     {id="cigarette",name="담배"},
@@ -224,8 +222,7 @@ function ClearcutMode.new()
         timeSpawnTimer=35, scoreEnemyTimer=45, eliteTimer=200, reaperSpawned=false,
         stage=1, stageBossHpMul=1, stageElapsed=0, stageTimeLimit=stageTimeLimit(1), failureReason=nil,
         scoreAttack=false,scoreHardCap=720,scoreStartingTrees=6,scoreBaseTreeAllowance=12,scoreTreeAllowance=12,scoreRegenTier=1,scoreTierFx=nil,
-        scoreWoodEarned=0,scoreWeaponSlot=1,scoreEquippedWeapons={"cigarette","axe"},scoreAxeAction=nil,scoreAxeImpacts={},
-        companionInventoryOpen=false,inventoryHeld=nil,inventoryBag={},savedMonkeyWeapons={"axe"},
+        scoreWoodEarned=0,scoreActiveWeapon="cigarette",scoreAxeAction=nil,scoreAxeImpacts={},savedMonkeyWeapons={"axe"},
         scoreFellTimes={},scoreFellHead=1,currentTreesPerSecond=0,peakTreesPerSecond=0,scoreDeficitTimer=0,scoreCollapseActive=false,
         treeSpawnRate=.55,scoreSpawnRateMultiplier=1,treeSpawnAccumulator=0,
         totalTreesSpawned=0,peakActiveTrees=0,scoreActiveTreeCap=180,scoreGrowthPulses=0,
@@ -244,7 +241,8 @@ function ClearcutMode.new()
             scoreMoleAttackSpeed=0,scoreMoleClawTier=0,scoreMoleDualClaw=0,scoreMoleExtraCompanions=0,
             scoreOilDrum=0,scoreOilDrumInterval=0,scoreOilRadius=0,scoreOilIgnitionRadius=0,
             scoreOilDuration=0,scoreOilBurnDuration=0,scoreOilDamage=0,
-            scoreGrayCat=0,scoreGrayCatChance=0,scoreGrayCatDelay=0,scoreGrayCatSpeed=0
+            scoreGrayCat=0,scoreGrayCatChance=0,scoreGrayCatDelay=0,scoreGrayCatSpeed=0,
+            scoreReloadSpeed=0,scoreCartonSize=0,scoreCartonReload=0,scoreAutoThrowRate=0
         },
         reviveCharges=0,
         vinePlantTimer=60, vineSpawns={},
@@ -587,18 +585,11 @@ function ClearcutMode:setup(game)
     end
     if not self.scoreAttack then self:initForestZones(game)else self.forestZones={};self.treeSpawnAccumulator=0 end
     if self.scoreAttack then
-        local state=game.characterTraits and game.characterTraits.getEquipmentState and game.characterTraits:getEquipmentState()or nil
-        local ids={"cigarette","axe","firework"}
-        if state and state.configured then
-            self.scoreEquippedWeapons={ids[state.player[1]],ids[state.player[2]]}
-            self.savedMonkeyWeapons={}
-            for i,value in ipairs(state.monkeys or{})do self.savedMonkeyWeapons[i]=ids[value]end
-        elseif (self.permanentTraits.scoreAxeCrew or 0)>0 then
-            -- Graduation hands the axe to the monkey. Once rockets exist, the
-            -- two player slots naturally become cigarette + firework.
-            self.scoreEquippedWeapons={"cigarette",self:scoreWeaponUnlocked(3)and"firework"or nil}
-            self.savedMonkeyWeapons={"axe"}
-        else self.scoreEquippedWeapons={"cigarette","axe"};self.savedMonkeyWeapons={}end
+        -- Score mode has no equipment inventory. The click context owns the
+        -- weapon: nearby authored targets use the axe, otherwise the current
+        -- progression ranged weapon is used. A graduated monkey keeps the axe.
+        self.scoreActiveWeapon=self:scoreRangedWeaponId()
+        self.savedMonkeyWeapons={(self.permanentTraits.scoreAxeCrew or 0)>0 and"axe"or nil}
     end
     if self.scoreAttack and (self.permanentTraits.scoreMoleCompanion or 0)>0 then self:initMoleCompanion(game) end
     if self.scoreAttack and (self.permanentTraits.scoreAxeCrew or 0)>0 then self:initLumberjackCompanion(game) end
@@ -726,9 +717,9 @@ function ClearcutMode:initMoleCompanion(game)
     return true
 end
 
--- 도끼 갈래의 졸업 보상. 마스터한 무기를 동료에게 넘기고 손은 다음 무기로 넘어간다.
+-- 도끼 갈래의 졸업 보상. 마스터한 빌드를 동료에게 전수해 자동 벌목을 추가한다.
 -- 탐색/이동/타격 루프는 두더지와 같고 목록도 공유한다 — 그래야 서로 다른 나무를 맡는다.
--- 성능은 내 도끼의 절반이다. 손을 비워주는 게 보상이지 출력을 두 배로 만드는 게 아니다.
+-- 성능은 내 도끼의 절반이다. 별도 조작 없이 출력을 보존하되 두 배가 되지 않게 한다.
 function ClearcutMode:initLumberjackCompanion(game)
     -- 졸업 동료는 사람이 아니라 공용 원숭이 몸체를 쓰고 손에 든 무기만 다르다.
     local sprite,frames,fw,fh=GraduateMonkeyArt.sprite()
@@ -2834,7 +2825,10 @@ function ClearcutMode:updateFire(dt, game)
     local autoThrow = self.scoreAttack and (self.permanentTraits.scoreAutoThrow or 0) > 0
     if molotovLevel > 0 or autoThrow then
         self.molotovTimer = self.molotovTimer + dt
-        local interval = autoThrow and 2.6 or math.max(2.6, 8 - self:power("molotov") * 1.6)
+        -- `자동 투척 주기 단축`이 이 2.6초 상수를 연다. 손이 도끼·폭죽으로 넘어간 뒤의
+        -- 담배 화력은 오직 이 간격으로만 자라므로, 없으면 후반 담배 수치가 고정된다.
+        local autoInterval = 2.6 / (1 + math.max(0, self.permanentTraits.scoreAutoThrowRate or 0))
+        local interval = autoThrow and autoInterval or math.max(2.6, 8 - self:power("molotov") * 1.6)
         if self.molotovTimer >= interval then
             self.molotovTimer = 0
             self:throwMolotov(game)
@@ -3103,13 +3097,12 @@ function ClearcutMode:berserkerSpeedMult()
     return 1 + self:power("berserker") * .07 * math.min(self.streak, 14)
 end
 
--- `상시 흡연`을 찍으면 다른 무기를 들고 있는 동안에도 담배 재장전이 흐른다. 그래야
--- 슬롯을 바꾼 순간 바로 던지고 도끼로 돌아올 수 있다. 찍기 전에는 도끼를 드는 순간
--- 재장전이 멈추므로, 바꿀 때마다 한 모금 빨 시간을 기다려야 한다.
+-- `상시 흡연`을 찍으면 근접 도끼질이나 폭죽 공격 중에도 담배 재장전이 흐른다.
+-- 찍기 전에는 자동으로 도끼를 드는 동안 재장전이 멈춘다.
 -- 손은 도끼질 중이므로 플레이어 애니메이션은 건드리지 않는다.
 function ClearcutMode:tickSmokerReload(dt, game)
-    -- 기본은 담배를 손에 들어야만 피운다. `상시 흡연`을 찍어야 무엇을 들고 있든
-    -- 계속 피우고 있어서, 슬롯을 바꾼 즉시 던질 수 있다.
+    -- 기본은 담배 공격 중에만 피운다. `상시 흡연`을 찍어야 다른 공격 중에도
+    -- 계속 재장전된다.
     if (self.permanentTraits.scoreAlwaysSmoking or 0)<=0 then return end
     local smoking=self.smoking
     if not smoking or smoking.phase~="reload" then return end
@@ -3122,8 +3115,12 @@ end
 
 function ClearcutMode:updateHeldAxe(dt, game, heldOverride)
     if self.scoreAttack and self.job=="fire" then
-        local weapon=self:scoreWeaponId()
-        if not weapon then return false end
+        local held=heldOverride
+        if held==nil then held=love.mouse.isDown(1)end
+        local weapon=(self.scoreAxeAction or(held and self:scoreMeleeTargetAtAim(game)))and"axe"or self:scoreRangedWeaponId()
+        self.scoreActiveWeapon=weapon
+        game.player.scoreAxeEquipped=weapon=="axe"
+        game.player.hideAxeRange=weapon=="axe"
         if weapon~="cigarette" then self:tickSmokerReload(dt,game)end
         if weapon=="axe" then return self:updateScoreAxeAttack(dt,game,heldOverride)end
         if weapon=="firework" then return self:updateFireworkAttack(dt,game,heldOverride)end
@@ -3138,7 +3135,28 @@ function ClearcutMode:updateHeldAxe(dt, game, heldOverride)
 end
 
 function ClearcutMode:scoreWeaponId()
-    return (self.scoreEquippedWeapons or{})[self.scoreWeaponSlot or 1]
+    return self.scoreActiveWeapon or self:scoreRangedWeaponId()
+end
+
+function ClearcutMode:scoreRangedWeaponId()
+    return self:scoreWeaponUnlocked(3)and"firework"or"cigarette"
+end
+
+-- Contextual selection only claims the click when the cursor is actually on a
+-- nearby axe target. Merely standing beside a tree must not steal a deliberate
+-- ranged shot aimed elsewhere.
+function ClearcutMode:scoreMeleeTargetAtAim(game)
+    local range=190+self.permanentTraits.range+ScoreOperations.weaponRange(self)
+    local axeArea=(self.permanentTraits.scoreAxeArea or 0)+ScoreOperations.weaponArea(self)
+    local tx,ty=game.camera:screenToWorld(love.mouse.getPosition())
+    local reach=82+axeArea
+    if self:findAxeOilDrum(game,tx,ty,range,reach)then return true end
+    for _,node in ipairs(game.world.nodes)do if node.rushTree and node.active then
+        local playerDistance=(node.x-game.player.x)^2+(node.y-game.player.y)^2
+        local aimDistance=(node.x-tx)^2+(node.y-ty)^2
+        if playerDistance<=range*range and aimDistance<=reach*reach then return true end
+    end end
+    return false
 end
 
 -- 폭죽은 담배 자동 투척 다음 노드로 해금한다. 담배가 알아서 날아가기 시작해 손이
@@ -3150,73 +3168,11 @@ function ClearcutMode:scoreWeaponUnlocked(index)
     return true
 end
 
-function ClearcutMode:setScoreWeaponSlot(index,game)
-    index=tonumber(index)
-    local weapon=(self.scoreEquippedWeapons or{})[index]
-    if not self.scoreAttack or index<1 or index>2 or not weapon then return false end
-    self.scoreWeaponSlot=index
-    self.scoreAxeAction=nil
-    self.aimX,self.aimY,self.aimRadius=nil,nil,nil
-    self.vapeCharge=0
-    if game and game.player then
-        game.player.axeHolding=false
-        game.player.scoreAxeEquipped=weapon=="axe"
-        game.player.hideAxeRange=weapon=="axe"
-        game.player.autoAxeClock=nil
-        if game.player.clearClearcutAction then game.player:clearClearcutAction()end
-    end
-    local labels={cigarette="담배",axe="도끼",firework="폭죽 로켓"}
-    if game and game.setNotice then game:setNotice(index.."번 무기 — "..(labels[weapon]or weapon),"food")end
-    return true
-end
-
 function ClearcutMode:graduationMonkeys()
     local result={}
     for _,companion in ipairs(self.moleCompanions or{})do if companion.kind=="lumberjack"then result[#result+1]=companion end end
     return result
 end
-function ClearcutMode:refreshCompanionInventory()
-    self.inventoryBag={}
-    local assigned={}
-    for _,id in ipairs(self.scoreEquippedWeapons or{})do if id then assigned[id]=true end end
-    for _,monkey in ipairs(self:graduationMonkeys())do if monkey.prop then assigned[monkey.prop]=true end end
-    for index,def in ipairs(scoreWeaponDefinitions)do
-        if self:scoreWeaponUnlocked(index)and not assigned[def.id]then self.inventoryBag[#self.inventoryBag+1]=def.id end
-    end
-end
-function ClearcutMode:saveCompanionInventory(game)
-    if not game or not game.characterTraits or not game.characterTraits.saveEquipmentState then return end
-    local indexFor={cigarette=1,axe=2,firework=3}
-    local player={indexFor[self.scoreEquippedWeapons[1]]or 0,indexFor[self.scoreEquippedWeapons[2]]or 0};local monkeys={}
-    for index,monkey in ipairs(self:graduationMonkeys())do monkeys[index]=indexFor[monkey.prop]or 0 end
-    game.characterTraits:saveEquipmentState(player,monkeys)
-end
-function ClearcutMode:toggleCompanionInventory(game)
-    if not self.scoreAttack or #self:graduationMonkeys()==0 then
-        if game and game.setNotice then game:setNotice("졸업 원숭이를 먼저 해금해야 합니다","warn")end
-        return false
-    end
-    self.companionInventoryOpen=not self.companionInventoryOpen
-    if not self.companionInventoryOpen then self.inventoryHeld=nil;self:saveCompanionInventory(game)end
-    self:refreshCompanionInventory();return true
-end
-function ClearcutMode:companionInventoryClick(x,y,game)
-    local layout=self.companionInventoryLayout;if not layout then return false end
-    local kind,index=ClearcutMode.CompanionInventory.hit(layout,x,y)
-    if kind=="close"then
-        self.companionInventoryOpen=false;self.inventoryHeld=nil;self:refreshCompanionInventory();self:saveCompanionInventory(game);return true
-    end
-    local monkeys=self:graduationMonkeys();local list=kind=="player"and self.scoreEquippedWeapons or nil
-    if kind=="bag"then
-        self.inventoryBag[index],self.inventoryHeld=self.inventoryHeld,self.inventoryBag[index]
-    elseif kind=="monkey"then
-        local monkey=monkeys[index];if not monkey then return false end
-        monkey.prop,self.inventoryHeld=self.inventoryHeld,monkey.prop
-    elseif list then list[index],self.inventoryHeld=self.inventoryHeld,list[index] else return false end
-    if not self.scoreEquippedWeapons[self.scoreWeaponSlot or 1]then self.scoreWeaponSlot=self.scoreEquippedWeapons[1]and 1 or 2 end
-    self:saveCompanionInventory(game);return true
-end
-
 -- 쓰러진 나무 자리에서 퍼지는 충격파. 연쇄로 또 충격파를 부르지는 않는다 —
 -- 한 번의 도끼질이 무한 연쇄가 되지 않게 여기서 끊는다.
 function ClearcutMode:axeShockwave(x,y,level,game)
@@ -3581,11 +3537,17 @@ end
 -- 담배 한 개비 필 때마다의 짧은 "재장전"만 반복되지만, 다 피우면 새 보루를 뜯어야
 -- 하므로 훨씬 긴 재장전이 한 번 끼고 그 다음 다시 가득 찬 채로 시작한다.
 function ClearcutMode:startSmoking(game)
-    self.cartonSize = self.cartonSize or 20
+    self.cartonSize = 20 + math.floor(math.max(0, self.permanentTraits.scoreCartonSize or 0))
     if self.cartonAmmo == nil then self.cartonAmmo = self.cartonSize end
     local speed = (game.tools.axe.speed or 1) * game.player.gather * self.permanentTraits.attackSpeed*ScoreOperations.attackSpeedMultiplier(self)
     local newCarton = self.cartonAmmo <= 0
-    local dur = newCarton and math.max(2.4, 4.4 / speed) or math.max(.75, 1.25 / speed)
+    -- 두 재장전은 서로 다른 상수 벽에 막혀 있었다. 배수를 나눗셈으로 걸되 하한에도 같이
+    -- 걸어야 한다 — 하한만 남기면 2~3단계부터 노드가 아무 일도 하지 않는다.
+    local buttBoost = 1 + math.max(0, self.permanentTraits.scoreReloadSpeed or 0)
+    local cartonBoost = 1 + math.max(0, self.permanentTraits.scoreCartonReload or 0)
+    local dur = newCarton
+        and math.max(2.4 / cartonBoost, 4.4 / (speed * cartonBoost))
+        or math.max(.75 / buttBoost, 1.25 / (speed * buttBoost))
     if self.scoreAttack and not self.scoreInitialSmokingStarted then
         dur=math.max(.35,dur-math.max(0,self.permanentTraits.scoreInitialIgnitionReduction or 0))
         self.scoreInitialSmokingStarted=true
@@ -6778,25 +6740,6 @@ function ClearcutMode:drawHeldSmoker(game,t)
     end
 end
 
-function ClearcutMode:scoreWeaponSlotRect(index,w,h)
-    return ScoreWeaponHotbarArt.rect(index,w,h)
-end
-
-function ClearcutMode:scoreWeaponSlotAt(x,y,w,h)
-    if not self.scoreAttack then return nil end
-    for index=1,2 do
-        local sx,sy,sw,sh=self:scoreWeaponSlotRect(index,w,h)
-        if x>=sx and x<=sx+sw and y>=sy and y<=sy+sh then return index end
-    end
-end
-
-function ClearcutMode:drawScoreWeaponSlots(fonts,w,h)
-    if not self.scoreAttack then return end
-    local locked={}
-    for index=1,2 do locked[index]=not(self.scoreEquippedWeapons or{})[index]end
-    ScoreWeaponHotbarArt.draw(self.scoreWeaponSlot or 1,w,h,locked,self.scoreEquippedWeapons)
-end
-
 local function queueUpright(queue,x,y,draw,sortY,anchorY)
     queue[#queue+1]={x=x,y=y,anchorY=anchorY or y,sortBias=(sortY and sortY-y or 0),draw=draw}
 end
@@ -7441,8 +7384,6 @@ function ClearcutMode:drawHUD(game,fonts)
     local hpW=math.floor(260*uiScale);HUDArt.bar(20,135,hpW,14,math.max(0,self.hp/self.maxHp),"health",self.hp/self.maxHp<.3)
     love.graphics.setFont(fonts.micro or fonts.small);love.graphics.setColor(1,.94,.88);love.graphics.printf("HP  "..math.ceil(self.hp).." / "..self.maxHp,20,134,hpW,"center")
 
-    self:drawScoreWeaponSlots(fonts,w,h)
-
     local pct = self:destructionPct()
     local barW = math.floor(330*uiScale)
     local flash = self.regrowFlash > 0
@@ -7572,7 +7513,6 @@ function ClearcutMode:drawHUD(game,fonts)
         love.graphics.printf(text,w/2-146,h-45,292,"center")
     end
     ScoreTierUpArt.draw(self.scoreTierFx,fonts,w,h)
-    if self.companionInventoryOpen then ClearcutMode.CompanionInventory.draw(self,fonts,w,h)end
 end
 
 local function octagonPoints(cx, cy, r, rot)

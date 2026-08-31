@@ -25,20 +25,20 @@ mode:startSmoking(game)
 
 -- 상시 흡연을 산 상태면 도끼를 든 채 한 갑을 다 써서 생기는 긴 재장전도 완료된다.
 local axeReload=ClearcutMode.new();axeReload.job="fire";axeReload.scoreAttack=true
-axeReload.scoreEquippedWeapons={"cigarette","axe"};axeReload.scoreWeaponSlot=2
 axeReload.permanentTraits.scoreAlwaysSmoking=1
 axeReload.cartonSize=20;axeReload.cartonAmmo=0
 axeReload.smoking={phase="reload",t=0,dur=4.4,loaded=false,newCarton=true}
+axeReload.scoreMeleeTargetAtAim=function()return true end
 axeReload.updateScoreAxeAttack=function()return false end
-axeReload:updateHeldAxe(4.5,game,false)
+axeReload:updateHeldAxe(4.5,game,true)
 assert(axeReload.smoking.loaded and axeReload.smoking.phase=="loaded" and axeReload.cartonAmmo==20,
     "always-smoking did not finish an empty-carton reload while the axe was held")
 local gatedReload=ClearcutMode.new();gatedReload.job="fire";gatedReload.scoreAttack=true
-gatedReload.scoreEquippedWeapons={"cigarette","axe"};gatedReload.scoreWeaponSlot=2
 gatedReload.cartonSize=20;gatedReload.cartonAmmo=0
 gatedReload.smoking={phase="reload",t=0,dur=4.4,loaded=false,newCarton=true}
+gatedReload.scoreMeleeTargetAtAim=function()return true end
 gatedReload.updateScoreAxeAttack=function()return false end
-gatedReload:updateHeldAxe(4.5,game,false)
+gatedReload:updateHeldAxe(4.5,game,true)
 assert(gatedReload.smoking.phase=="reload" and gatedReload.smoking.t==0 and gatedReload.cartonAmmo==0,
     "axe-held reload advanced without the always-smoking node")
 
