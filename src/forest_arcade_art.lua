@@ -137,6 +137,11 @@ end
 function Art.drawBody(e, t)
     load()
     local pose=Art.pose(e,t)
+    local kick=e.impactKick or 0
+    if kick>0 then
+        local p=1-math.min(1,kick/.10)
+        pose.x=pose.x+(e.impactKickDir or 1)*math.sin(p*math.pi)*3
+    end
     local asset=assets[e.artKey or e.kind]
     if pose.spec.siege then drawSiegeShadow(e,pose) else
         love.graphics.setColor(.08,.07,.035,.28*pose.alpha)

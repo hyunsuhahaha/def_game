@@ -38,15 +38,13 @@ if math.abs((developer.aimX or 0)-340)>.01 or developer.aimRadius~=95 then failu
 assert(#failures==0,table.concat(failures,"; "))
 print("SMOKER_OBJECTS_AND_DEVELOPER_RANGE_OK")
 
--- Ground persistence and real delayed ignition, with deterministic probability.
+-- Ground persistence, immediate first contact, then delayed probabilistic spread.
 local Butts=require("src.cigarette_butts")
 local Art=require("src.cigarette_butt_art")
 local function tree(x,y) return {kind="tree",rushTree=true,active=true,x=x,y=y or 0,rushHp=3,rushMaxHp=3} end
 local function setup(nodes)
     local m=ClearcutMode.new();m.job="fire"
-    m.damageEnemiesInRadius=function() error("landing caused instant enemy damage") end
-    m.igniteNear=function() error("landing caused instant tree ignition") end
-    return m,{player=player,world={nodes=nodes,igniteFx=function() error("landing explosion returned") end}}
+    return m,{player=player,world={nodes=nodes,igniteFx=function() end}}
 end
 local function throw(m,x,y,target)
     m.molotovs[#m.molotovs+1]={x0=-100,y0=-100,x1=x,y1=y,t=0,dur=.4,radius=90,target=target}
@@ -59,31 +57,34 @@ local node=tree(50)
 local m,g=setup({node});throw(m,0,0)
 love.math.random=function() return 0 end
 advance(m,g,.4)
-assert(#m.molotovs==0 and #m.cigaretteButts==1 and not node.burning,"landing must only leave a butt")
+assert(#m.molotovs==0 and #m.cigaretteButts==1 and node.burning,"landing did not ignite its nearest target immediately")
 assert(#m.cigaretteLandingImpacts==1 and math.abs((m.cigaretteLandingImpacts[1].expiresAt-m.cigaretteLandingImpacts[1].startAt)-.42)<1e-6,
     "landing impact animation missing or mistimed")
 local butt=m.cigaretteButts[1]
+assert(#m.emberArrivals==1 and m.emberArrivals[1].instant and m.cigaretteHitStop==.03,
+    "landing has no immediate authored impact/hit-stop beat")
+assert(node.hitFlash>=.22 and node.hitShake>=.08 and math.abs(node.swayVel)>=1.85,
+    "immediate ignition has no local tree recoil")
+
+-- The same butt still spreads after the warm-up using the visible spark path.
+local spread=tree(45);g.world.nodes[#g.world.nodes+1]=spread
 advance(m,g,.14)
-assert(butt.attempts==0 and #m.emberTransfers==0,"ignition rolled before warm-up")
+assert(butt.attempts==0 and #m.emberTransfers==0,"spread rolled before warm-up")
 advance(m,g,.02)
-assert(butt.attempts==1 and #m.emberTransfers==1 and not node.burning,"success must launch a visible spark first")
+assert(butt.attempts==1 and #m.emberTransfers==1 and not spread.burning,"spread must launch a visible spark first")
 local transfer=m.emberTransfers[1]
-assert(node.cigaretteEmber==transfer,"spark did not reserve its target")
+assert(spread.cigaretteEmber==transfer,"spark did not reserve its target")
 advance(m,g,transfer.arrivesAt-m.smokerGroundTime-.001)
-assert(not node.burning,"tree ignited before spark arrival")
+assert(not spread.burning,"spread target ignited before spark arrival")
 advance(m,g,.002)
-assert(node.burning and node.burnTimer==0 and node.spreadDepth==0 and not node.cigaretteEmber,"spark arrival did not ignite exactly once")
-assert(#m.emberArrivals==1 and #m.emberTransfers==0,"arrival feedback missing")
-assert(node.hitFlash>=.18 and node.hitShake>=.11 and math.abs(node.swayVel)>=1.45,
-    "ignition has no local tree recoil")
-assert(math.abs((m.emberArrivals[1].expiresAt-m.emberArrivals[1].startAt)-.72)<1e-6,
-    "ignition impact atlas timing drifted")
+assert(spread.burning and spread.burnTimer==0 and spread.spreadDepth==0 and not spread.cigaretteEmber,"spark arrival did not ignite exactly once")
+assert(#m.emberTransfers==0,"arrived spread spark was not removed")
 
 -- Failing all rolls still consumes lifetime and leaves brief cold ash.
 local failed=tree(45)
-local f,fg=setup({failed});throw(f,0,0)
+local f,fg=setup({});throw(f,0,0)
 love.math.random=function() return 1 end
-advance(f,fg,.4+7,.016)
+advance(f,fg,.4);fg.world.nodes={failed};advance(f,fg,7,.016)
 assert(not failed.burning and f.cigaretteButts[1].attempts>=12,"failure was replaced by guaranteed ignition or retry cadence stayed slow")
 assert(f.cigaretteButts[1].phase=="cold" and #f.emberTransfers==0,"expired butt remains hot")
 advance(f,fg,1.51)
@@ -99,9 +100,9 @@ assert(rolls==0 and #isolated.emberTransfers==0 and not outside.burning,"ineligi
 
 -- Distance and dry-forest upgrades affect chance, not guaranteed landing ignition.
 local function probabilityAt(distance,dry)
-    local n=tree(distance);local p,pg=setup({n});p.levels.dry_forest=dry;throw(p,0,0)
+    local n=tree(distance);local p,pg=setup({});p.levels.dry_forest=dry;throw(p,0,0)
     love.math.random=function() return .82 end
-    advance(p,pg,.56)
+    advance(p,pg,.4);pg.world.nodes={n};advance(p,pg,.16)
     assert(not n.burning)
     return #p.emberTransfers
 end
@@ -111,14 +112,14 @@ assert(probabilityAt(0,0)==1 and probabilityAt(90,0)==0 and probabilityAt(90,3)=
 local shared=tree(35);local overlap,og=setup({shared})
 throw(overlap,0,0);throw(overlap,1,0);love.math.random=function() return 0 end
 advance(overlap,og,.56)
-assert(#overlap.emberTransfers==1,"multiple butts reserved one tree")
+assert(shared.burning and #overlap.emberTransfers==0,"simultaneous landings struck the same target more than once")
 shared.active=false
 advance(overlap,og,1)
-assert(not shared.burning and not shared.cigaretteEmber,"removed tree ignited or kept a stale reservation")
+assert(shared.burning and not shared.cigaretteEmber,"immediate target kept a stale ember reservation")
 
 -- Rain cancels in-flight sparks, extinguishes ground butts, and never relights them.
-local wetTree=tree(50);local rain,rg=setup({wetTree});throw(rain,0,0)
-advance(rain,rg,.56);assert(#rain.emberTransfers==1)
+local wetTree=tree(50);local rain,rg=setup({});throw(rain,0,0)
+advance(rain,rg,.4);rg.world.nodes={wetTree};advance(rain,rg,.16);assert(#rain.emberTransfers==1)
 rain.rainSuppressFire=true;advance(rain,rg,.01)
 assert(#rain.emberTransfers==0 and rain.cigaretteButts[1].phase=="wet" and not wetTree.cigaretteEmber)
 rain.rainSuppressFire=false;advance(rain,rg,1)
@@ -128,7 +129,7 @@ assert(rainy.cigaretteButts[1].phase=="wet","landing in rain did not extinguish"
 
 -- An already burning target cancels an incoming spark without restarting its fire.
 local live=tree(40);local race,raceGame=setup({live});throw(race,0,0);advance(race,raceGame,.56)
-live.burning=true;live.burnTimer=2
+live.burnTimer=2
 advance(race,raceGame,1)
 assert(live.burnTimer==2 and not live.cigaretteEmber,"arrival restarted an existing fire")
 
@@ -137,7 +138,7 @@ love.math.random=math.random
 local autoTree=tree(80,20);local auto,ag=setup({autoTree})
 auto:throwMolotov(ag);assert(autoTree.igniting and #auto.molotovs==1)
 advance(auto,ag,auto.molotovs[1].dur)
-assert(not autoTree.igniting and not autoTree.burning and #auto.cigaretteButts==1,"auto throw bypassed ground phase")
+assert(not autoTree.igniting and autoTree.burning and #auto.cigaretteButts==1,"auto throw lacks immediate landing contact")
 local barrage,bg=setup({});barrage.levels.molotov=6;bg.setNotice=function() end -- barrage bonus now gates on the new max (6), not the old max (3)
 for i=1,3 do barrage:hurlMolotovAt(40,0,bg) end
 assert(#barrage.molotovs==5,"barrage throw count changed")
@@ -173,6 +174,6 @@ for _,draw in ipairs(fixture.commands) do
     if draw.shader=="assets/shaders/cigarette-ground-fx.glsl" and draw.uniforms.fxKind==2 then smoke=true end
 end
 assert(nativeBody and smoke,"persistent butt/smoke not drawn through production paths")
-print("SMOKER_GROUND_EMBERS_OK landing=delayed chance=real expiry=7s rain=extinguish fps=independent")
+print("SMOKER_GROUND_EMBERS_OK landing=instant_first spread=delayed_chance hitstop=.03 expiry=7s rain=extinguish fps=independent")
 
 if SMOKER_GROUND_CAPTURE then dofile("scripts/smoker_ground_capture.lua") end

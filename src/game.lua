@@ -440,6 +440,13 @@ function Game:update(dt)
         self.camera:update(dt,self.player,self.world)
         return
     end
+    -- A cigarette contact gets one tiny presentation beat. Freeze gameplay but
+    -- keep camera presentation alive so the authored flash/recoil reads cleanly.
+    if self.clearcut and (self.clearcut.cigaretteHitStop or 0)>0 then
+        self.clearcut.cigaretteHitStop=math.max(0,self.clearcut.cigaretteHitStop-dt)
+        self.camera:update(dt,self.player,self.world)
+        return
+    end
     self.noticeTime = math.max(0, self.noticeTime - dt)
     local wx, wy = self.camera:screenToWorld(love.mouse.getPosition())
     self.hoverNode, self.hoverWall, self.hoverBuilding = self.world:findNodeAt(wx, wy), self.world:isWallAt(wx, wy), self.world:buildingAt(wx, wy)

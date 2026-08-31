@@ -113,7 +113,8 @@ function Art.drawTransfer(transfer,time)
 end
 
 function Art.drawArrival(arrival,time)
-    impactFrame("ignition",arrival,time,.72,arrival.targetKind=="enemy" and .48 or .64,127)
+    impactFrame("ignition",arrival,time,arrival.duration or .72,
+        arrival.scale or (arrival.targetKind=="enemy" and .48 or .64),127)
 end
 
 function Art.drawTreeFire(node,time)

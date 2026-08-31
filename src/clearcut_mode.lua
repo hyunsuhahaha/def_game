@@ -2266,6 +2266,7 @@ function ClearcutMode:updateEnemies(dt, game)
         local previousX, previousY = e.x, e.y
         e.visualTime = (e.visualTime or 0) + dt
         e.visualHit = math.max(0, (e.visualHit or 0) - dt)
+        e.impactKick = math.max(0, (e.impactKick or 0) - dt)
         e.visualAttack = math.max(0, (e.visualAttack or 0) - dt)
         e.hitTimer = math.max(0, e.hitTimer - dt)
         local airborneThisFrame=false
@@ -2706,9 +2707,8 @@ function ClearcutMode:updateMolotovs(dt, game)
     self:updateTreeSparks()
 end
 
--- 날아가는 꽁초가 몬스터를 스치면 그 자리에서 직접 피해를 준다. 착지(불씨 전이) 쪽은
--- 건드리지 않는다 — "착지는 흔적만 남기고 즉시 피해·점화 없음"은 cigarette_butts.lua의
--- 별도 계약이라 그대로 둔다. 이건 순전히 비행 중 직격 판정.
+-- 날아가는 꽁초가 몬스터를 스치면 피해와 함께 짧은 접촉 피드백을 준다.
+-- 착지의 최초 즉시 점화와 이후 잔류 불씨 확산은 cigarette_butts.lua가 담당한다.
 function ClearcutMode:updateMolotovImpacts(dt, game)
     if #self.enemies == 0 then return end
     local dmg = (6+self:power("molotov")*4)*(self:skillBranch("molotov")=="flame_route"and 1.35 or 1)
@@ -2722,8 +2722,14 @@ function ClearcutMode:updateMolotovImpacts(dt, game)
                     if CombatGeometry.sweptCircleOverlapsTarget(previousX,previousY,x,y,24,e) then
                         flight.hitSet[e] = true
                         e.hp = e.hp - dmg
-                        e.visualHit = .14
+                        e.visualHit = math.max(e.visualHit or 0,.20)
+                        e.impactKick=math.max(e.impactKick or 0,.10)
+                        e.impactKickDir=(e.x-previousX)>=0 and 1 or -1
                         self:igniteEnemy(e,game,0)
+                        self.emberArrivals[#self.emberArrivals+1]={x=e.x,y=e.y,startAt=self.smokerGroundTime,
+                            expiresAt=self.smokerGroundTime+.20,duration=.20,scale=.46,targetKind="enemy",instant=true}
+                        self.cigaretteHitStop=math.max(self.cigaretteHitStop or 0,.025)
+                        if game.feedback then game.feedback:play("butt_hit",true) end
                     end
                 end
             end

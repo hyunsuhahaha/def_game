@@ -43,7 +43,7 @@ def main():
             panel=Image.new('RGB',(image.width,image.height+36),(26,32,24));panel.paste(image,(0,0))
             ImageDraw.Draw(panel).text((12,image.height+8),label,font=font,fill=(241,217,170))
             return panel
-        selected=[(1,'0.1s 빠른 투척 중'),(3,'0.3s 착지 → 바닥에 잔류'),(4,'0.4s 첫 착화 실패 → 짧게 재시도'),(10,'1.0s 성공한 불씨가 나무로 이동'),(12,'1.2s 불씨 도착 → 밑동에서 점화')]
+        selected=[(1,'0.1s 빠른 투척 중'),(3,'0.3s 착지 → 최근접 대상 즉시 점화'),(4,'0.4s 접촉 파편 · 대상 반동'),(10,'1.0s 바닥 꽁초와 화염 지속'),(12,'1.2s 첫 접촉 뒤 확산 대기')]
         panels=[caption(frames[i],label,True) for i,label in selected]
         panels.append(caption(cold[0],'7.5s 별도 실패 사례 → 꺼진 꽁초',True))
         sheet=Image.new('RGB',(461*3,367*2),(26,32,24))
@@ -51,9 +51,9 @@ def main():
         sheet.save(out/'smoker-ground-lifecycle.png')
         labeled=[]
         for i,frame in enumerate(frames):
-            phase='빠른 투척' if i<3 else ('잔류 · 즉시 착화 대기' if i<4 else ('첫 시도 실패 · 재시도' if i<10 else ('불씨 전이' if i<12 else '밑동 착화')))
+            phase='빠른 투척' if i<3 else ('착지 · 즉시 점화' if i<5 else ('접촉 반동' if i<7 else '잔류 꽁초 · 화염 지속'))
             labeled.append(caption(frame,f'오프스크린 검증  {i/10:.1f}s  |  {phase}'))
         labeled[0].save(out/'smoker-ground-lifecycle.gif',save_all=True,append_images=labeled[1:],duration=100,loop=0)
-        frames[10].crop((330,260,500,400)).resize((680,560),Image.Resampling.NEAREST).save(out/'smoker-ground-transfer-zoom.png')
+        frames[4].crop((330,260,500,400)).resize((680,560),Image.Resampling.NEAREST).save(out/'smoker-ground-transfer-zoom.png')
         print('SMOKER_GROUND_VISUAL_OK shaders='+str(count)+' renderer='+renderer)
 if __name__=='__main__':main()

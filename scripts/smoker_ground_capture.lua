@@ -1,5 +1,5 @@
 -- Visual fixture using the real World, Player, Butts scheduler and art methods.
--- Fixed rolls demonstrate a failed attempt followed by a successful transfer.
+-- The main branch demonstrates the new immediate first contact and later spread.
 local fixture=require("scripts.forest_render_fixture")
 local Mode=require("src.clearcut_mode")
 local World=require("src.world")
@@ -19,11 +19,9 @@ assert(loader);player:setClearcutSprite(loader().fire,"fire")
 local mode=Mode.new();mode.job="fire";mode.smoking={phase="loaded",t=1,dur=1};mode.remainingTrees=5
 local game={player=player,world=world,setNotice=function() end}
 mode:hurlMolotovAt(372,360,game)
-local rolls=0
-local function chance() rolls=rolls+1;return rolls==1 and .99 or 0 end
 for frame=0,44 do
     if frame>0 then
-        love.math.random=chance
+        love.math.random=function() return 0 end
         mode:updateMolotovs(.1,game)
         love.math.random=math.random
     end
@@ -35,12 +33,15 @@ assert(target.burning,"capture never reached ignition")
 -- Independent all-failure branch: expired grey butt, never a burning tree.
 local failed=Mode.new();failed.job="fire";failed.smoking=mode.smoking
 target.burning=nil;target.cigaretteIgnitedAt=nil
+target.active=false
 failed:hurlMolotovAt(372,360,game)
+failed:updateMolotovs(.4,game)
+target.active=true
 love.math.random=function() return .99 end
-failed:updateMolotovs(7.5,game)
+failed:updateMolotovs(7.1,game)
 love.math.random=math.random
 fixture.time=7.5;fixture.reset()
 world:draw(player,failed);failed:drawWorldOverlay(game)
 fixture.save("docs/previews/smoker-ground-expired.json")
 assert(not target.burning and failed.cigaretteButts[1].phase=="cold")
-print("SMOKER_GROUND_CAPTURE_OK frames=45 fixed_rolls=fail_then_success expiry_branch=unlit")
+print("SMOKER_GROUND_CAPTURE_OK frames=45 landing=instant expiry_branch=unlit")

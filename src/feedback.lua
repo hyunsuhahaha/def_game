@@ -2,7 +2,7 @@ local Feedback = {}
 Feedback.__index = Feedback
 
 local function makeSource(kind)
-    local rate, duration = 22050, kind=="creak" and 1.05 or kind=="tier_up" and .46 or kind=="ignite" and .19 or kind=="ember_land" and .09 or .11
+    local rate, duration = 22050, kind=="creak" and 1.05 or kind=="tier_up" and .46 or kind=="ignite" and .19 or kind=="butt_hit" and .12 or kind=="ember_land" and .09 or .11
     local count = math.floor(rate * duration)
     local data = love.sound.newSoundData(count, rate, 16, 1)
     for i = 0, count - 1 do
@@ -18,6 +18,10 @@ local function makeSource(kind)
         elseif kind == "ember_land" then
             local snap=math.sin((t*1180-t*t*2100)*math.pi*2)*.32
             sample=(snap+noise*.38)*fade*fade
+        elseif kind == "butt_hit" then
+            local tick=math.sin((t*1480-t*t*2600)*math.pi*2)*.38*math.max(0,1-t/.055)
+            local thud=math.sin((t*118+t*t*70)*math.pi*2)*.34
+            sample=(tick+thud+noise*.22)*fade*fade
         elseif kind == "ignite" then
             local snap=math.sin((t*760+t*t*1700)*math.pi*2)*.42*math.max(0,1-t/.055)
             local crackle=noise*(.28+.18*math.sin(t*870*math.pi*2)^2)
@@ -49,7 +53,7 @@ end
 function Feedback.new()
     local self = setmetatable({pools = {}, cursor = {}}, Feedback)
     local ok = pcall(function()
-        for _, kind in ipairs({"tree", "stone", "ore", "metal", "harvest", "grass", "creak", "ember_land", "ignite", "tier_up"}) do
+        for _, kind in ipairs({"tree", "stone", "ore", "metal", "harvest", "grass", "creak", "ember_land", "butt_hit", "ignite", "tier_up"}) do
             self.pools[kind], self.cursor[kind] = {}, 1
             local source = makeSource(kind)
             source:setVolume(kind == "harvest" and .22 or kind=="grass" and .11 or kind=="creak" and .24 or .16)

@@ -53,21 +53,7 @@ function Butts.reset(mode)
     -- 나무→나무 확산 스파크(같은 이펙트를 재사용하는 별도 배열)도 함께 초기화한다.
     mode.treeSparks,mode.treeSparkArrivals={}, {}
     mode.smokerGroundTime=0
-end
-
--- Landing only creates a ground object. No ignition or enemy damage here.
-local function land(mode,flight,at,game)
-    if flight.target then flight.target.igniting=nil end
-    local butt={x=flight.x1,y=flight.y1,bornAt=at,expiresAt=at+Butts.lifetime,
-        nextAttemptAt=at+Butts.firstAttempt,radius=flight.radius or (90+mode:levelOf("molotov")*20),
-        angle=flight.landingAngle or .25,phase="smolder",attempts=0,wildfire=flight.wildfire}
-    mode.cigaretteButts[#mode.cigaretteButts+1]=butt
-    mode.cigaretteLandingImpacts=mode.cigaretteLandingImpacts or {}
-    mode.cigaretteLandingImpacts[#mode.cigaretteLandingImpacts+1]={
-        x=butt.x,y=butt.y,startAt=at,expiresAt=at+.42,angle=butt.angle
-    }
-    if game and game.feedback then game.feedback:play("ember_land",false) end
-    return butt
+    mode.cigaretteHitStop=0
 end
 
 local function candidate(butt,mode,nodes)
@@ -85,6 +71,54 @@ local function candidate(butt,mode,nodes)
         end
     end
     return target,targetKind,math.sqrt(nearest)
+end
+
+local function igniteTarget(mode,butt,target,targetKind,at,game,instant)
+    if mode.rainSuppressFire or target.burning then return false end
+    if targetKind=="enemy" then
+        if target.hp<=0 or not mode:igniteEnemy(target,game,0,at) then return false end
+        target.visualHit=math.max(target.visualHit or 0,instant and .20 or .16)
+        target.impactKick=math.max(target.impactKick or 0,instant and .10 or .07)
+        target.impactKickDir=(target.x-butt.x)>=0 and 1 or -1
+    else
+        if not target.active then return false end
+        mode:beginTreeBurn(target,0)
+        target.cigaretteIgnitedAt=at
+        target.hitFlash=math.max(target.hitFlash or 0,instant and .22 or .18)
+        target.hitShake=math.max(target.hitShake or 0,instant and .08 or .11)
+        local direction=(target.x-butt.x)>=0 and 1 or -1
+        target.swayVel=(target.swayVel or 0)+direction*(instant and 1.85 or 1.45)
+    end
+    mode.emberArrivals[#mode.emberArrivals+1]={x=target.x,y=target.y,startAt=at,
+        expiresAt=at+(instant and .28 or .72),duration=instant and .28 or .72,
+        scale=instant and (targetKind=="enemy"and .52 or .68)or nil,
+        targetKind=targetKind,seed=butt.angle or 0,instant=instant}
+    if instant then
+        mode.cigaretteHitStop=math.max(mode.cigaretteHitStop or 0,.03)
+        if game and game.feedback then game.feedback:play("butt_hit",true) end
+    elseif game and game.feedback then game.feedback:play("ignite",true) end
+    return true
+end
+
+-- The landing itself now lights one nearby target immediately. The persistent
+-- butt still owns the later probabilistic spread, so its seven-second area role
+-- remains intact while the throw has an immediate, readable result.
+local function land(mode,flight,at,game)
+    if flight.target then flight.target.igniting=nil end
+    local butt={x=flight.x1,y=flight.y1,bornAt=at,expiresAt=at+Butts.lifetime,
+        nextAttemptAt=at+Butts.firstAttempt,radius=flight.radius or (90+mode:levelOf("molotov")*20),
+        angle=flight.landingAngle or .25,phase="smolder",attempts=0,wildfire=flight.wildfire}
+    mode.cigaretteButts[#mode.cigaretteButts+1]=butt
+    mode.cigaretteLandingImpacts=mode.cigaretteLandingImpacts or {}
+    mode.cigaretteLandingImpacts[#mode.cigaretteLandingImpacts+1]={
+        x=butt.x,y=butt.y,startAt=at,expiresAt=at+.42,angle=butt.angle
+    }
+    if game and game.feedback then game.feedback:play("ember_land",false) end
+    if not mode.rainSuppressFire then
+        local target,targetKind=candidate(butt,mode,game.world.nodes)
+        if target then igniteTarget(mode,butt,target,targetKind,at,game,true) end
+    end
+    return butt
 end
 
 local function attempt(mode,butt,at,game)
@@ -113,30 +147,14 @@ local function arrive(mode,transfer,at,game)
     release(transfer)
     if not owned or mode.rainSuppressFire or node.burning then return end
     if (node.x-transfer.butt.x)^2+(node.y-transfer.butt.y)^2>transfer.butt.radius^2 then return end
-    if transfer.targetKind=="enemy" then
-        if node.hp<=0 or not mode:igniteEnemy(node,game,0,at) then return end
-        node.visualHit=math.max(node.visualHit or 0,.16)
-    else
-        if not node.active then return end
-        mode:beginTreeBurn(node,0)
-        node.cigaretteIgnitedAt=at
-        -- Ignition has a rooted recoil of its own. It deliberately avoids camera
-        -- trauma and generic damage debris: the atlas supplies the visible hit.
-        node.hitFlash=math.max(node.hitFlash or 0,.18)
-        node.hitShake=math.max(node.hitShake or 0,.11)
-        local direction=(node.x-transfer.butt.x)>=0 and 1 or -1
-        node.swayVel=(node.swayVel or 0)+direction*1.45
-    end
-    mode.emberArrivals[#mode.emberArrivals+1]={x=node.x,y=node.y,startAt=at,expiresAt=at+.72,
-        targetKind=transfer.targetKind,seed=transfer.butt.angle or 0}
-    if game and game.feedback then game.feedback:play("ignite",true) end
+    igniteTarget(mode,transfer.butt,node,transfer.targetKind,at,game,false)
 end
 
 function Butts.update(mode,dt,game)
     if dt<=0 then return end
     local start=mode.smokerGroundTime or 0
     local finish=start+dt
-    -- Landing only creates a ground object. No ignition or enemy damage here.
+    -- Landing creates the persistent ground object and one immediate ignition.
     for i=#mode.molotovs,1,-1 do
         local flight=mode.molotovs[i]
         local remaining=math.max(0,flight.dur-flight.t)
