@@ -6,6 +6,7 @@ local Cigarette = require("src.cigarette_sprite")
 local CigaretteButts = require("src.cigarette_butts")
 local CigaretteButtArt = require("src.cigarette_butt_art")
 local OilTrailArt = require("src.oil_trail_art")
+local OvercrowdWarningArt = require("src.overcrowd_warning_art")
 local StrawBaleArt = require("src.straw_bale_art")
 local MoleBurrowArt = require("src.mole_burrow_art")
 local BruteForceArt = require("src.brute_force_art")
@@ -7389,11 +7390,13 @@ function ClearcutMode:drawHUD(game,fonts)
     local w,h=love.graphics.getDimensions()
     local t = love.timer.getTime()
     local uiScale=math.max(.88,math.min(1.2,w/1280))
+    local remaining=self:stageTimeRemaining();local overtime=self.scoreAttack
+    local occupancy=overtime and self:scoreOccupancy()or 0
     drawBerserkOverlay(self.berserkState, w, h, t)
     drawDisasterOverlay(self, w, h, t)
+    if overtime then OvercrowdWarningArt.draw(occupancy,self.mapId,w,h,t)end
     drawOffscreenIndicators(self, game, fonts, w, h, t)
-    local remaining=self:stageTimeRemaining();local overtime=self.scoreAttack
-    local occupancy=overtime and self:scoreOccupancy()or 0;local urgent=overtime and occupancy>=.85 or remaining<=60
+    local urgent=overtime and occupancy>=.80 or remaining<=60
     local timeText=overtime and formatTime(self.stageElapsed or 0)or formatTime(remaining)
     love.graphics.setFont(fonts.big);love.graphics.setColor(urgent and {1,.30,.18} or {1,.96,.82});love.graphics.print(timeText,18,16)
     love.graphics.setFont(fonts.micro or fonts.small);love.graphics.setColor(urgent and {1,.55,.30} or {.82,.84,.76});love.graphics.print(self.scoreAttack and"벌목 기록"or("제한 시간 · "..Maps.stageCode(self.mapId,self.stage).." · "..(jobNames[self.job]or"벌목꾼")),20,51)
@@ -7418,7 +7421,7 @@ function ClearcutMode:drawHUD(game,fonts)
     local barW = math.floor(330*uiScale)
     local flash = self.regrowFlash > 0
     local forestX=math.floor(w/2-barW/2);love.graphics.setFont(fonts.micro or fonts.small);love.graphics.setColor(.90,.92,.78);love.graphics.print(self.scoreAttack and"숲 과밀도"or"남은 숲",forestX,17)
-    local countColor=occupancy>=.85 and{1,.35,.18}or occupancy>=.70 and{1,.72,.24}or{.70,1,.55}
+    local countColor=occupancy>=.90 and{1,.30,.16}or occupancy>=.80 and{1,.68,.20}or occupancy>=.70 and{1,.82,.28}or{.70,1,.55}
     love.graphics.setColor(flash and {1,.47,.32}or countColor);love.graphics.printf(self.scoreAttack and string.format("%d / %d그루",self.remainingTrees,self.scoreTreeAllowance or 12)or string.format("%.0f%%",100-pct),forestX,17,barW,"right")
     HUDArt.bar(forestX,38,barW,14,self.scoreAttack and occupancy or 1-pct/100,overtime and"health"or"forest",flash or(overtime and urgent))
     if not self.scoreAttack then ForestZones.drawHUD(self,fonts,w,61)end

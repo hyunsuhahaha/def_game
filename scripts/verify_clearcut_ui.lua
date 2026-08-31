@@ -6,6 +6,7 @@ love.graphics.getDimensions=function()return width,height end
 love.graphics.getWidth=function()return width end;love.graphics.getHeight=function()return height end
 local Mode=require("src.clearcut_mode")
 local Art=require("src.clearcut_ui_art")
+local OvercrowdWarningArt=require("src.overcrowd_warning_art")
 local fonts={};for name,size in pairs({micro=12,small=14,body=17,heading=21,big=28,title=36,display=48})do fonts[name]=love.graphics.newFont("assets/font-korean-regular.ttf",size)end
 local result={victory=true,operationName="온대림 전면 철거",bossName="고목 감시자",elapsed=247,wood=3820,trees=60,total=60,
     maxMulti=9,maxChain=14,level=12,stage=1,regrowPulses=6,treesRevived=41,rootedCount=3,beeSwarms=4,kills=7,zonesSecured=6,zonesTotal=6,traitEarned=60}
@@ -22,6 +23,16 @@ for _,size in ipairs({{960,540},{1280,720},{1920,1080}})do
 end
 fixture.reset();Art.bar(10,10,320,14,.64,"health");local rectangles=0;for _,cmd in ipairs(fixture.commands)do if cmd.op=="rectangle"then rectangles=rectangles+1 end;assert(not cmd.file,"minimal bar loaded a decorative asset")end
 assert(rectangles>=6,"pixel bar lost stepped shading")
+fixture.reset();assert(not OvercrowdWarningArt.draw(.79,"forest",1280,720,1),"overcrowd warning appeared below 80 percent")
+assert(#fixture.commands==0,"below-threshold overcrowd warning emitted draw commands")
+fixture.reset();assert(OvercrowdWarningArt.draw(.80,"forest",1280,720,1),"overcrowd warning did not start at 80 percent")
+local warningDraws,warningText=0,false
+for _,cmd in ipairs(fixture.commands)do
+    if cmd.op=="draw"or cmd.op=="rectangle"then warningDraws=warningDraws+1 end
+    if cmd.text then warningText=true end
+end
+assert(warningDraws>=8,"overcrowd warning lacks visible edge pressure")
+assert(not warningText,"overcrowd warning must remain visual-only without countdown copy")
 local modeSource=assert(io.open("src/clearcut_mode.lua","rb"));local modeText=modeSource:read("*a");modeSource:close()
 assert(modeText:find('"COMBO"',1,true),"fighting-game combo label missing")
 assert(not modeText:find("연속 채집 ×",1,true),"boxed harvest combo copy returned")

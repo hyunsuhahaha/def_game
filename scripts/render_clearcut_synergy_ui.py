@@ -5,8 +5,8 @@ import json,math
 from headless_lua import run
 ROOT=Path(__file__).resolve().parents[1];OUT=ROOT/'docs/previews'
 def rgba(c): return tuple(max(0,min(255,round(v*255))) for v in c)
-def render_ui(path,size):
- canvas=Image.new('RGBA',size,(0,0,0,255));draw=ImageDraw.Draw(canvas,'RGBA')
+def render_ui(path,size,background=(0,0,0,255)):
+ canvas=Image.new('RGBA',size,background);draw=ImageDraw.Draw(canvas,'RGBA')
  def composite_primitive(painter):
   nonlocal draw
   layer=Image.new('RGBA',size,(0,0,0,0));painter(ImageDraw.Draw(layer,'RGBA'));canvas.alpha_composite(layer);draw=ImageDraw.Draw(canvas,'RGBA')
@@ -48,7 +48,7 @@ def render_ui(path,size):
    alpha=out.getchannel('A').point(lambda a:a*color[3]//255);out=rgb.convert('RGBA');out.putalpha(alpha)
    ox=args[5] if len(args)>5 else 0;oy=args[6] if len(args)>6 else 0
    canvas.alpha_composite(out,(round(x-ox*abs(sx)),round(y-oy*abs(sy))))
- return canvas.convert('RGB')
+ return canvas if background[3]==0 else canvas.convert('RGB')
 def main():
  run(ROOT/'scripts/verify_clearcut_synergies.lua')
  print('CLEARCUT_SYNERGY_UI_REMOVED shared_renderer=available window=none')
