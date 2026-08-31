@@ -53,6 +53,9 @@ assert(dossier:find("운영 6종과 공격속도·추가 꽁초·착화 범위·
 assert(dossier:find("공용 스킬 · 운영·전투 강화 10종 활성",1,true),"dossier does not document the active score cards")
 assert(dossier:find("fire_score_prewarm",1,true)and dossier:find("fire_score_stock",1,true),"dossier score-mode permanent traits are stale")
 assert(dossier:find("universal_robot_start",1,true)and dossier:find("universal_robot_motor",1,true),"dossier baby robot permanent research is stale")
-assert(dossier:find('id:"universal_mole_companion"',1,true)and dossier:find('max:6',1,true),"dossier mole companion upgrades are stale")
+for _,id in ipairs({"universal_mole_companion","universal_mole_damage","universal_mole_speed","universal_mole_attack_speed",
+    "universal_mole_claw","universal_mole_dual","universal_mole_extra"})do
+    assert(dossier:find('id:"'..id..'"',1,true),"dossier split mole node is missing: "..id)
+end
 assert(not dossier:find("fire_score_procurement",1,true)and not dossier:find('id:"forest_expansion"',1,true),"removed automation content remains in dossier")
 print("CHARACTER_DOSSIER_OK skills="..checked.." fusions="..fusionChecked.." names/descriptions/max=synced")

@@ -323,7 +323,13 @@ expand("universal",{
     {id="universal_yard",name="벌목장 부지 확장",short="쌓아둘 자리",desc="벌목 기록 모드의 나무 허용량 +4그루",effect="scoreTreeAllowance",value=4,max=7,costs={16,26,40,58,80,108,142},wx=520,wy=850,icon="map",color={.48,.72,.42},scoreMode=true},
     {id="universal_robot_start",name="아기 로봇 기본 지급",short="첫 출근 동행",desc="벌목 기록 모드를 아기 운반 로봇 Lv.1로 시작",effect="scoreStartingBabyRobot",value=1,max=1,costs={42},wx=900,wy=680,icon="basket",color={.40,.86,1},scoreMode=true},
     {id="universal_robot_motor",name="아기 로봇 고속 모터",short="더 빨리 줍는다",desc="아기 운반 로봇 이동속도 +10%",effect="scoreRobotSpeed",value=.10,max=5,costs={22,38,58,82,112},wx=1260,wy=680,icon="clock",color={.55,.90,1},requires={{"universal_robot_start",1}},scoreMode=true},
-    {id="universal_mole_companion",name="두더지 작업반 채용",short="복리로 세지는 발톱",desc="1단계에 두더지 동료가 합류합니다. 이후 단계마다 발톱 피해 +1, 이동속도 +8%, 공격속도 +10%가 적용되며 3/5단계에는 발톱 자국이 커지고 6단계에는 양손으로 할큅니다.",effect="scoreMoleCompanion",value=1,max=6,costs={78,32,48,68,92,124},wx=900,wy=1020,icon="fist",color={.78,.62,.30},requires={{"universal_robot_start",1}},scoreMode=true},
+    {id="universal_mole_companion",name="두더지 동료 채용",short="두더지 채용",desc="벌목 기록 모드에 두더지 동료 1마리가 합류합니다.",effect="scoreMoleCompanion",value=1,max=1,costs={78},wx=1100,wy=1100,icon="fist",color={.78,.62,.30},requires={{"universal_robot_start",1}},scoreMode=true},
+    {id="universal_mole_damage",name="두더지 피해 상승",short="피해 상승",desc="두더지 발톱 피해가 단계마다 1 증가합니다.",effect="scoreMoleDamage",value=1,max=3,costs={30,48,72},wx=700,wy=1320,icon="fist",color={.86,.48,.24},requires={{"universal_mole_companion",1}},scoreMode=true},
+    {id="universal_mole_speed",name="두더지 이동속도 상승",short="이동속도 상승",desc="두더지 이동속도가 단계마다 10% 증가합니다.",effect="scoreMoleSpeed",value=.10,max=3,costs={26,44,66},wx=1100,wy=1370,icon="road",color={.48,.72,.82},requires={{"universal_mole_companion",1}},scoreMode=true},
+    {id="universal_mole_attack_speed",name="두더지 공격속도 상승",short="공격속도 상승",desc="두더지 공격속도가 단계마다 12% 증가합니다.",effect="scoreMoleAttackSpeed",value=.12,max=3,costs={32,52,78},wx=1500,wy=1320,icon="clock",color={.82,.68,.30},requires={{"universal_mole_companion",1}},scoreMode=true},
+    {id="universal_mole_claw",name="두더지 공격범위 상승",short="공격범위 상승",desc="두더지의 공격 가능 거리와 발톱 자국 크기가 단계마다 증가합니다.",effect="scoreMoleClawTier",value=1,max=2,costs={56,92},wx=500,wy=1570,icon="split",color={.92,.42,.22},requires={{"universal_mole_damage",2}},scoreMode=true},
+    {id="universal_mole_dual",name="두더지 양손 공격",short="양손 공격",desc="두더지가 한 번의 공격에 양손 발톱 자국을 남깁니다.",effect="scoreMoleDualClaw",value=1,max=1,costs={125},wx=500,wy=1820,icon="capstone",color={1,.32,.16},requires={{"universal_mole_claw",2}},scoreMode=true},
+    {id="universal_mole_extra",name="두더지 추가 채용",short="추가 동료 채용",desc="단계마다 두더지 동료 1마리가 추가로 합류합니다.",effect="scoreMoleExtraCompanions",value=1,max=2,costs={110,180},wx=1100,wy=1650,icon="split",color={.72,.58,.32},requires={{"universal_mole_speed",2},{"universal_mole_attack_speed",2}},scoreMode=true},
 })
 
 local byId = {}
@@ -347,8 +353,11 @@ end
 
 function CharacterTraits.decode(text)
     local data = defaults()
+    local legacyMoleRank,seenNewMoleNode=0,false
     for key, value in (text or ""):gmatch("([%w_]+)=([%d]+)") do
         local number = math.max(0, math.floor(tonumber(value) or 0))
+        if key=="universal_mole_companion"then legacyMoleRank=number end
+        if key:match("^universal_mole_")and key~="universal_mole_companion"then seenNewMoleNode=true end
         if key == "currency" then data.currency = number
         elseif key == "regenTier" then data.regenTier = math.max(1,number)
         elseif byId[key] then data.levels[key] = math.min(number, byId[key].max)
@@ -356,6 +365,14 @@ function CharacterTraits.decode(text)
             local job = key:sub(7)
             if data.storySeen[job] ~= nil then data.storySeen[job] = number > 0 end
         end
+    end
+    if legacyMoleRank>1 and not seenNewMoleNode then
+        data.levels.universal_mole_damage=math.min(3,legacyMoleRank-1)
+        data.levels.universal_mole_speed=math.min(3,math.max(0,legacyMoleRank-2))
+        data.levels.universal_mole_attack_speed=math.min(3,math.max(0,legacyMoleRank-3))
+        data.levels.universal_mole_claw=math.min(2,math.max(0,legacyMoleRank-4))
+        data.levels.universal_mole_dual=legacyMoleRank>=6 and 1 or 0
+        data.levels.universal_mole_extra=legacyMoleRank>=6 and 1 or 0
     end
     return data
 end
@@ -471,7 +488,8 @@ function CharacterTraits:effects(job)
         woodYield=1, forestRestock=0, treeVariety=0, scoreTreeAllowance=0,
         scoreRange=0,scoreArea=0,scoreAttackSpeed=0,scoreIgnitionChance=0,scoreSpreadChance=0,
         scoreProjectileSpeed=0,scoreBurnSpeed=0,scoreExtraFires=0,
-        scoreInitialIgnitionReduction=0,scoreStartingBabyRobot=0,scoreRobotSpeed=0,scoreMoleCompanion=0
+        scoreInitialIgnitionReduction=0,scoreStartingBabyRobot=0,scoreRobotSpeed=0,scoreMoleCompanion=0,
+        scoreMoleDamage=0,scoreMoleSpeed=0,scoreMoleAttackSpeed=0,scoreMoleClawTier=0,scoreMoleDualClaw=0,scoreMoleExtraCompanions=0
     }
     local function accumulate(nodes)
         for _, node in ipairs(nodes) do
@@ -495,7 +513,8 @@ function CharacterTraits:scoreAttackEffects()
         scoreTreeAllowance=0,scoreRange=0,scoreArea=0,scoreAttackSpeed=0,
         scoreIgnitionChance=0,scoreSpreadChance=0,scoreProjectileSpeed=0,
         scoreBurnSpeed=0,scoreExtraFires=0,scoreInitialIgnitionReduction=0,
-        scoreStartingBabyRobot=0,scoreRobotSpeed=0,scoreMoleCompanion=0
+        scoreStartingBabyRobot=0,scoreRobotSpeed=0,scoreMoleCompanion=0,
+        scoreMoleDamage=0,scoreMoleSpeed=0,scoreMoleAttackSpeed=0,scoreMoleClawTier=0,scoreMoleDualClaw=0,scoreMoleExtraCompanions=0
     }
     for _,job in ipairs({"fire","universal"})do
         for _,node in ipairs(self:getScoreAttackNodes(job))do

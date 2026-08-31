@@ -15,8 +15,11 @@ for i=0,5 do
     frames.walk[i+1]=love.graphics.newQuad(i*fw,0,fw,fh,image:getDimensions())
     frames.action[i+1]=love.graphics.newQuad(i*fw,fh,fw,fh,image:getDimensions())
 end
-local companion={x=178,y=275,sprite=sprite,frames=frames,fw=fw,fh=fh,state="attack",facing=1,
-    walkClock=1.4,attackT=.34,attackDuration=.62}
+local companions={
+    {x=205,y=270,sprite=sprite,frames=frames,fw=fw,fh=fh,state="attack",facing=1,walkClock=1.4,attackT=.25,attackDuration=.46},
+    {x=105,y=305,sprite=sprite,frames=frames,fw=fw,fh=fh,state="walk",facing=1,walkClock=.7,attackT=0,attackDuration=.46},
+    {x=170,y=332,sprite=sprite,frames=frames,fw=fw,fh=fh,state="walk",facing=1,walkClock=1.8,attackT=0,attackDuration=.46},
+}
 
 fixture.reset()
 love.graphics.setColor(.29,.43,.16,1);love.graphics.rectangle("fill",0,0,520,360)
@@ -25,10 +28,10 @@ for i=1,7 do love.graphics.ellipse("fill",38+i*67,322-(i%2)*9,43,10)end
 local tree=love.graphics.newImage("assets/trees/broadleaf-tree-cartoon-v3.png");tree:setFilter("nearest","nearest")
 love.graphics.setColor(0,0,0,.34);love.graphics.ellipse("fill",345,286,60,9)
 love.graphics.setColor(1,1,1,1);love.graphics.draw(tree,345,285,0,1,1,tree:getWidth()/2,tree:getHeight()*.91)
-mode:drawMoleCompanion(companion)
-MoleClawArt.spawn(mode,252,245,0,1,-1,24,1,false)
+for _,companion in ipairs(companions)do mode:drawMoleCompanion(companion)end
+MoleClawArt.spawn(mode,286,245,0,5,-1,nil,1,true)
 MoleClawArt.draw(mode,{},0)
 
 local output=assert(os.getenv("MOLE_COMPANION_CAPTURE"),"MOLE_COMPANION_CAPTURE is required")
 fixture.save(output)
-print("MOLE_COMPANION_CAPTURE_OK sprite=mole-v3 scale=.30 contact=claw-v1")
+print("MOLE_COMPANION_CAPTURE_OK team=3 sprite=mole-v3 scale=.30 contact=claw-tier3-dual")

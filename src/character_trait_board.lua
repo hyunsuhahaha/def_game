@@ -296,6 +296,9 @@ function CharacterTraitBoard:nodeWorld(node)
         fire_score_heat={1100,1100},fire_score_stock={1100,1350},
         universal_yard={700,850},universal_robot_start={1100,850},universal_robot_motor={1500,850},
         universal_mole_companion={1100,1100},
+        universal_mole_damage={700,1320},universal_mole_claw={500,1570},universal_mole_dual={500,1820},
+        universal_mole_speed={1100,1370},universal_mole_extra={1100,1650},
+        universal_mole_attack_speed={1500,1320},
     }
     local fixed=scoreLayout[node.id]
     if fixed then return fixed[1],fixed[2] end

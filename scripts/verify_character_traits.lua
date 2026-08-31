@@ -31,18 +31,26 @@ assert(lobby:mousepressed(20,20,1)=="score_attack" and lobby:mousepressed(130,20
 local store = CharacterTraits.new(true)
 assert(store:getRegenTier()==1 and store:unlockRegenTier(3) and store:getRegenTier()==3 and not store:unlockRegenTier(2),"persistent regeneration tier did not advance monotonically")
 local moleUpgradeStore=CharacterTraits.new(true)
-moleUpgradeStore.data.currency=1000
+moleUpgradeStore.data.currency=5000
 moleUpgradeStore.data.levels.universal_robot_start=1
-for rank=1,6 do
-    assert(moleUpgradeStore:buy("universal_mole_companion"),"mole companion rank "..rank.." was not purchasable")
+assert(moleUpgradeStore:buy("universal_mole_companion")and not moleUpgradeStore:buy("universal_mole_companion"),"mole hire root was not a one-rank node")
+for _,spec in ipairs({{"universal_mole_damage",3},{"universal_mole_speed",3},{"universal_mole_attack_speed",3},
+    {"universal_mole_claw",2},{"universal_mole_dual",1},{"universal_mole_extra",2}})do
+    for rank=1,spec[2]do assert(moleUpgradeStore:buy(spec[1]),spec[1].." rank "..rank.." was not purchasable")end
 end
-assert(moleUpgradeStore:getLevel("universal_mole_companion")==6 and not moleUpgradeStore:buy("universal_mole_companion"),
-    "mole companion research did not stop at rank six")
+local moleEffects=moleUpgradeStore:scoreAttackEffects()
+assert(moleEffects.scoreMoleCompanion==1 and moleEffects.scoreMoleDamage==3 and math.abs(moleEffects.scoreMoleSpeed-.30)<1e-9 and
+    math.abs(moleEffects.scoreMoleAttackSpeed-.36)<1e-9 and moleEffects.scoreMoleClawTier==2 and moleEffects.scoreMoleDualClaw==1 and
+    moleEffects.scoreMoleExtraCompanions==2,"split mole research nodes did not accumulate independently")
 local roundTrip=CharacterTraits.decode(CharacterTraits.encode(store.data))
 assert(roundTrip.regenTier==3,"persistent regeneration tier did not survive save encoding")
 local migrated=CharacterTraits.decode("fire_score_filter=6\nfire_score_lighter=6\nfire_score_ash=6\nfire_score_drag=6\nfire_score_heat=6\n")
 assert(migrated.levels.fire_score_filter==6 and migrated.levels.fire_score_heat==6 and migrated.levels.fire_score_spark==0 and migrated.levels.fire_score_stock==0,
     "legacy score research ranks were not preserved as granular traits")
+local migratedMole=CharacterTraits.decode("universal_mole_companion=6\n")
+assert(migratedMole.levels.universal_mole_companion==1 and migratedMole.levels.universal_mole_damage==3 and
+    migratedMole.levels.universal_mole_claw==2 and migratedMole.levels.universal_mole_dual==1 and
+    migratedMole.levels.universal_mole_extra==1,"legacy six-rank mole purchase was not migrated into the split graph")
 store.data.currency = 300
 local blocked = store:buy("physical_axe")
 assert(not blocked, "dependent character trait unlocked before its prerequisite")
@@ -55,7 +63,10 @@ assert(smoker.attackSpeed == 1 and smoker.range == 0, "logger traits leaked into
 store.data.levels.universal_yard=7
 store.data.levels.universal_robot_start=1
 store.data.levels.universal_robot_motor=5
-store.data.levels.universal_mole_companion=6
+store.data.levels.universal_mole_companion=1
+store.data.levels.universal_mole_damage=3;store.data.levels.universal_mole_speed=3
+store.data.levels.universal_mole_attack_speed=3;store.data.levels.universal_mole_claw=2
+store.data.levels.universal_mole_dual=1;store.data.levels.universal_mole_extra=2
 assert(store:effects("fire").scoreTreeAllowance==28,"permanent logging-yard capacity did not reach +28 trees at max rank")
 for _,id in ipairs({"fire_score_prewarm","fire_score_filter","fire_score_lighter","fire_score_spark","fire_score_launch","fire_score_ash","fire_score_drag","fire_score_heat"})do store.data.levels[id]=5 end
 store.data.levels.fire_score_stock=1
@@ -66,9 +77,10 @@ assert(math.abs(scoreSmoker.scoreAttackSpeed-.20)<1e-9 and math.abs(scoreSmoker.
 local activeScore=store:scoreAttackEffects()
 assert(activeScore.scoreInitialIgnitionReduction==.4,"score-mode opening ignition trait is not active")
 assert(activeScore.scoreStartingBabyRobot==1 and activeScore.scoreRobotSpeed==.5,"score-mode baby robot permanent research is not active")
-assert(activeScore.scoreMoleCompanion==6,"score-mode mole companion upgrades are not active")
+assert(activeScore.scoreMoleCompanion==1 and activeScore.scoreMoleDamage==3 and activeScore.scoreMoleExtraCompanions==2,
+    "split score-mode mole companion upgrades are not active")
 assert(activeScore.scoreStartingWood==nil and activeScore.scoreAutomationDiscount==nil,"removed score automation traits still affect runtime")
-assert(#store:getScoreAttackNodes("fire")==9 and #store:getScoreAttackNodes("universal")==4,"active research board did not isolate score-mode traits")
+assert(#store:getScoreAttackNodes("fire")==9 and #store:getScoreAttackNodes("universal")==10,"active research board did not expose the split mole graph")
 for _, job in ipairs({"physical","fire","toxic","developer"}) do
     assert(#store:getNodes(job) >= 30, job .. " character graph has too few trait nodes")
 end
@@ -97,6 +109,14 @@ store.data.levels.fire_score_prewarm=0
 local board=CharacterTraitBoard.new(store,fonts,sprites)
 assert(pcall(board.draw,board), "character trait board draw contract failed")
 assert(board.researchBackground==nil,"research board restored the removed forest-photo backdrop")
+local molePositions={};local minMoleY,maxMoleY=math.huge,-math.huge
+for _,id in ipairs({"universal_mole_companion","universal_mole_damage","universal_mole_speed","universal_mole_attack_speed",
+    "universal_mole_claw","universal_mole_dual","universal_mole_extra"})do
+    local mx,my=board:nodeWorld(store:getNode(id));local key=mx..":"..my
+    assert(not molePositions[key],"split mole research nodes overlap at "..key);molePositions[key]=true
+    minMoleY,maxMoleY=math.min(minMoleY,my),math.max(maxMoleY,my)
+end
+assert(maxMoleY-minMoleY>=700,"mole research graph is still compressed into one non-scrollable node cluster")
 local root=store:getNode("fire_score_prewarm")
 local rx,ry=board:nodeWorld(root)
 local directions={left=false,right=false,up=false,down=false}

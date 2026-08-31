@@ -25,6 +25,7 @@ local function capture(w,h,path,job)
     board:draw();fixture.save(path)
 end
 capture(1280,720,"docs/previews/score-trait-board-draws.json")
+capture(1280,720,"docs/previews/score-trait-board-universal-draws.json","universal")
 capture(2048,1038,"docs/previews/score-trait-board-wide-draws.json")
 capture(2048,1038,"docs/previews/score-trait-board-universal-wide-draws.json","universal")
-print("SCORE_TRAIT_BOARD_CAPTURE_OK 1280x720+2048x1038 universal=2048x1038 window=none")
+print("SCORE_TRAIT_BOARD_CAPTURE_OK 1280x720+2048x1038 universal=1280x720+2048x1038 window=none")

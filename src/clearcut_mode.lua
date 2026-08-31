@@ -196,7 +196,7 @@ function ClearcutMode.new()
         treeSparks={}, treeSparkArrivals={}, strawTimer=0, strawBales={}, strawBaleSequence=0,
         oilTrail={}, oilTrailTimer=0, oilTrailLastX=nil, oilTrailLastY=nil, oilTrailSequence=0,
         job=nil, attackCooldown=0, dashing=nil, dashTrail={}, smoking=nil,
-        minerClawAction=nil, minerClawFx={}, minerClawMarks={}, minerBurrow=nil, minerBurrowCooldown=0, thrownTrees={}, burrowTracks={}, burrowTrackSequence=0,moleCompanion=nil,
+        minerClawAction=nil, minerClawFx={}, minerClawMarks={}, minerBurrow=nil, minerBurrowCooldown=0, thrownTrees={}, burrowTracks={}, burrowTrackSequence=0,moleCompanion=nil,moleCompanions={},
         smokeRing=nil, smokeRingCooldown=0, smokeRingCharge=nil, smokeRingChargeDuration=1.5,
         salivaGauge=100, salivaGaugeMax=100, salivaDrainRate=30, salivaRegenRate=25, salivaExhausted=false,
         revivalTimer=0, revivalCooldown=0, eternalFields={},
@@ -224,7 +224,8 @@ function ClearcutMode.new()
             biteDamage=0, plagueDuration=0,
             dashSpeed=1, sterileChance=0, aftershockRadius=0, cooldownRefund=0,
             moveSpeed=1, pickupRadius=0, hpRegen=0, reviveCharges=0,
-            scoreInitialIgnitionReduction=0,scoreMoleCompanion=0
+            scoreInitialIgnitionReduction=0,scoreMoleCompanion=0,scoreMoleDamage=0,scoreMoleSpeed=0,
+            scoreMoleAttackSpeed=0,scoreMoleClawTier=0,scoreMoleDualClaw=0,scoreMoleExtraCompanions=0
         },
         reviveCharges=0,
         vinePlantTimer=60, vineSpawns={},
@@ -642,26 +643,41 @@ function ClearcutMode:initMoleCompanion(game)
         frames.walk[i+1]=love.graphics.newQuad(i*fw,0,fw,fh,sprite.image:getDimensions())
         frames.action[i+1]=love.graphics.newQuad(i*fw,fh,fw,fh,sprite.image:getDimensions())
     end
-    local x,y=require("src.clearcut_maps").constrain(game.world,game.player.x-86,game.player.y+54,42)
-    local rank=math.max(1,math.min(6,math.floor((self.permanentTraits and self.permanentTraits.scoreMoleCompanion)or 1)))
-    local upgrades=rank-1
-    self.moleCompanion={x=x,y=y,sprite=sprite,frames=frames,fw=fw,fh=fh,state="seek",target=nil,
-        rank=rank,facing=-1,walkClock=0,attackT=0,attackDuration=.62/(1+upgrades*.10),struck=false,
-        speed=225*(1+upgrades*.08),damage=1+rank,treesFelled=0}
+    local traits=self.permanentTraits or{}
+    local count=1+math.max(0,math.min(2,math.floor(traits.scoreMoleExtraCompanions or 0)))
+    self.moleCompanions={}
+    for index=1,count do
+        local angle=(index-1)/math.max(1,count)*math.pi*2
+        local x,y=require("src.clearcut_maps").constrain(game.world,
+            game.player.x-86+math.cos(angle)*54,game.player.y+54+math.sin(angle)*42,42)
+        self.moleCompanions[index]={x=x,y=y,sprite=sprite,frames=frames,fw=fw,fh=fh,state="seek",target=nil,
+            index=index,facing=-1,walkClock=(index-1)*.37,attackT=0,
+            attackDuration=.62/(1+math.max(0,traits.scoreMoleAttackSpeed or 0)),struck=false,
+            speed=225*(1+math.max(0,traits.scoreMoleSpeed or 0)),damage=2+math.max(0,traits.scoreMoleDamage or 0),
+            clawLevel=1+math.max(0,math.min(2,math.floor(traits.scoreMoleClawTier or 0)))*2,
+            attackReach=104+math.max(0,math.min(2,math.floor(traits.scoreMoleClawTier or 0)))*18,
+            dualClaw=(traits.scoreMoleDualClaw or 0)>0,treesFelled=0}
+    end
+    self.moleCompanion=self.moleCompanions[1]
     return true
 end
 
 function ClearcutMode:findMoleCompanionTree(companion,game)
-    local best,bestDistance
+    local claimed={}
+    for _,other in ipairs(self.moleCompanions or{})do
+        if other~=companion and other.target and other.target.active then claimed[other.target]=true end
+    end
+    local best,bestDistance,fallback,fallbackDistance
     for _,node in ipairs(game.world.nodes)do
         if node.rushTree and node.active and not node.giantTree and not node.treeEmergence then
             local dx,dy=node.x-companion.x,node.y-companion.y
             local distance=dx*dx+dy*dy
-            if not bestDistance or distance<bestDistance then best,bestDistance=node,distance end
+            if not fallbackDistance or distance<fallbackDistance then fallback,fallbackDistance=node,distance end
+            if not claimed[node]and(not bestDistance or distance<bestDistance)then best,bestDistance=node,distance end
         end
     end
-    companion.target=best
-    return best
+    companion.target=best or fallback
+    return companion.target
 end
 
 function ClearcutMode:moleCompanionImpact(companion,game)
@@ -669,13 +685,13 @@ function ClearcutMode:moleCompanionImpact(companion,game)
     if not node or not node.active or node.treeEmergence then return false end
     local dx,dy=node.x-companion.x,node.y-companion.y
     local distance=math.sqrt(dx*dx+dy*dy)
-    if distance>145 then return false end
+    if distance>(companion.attackReach or 104)+41 then return false end
     if distance<1 then dx,dy,distance=companion.facing or 1,0,1 end
     local nx,ny=dx/distance,dy/distance
     local contactX,contactY=companion.x+nx*math.min(72,distance),companion.y+ny*math.min(72,distance)
     local angle=moleCompanionAngle(ny,nx)
     local curveFlip=(companion.facing or 1)>0 and -1 or 1
-    MoleClawArt.spawn(self,contactX,contactY,angle,companion.rank or 1,curveFlip,nil,1,(companion.rank or 1)>=6)
+    MoleClawArt.spawn(self,contactX,contactY,angle,companion.clawLevel or 1,curveFlip,nil,1,companion.dualClaw)
     node.rushHp=(node.rushHp or node.rushMaxHp)-companion.damage
     game.world:impactNode(node,game,true)
     SupplementArt.impact(self,"axe",contactX,contactY,20)
@@ -683,10 +699,7 @@ function ClearcutMode:moleCompanionImpact(companion,game)
     return true
 end
 
-function ClearcutMode:updateMoleCompanion(dt,game)
-    local companion=self.moleCompanion
-    if not companion then return false end
-    MoleClawArt.update(self,dt)
+function ClearcutMode:updateOneMoleCompanion(companion,dt,game)
     companion.walkClock=companion.walkClock+dt*7.5
     if companion.state=="attack"then
         companion.attackT=math.min(companion.attackDuration,companion.attackT+dt)
@@ -706,8 +719,9 @@ function ClearcutMode:updateMoleCompanion(dt,game)
     local dx,dy=target.x-companion.x,target.y-companion.y
     local distance=math.sqrt(dx*dx+dy*dy)
     if math.abs(dx)>2 then companion.facing=dx<0 and -1 or 1 end
-    if distance>104 then
-        local step=math.min(distance-104,companion.speed*dt)
+    local attackReach=companion.attackReach or 104
+    if distance>attackReach then
+        local step=math.min(distance-attackReach,companion.speed*dt)
         local x,y=companion.x+dx/distance*step,companion.y+dy/distance*step
         companion.x,companion.y=require("src.clearcut_maps").constrain(game.world,x,y,42)
         companion.state="walk"
@@ -715,6 +729,18 @@ function ClearcutMode:updateMoleCompanion(dt,game)
         companion.state,companion.attackT,companion.struck="attack",0,false
     end
     return true
+end
+
+function ClearcutMode:updateMoleCompanion(dt,game)
+    local companions=self.moleCompanions or{}
+    if #companions==0 and self.moleCompanion then companions={self.moleCompanion}end
+    if #companions==0 then return false end
+    MoleClawArt.update(self,dt)
+    local updated=false
+    for _,companion in ipairs(companions)do
+        updated=self:updateOneMoleCompanion(companion,dt,game)or updated
+    end
+    return updated
 end
 
 function ClearcutMode:drawMoleCompanion(companion)
@@ -5939,7 +5965,9 @@ function ClearcutMode:queueWorldActors(queue,t)
     PhilosopherFusionArt.queue(self,queue)
     RevivalCrowdArt.queue(self,queue)
     WorldTreeSiege.queue(self,queue)
-    if self.moleCompanion then local companion=self.moleCompanion
+    local moleActors=self.moleCompanions
+    if not moleActors or #moleActors==0 then moleActors=self.moleCompanion and{self.moleCompanion}or{}end
+    for _,value in ipairs(moleActors)do local companion=value
         queue[#queue+1]={x=companion.x,y=companion.y,anchorY=companion.y,sortBias=.002,
             draw=function()self:drawMoleCompanion(companion)end}
     end
