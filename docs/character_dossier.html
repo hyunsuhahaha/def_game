@@ -708,6 +708,8 @@ const TRAITS = {
       {id:"universal_yard",name:"벌목장 부지 확장",short:"쌓아둘 자리",desc:"벌목 기록 모드의 나무 허용량 +4그루",max:7,costs:[16,26,40,58,80,108,142]},
       {id:"universal_robot_start",name:"아기 로봇 기본 지급",short:"첫 출근 동행",desc:"벌목 기록 모드를 아기 운반 로봇 Lv.1로 시작",max:1,costs:[42]},
       {id:"universal_robot_motor",name:"아기 로봇 고속 모터",short:"더 빨리 줍는다",desc:"아기 운반 로봇 이동속도 +10%",max:5,costs:[22,38,58,82,112],requires:[["universal_robot_start",1]]},
+      {id:"universal_oil_drum",name:"기름 드럼통 생성",short:"드럼통 생성",desc:"벌목 기록 모드에서 22초마다 기름 드럼통이 떨어집니다. 도끼로 두 번 타격하면 주변에 기름이 쏟아집니다.",max:1,costs:[64],requires:[["universal_robot_start",1]]},
+      {id:"universal_gray_cat",name:"회색 고양이 동료",short:"드럼통 자동 전복",desc:"회색 고양이가 화면 밖에서 달려와 떨어진 기름 드럼통을 넘어뜨리고, 반대편 화면 밖으로 점프해 나갑니다.",max:1,costs:[92],requires:[["universal_oil_drum",1]]},
       {id:"universal_mole_companion",name:"두더지 동료 채용",short:"두더지 채용",desc:"벌목 기록 모드에 두더지 동료 1마리가 합류합니다.",max:1,costs:[78],requires:[["universal_robot_start",1]]},
       {id:"universal_mole_damage",name:"두더지 피해 상승",short:"피해 상승",desc:"두더지 발톱 피해가 단계마다 1 증가합니다.",max:3,costs:[30,48,72],requires:[["universal_mole_companion",1]]},
       {id:"universal_mole_speed",name:"두더지 이동속도 상승",short:"이동속도 상승",desc:"두더지 이동속도가 단계마다 10% 증가합니다.",max:3,costs:[26,44,66],requires:[["universal_mole_companion",1]]},
@@ -776,7 +778,7 @@ const SKILLS = {
       {id:"saliva_gland",track:"venom",name:"침샘 발달",desc:"침에 맞은 대상은 서서히 중독되어 지속 피해를 입습니다."},
     ]
   },
-  universal: { label: "공용 스킬 · 운영·전투 강화 10종 활성", accent: "var(--c-universal)",
+  universal: { label: "공용 스킬 · 운영·전투 강화 12종 활성", accent: "var(--c-universal)",
     tagline: "직업이 뭐든, 몸에서 알아서 나가는 것들이 있다.",
     doctrine: "기록 모드는 목재 경험치로 운영 카드 6종과 직관적인 전투 강화 4종을 선택한다. 첫 강화는 목재 5에서 시작하고 이후 요구량은 8, 11 순서로 증가한다.",
     nodes: [
@@ -1033,7 +1035,7 @@ function renderAll() {
   document.getElementById("masthead-stamp").textContent = MODE_META[mode].stamp;
   document.getElementById("footer").textContent = mode === "traits"
     ? "src/character_traits.lua 기준 · 노드 순서는 선행 조건 깊이(단계) 순"
-    : "src/clearcut_mode.lua + score_operations.lua + character_traits.lua 기준 · 현재 로비는 흡연자 벌목 기록 모드만 활성화 · 저장된 재생 단계에서 6그루로 시작하고 0그루 달성 시 0.86초 전투 정지·잎/프리즘 단계 상승 FX·6그루 순차 발아 후 다음 단계가 영구 해금 · 재생 속도 0.14×1.75^(단계-1)×2^(플레이 시간/60초), HP 1.03^(단계-1) 정수 반올림으로 체력보다 재생 물량이 난도를 주도하며 같은 단계 무한 유지를 차단 · 허용량 60% 이상에서 최근 5초 벌목량이 자연 재생보다 낮은 상태가 5초 지속되면 별도 HUD 문구 없이 내부 재생이 가속되어 약한 런을 빠르게 종료 · 첫 강화는 목재 5, 이후 8·11 순서이며 운영 6종과 공격속도·추가 꽁초·착화 범위·연소속도 상승 4종을 선택 · 두더지 영구 연구는 동료 채용 루트에서 피해·이동속도·공격속도·발톱 범위·양손 공격·추가 동료 채용의 독립 노드로 갈라지고 최대 3마리를 실제 투입 · 강화하기 화면은 밝은 회백색 작업면 위 중앙 루트에서 여러 갈래로 뻗으며 선택한 노드의 이름·효과·단계·비용을 상단 한 곳에 표시하고 미니맵·숲 배경·중복 설명을 두지 않음 · 결과 화면은 생존 기록·핵심 통계 3개·연구 코인·강화하기/재도전 순서로 표시 · 로비 영구 성장은 스킬 레벨을 지급하지 않고 투척 거리·착화 반경·착화/확산 확률·흡연/비행/연소 속도·추가 꽁초 특성으로 분리 · 일반 작전·공용 전투 스킬·융합·시너지 코드는 삭제 없이 비활성 보존";
+    : "src/clearcut_mode.lua + score_operations.lua + character_traits.lua 기준 · 현재 로비는 흡연자 벌목 기록 모드만 활성화 · 저장된 재생 단계에서 6그루로 시작하고 0그루 달성 시 0.86초 전투 정지·잎/프리즘 단계 상승 FX·6그루 순차 발아 후 다음 단계가 영구 해금 · 재생 속도 0.14×1.75^(단계-1)×2^(플레이 시간/60초), HP 1.03^(단계-1) 정수 반올림으로 체력보다 재생 물량이 난도를 주도하며 같은 단계 무한 유지를 차단 · 허용량 60% 이상에서 최근 5초 벌목량이 자연 재생보다 낮은 상태가 5초 지속되면 별도 HUD 문구 없이 내부 재생이 가속되어 약한 런을 빠르게 종료 · 첫 강화는 목재 5, 이후 8·11 순서이며 운영 6종과 공격속도·추가 꽁초·착화 범위·연소속도 상승 4종을 선택 · 기름 드럼통 생성 연구는 22초마다 드럼통을 투하하고 도끼 두 번으로 기름을 쏟으며, 다음 회색 고양이 동료 연구는 승인된 회색 픽셀 고양이가 화면 밖에서 달려와 드럼통을 자동 전복한 뒤 반대편으로 점프 퇴장 · 두더지 영구 연구는 동료 채용 루트에서 피해·이동속도·공격속도·발톱 범위·양손 공격·추가 동료 채용의 독립 노드로 갈라지고 최대 3마리를 실제 투입 · 강화하기 화면은 밝은 회백색 작업면 위 중앙 루트에서 여러 갈래로 뻗으며 선택한 노드의 이름·효과·단계·비용을 상단 한 곳에 표시하고 미니맵·숲 배경·중복 설명을 두지 않음 · 결과 화면은 생존 기록·핵심 통계 3개·연구 코인·강화하기/재도전 순서로 표시 · 로비 영구 성장은 스킬 레벨을 지급하지 않고 투척 거리·착화 반경·착화/확산 확률·흡연/비행/연소 속도·추가 꽁초 특성으로 분리 · 일반 작전·공용 전투 스킬·융합·시너지 코드는 삭제 없이 비활성 보존";
   buildModeSwitch();
   buildTabs();
   renderPanel(document.getElementById("search").value);

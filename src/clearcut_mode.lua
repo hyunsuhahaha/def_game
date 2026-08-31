@@ -48,6 +48,7 @@ local WoodSettlementArt = require("src.wood_settlement_art")
 
 local ClearcutMode = {}
 ClearcutMode.__index = ClearcutMode
+ClearcutMode.GrayOilCatArt = require("src.gray_oil_cat_art")
 
 local scoreWeaponDefinitions = {
     {id="cigarette",name="담배"},
@@ -203,6 +204,7 @@ function ClearcutMode.new()
         smokerWeaponProjectiles={},smokerWeaponCooldown=0,vapeCharge=0,vapeKick=0,vapeWindLeaves={},
         treeSparks={}, treeSparkArrivals={}, strawTimer=0, strawBales={}, strawBaleSequence=0,
         oilTrail={}, oilTrailTimer=0, oilTrailLastX=nil, oilTrailLastY=nil, oilTrailSequence=0,
+        oilDrums={},oilDrumTimer=0,oilDrumSequence=0,oilPuddleGroups={},grayOilCat=nil,
         job=nil, attackCooldown=0, dashing=nil, dashTrail={}, smoking=nil,
         minerClawAction=nil, minerClawFx={}, minerClawMarks={}, minerBurrow=nil, minerBurrowCooldown=0, thrownTrees={}, burrowTracks={}, burrowTrackSequence=0,moleCompanion=nil,moleCompanions={},
         smokeRing=nil, smokeRingCooldown=0, smokeRingCharge=nil, smokeRingChargeDuration=1.5,
@@ -233,7 +235,8 @@ function ClearcutMode.new()
             dashSpeed=1, sterileChance=0, aftershockRadius=0, cooldownRefund=0,
             moveSpeed=1, pickupRadius=0, hpRegen=0, reviveCharges=0,
             scoreInitialIgnitionReduction=0,scoreMoleCompanion=0,scoreMoleDamage=0,scoreMoleSpeed=0,
-            scoreMoleAttackSpeed=0,scoreMoleClawTier=0,scoreMoleDualClaw=0,scoreMoleExtraCompanions=0
+            scoreMoleAttackSpeed=0,scoreMoleClawTier=0,scoreMoleDualClaw=0,scoreMoleExtraCompanions=0,
+            scoreOilDrum=0,scoreGrayCat=0
         },
         reviveCharges=0,
         vinePlantTimer=60, vineSpawns={},
@@ -581,6 +584,10 @@ function ClearcutMode:setup(game)
     end
     if not self.scoreAttack then self:initForestZones(game)else self.forestZones={};self.treeSpawnAccumulator=0 end
     if self.scoreAttack and (self.permanentTraits.scoreMoleCompanion or 0)>0 then self:initMoleCompanion(game) end
+    if self.scoreAttack and (self.permanentTraits.scoreOilDrum or 0)>0 then
+        ClearcutMode.GrayOilCatArt.load()
+        self.oilDrumTimer=3.5
+    end
     local notice=self.scoreAttack and string.format("벌목 기록 — 활성 나무가 %d그루에 닿으면 종료",self.scoreTreeAllowance)or(Maps.get(self.mapId).name.." — 마우스를 누른 채 나무 근처로 이동하세요")
     if self.job=="miner" then notice=Maps.get(self.mapId).name.." — 좌클릭 할퀴기 · SPACE/우클릭 잠복" end
     game:setNotice(notice, "food")
@@ -797,6 +804,176 @@ function ClearcutMode:drawMoleCompanion(companion)
     love.graphics.setColor(1,1,1,1)
     love.graphics.draw(sprite.image,companion.frames[row][frame],companion.x,companion.y-bob,0,
         .30*flip*poseScale,.30*poseScale,companion.fw/2,foot)
+end
+
+local function clearcutDistance(ax,ay,bx,by)
+    local dx,dy=bx-ax,by-ay
+    return math.sqrt(dx*dx+dy*dy),dx,dy
+end
+
+function ClearcutMode:spawnOilDrum(game)
+    if not self.scoreAttack or (self.permanentTraits.scoreOilDrum or 0)<=0 then return false end
+    local live=0
+    for _,drum in ipairs(self.oilDrums or{})do if drum.state~="spilled"then live=live+1 end end
+    if live>=3 then return false end
+    local MapsModule=require("src.clearcut_maps")
+    local x,y
+    for _=1,24 do
+        local angle=love.math.random()*math.pi*2
+        local radius=150+love.math.random()*120
+        local candidateX,candidateY=MapsModule.constrain(game.world,
+            game.player.x+math.cos(angle)*radius,game.player.y+math.sin(angle)*radius,58)
+        local clear=true
+        for _,node in ipairs(game.world.nodes or{})do
+            if node.active and (node.x-candidateX)^2+(node.y-candidateY)^2<82^2 then clear=false;break end
+        end
+        if clear then x,y=candidateX,candidateY;break end
+    end
+    if not x then x,y=MapsModule.constrain(game.world,game.player.x+180,game.player.y+80,58)end
+    self.oilDrumSequence=(self.oilDrumSequence or 0)+1
+    self.oilDrums[#self.oilDrums+1]={
+        id=self.oilDrumSequence,x=x,y=y,state="falling",age=0,fallDuration=.58,z=280,
+        hp=8,maxHp=8,angle=0,squash=1,hitFlash=0,claimed=false
+    }
+    return self.oilDrums[#self.oilDrums]
+end
+
+function ClearcutMode:spillOilDrum(drum,source)
+    if not drum or drum.state=="spilled"then return false end
+    drum.state,drum.spillAge,drum.claimed="spilled",0,false
+    drum.angle=drum.angle~=0 and drum.angle or 1.35
+    self.oilTrailSequence=(self.oilTrailSequence or 0)+1
+    local group="drum_"..tostring(drum.id or self.oilTrailSequence)
+    local spots={}
+    for index=1,11 do
+        local ring=index==1 and 0 or(index<=5 and 34 or 68)
+        local angle=(index*2.399963)+((drum.id or 0)*.41)
+        local spot={
+            x=drum.x+math.cos(angle)*ring,y=drum.y+math.sin(angle)*ring*.48,
+            spawnedAt=self.smokerGroundTime,ignited=false,angle=angle,
+            variant=(index-1)%3+1,sequence=self.oilTrailSequence+index,
+            source="drum",group=group,lifetime=20
+        }
+        self.oilTrail[#self.oilTrail+1]=spot;spots[#spots+1]=spot
+    end
+    self.oilPuddleGroups[group]={id=group,x=drum.x,y=drum.y,radius=105,spots=spots,tickTimer=0,source=source}
+    return true
+end
+
+function ClearcutMode:hitOilDrum(drum,damage,game)
+    if not drum or drum.state~="settled"then return false end
+    drum.hp=math.max(0,(drum.hp or drum.maxHp or 8)-(damage or 4))
+    drum.hitFlash=.16
+    drum.angle=(drum.angle or 0)+((drum.hp%2==0)and-.07 or .07)
+    SupplementArt.impact(self,"axe",drum.x,drum.y-42,24)
+    if drum.hp<=0 then self:spillOilDrum(drum,"axe")end
+    return true
+end
+
+function ClearcutMode:findAxeOilDrum(game,tx,ty,range,reach)
+    local best,bestDistance
+    for _,drum in ipairs(self.oilDrums or{})do if drum.state=="settled"then
+        local playerDistance=(drum.x-game.player.x)^2+(drum.y-game.player.y)^2
+        local aimDistance=(drum.x-tx)^2+(drum.y-ty)^2
+        if playerDistance<=range*range and aimDistance<=reach*reach and(not bestDistance or aimDistance<bestDistance)then
+            best,bestDistance=drum,aimDistance
+        end
+    end end
+    return best
+end
+
+local function offscreenPoint(camera,screenX,screenY)
+    if camera and camera.screenToWorld then return camera:screenToWorld(screenX,screenY)end
+    return screenX,screenY
+end
+
+function ClearcutMode:startGrayOilCat(drum,game)
+    if self.grayOilCat or not drum or drum.state~="settled"then return false end
+    local w,h=love.graphics.getDimensions()
+    local screenX,screenY=w*.5,h*.58
+    if game.camera and game.camera.worldToScreen then screenX,screenY=game.camera:worldToScreen(drum.x,drum.y)end
+    local side=screenX<w*.5 and -1 or 1
+    screenY=math.max(100,math.min(h-90,screenY))
+    local startX,startY=offscreenPoint(game.camera,side<0 and-110 or w+110,screenY)
+    local exitX,exitY=offscreenPoint(game.camera,side<0 and w+130 or-130,screenY)
+    local facing=side<0 and 1 or-1
+    drum.claimed=true
+    self.grayOilCat={
+        x=startX,y=startY,state="enter",stateTime=0,animClock=0,target=drum,
+        facing=facing,approachX=drum.x-facing*56,approachY=drum.y+4,
+        exitX=exitX,exitY=exitY,pushDuration=.78,jumpZ=0
+    }
+    return true
+end
+
+function ClearcutMode:beginGrayOilCatExit(cat)
+    if not cat or cat.state=="exit"then return end
+    cat.state,cat.stateTime,cat.jumpZ="exit",0,0
+    local distance=clearcutDistance(cat.x,cat.y,cat.exitX,cat.exitY)
+    cat.exitDuration=math.max(.7,distance/470)
+end
+
+function ClearcutMode:updateGrayOilCat(dt,game)
+    local cat=self.grayOilCat
+    if not cat then return false end
+    cat.animClock=(cat.animClock or 0)+dt
+    cat.stateTime=(cat.stateTime or 0)+dt
+    local drum=cat.target
+    if cat.state~="exit"and(not drum or drum.state=="spilled")then self:beginGrayOilCatExit(cat)end
+    if cat.state=="enter"then
+        local distance,dx,dy=clearcutDistance(cat.x,cat.y,cat.approachX,cat.approachY)
+        if distance<=6 then cat.x,cat.y,cat.state,cat.stateTime=cat.approachX,cat.approachY,"push",0
+        else
+            local step=math.min(distance,360*dt)
+            cat.x,cat.y=cat.x+dx/distance*step,cat.y+dy/distance*step
+        end
+    elseif cat.state=="push"then
+        local p=math.min(1,cat.stateTime/cat.pushDuration)
+        drum.angle=cat.facing*p*1.28
+        drum.x=drum.x+cat.facing*dt*18
+        if p>=.56 and drum.state~="spilled"then self:spillOilDrum(drum,"cat")end
+        if p>=.72 then self:beginGrayOilCatExit(cat)end
+    elseif cat.state=="exit"then
+        local p=math.min(1,cat.stateTime/(cat.exitDuration or 1))
+        local smooth=p*p*(3-2*p)
+        if not cat.exitStartX then cat.exitStartX,cat.exitStartY=cat.x,cat.y end
+        cat.x=cat.exitStartX+(cat.exitX-cat.exitStartX)*smooth
+        cat.y=cat.exitStartY+(cat.exitY-cat.exitStartY)*smooth
+        cat.jumpZ=math.sin(p*math.pi)*42
+        if p>=1 then self.grayOilCat=nil end
+    end
+    return true
+end
+
+function ClearcutMode:updateOilDrums(dt,game)
+    if not self.scoreAttack or (self.permanentTraits.scoreOilDrum or 0)<=0 then return false end
+    self.oilDrumTimer=(self.oilDrumTimer or 0)-dt
+    if self.oilDrumTimer<=0 then
+        self.oilDrumTimer=22
+        self:spawnOilDrum(game)
+    end
+    for index=#self.oilDrums,1,-1 do
+        local drum=self.oilDrums[index]
+        drum.hitFlash=math.max(0,(drum.hitFlash or 0)-dt)
+        if drum.state=="falling"then
+            drum.age=drum.age+dt
+            local p=math.min(1,drum.age/drum.fallDuration)
+            drum.z=(1-p*p)*280
+            drum.squash=p>.84 and 1-math.sin((p-.84)/.16*math.pi)*.18 or 1
+            if p>=1 then drum.state,drum.z,drum.squash="settled",0,1 end
+        elseif drum.state=="spilled"then
+            drum.spillAge=(drum.spillAge or 0)+dt
+            drum.alpha=math.max(0,1-drum.spillAge/1.4)
+            if drum.spillAge>=1.4 then table.remove(self.oilDrums,index)end
+        end
+    end
+    if (self.permanentTraits.scoreGrayCat or 0)>0 and not self.grayOilCat then
+        for _,drum in ipairs(self.oilDrums)do
+            if drum.state=="settled"and not drum.claimed then self:startGrayOilCat(drum,game);break end
+        end
+    end
+    self:updateGrayOilCat(dt,game)
+    return true
 end
 
 function ClearcutMode:scoreDynamicTreeCap()
@@ -1049,6 +1226,7 @@ function ClearcutMode:update(dt, game)
     if tierTransition then return end
     if self:updateScoreTreeGrowth(dt,game)then return end
     self:updateMoleCompanion(dt,game)
+    self:updateOilDrums(dt,game)
     self:updateHeldAxe(dt, game)
     self:updateThrownTrees(dt, game)
     self:updateBurrowTracks(dt)
@@ -2133,13 +2311,14 @@ end
 -- 남긴다. 담배꽁초가 그 위에 떨어지면 그 지점부터 이어진 자국을 따라(불이 옮겨붙듯 연쇄로)
 -- 화염대가 켜지고, 유지되는 동안 닿는 적에게 지속 피해를 준다.
 function ClearcutMode:updateOilTrail(dt, game)
-    if not self.evolutions.oilRoad then
+    local playerTrailActive=self.evolutions.oilRoad
+    if not playerTrailActive then
         self.oilTrailLastX,self.oilTrailLastY=nil,nil
-        return
     end
+    if not playerTrailActive and #self.oilTrail==0 then return end
     local now = self.smokerGroundTime
     self.oilTrailTimer = self.oilTrailTimer - dt
-    if game.player.isMoving and self.oilTrailTimer <= 0 then
+    if playerTrailActive and game.player.isMoving and self.oilTrailTimer <= 0 then
         self.oilTrailTimer = .16
         local dx=game.player.x-(self.oilTrailLastX or game.player.x-(game.player.facing or 1))
         local dy=game.player.y-(self.oilTrailLastY or game.player.y)
@@ -2151,7 +2330,7 @@ function ClearcutMode:updateOilTrail(dt, game)
         }
         self.oilTrailLastX,self.oilTrailLastY=game.player.x,game.player.y
         if #self.oilTrail > 90 then table.remove(self.oilTrail, 1) end
-    elseif not game.player.isMoving then
+    elseif playerTrailActive and not game.player.isMoving then
         self.oilTrailLastX,self.oilTrailLastY=game.player.x,game.player.y
     end
     if not self.rainSuppressFire then
@@ -2173,9 +2352,29 @@ function ClearcutMode:updateOilTrail(dt, game)
                 self:damageEnemiesInRadius(spot.x, spot.y, 55, 4, game)
                 self:igniteEnemiesInRadius(spot.x,spot.y,55,game,0)
             end
-            if now - spot.ignitedAt >= 5 then table.remove(self.oilTrail, i) end
-        elseif now - spot.spawnedAt >= 6 then
+            if now - spot.ignitedAt >= math.min(5,spot.lifetime or 5) then table.remove(self.oilTrail, i) end
+        elseif now - spot.spawnedAt >= (spot.lifetime or 6) then
             table.remove(self.oilTrail, i)
+        end
+    end
+    for id,group in pairs(self.oilPuddleGroups or{})do
+        local live,ignited=false,false
+        for _,spot in ipairs(self.oilTrail)do if spot.group==id then
+            live=true;ignited=ignited or spot.ignited
+        end end
+        if not live then
+            self.oilPuddleGroups[id]=nil
+        elseif ignited then
+            group.tickTimer=(group.tickTimer or 0)-dt
+            if group.tickTimer<=0 then
+                group.tickTimer=.45
+                for _,node in ipairs(game.world.nodes or{})do if node.active and node.rushTree then
+                    local dx,dy=node.x-group.x,node.y-group.y
+                    if dx*dx+dy*dy<=group.radius*group.radius then
+                        self:damageTreeWithSmokerWeapon(node,1,game)
+                    end
+                end end
+            end
         end
     end
 end
@@ -2809,6 +3008,16 @@ function ClearcutMode:updateScoreAxeAttack(dt,game,heldOverride)
     self.axeCooldown=math.max(0,(self.axeCooldown or 0)-dt)
     if not held or self.axeCooldown>0 then return false end
     local reach=82+axeArea
+    local drum=self:findAxeOilDrum(game,tx,ty,range,reach)
+    if drum then
+        game.player:cancelInteraction()
+        game.player:playAutoAxeSwing(drum.x)
+        self:hitOilDrum(drum,4+(self.permanentTraits.treeDamage or 0),game)
+        self.actionAudit.scoreAxe=(self.actionAudit.scoreAxe or 0)+1
+        local speed=(game.tools.axe.speed or 1)*game.player.gather*self.permanentTraits.attackSpeed
+        self.axeCooldown=.62/(speed*(1+(self.permanentTraits.scoreAxeSpeed or 0)))
+        return true
+    end
     local candidates={}
     for _,node in ipairs(game.world.nodes)do if node.rushTree and node.active then
         local playerDistance=(node.x-game.player.x)^2+(node.y-game.player.y)^2
@@ -6175,6 +6384,14 @@ function ClearcutMode:queueWorldActors(queue,t)
         queue[#queue+1]={x=companion.x,y=companion.y,anchorY=companion.y,sortBias=.002,
             draw=function()self:drawMoleCompanion(companion)end}
     end
+    for _,value in ipairs(self.oilDrums or{})do local drum=value
+        queue[#queue+1]={x=drum.x,y=drum.y,anchorY=drum.y,sortBias=.001,
+            draw=function()ClearcutMode.GrayOilCatArt.drawDrum(drum)end}
+    end
+    if self.grayOilCat then local cat=self.grayOilCat
+        queue[#queue+1]={x=cat.x,y=cat.y,anchorY=cat.y,sortBias=.002,
+            draw=function()ClearcutMode.GrayOilCatArt.drawCat(cat)end}
+    end
     for _,value in ipairs(self.burrowTracks) do
         local mark=value
         queue[#queue+1]={y=-200000+mark.y*.001,ground=true,draw=function() MoleBurrowArt.draw(mark) end}
@@ -6192,7 +6409,8 @@ function ClearcutMode:queueWorldActors(queue,t)
             queue[#queue+1]={x=spot.x,y=spot.y+.1,anchorY=spot.y,draw=function() OilTrailArt.drawFlame(spot,groundTime) end}
         end
         local previous=self.oilTrail[index-1]
-        if previous then
+        local sameGroup=previous and((not previous.group and not spot.group)or previous.group==spot.group)
+        if sameGroup then
             queue[#queue+1]={y=-99999+math.min(previous.y,spot.y)*.001,ground=true,draw=function() OilTrailArt.drawGroundBridge(previous,spot,groundTime) end}
             if previous.ignited and spot.ignited then
                 queue[#queue+1]={x=(previous.x+spot.x)*.5,y=(previous.y+spot.y)*.5+.1,anchorY=(previous.y+spot.y)*.5,draw=function() OilTrailArt.drawFlameBridge(previous,spot,groundTime) end}

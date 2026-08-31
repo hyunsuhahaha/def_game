@@ -34,6 +34,7 @@ local moleUpgradeStore=CharacterTraits.new(true)
 moleUpgradeStore.data.currency=5000
 moleUpgradeStore.data.levels.universal_robot_start=1
 assert(moleUpgradeStore:buy("universal_mole_companion")and not moleUpgradeStore:buy("universal_mole_companion"),"mole hire root was not a one-rank node")
+assert(moleUpgradeStore:buy("universal_oil_drum")and moleUpgradeStore:buy("universal_gray_cat"),"gray oil-cat research chain was not purchasable")
 for _,spec in ipairs({{"universal_mole_damage",3},{"universal_mole_speed",3},{"universal_mole_attack_speed",3},
     {"universal_mole_claw",2},{"universal_mole_dual",1},{"universal_mole_extra",2}})do
     for rank=1,spec[2]do assert(moleUpgradeStore:buy(spec[1]),spec[1].." rank "..rank.." was not purchasable")end
@@ -42,6 +43,7 @@ local moleEffects=moleUpgradeStore:scoreAttackEffects()
 assert(moleEffects.scoreMoleCompanion==1 and moleEffects.scoreMoleDamage==3 and math.abs(moleEffects.scoreMoleSpeed-.30)<1e-9 and
     math.abs(moleEffects.scoreMoleAttackSpeed-.36)<1e-9 and moleEffects.scoreMoleClawTier==2 and moleEffects.scoreMoleDualClaw==1 and
     moleEffects.scoreMoleExtraCompanions==2,"split mole research nodes did not accumulate independently")
+assert(moleEffects.scoreOilDrum==1 and moleEffects.scoreGrayCat==1,"gray oil-cat research effects were not accumulated")
 local roundTrip=CharacterTraits.decode(CharacterTraits.encode(store.data))
 assert(roundTrip.regenTier==3,"persistent regeneration tier did not survive save encoding")
 local migrated=CharacterTraits.decode("fire_score_filter=6\nfire_score_lighter=6\nfire_score_ash=6\nfire_score_drag=6\nfire_score_heat=6\n")
@@ -63,6 +65,8 @@ assert(smoker.attackSpeed == 1 and smoker.range == 0, "logger traits leaked into
 store.data.levels.universal_yard=7
 store.data.levels.universal_robot_start=1
 store.data.levels.universal_robot_motor=5
+store.data.levels.universal_oil_drum=1
+store.data.levels.universal_gray_cat=1
 store.data.levels.universal_mole_companion=1
 store.data.levels.universal_mole_damage=3;store.data.levels.universal_mole_speed=3
 store.data.levels.universal_mole_attack_speed=3;store.data.levels.universal_mole_claw=2
@@ -81,9 +85,10 @@ assert(activeScore.scoreInitialIgnitionReduction==.4,"score-mode opening ignitio
 assert(activeScore.scoreStartingBabyRobot==1 and activeScore.scoreRobotSpeed==.5,"score-mode baby robot permanent research is not active")
 assert(activeScore.scoreMoleCompanion==1 and activeScore.scoreMoleDamage==3 and activeScore.scoreMoleExtraCompanions==2,
     "split score-mode mole companion upgrades are not active")
+assert(activeScore.scoreOilDrum==1 and activeScore.scoreGrayCat==1,"gray oil-cat permanent research is not active")
 assert(activeScore.scoreStartingWood==nil and activeScore.scoreAutomationDiscount==nil,"removed score automation traits still affect runtime")
 -- 불 갈래 22 = 담배 9 + 공용 나무 피해 1 + 도끼 4 + 후반 해금 3(상시 흡연·자동 투척·폭죽) + 폭죽 5.
-assert(#store:getScoreAttackNodes("fire")==22 and #store:getScoreAttackNodes("universal")==10,"active research board did not expose the split mole graph and the weapon-slot branches")
+assert(#store:getScoreAttackNodes("fire")==22 and #store:getScoreAttackNodes("universal")==12,"active research board did not expose the split companion graphs and the weapon-slot branches")
 for _, job in ipairs({"physical","fire","toxic","developer"}) do
     assert(#store:getNodes(job) >= 30, job .. " character graph has too few trait nodes")
 end

@@ -365,6 +365,8 @@ expand("universal",{
     {id="universal_mole_claw",name="두더지 공격범위 상승",short="공격범위 상승",desc="두더지의 공격 가능 거리와 발톱 자국 크기가 단계마다 증가합니다.",effect="scoreMoleClawTier",value=1,max=2,costs={56,92},wx=500,wy=1570,icon="split",color={.92,.42,.22},requires={{"universal_mole_damage",2}},scoreMode=true},
     {id="universal_mole_dual",name="두더지 양손 공격",short="양손 공격",desc="두더지가 한 번의 공격에 양손 발톱 자국을 남깁니다.",effect="scoreMoleDualClaw",value=1,max=1,costs={125},wx=500,wy=1820,icon="capstone",color={1,.32,.16},requires={{"universal_mole_claw",2}},scoreMode=true},
     {id="universal_mole_extra",name="두더지 추가 채용",short="추가 동료 채용",desc="단계마다 두더지 동료 1마리가 추가로 합류합니다.",effect="scoreMoleExtraCompanions",value=1,max=2,costs={110,180},wx=1100,wy=1650,icon="split",color={.72,.58,.32},requires={{"universal_mole_speed",2},{"universal_mole_attack_speed",2}},scoreMode=true},
+    {id="universal_oil_drum",name="기름 드럼통 생성",short="드럼통 생성",desc="벌목 기록 모드에서 22초마다 기름 드럼통이 떨어집니다. 도끼로 두 번 타격하면 주변에 기름이 쏟아집니다.",effect="scoreOilDrum",value=1,max=1,costs={64},wx=1740,wy=930,icon="basket",color={.42,.50,.52},requires={{"universal_robot_start",1}},scoreMode=true},
+    {id="universal_gray_cat",name="회색 고양이 동료",short="드럼통 자동 전복",desc="회색 고양이가 화면 밖에서 달려와 떨어진 기름 드럼통을 넘어뜨리고, 반대편 화면 밖으로 점프해 나갑니다.",effect="scoreGrayCat",value=1,max=1,costs={92},wx=2050,wy=1190,icon="fist",color={.56,.62,.68},requires={{"universal_oil_drum",1}},scoreMode=true},
 })
 
 local byId = {}
@@ -524,7 +526,8 @@ function CharacterTraits:effects(job)
         scoreRange=0,scoreArea=0,scoreAttackSpeed=0,scoreIgnitionChance=0,scoreSpreadChance=0,
         scoreProjectileSpeed=0,scoreBurnSpeed=0,scoreExtraFires=0,
         scoreInitialIgnitionReduction=0,scoreStartingBabyRobot=0,scoreRobotSpeed=0,scoreMoleCompanion=0,
-        scoreMoleDamage=0,scoreMoleSpeed=0,scoreMoleAttackSpeed=0,scoreMoleClawTier=0,scoreMoleDualClaw=0,scoreMoleExtraCompanions=0
+        scoreMoleDamage=0,scoreMoleSpeed=0,scoreMoleAttackSpeed=0,scoreMoleClawTier=0,scoreMoleDualClaw=0,scoreMoleExtraCompanions=0,
+        scoreOilDrum=0,scoreGrayCat=0
     }
     local function accumulate(nodes)
         for _, node in ipairs(nodes) do
@@ -550,6 +553,7 @@ function CharacterTraits:scoreAttackEffects()
         scoreBurnSpeed=0,scoreExtraFires=0,scoreInitialIgnitionReduction=0,
         scoreStartingBabyRobot=0,scoreRobotSpeed=0,scoreMoleCompanion=0,
         scoreMoleDamage=0,scoreMoleSpeed=0,scoreMoleAttackSpeed=0,scoreMoleClawTier=0,scoreMoleDualClaw=0,scoreMoleExtraCompanions=0,
+        scoreOilDrum=0,scoreGrayCat=0,
         -- 무기 슬롯 3종용. scoreTreeDamage는 도끼·폭죽 공용이고, 나머지는 각 무기가
         -- 담배용 수치를 계수로 나눠 쓰던 것을 전용으로 분리한 값이다.
         scoreTreeDamage=0,

@@ -6,7 +6,8 @@ from PIL import Image, ImageDraw
 
 ROOT = Path(__file__).resolve().parents[1]
 OUT = ROOT / "assets" / "characters" / "companions"
-CELL = 96
+CONCEPT = ROOT / "assets" / "characters" / "concepts" / "gray-oil-cat-approved-concept-v1.png"
+CELL = 128
 FRAMES = 6
 
 INK = (34, 31, 35, 255)
@@ -56,7 +57,7 @@ def face(d, x, y):
     rect(d, (x - 3, y + 6, x - 1, y + 7), INK)
     rect(d, (x + 1, y + 6, x + 3, y + 7), INK)
     rect(d, (x - 2, y + 7, x + 2, y + 8), INK)
-    rect(d, (x - 13, y - 1, x - 16, y), DEEP)
+    rect(d, (x - 16, y - 1, x - 13, y), DEEP)
     rect(d, (x + 13, y - 1, x + 16, y), DEEP)
 
 
@@ -116,11 +117,66 @@ def draw_jump(frame):
     return image
 
 
+def extract_concept_pose(concept, crop, target_width):
+    pose = concept.crop(crop).convert("RGBA")
+    pixels = pose.load()
+    for y in range(pose.height):
+        for x in range(pose.width):
+            r, g, b, _ = pixels[x, y]
+            # ImageGen preview checkerboard is baked RGB. Remove only its pale
+            # neutral cells; authored cream fur remains darker and warmer.
+            neutral = max(r, g, b) - min(r, g, b) <= 7
+            pixels[x, y] = (r, g, b, 0 if neutral and min(r, g, b) >= 218 else 255)
+    # Keep the authored cat/drum contact silhouette and discard isolated
+    # checkerboard edge crumbs from the concept preview.
+    alpha = pose.getchannel("A")
+    seen = set()
+    groups = []
+    for y in range(pose.height):
+        for x in range(pose.width):
+            if alpha.getpixel((x, y)) == 0 or (x, y) in seen:
+                continue
+            stack = [(x, y)]; seen.add((x, y)); group = []
+            while stack:
+                px, py = stack.pop(); group.append((px, py))
+                for nx, ny in ((px - 1, py), (px + 1, py), (px, py - 1), (px, py + 1)):
+                    if 0 <= nx < pose.width and 0 <= ny < pose.height and (nx, ny) not in seen and alpha.getpixel((nx, ny)):
+                        seen.add((nx, ny)); stack.append((nx, ny))
+            groups.append(group)
+    keep = set(max(groups, key=len)) if groups else set()
+    for y in range(pose.height):
+        for x in range(pose.width):
+            if (x, y) not in keep:
+                r, g, b, _ = pixels[x, y]
+                pixels[x, y] = (r, g, b, 0)
+    bbox = pose.getbbox()
+    if not bbox:
+        raise RuntimeError(f"empty approved concept crop: {crop}")
+    pose = pose.crop(bbox)
+    scale = target_width / pose.width
+    pose = pose.resize((target_width, max(1, round(pose.height * scale))), Image.Resampling.NEAREST)
+    return pose
+
+
 def build_cat():
+    # These are the three authored action poses from the user-approved model
+    # sheet. Frames reuse one fixed pose per action and animate its placement;
+    # no independently generated frames are introduced.
+    concept = Image.open(CONCEPT).convert("RGB")
+    run = extract_concept_pose(concept, (690, 130, 1375, 610), 92)
+    push = extract_concept_pose(concept, (350, 580, 730, 1110), 78)
+    jump = extract_concept_pose(concept, (690, 570, 1390, 1080), 98)
     atlas = Image.new("RGBA", (CELL * FRAMES, CELL * 3))
-    for row, drawer in enumerate((draw_run, draw_push, draw_jump)):
-        for frame in range(FRAMES):
-            atlas.alpha_composite(drawer(frame), (frame * CELL, row * CELL))
+    placements = {
+        0: [(run, (0, 2, 1, 0, 2, 1)[frame]) for frame in range(FRAMES)],
+        1: [(push, (0, 1, 2, 4, 3, 1)[frame]) for frame in range(FRAMES)],
+        2: [(jump, (2, 5, 9, 12, 7, 3)[frame]) for frame in range(FRAMES)],
+    }
+    for row in range(3):
+        for frame, (pose, lift) in enumerate(placements[row]):
+            x = frame * CELL + (CELL - pose.width) // 2
+            y = row * CELL + 118 - pose.height - lift
+            atlas.alpha_composite(pose, (x, y))
     atlas.save(OUT / "gray-oil-cat-atlas-pixel-v1.png")
 
 
@@ -150,7 +206,7 @@ def main():
     OUT.mkdir(parents=True, exist_ok=True)
     build_cat()
     build_drum()
-    print("GRAY_OIL_CAT_ASSETS_OK atlas=576x288 cell=96x96 frames=18 drum=128x128")
+    print("GRAY_OIL_CAT_ASSETS_OK atlas=768x384 cell=128x128 frames=18 drum=128x128 source=approved-concept-v1")
 
 
 if __name__ == "__main__":
