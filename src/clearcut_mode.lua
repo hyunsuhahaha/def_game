@@ -48,6 +48,13 @@ local WoodSettlementArt = require("src.wood_settlement_art")
 local ClearcutMode = {}
 ClearcutMode.__index = ClearcutMode
 
+local scoreWeaponDefinitions = {
+    {id="cigarette",name="담배",hint="꽁초 투척 · 점화"},
+    {id="axe",name="도끼",hint="근접 타격 · 즉시 피해"},
+    {id="firework",name="폭죽 로켓",hint="원거리 폭발 · 광역 피해"},
+}
+ClearcutMode.scoreWeaponDefinitions=scoreWeaponDefinitions
+
 local trackLabels = {destroy = "파괴력", spread = "확산력", suppress = "식탐력", develop = "개발력", dig = "굴착력", venom = "독설력", supplement = "보조력"}
 
 -- 시그니처 업그레이드를 처음 고르면 1차 전직이 확정되고 기본 공격 자체가 바뀐다.
@@ -209,7 +216,7 @@ function ClearcutMode.new()
         timeSpawnTimer=35, scoreEnemyTimer=45, eliteTimer=200, reaperSpawned=false,
         stage=1, stageBossHpMul=1, stageElapsed=0, stageTimeLimit=stageTimeLimit(1), failureReason=nil,
         scoreAttack=false,scoreHardCap=720,scoreStartingTrees=6,scoreBaseTreeAllowance=12,scoreTreeAllowance=12,scoreRegenTier=1,scoreTierFx=nil,
-        scoreWoodEarned=0,
+        scoreWoodEarned=0,scoreWeaponSlot=1,
         scoreFellTimes={},scoreFellHead=1,currentTreesPerSecond=0,peakTreesPerSecond=0,scoreDeficitTimer=0,scoreCollapseActive=false,
         treeSpawnRate=.55,scoreSpawnRateMultiplier=1,treeSpawnAccumulator=0,
         totalTreesSpawned=0,peakActiveTrees=0,scoreActiveTreeCap=180,scoreGrowthPulses=0,
@@ -2677,12 +2684,69 @@ function ClearcutMode:berserkerSpeedMult()
 end
 
 function ClearcutMode:updateHeldAxe(dt, game, heldOverride)
+    if self.scoreAttack and self.job=="fire" then
+        local weapon=self:scoreWeaponId()
+        if weapon=="axe" then return self:updateScoreAxeAttack(dt,game,heldOverride)end
+        if weapon=="firework" then return self:updateFireworkAttack(dt,game,heldOverride)end
+        return self:updateFireAttack(dt,game,heldOverride,true)
+    end
     if self.job == "fire" then return self:updateFireAttack(dt, game, heldOverride) end
     if self.job == "toxic" then return self:updateToxicAttack(dt, game, heldOverride) end
     if self.job == "developer" then return self:updateDeveloperAttack(dt, game, heldOverride) end
     if self.job == "miner" then return self:updateMinerAttack(dt, game, heldOverride) end
     if self.job == "philosopher" then return self:updatePhilosopherAttack(dt, game, heldOverride) end
     return self:updatePhysicalAttack(dt, game, heldOverride)
+end
+
+function ClearcutMode:scoreWeaponId()
+    local def=scoreWeaponDefinitions[self.scoreWeaponSlot or 1]
+    return def and def.id or "cigarette"
+end
+
+function ClearcutMode:setScoreWeaponSlot(index,game)
+    index=tonumber(index)
+    if not self.scoreAttack or not scoreWeaponDefinitions[index]then return false end
+    self.scoreWeaponSlot=index
+    self.aimX,self.aimY,self.aimRadius=nil,nil,nil
+    self.vapeCharge=0
+    if game and game.player then
+        game.player.axeHolding=false
+        if game.player.clearClearcutAction then game.player:clearClearcutAction()end
+    end
+    if game and game.setNotice then game:setNotice(index.."번 무기 — "..scoreWeaponDefinitions[index].name,"food")end
+    return true
+end
+
+function ClearcutMode:updateScoreAxeAttack(dt,game,heldOverride)
+    local held=heldOverride
+    if held==nil then held=love.mouse.isDown(1)end
+    local range=190+self.permanentTraits.range
+    local tx,ty=self:aimPoint(game,range)
+    self.aimX,self.aimY,self.aimRadius=tx,ty,54+self.permanentTraits.area*.2
+    game.player.facing=tx<game.player.x and -1 or 1
+    game.player.axeHolding=held
+    self.axeCooldown=math.max(0,(self.axeCooldown or 0)-dt)
+    if not held or self.axeCooldown>0 then return false end
+    local target,bestDistance
+    for _,node in ipairs(game.world.nodes)do if node.rushTree and node.active then
+        local playerDistance=(node.x-game.player.x)^2+(node.y-game.player.y)^2
+        local aimDistance=(node.x-tx)^2+(node.y-ty)^2
+        if playerDistance<=range*range and aimDistance<=(82+self.permanentTraits.area*.2)^2 and(not bestDistance or aimDistance<bestDistance)then
+            target,bestDistance=node,aimDistance
+        end
+    end end
+    if not target then target=self:closestTreeInAxeRange(game)end
+    if not target then return false end
+    game.player:cancelInteraction()
+    game.player:playAutoAxeSwing(target.x)
+    local damage=3+(self.permanentTraits.treeDamage or 0)
+    self:damageTreeWithSmokerWeapon(target,damage,game)
+    self:damageEnemiesInRadius(target.x,target.y,62+self.permanentTraits.area*.2,14+damage*2,game)
+    self.traitFx:emit("axe",target.x,target.y,{radius=66,power=1,particles=12})
+    self.actionAudit.scoreAxe=(self.actionAudit.scoreAxe or 0)+1
+    local speed=(game.tools.axe.speed or 1)*game.player.gather*self.permanentTraits.attackSpeed
+    self.axeCooldown=.62/speed
+    return true
 end
 
 function ClearcutMode:updatePhysicalAttack(dt, game, heldOverride)
@@ -2869,10 +2933,10 @@ function ClearcutMode:updateSmokerWeaponProjectiles(dt,game)
     end
 end
 
-function ClearcutMode:updateFireAttack(dt, game, heldOverride)
+function ClearcutMode:updateFireAttack(dt, game, heldOverride, forceBaseWeapon)
     local held = heldOverride
     if held == nil then held = love.mouse.isDown(1) end
-    local evolution=self:smokerEvolutionId()
+    local evolution=not forceBaseWeapon and self:smokerEvolutionId()or nil
     if evolution=="vape" then return self:updateVapeAttack(dt,game,held)end
     if evolution=="fireworks" then return self:updateFireworkAttack(dt,game,held)end
     local maxRange = 320 + self:power("molotov") * 40 + self.permanentTraits.range
@@ -6118,6 +6182,11 @@ end
 
 function ClearcutMode:drawHeldSmoker(game,t)
     SmokeRingArt.drawCharge(self,game,t)
+    if self.scoreAttack and self:scoreWeaponId()=="axe"then
+        local facing=game.player.facing or 1
+        drawPixelGrid(axeIconRows,axeIconPalette,game.player.x+facing*22,game.player.y-45,2.6)
+        return
+    end
     if SmokerWeaponArt.drawHeld(self,game,t)then return end
     local smoking=self.smoking
     if not smoking or smoking.phase=="flick" then return end
@@ -6132,6 +6201,38 @@ function ClearcutMode:drawHeldSmoker(game,t)
         love.graphics.setColor(.78,.79,.75,(.30-i*.018)*breath)
         love.graphics.rectangle("fill",math.floor(tipX+drift+.5),math.floor(mouthY-rise-2),2,2)
     end
+end
+
+function ClearcutMode:scoreWeaponSlotRect(index,w,h)
+    local width,gap=156,8
+    local total=#scoreWeaponDefinitions*width+(#scoreWeaponDefinitions-1)*gap
+    return math.floor((w-total)/2)+(index-1)*(width+gap),h-78,width,58
+end
+
+function ClearcutMode:scoreWeaponSlotAt(x,y,w,h)
+    if not self.scoreAttack then return nil end
+    for index=1,#scoreWeaponDefinitions do
+        local sx,sy,sw,sh=self:scoreWeaponSlotRect(index,w,h)
+        if x>=sx and x<=sx+sw and y>=sy and y<=sy+sh then return index end
+    end
+end
+
+function ClearcutMode:drawScoreWeaponSlots(fonts,w,h)
+    if not self.scoreAttack then return end
+    for index,def in ipairs(scoreWeaponDefinitions)do
+        local x,y,width,height=self:scoreWeaponSlotRect(index,w,h)
+        local selected=index==(self.scoreWeaponSlot or 1)
+        love.graphics.setColor(selected and{.08,.15,.12,.96}or{.035,.055,.05,.90})
+        love.graphics.rectangle("fill",x,y,width,height,7,7)
+        love.graphics.setLineWidth(selected and 3 or 1)
+        love.graphics.setColor(selected and{1,.64,.16,1}or{.38,.48,.42,.82})
+        love.graphics.rectangle("line",x+.5,y+.5,width-1,height-1,7,7)
+        love.graphics.setFont(fonts.small);love.graphics.setColor(selected and{1,.93,.72}or{.76,.80,.74})
+        love.graphics.print("["..index.."]  "..def.name,x+10,y+8)
+        love.graphics.setFont(fonts.micro or fonts.small);love.graphics.setColor(selected and{1,.70,.28}or{.48,.56,.50})
+        love.graphics.print(def.hint,x+10,y+33)
+    end
+    love.graphics.setLineWidth(1)
 end
 
 local function queueUpright(queue,x,y,draw,sortY,anchorY)
@@ -6834,6 +6935,7 @@ function ClearcutMode:drawHUD(game,fonts)
     love.graphics.setFont(fonts.micro or fonts.small);love.graphics.setColor(1,.94,.88);love.graphics.printf("HP  "..math.ceil(self.hp).." / "..self.maxHp,20,134,hpW,"center")
 
     self:drawSkillTracker(fonts)
+    self:drawScoreWeaponSlots(fonts,w,h)
 
     local pct = self:destructionPct()
     local barW = math.floor(330*uiScale)

@@ -43,7 +43,9 @@ local function frame(age,life,count)
 end
 
 function Art.drawHeld(mode,game,t)
-    local branch=mode.smokerEvolutionId and mode:smokerEvolutionId() or mode:skillBranch("molotov")
+    local scoreWeapon=mode.scoreAttack and mode.scoreWeaponId and mode:scoreWeaponId()or nil
+    if scoreWeapon=="axe"then return false end
+    local branch=scoreWeapon=="firework"and"fireworks"or(scoreWeapon=="cigarette"and nil or(mode.smokerEvolutionId and mode:smokerEvolutionId() or mode:skillBranch("molotov")))
     if branch~="vape" and branch~="fireworks"then return false end
     load();local quad=equipQuads[branch]
     local player=game.player;local facing=player.facing or 1

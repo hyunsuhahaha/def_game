@@ -550,6 +550,10 @@ function Game:keypressed(key)
     if self.ended and (key == "r" or key == "return") then self:startRun(); return end
     if key == "p" and self.runType~="rush" and self.runType~="clearcut" then self:prestigeRun(); return end
     if self.runType=="clearcut" then
+        if self.clearcut and self.clearcut.scoreAttack and(key=="1"or key=="2"or key=="3")then
+            self.clearcut:setScoreWeaponSlot(tonumber(key),self)
+            return
+        end
         if key=="space" and self.clearcut then
             self.clearcut:activateMinerBurrow(self)
             self.clearcut:beginSmokeRingCharge(self)
@@ -755,6 +759,11 @@ function Game:mousepressed(x, y, button)
     if self.runType=="rush" or self.runType=="clearcut" then
         -- 벌목 러시/숲 전멸 모드는 개별 나무를 클릭하지 않는다. 버튼을 누르는 동안
         -- 해당 모드가 플레이어 주변의 나무를 자동 포착한다.
+        if self.runType=="clearcut" and self.clearcut and self.clearcut.scoreAttack and button==1 then
+            local w,h=love.graphics.getDimensions()
+            local weapon=self.clearcut:scoreWeaponSlotAt(x,y,w,h)
+            if weapon then self.clearcut:setScoreWeaponSlot(weapon,self);return end
+        end
         if self.runType=="clearcut" and button==2 and self.clearcut then self.clearcut:activateMinerBurrow(self) end
         return
     end
