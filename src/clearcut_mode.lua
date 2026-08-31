@@ -41,6 +41,7 @@ local SmokerWeaponArt = require("src.smoker_weapon_art")
 local ScoreOperations = require("src.score_operations")
 local ScoreWeaponHotbarArt = require("src.score_weapon_hotbar_art")
 local ScoreTierUpArt = require("src.score_tier_up_art")
+local ScoreAxeArt = require("src.score_axe_art")
 local WoodEconomy = require("src.wood_economy")
 local WoodSettlementArt = require("src.wood_settlement_art")
 
@@ -217,7 +218,7 @@ function ClearcutMode.new()
         timeSpawnTimer=35, scoreEnemyTimer=45, eliteTimer=200, reaperSpawned=false,
         stage=1, stageBossHpMul=1, stageElapsed=0, stageTimeLimit=stageTimeLimit(1), failureReason=nil,
         scoreAttack=false,scoreHardCap=720,scoreStartingTrees=6,scoreBaseTreeAllowance=12,scoreTreeAllowance=12,scoreRegenTier=1,scoreTierFx=nil,
-        scoreWoodEarned=0,scoreWeaponSlot=1,
+        scoreWoodEarned=0,scoreWeaponSlot=1,scoreAxeAction=nil,scoreAxeImpacts={},
         scoreFellTimes={},scoreFellHead=1,currentTreesPerSecond=0,peakTreesPerSecond=0,scoreDeficitTimer=0,scoreCollapseActive=false,
         treeSpawnRate=.55,scoreSpawnRateMultiplier=1,treeSpawnAccumulator=0,
         totalTreesSpawned=0,peakActiveTrees=0,scoreActiveTreeCap=180,scoreGrowthPulses=0,
@@ -867,10 +868,17 @@ end
 function ClearcutMode:hitOilDrum(drum,damage,game)
     if not drum or drum.state~="settled"then return false end
     drum.hp=math.max(0,(drum.hp or drum.maxHp or 8)-(damage or 4))
-    drum.hitFlash=.16
-    drum.angle=(drum.angle or 0)+((drum.hp%2==0)and-.07 or .07)
-    drum.spillFacing=drum.x>game.player.x and 1 or-1
-    SupplementArt.impact(self,"axe",drum.x,drum.y-42,24)
+    drum.hitFlash=.13
+    drum.hitDirection=drum.x>game.player.x and 1 or-1
+    drum.hitKickTime=.13
+    drum.angle=(drum.angle or 0)+drum.hitDirection*(drum.hp<=0 and .13 or .065)
+    drum.spillFacing=drum.hitDirection
+    ScoreAxeArt.impact(self,drum.x,drum.y-48,drum.hitDirection)
+    if game.feedback then game.feedback:play("metal",drum.hp<=0)end
+    if game.camera then
+        game.camera:impulse(-drum.hitDirection*24,0,-drum.hitDirection*.008,.025)
+        game.camera.trauma=math.min(1,(game.camera.trauma or 0)+.07)
+    end
     if drum.hp<=0 then self:spillOilDrum(drum,"axe")end
     return true
 end
@@ -961,6 +969,7 @@ function ClearcutMode:updateOilDrums(dt,game)
     for index=#self.oilDrums,1,-1 do
         local drum=self.oilDrums[index]
         drum.hitFlash=math.max(0,(drum.hitFlash or 0)-dt)
+        drum.hitKickTime=math.max(0,(drum.hitKickTime or 0)-dt)
         if drum.state=="falling"then
             drum.age=drum.age+dt
             local p=math.min(1,drum.age/drum.fallDuration)

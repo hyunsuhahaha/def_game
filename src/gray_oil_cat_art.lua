@@ -1,5 +1,5 @@
 local Art={}
-local cat,drum,quads
+local cat,drum,quads,drumQuads
 local CELL,FRAMES=128,6
 local CAT_SCALE=.72
 local DRUM_SCALE=.78
@@ -11,14 +11,15 @@ local AUTHORED_FACING={run=1,push=-1,jump=1}
 local function load()
     if cat then return end
     cat=love.graphics.newImage("assets/characters/companions/gray-oil-cat-atlas-pixel-v1.png")
-    drum=love.graphics.newImage("assets/characters/companions/oil-drum-pixel-v1.png")
+    drum=love.graphics.newImage("assets/characters/companions/oil-drum-damage-atlas-pixel-v2.png")
     cat:setFilter("nearest","nearest");drum:setFilter("nearest","nearest")
-    quads={run={},push={},jump={}}
+    quads={run={},push={},jump={}};drumQuads={}
     for row,name in ipairs({"run","push","jump"})do
         for frame=0,FRAMES-1 do
             quads[name][frame+1]=love.graphics.newQuad(frame*CELL,(row-1)*CELL,CELL,CELL,cat:getDimensions())
         end
     end
+    for frame=0,2 do drumQuads[frame+1]=love.graphics.newQuad(frame*CELL,0,CELL,CELL,drum:getDimensions())end
 end
 
 function Art.load()load();return true end
@@ -27,10 +28,15 @@ function Art.drawDrum(value)
     load();local alpha=value.alpha or 1
     local z=value.z or 0;local squash=value.squash or 1
     local shadow=math.max(.25,1-z/300)
+    local kickTime=value.hitKickTime or 0
+    local kickProgress=kickTime>0 and 1-kickTime/.13 or 1
+    local kick=(kickTime>0 and math.sin(kickProgress*math.pi)*9*(1-kickProgress*.25)or 0)*(value.hitDirection or 0)
+    local damageRatio=(value.hp or value.maxHp or 8)/math.max(1,value.maxHp or 8)
+    local damageFrame=value.state=="spilled"and 3 or(damageRatio<.75 and 2 or 1)
     love.graphics.setColor(0,0,0,.30*shadow)
     love.graphics.ellipse("fill",math.floor(value.x+.5),math.floor(value.y+5),34*shadow,10*shadow)
     love.graphics.setColor(1,value.hitFlash and .58 or 1,value.hitFlash and .38 or 1,alpha)
-    love.graphics.draw(drum,math.floor(value.x+.5),math.floor(value.y-z+.5),value.angle or 0,
+    love.graphics.draw(drum,drumQuads[damageFrame],math.floor(value.x+kick+.5),math.floor(value.y-z+.5),value.angle or 0,
         DRUM_SCALE*(2-squash),DRUM_SCALE*squash,64,109)
     love.graphics.setColor(1,1,1,1)
 end

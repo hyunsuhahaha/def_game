@@ -30,6 +30,10 @@ local function makeSource(kind)
             sample=(rise+chime+leaf)*fade
         elseif kind == "tree" then
             sample = (math.sin(t * 170 * math.pi * 2) * .48 + noise * .28) * fade * fade
+        elseif kind == "metal" then
+            local clang=math.sin((t*740-t*t*1250)*math.pi*2)*.48
+            local ring=math.sin(t*1320*math.pi*2)*.22+math.sin(t*1810*math.pi*2)*.11
+            sample=(clang+ring+noise*.18)*fade*fade
         elseif kind == "stone" then
             sample = (math.sin(t * 410 * math.pi * 2) * .34 + noise * .42) * fade * fade
         elseif kind == "ore" then
@@ -45,7 +49,7 @@ end
 function Feedback.new()
     local self = setmetatable({pools = {}, cursor = {}}, Feedback)
     local ok = pcall(function()
-        for _, kind in ipairs({"tree", "stone", "ore", "harvest", "grass", "creak", "ember_land", "ignite", "tier_up"}) do
+        for _, kind in ipairs({"tree", "stone", "ore", "metal", "harvest", "grass", "creak", "ember_land", "ignite", "tier_up"}) do
             self.pools[kind], self.cursor[kind] = {}, 1
             local source = makeSource(kind)
             source:setVolume(kind == "harvest" and .22 or kind=="grass" and .11 or kind=="creak" and .24 or .16)

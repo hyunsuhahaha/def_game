@@ -161,9 +161,18 @@ function CharacterTraitBoard:fitResearchTree()
     local nodes=self:nodesFor(self.selectedJob);if #nodes==0 then return end
     local minX,maxX,minY,maxY=math.huge,-math.huge,math.huge,-math.huge
     for _,node in ipairs(nodes)do local x,y=self:nodeWorld(node);minX,maxX=math.min(minX,x),math.max(maxX,x);minY,maxY=math.min(minY,y),math.max(maxY,y)end
-    self.panX,self.panY=(minX+maxX)/2,(minY+maxY)/2
-    -- Reset returns to the authored reference spacing. Zoom remains a narrow
-    -- readability adjustment instead of collapsing or stretching branch gaps.
+    -- 합친 연구판의 정중앙은 흡연자 갈래와 공용 갈래 사이의 빈 곳이라, 열자마자
+    -- 어느 쪽 트리도 제대로 안 보인다. 진행이 시작되는 뿌리 노드에 시점을 맞춘다.
+    local root=self.store:getNode("fire_score_prewarm")
+    if root then self.panX,self.panY=self:nodeWorld(root)
+    else self.panX,self.panY=(minX+maxX)/2,(minY+maxY)/2 end
+    -- 연구판을 한 판으로 합치면서 내용이 화면보다 훨씬 커졌다(1280x720에서 가로 64%,
+    -- 세로 46%만 보인다). 전체를 한눈에 보려면 어디까지 물러날 수 있어야 하는지를
+    -- 여기서 계산해 두고, 휠 축소 하한으로 쓴다.
+    self.contentW,self.contentH=math.max(1,maxX-minX),math.max(1,maxY-minY)
+    self.contentCX,self.contentCY=(minX+maxX)/2,(minY+maxY)/2
+    -- Reset returns to the authored reference spacing. Zoom stays a readability
+    -- adjustment upward; downward it may pull back far enough to see the whole tree.
     self.referenceZoom=clamp((self.viewport.w/1748)*.80,.56,.80)
     self.zoom=self.referenceZoom
     self.panVX,self.panVY,self.viewInitialized=0,0,true
@@ -280,6 +289,17 @@ function CharacterTraitBoard:mousepressed(x, y, button)
     end
 end
 
+-- 축소 하한은 "트리 전체가 여백까지 포함해 화면에 들어오는 배율"이다. 그보다 더
+-- 물러나면 아무 정보도 늘지 않고 노드만 작아지므로 거기서 멈춘다. 내용이 화면보다
+-- 작으면 기존처럼 좁은 가독성 조정폭(reference*.85)만 남는다.
+function CharacterTraitBoard:minZoom()
+    local reference=self.referenceZoom or .80
+    if not self.viewport or not self.contentW then return reference*.85 end
+    local margin=220
+    local fit=math.min(self.viewport.w/(self.contentW+margin),self.viewport.h/(self.contentH+margin))
+    return math.min(reference*.85,fit)
+end
+
 function CharacterTraitBoard:wheelmoved(_,delta)
     if delta==0 or not self.viewport then return end
     local mx,my=love.mouse.getPosition()
@@ -287,10 +307,15 @@ function CharacterTraitBoard:wheelmoved(_,delta)
     local beforeX=self.panX+(mx-(self.viewport.x+self.viewport.w/2))/self.zoom
     local beforeY=self.panY+(my-(self.viewport.y+self.viewport.h/2))/self.zoom
     local reference=self.referenceZoom or .80
-    self.zoom=clamp(self.zoom*(delta>0 and 1.08 or 1/1.08),reference*.85,reference*1.15)
+    self.zoom=clamp(self.zoom*(delta>0 and 1.08 or 1/1.08),self:minZoom(),reference*1.15)
     self.panVX,self.panVY=0,0
     self.panX=beforeX-(mx-(self.viewport.x+self.viewport.w/2))/self.zoom
     self.panY=beforeY-(my-(self.viewport.y+self.viewport.h/2))/self.zoom
+    -- 트리 전체가 들어가는 배율까지 물러났다면 가운데로 맞춘다. 커서 기준으로만
+    -- 축소하면 다 들어갈 배율인데도 화면이 치우쳐 끝 가지가 잘려 보인다.
+    if self.contentW and self.viewport.w/self.zoom>=self.contentW and self.viewport.h/self.zoom>=self.contentH then
+        self.panX,self.panY=self.contentCX,self.contentCY
+    end
     self:clampCamera()
 end
 
@@ -590,8 +615,14 @@ function CharacterTraitBoard:draw()
     -- size is deliberately smaller than the branch step so the spacing reads:
     -- the gap between two nodes, not the nodes themselves, carries the layout.
     -- 간격(nodeWorld x zoom)은 건드리지 않고 노드 크기만 줄인다.
-    local nodeScale=clamp((self.zoom or .8)*1.5,.55,1.60)
+    -- 하한 .55에서 멈추면 축소할수록 노드가 상대적으로 커져 간격을 잡아먹는다.
+    -- 전체 조망 배율까지 비율을 유지하도록 하한을 낮춘다.
+    local nodeScale=clamp((self.zoom or .8)*1.5,.32,1.60)
     local labelFont=self:crispFont(clamp(24*(self.zoom or .8),11,26),true)
+    -- 라벨 폭은 96px 아래로 줄지 않는다. 전체 조망까지 축소하면 노드 간격이 그보다
+    -- 좁아져 라벨이 서로 겹쳐 글자 죽이 된다. 조망 구간에서는 라벨을 빼고 아이콘과
+    -- 연결선으로 구조만 읽게 한다 — 이름은 확대하거나 노드를 클릭하면 상단에 나온다.
+    local showLabels=(self.zoom or .8)>=(self.referenceZoom or .8)*.85-1e-6
     for _,node in ipairs(nodes) do
         local cx,cy=self:nodePosition(graph,node)
         if cx>=graph.x-80 and cx<=graph.x+graph.w+80 and cy>=graph.y-80 and cy<=graph.y+graph.h+80 then
@@ -607,16 +638,18 @@ function CharacterTraitBoard:draw()
             box.cx=box.cx+shake
             self:drawNode(box,node,self.store:getLevel(node.id),ok,requirementsMet(self.store,node),hovered)
             local nodeR=(node.capstone and 38 or 32)*nodeScale
-            local labelW=clamp(178*(self.zoom or .8),96,178)
-            local wx=self:nodeWorld(node)
-            local vertical=math.abs(wx-1100)<8 and node.id~="fire_score_prewarm" and node.id~="universal_robot_start"
-            local labelX=vertical and (box.cx+nodeR+9) or (box.cx-labelW/2)
-            local labelY=vertical and (box.cy-10*uiScale) or (box.cy+nodeR+13*uiScale)
-            local labelH=labelFont:getHeight()+6
-            love.graphics.setColor(.88,.89,.85,(hovered or node.id==self.selectedNodeId)and .96 or .82)
-            love.graphics.rectangle("fill",labelX,labelY-3,labelW,labelH,2,2)
-            love.graphics.setFont(labelFont); love.graphics.setColor(hovered and {.12,.15,.12,1} or {.25,.27,.24,.94})
-            love.graphics.printf(node.short or self:nodeLabel(node),labelX+5,labelY+1,labelW-10,vertical and "left" or "center")
+            if showLabels then
+                local labelW=clamp(178*(self.zoom or .8),96,178)
+                local wx=self:nodeWorld(node)
+                local vertical=math.abs(wx-1100)<8 and node.id~="fire_score_prewarm" and node.id~="universal_robot_start"
+                local labelX=vertical and (box.cx+nodeR+9) or (box.cx-labelW/2)
+                local labelY=vertical and (box.cy-10*uiScale) or (box.cy+nodeR+13*uiScale)
+                local labelH=labelFont:getHeight()+6
+                love.graphics.setColor(.88,.89,.85,(hovered or node.id==self.selectedNodeId)and .96 or .82)
+                love.graphics.rectangle("fill",labelX,labelY-3,labelW,labelH,2,2)
+                love.graphics.setFont(labelFont); love.graphics.setColor(hovered and {.12,.15,.12,1} or {.25,.27,.24,.94})
+                love.graphics.printf(node.short or self:nodeLabel(node),labelX+5,labelY+1,labelW-10,vertical and "left" or "center")
+            end
         end
     end
     self:drawUnlockFx()

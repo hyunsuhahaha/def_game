@@ -50,9 +50,9 @@ function Player:cancelInteraction()
     self.interactionTarget, self.activeTool, self.actionClock, self.repairingWall, self.nextImpact = nil, nil, 0, false, nil
 end
 
-function Player:playAutoAxeSwing(targetX)
+function Player:playAutoAxeSwing(targetX,duration)
     self.autoAxeClock = 0
-    self.autoAxeDuration = .42
+    self.autoAxeDuration = duration or .42
     if targetX then self.facing = targetX < self.x and -1 or 1 end
 end
 
@@ -78,9 +78,13 @@ end
 
 -- Shared by the body renderer and attachments so frame, flip and bob agree.
 function Player:clearcutPose()
-    local action = self.clearcutActionProgress ~= nil
+    local scoreAxeAction=self.clearcutSprite and self.axeHolding and self.autoAxeClock~=nil
+    local action = scoreAxeAction or self.clearcutActionProgress ~= nil
     local row = action and "action" or "walk"
-    local frame = action and (math.floor(self.clearcutActionProgress * 6) + 1)
+    local axeProgress=scoreAxeAction and math.max(0,math.min(.999,self.autoAxeClock/self.autoAxeDuration))or nil
+    local axeFrames={4,4,5,6,6,4}
+    local frame = scoreAxeAction and axeFrames[math.floor(axeProgress*6)+1]
+        or action and (math.floor(self.clearcutActionProgress * 6) + 1)
         or (self.isMoving and (math.floor(self.walkClock) % 6 + 1) or 1)
     local sprite = self.clearcutSprite
     local directions = sprite[row .. "Facing"]
