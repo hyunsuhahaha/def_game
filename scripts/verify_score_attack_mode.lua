@@ -249,4 +249,8 @@ settleMode:updateResults(.35,game);settleMode:updateResults(.15,game)
 assert(game.result.traitEarned>0 and game.result.traitEarned<8,"sequential settlement did not begin one unit at a time")
 settleMode:completeResultSettlement(game)
 assert(Traits.data.currency==coinsBefore+8 and game.result.traitEarned==8 and settleMode.resultSettlement.complete,"skipping result settlement lost or duplicated coins")
+local completedVisualTime=settleMode.resultSettlement.elapsed
+settleMode.resultSettlement.bursts={{t=.44,dur=.48,rowIndex=1,seed=1}}
+settleMode:updateResults(.12,game)
+assert(settleMode.resultSettlement.elapsed>completedVisualTime and #settleMode.resultSettlement.bursts==0,"completed settlement froze its coin animation clock or final transfer burst")
 print("SCORE_ATTACK_MODE_OK start=6 persistent_regen_tier wood_xp=operations combat=permanent")

@@ -5665,9 +5665,13 @@ end
 
 function ClearcutMode:updateResults(dt,game)
     local s=self.resultSettlement
-    if not s or s.complete or not game.result then return end
+    if not s or not game.result then return end
+    -- Settlement completion stops currency conversion, not the presentation clock.
+    -- Keeping this clock alive prevents the bank coin and any final transfer burst
+    -- from freezing on an arbitrary frame and looking like a stalled result screen.
     s.elapsed=s.elapsed+dt
     for i=#s.bursts,1,-1 do local b=s.bursts[i];b.t=b.t+dt;if b.t>=b.dur then table.remove(s.bursts,i)end end
+    if s.complete then return end
     if s.rowPause>0 then s.rowPause=math.max(0,s.rowPause-dt);return end
     local row=s.rows[s.rowIndex]
     if not row then s.complete=true;if game.characterTraits then game.characterTraits:save()end;return end
