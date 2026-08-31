@@ -93,6 +93,11 @@ assert(scoreSmoker.scoreRange==80 and scoreSmoker.scoreArea==60,"score-mode perm
 -- 5레벨 .235 → 만렙(6) .282, 즉 (.12+.282)*3.6 = 1.45그루로 임계점 1.00을 넘긴다.
 assert(math.abs(scoreSmoker.scoreIgnitionChance-.06)<1e-9 and math.abs(scoreSmoker.scoreSpreadChance-.235)<1e-9,"score-mode ignition traits were not separated")
 assert(math.abs(scoreSmoker.scoreAttackSpeed-.20)<1e-9 and math.abs(scoreSmoker.scoreProjectileSpeed-.35)<1e-9 and math.abs(scoreSmoker.scoreBurnSpeed-.30)<1e-9 and scoreSmoker.scoreExtraFires==1,"score-mode permanent smoker pacing was not subdivided correctly")
+local earlySmoking=CharacterTraits.new(true)
+earlySmoking.data.currency=500
+assert(earlySmoking:buy("fire_score_prewarm"),"smoker root purchase failed")
+assert(earlySmoking:buy("fire_score_alwayssmoke"),"always-smoking node is not purchasable directly after the root")
+assert(earlySmoking:scoreAttackEffects().scoreAlwaysSmoking==1,"early always-smoking purchase did not reach score runtime effects")
 local activeScore=store:scoreAttackEffects()
 assert(activeScore.scoreInitialIgnitionReduction==.4,"score-mode opening ignition trait is not active")
 assert(activeScore.scoreStartingBabyRobot==1 and activeScore.scoreRobotSpeed==.5,"score-mode baby robot permanent research is not active")
@@ -185,11 +190,11 @@ end end
 local root=store:getNode("fire_score_prewarm")
 local rx,ry=board:nodeWorld(root)
 local directions={left=false,right=false,up=false,down=false}
-for _,id in ipairs({"fire_score_filter","fire_score_lighter","fire_score_launch","fire_score_heat"})do
+for _,id in ipairs({"fire_score_filter","fire_score_lighter","fire_score_launch","fire_score_alwayssmoke"})do
     local nx,ny=board:nodeWorld(store:getNode(id));local dx,dy=nx-rx,ny-ry
     if math.abs(dx)>math.abs(dy)then directions[dx<0 and"left"or"right"]=true else directions[dy<0 and"up"or"down"]=true end
 end
-assert(directions.left and directions.right and directions.up and directions.down,"smoker root does not branch in four directions")
+assert(directions.left and directions.right and directions.up and directions.down,"smoker root does not place always-smoking as its downward second node")
 for i=1,#board.nodeBoxes do for j=i+1,#board.nodeBoxes do
     local a,b=board.nodeBoxes[i],board.nodeBoxes[j]
     local separated=a.x+a.w<=b.x or b.x+b.w<=a.x or a.y+a.h<=b.y or b.y+b.h<=a.y
@@ -200,7 +205,7 @@ local function distance(a,b)local ax,ay=board:nodeWorld(store:getNode(a));local 
 assert(distance("fire_score_prewarm","fire_score_filter")==distance("fire_score_filter","fire_score_spark"),"left branch step lengths differ")
 assert(distance("fire_score_prewarm","fire_score_lighter")==distance("fire_score_lighter","fire_score_ash"),"right branch step lengths differ")
 assert(distance("fire_score_prewarm","fire_score_launch")==distance("fire_score_launch","fire_score_drag"),"upper branch step lengths differ")
-assert(distance("fire_score_prewarm","fire_score_heat")==distance("fire_score_heat","fire_score_stock"),"lower branch step lengths differ")
+assert(distance("fire_score_prewarm","fire_score_alwayssmoke")==distance("fire_score_alwayssmoke","fire_score_autothrow"),"always-smoking branch step lengths differ")
 store.data.currency=1000
 local rootBox
 for _,box in ipairs(board.nodeBoxes)do

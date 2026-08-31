@@ -135,9 +135,9 @@ slowRocket.scoreWeaponSlot, slowRocket.smokerWeaponCooldown = 2, 0
 slowRocket:updateHeldAxe(1, rocketGame, true)
 assert(slowRocket.smokerWeaponProjectiles[1].dur > shot.dur, "폭죽 비행 속도 특성이 도달 시간을 줄이지 않는다")
 
--- 7. 후반 해금 순서: 담배 자동 투척 → 그 다음 노드가 폭죽 해금.
-assert(nodeOf("fire_score_alwayssmoke").requires[1][1] == "fire_score_stock",
-    "상시 흡연이 담배 갈래 끝에 붙어 있지 않다")
+-- 7. 상시 흡연은 루트 직후, 그 뒤 자동 투척 → 폭죽 순서로 이어진다.
+assert(nodeOf("fire_score_alwayssmoke").requires[1][1] == "fire_score_prewarm",
+    "상시 흡연이 루트 바로 다음 두 번째 노드가 아니다")
 assert(nodeOf("fire_score_autothrow").requires[1][1] == "fire_score_alwayssmoke",
     "담배 자동 투척이 상시 흡연 다음 노드가 아니다")
 assert(nodeOf("fire_score_rocket_unlock").requires[1][1] == "fire_score_autothrow",

@@ -327,16 +327,17 @@ function CharacterTraitBoard:nodeWorld(node)
         fire_score_filter={750,850},fire_score_spark={400,850},
         fire_score_lighter={1450,850},fire_score_ash={1800,850},
         fire_score_launch={1100,600},fire_score_drag={1100,350},
-        fire_score_heat={1100,1100},fire_score_stock={1100,1350},
-        -- 무기 슬롯 갈래. 담배 척추(prewarm→heat→stock) 아래로 후반 해금 두 개가 이어지고,
+        -- 상시 흡연은 루트 바로 아래 두 번째 노드다. 자동 투척과 폭죽 해금은 그 아래로
+        -- 이어지고, 기존 연소속도→추가 꽁초 갈래는 오른쪽으로 빼서 겹치지 않게 한다.
+        fire_score_alwayssmoke={1100,1100},fire_score_autothrow={1100,1350},
+        fire_score_rocket_unlock={1100,1600},
+        fire_score_heat={1450,1100},fire_score_stock={1800,1100},
         -- 공용/도끼는 왼쪽, 폭죽 강화는 해금 아래 한 줄로 편다.
         fire_score_edge={400,1100},
         fire_score_axe_area={400,1350},fire_score_axe_speed={750,1350},
         fire_score_axe_targets={400,1600},fire_score_axe_execute={750,1600},
         fire_score_axe_shock={400,1850},fire_score_axe_chain={750,1850},
         fire_score_axe_crew={575,2100},
-        fire_score_alwayssmoke={1100,1600},fire_score_autothrow={1100,1850},
-        fire_score_rocket_unlock={1100,2100},
         fire_score_rocket_radius={400,2350},fire_score_rocket_damage={750,2350},
         fire_score_rocket_speed={1100,2350},fire_score_rocket_ignite={1450,2350},
         fire_score_rocket_cooldown={1800,2350},
@@ -416,6 +417,22 @@ function CharacterTraitBoard:drawNode(box, node, level, statusOk, requirementRea
         love.graphics.line(cx-q,cy+8,cx-q,cy+q,cx-8,cy+q)
         love.graphics.line(cx+q,cy+8,cx+q,cy+q,cx+8,cy+q)
     end
+    -- 선행 조건을 충족했고 현재 연구 코인으로 다음 단계를 살 수 있는 노드만 표시한다.
+    -- 선택 표시(녹색 모서리)와 완료 링에서 떨어진 금색 외곽선·코인 마름모를 함께 써서
+    -- 현재 선택 여부나 단순 해금 상태로 오인되지 않게 한다.
+    if statusOk then
+        local affordPulse=1+math.floor(pulse*2)
+        love.graphics.setLineWidth(math.max(2,affordPulse))
+        love.graphics.setColor(1,.72,.18,.72+pulse*.24)
+        shape("line",0,0,18+pulse*2)
+        local coinX,coinY=cx+r+17,cy-r-17
+        love.graphics.setColor(.42,.30,.08,.92)
+        love.graphics.polygon("fill",coinX,coinY-8,coinX+8,coinY,coinX,coinY+8,coinX-8,coinY)
+        love.graphics.setColor(1,.78,.20,1)
+        love.graphics.polygon("fill",coinX,coinY-6,coinX+6,coinY,coinX,coinY+6,coinX-6,coinY)
+        love.graphics.setColor(1,.94,.56,1)
+        love.graphics.rectangle("fill",coinX-1,coinY-3,2,6)
+    end
     if level>0 then
         love.graphics.setLineWidth(3); love.graphics.setColor(.18,.45,.27,1)
         drawRing(cx,cy,r+12,-math.pi/2,-math.pi/2+math.pi*2*(level/node.max),math.max(8,node.max*8))
@@ -423,9 +440,6 @@ function CharacterTraitBoard:drawNode(box, node, level, statusOk, requirementRea
     local iconAlpha=unlocked and 1 or (requirementReady and .92 or .38)
     if not TraitNodeArt.draw(node.icon,cx,cy,r*1.28,iconAlpha)then
         love.graphics.setColor(unlocked and {1,1,.94,1} or {.12,.13,.12,iconAlpha});drawGlyph(node.icon,cx,cy,r*.82)
-    end
-    if statusOk and not unlocked then
-        love.graphics.setColor(.58,1,.52,.95); love.graphics.rectangle("fill",cx+r*.42,cy-r*.78,9,3); love.graphics.rectangle("fill",cx+r*.42+3,cy-r*.78-3,3,9)
     end
     local pipW=math.max(3,math.floor(r*.14));local gap=2
     local totalW=node.max*pipW+(node.max-1)*gap
@@ -664,7 +678,7 @@ function CharacterTraitBoard:draw()
     self.minimapBox=nil;self.resetViewBox=nil
     love.graphics.setColor(.27,.28,.26,.88);love.graphics.rectangle("fill",0,h-footerH,w,footerH)
     love.graphics.setFont(fonts.micro or fonts.small);love.graphics.setColor(.94,.95,.91,.88)
-    love.graphics.printf("클릭  강화 선택     ·     드래그  트리 이동     ·     휠  확대/축소",0,h-footerH+(footerH-fonts.small:getHeight())/2,w,"center")
+    love.graphics.printf("◆ 구매 가능     ·     클릭  강화 선택     ·     드래그  트리 이동     ·     휠  확대/축소",0,h-footerH+(footerH-fonts.small:getHeight())/2,w,"center")
     if self.messageTime>0 then
         local width=math.min(520,w*.46)
         love.graphics.setColor(.94,.95,.91,.98); love.graphics.rectangle("fill",w/2-width/2,h-82,width,38,3,3)

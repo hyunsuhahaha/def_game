@@ -18,6 +18,9 @@ local function capture(w,h,path,job,zoomOut)
     love.graphics.getWidth=function()return w end
     love.graphics.getHeight=function()return h end
     local store=Store.new(true);store.data.currency=240
+    -- 구매 가능 표식 검수용: 루트를 1단계 연 상태에서 현재 코인으로 살 수 있는
+    -- 직계 노드들이 한 화면에 함께 표시돼야 한다.
+    store.data.levels.fire_score_prewarm=1
     local board=Board.new(store,fonts,sprites);board.time=1.2
     if job and job~="fire"then board:selectJob(job)end
     fixture.reset();fixture.time=1.2

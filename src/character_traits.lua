@@ -190,6 +190,9 @@ expand("fire",{
 -- 일반 흡연자 연구는 삭제하지 않고 저장 호환을 위해 위에 그대로 보존한다.
 local scoreFireNodes={
     {id="fire_score_prewarm",name="최초 흡연 준비시간 감소",short="첫 불씨 단축",desc="벌목 기록 모드 최초 흡연 준비시간 -0.08초",effect="scoreInitialIgnitionReduction",value=.08,wx=390,wy=710,icon="ember",color={1,.48,.12}},
+    -- 루트 바로 다음 두 번째 노드. 도끼·폭죽을 들고 있는 동안에도 한 갑을 다 쓴
+    -- 긴 재장전을 포함한 흡연 상태가 계속 진행된다.
+    {id="fire_score_alwayssmoke",name="상시 흡연",short="상시 흡연",desc="다른 무기를 들고 있어도 계속 담배를 피웁니다. 담배로 바꾼 즉시 던질 수 있습니다.",effect="scoreAlwaysSmoking",value=1,max=1,costs={200},wx=2020,wy=760,icon="cigarette",color={.94,.72,.36},requires={{"fire_score_prewarm",1}}},
     {id="fire_score_filter",name="무기 사거리 상승",short="무기 사거리",desc="무기 사거리 +16",effect="scoreRange",value=16,max=6,costs={18,32,50,74,104,142},wx=730,wy=520,icon="filter",color={.88,.66,.32},requires={{"fire_score_prewarm",1}}},
     {id="fire_score_lighter",name="착화 범위 상승",short="착화 범위",desc="꽁초가 불씨를 옮기는 착화 반경 +12",effect="scoreArea",value=12,max=6,costs={18,32,50,74,104,142},wx=730,wy=900,icon="ember",color={.96,.43,.16},requires={{"fire_score_prewarm",1}}},
     {id="fire_score_spark",name="꽁초 착화 확률 상승",short="착화 확률",desc="꽁초의 착화 성공 확률 +1.2%p",effect="scoreIgnitionChance",value=.012,wx=1080,wy=380,icon="ember",color={1,.56,.16},requires={{"fire_score_filter",2}}},
@@ -231,7 +234,6 @@ local scoreFireNodes={
     {id="fire_score_axe_chain",name="연속 벌목",short="연속 벌목",desc="나무를 쓰러뜨리면 단계마다 18% 확률로 도끼 재사용 대기시간이 즉시 초기화됩니다.",effect="scoreAxeChain",value=.18,max=3,costs={90,150,230},wx=200,wy=1790,icon="clock",color={.78,.70,.42},requires={{"fire_score_axe_execute",3}}},
     -- 도끼 갈래의 졸업. 마스터한 무기를 동료에게 넘기고 손은 다음 무기로 넘어간다.
     {id="fire_score_axe_crew",name="도끼 원숭이 해금",short="도끼 원숭이",desc="졸업 원숭이 1마리가 합류하고 도끼를 넘겨받습니다. I 장비 가방에서 원숭이 무기를 담배·도끼·폭죽으로 교체할 수 있습니다.",effect="scoreAxeCrew",value=1,max=1,costs={800},wx=200,wy=2100,icon="capstone",color={.94,.52,.20},requires={{"fire_score_axe_shock",3},{"fire_score_axe_chain",3}},capstone=true},
-    {id="fire_score_alwayssmoke",name="상시 흡연",short="상시 흡연",desc="다른 무기를 들고 있어도 계속 담배를 피웁니다. 담배로 바꾼 즉시 던질 수 있습니다.",effect="scoreAlwaysSmoking",value=1,max=1,costs={200},wx=2020,wy=760,icon="cigarette",color={.94,.72,.36},requires={{"fire_score_stock",1}},capstone=true},
     {id="fire_score_autothrow",name="담배 자동 투척",short="자동 투척",desc="어떤 무기를 들고 있든 2.6초마다 꽁초가 자동으로 날아갑니다. 담배를 직접 들면 수동 투척이 그 위에 더해집니다.",effect="scoreAutoThrow",value=1,max=1,costs={240},wx=2020,wy=900,icon="cigarette",color={1,.46,.14},requires={{"fire_score_alwayssmoke",1}},capstone=true},
     {id="fire_score_rocket_unlock",name="폭죽 로켓 해금",short="폭죽 해금",desc="장비 가방에 폭죽 로켓이 추가됩니다. 플레이어의 장착 무기 2칸이나 졸업 원숭이 장비 칸에 넣을 수 있습니다.",effect="scoreRocketUnlock",value=1,max=1,costs={260},wx=1150,wy=1250,icon="blast",color={1,.34,.10},requires={{"fire_score_autothrow",1}},capstone=true},
     {id="fire_score_rocket_radius",name="폭죽 폭발 반경 상승",short="폭발 반경",desc="폭죽 로켓의 폭발 반경 +16",effect="scoreRocketRadius",value=16,max=5,wx=1700,wy=1300,icon="blast",color={1,.52,.18},requires={{"fire_score_rocket_unlock",1}}},
