@@ -38,11 +38,11 @@ local attackGame={
     world={nodes={tree},impactNode=function()end},tools={axe={speed=.8}},setNotice=function()end,
 }
 actual.scoreWeaponSlot=2
-assert(actual:updateHeldAxe(.7,attackGame,true)and tree.rushHp==93 and actual.actionAudit.scoreAxe==1,
+assert(actual:updateHeldAxe(.7,attackGame,true)and tree.rushHp==96 and actual.actionAudit.scoreAxe==1,
     "axe slot did not apply its real direct tree hit")
 actual.scoreWeaponSlot=3;actual.smokerWeaponCooldown=0
 assert(actual:updateHeldAxe(1,attackGame,true)and actual.smokerWeaponProjectiles[1].kind=="firework",
     "firework slot did not launch its real projectile")
 actual:updateSmokerWeaponProjectiles(2,attackGame)
-assert(tree.rushHp<93,"firework projectile did not detonate against its displayed target area")
+assert(tree.rushHp<96,"firework projectile did not detonate against its displayed target area")
 print("SCORE_WEAPON_SLOTS_OK slots=3 input=keyboard+click attacks=cigarette+axe+firework")

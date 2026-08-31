@@ -2768,10 +2768,10 @@ function ClearcutMode:updateScoreAxeAttack(dt,game,heldOverride)
     local primary=targets[1]
     game.player:cancelInteraction()
     game.player:playAutoAxeSwing(primary.x)
-    -- 도끼는 담배만 던지는 초반의 답답함을 없애려고 넣은 무기다. 기본 피해 3은 기본
-    -- 숲 나무(HP 7)를 세 번 때려야 해서 오히려 담배보다 느렸다. 기본 한 방으로 맞추고,
-    -- 재생 단계가 올라 나무 HP가 7→9로 커지면 나무 피해 특성이 그 한 방을 유지한다.
-    local damage=7+(self.permanentTraits.treeDamage or 0)
+    -- 도끼는 "나무를 캐는" 주 활동이라 한 방에 지워지면 감촉이 사라진다. 기본 숲
+    -- 나무(HP 7)를 두 번에 쓰러뜨리는 4를 기준으로 잡고, 한 방 벌목은 나무 피해
+    -- 특성 3레벨의 보상으로 남긴다. (기본 3은 세 번이라 너무 끈적였다.)
+    local damage=4+(self.permanentTraits.treeDamage or 0)
     local executeChance=self.permanentTraits.executeChance or 0
     for _,node in ipairs(targets)do
         -- 밑동 절단은 체력을 0으로 만들어 같은 타격 판정에서 쓰러지게 한다.

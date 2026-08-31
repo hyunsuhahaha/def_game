@@ -79,7 +79,7 @@ assert(axe:updateHeldAxe(1, axeGame(trees), true), "도끼 슬롯이 타격하�
 local hit = 0
 for _, node in ipairs(trees) do if node.rushHp < 500 then hit = hit + 1 end end
 assert(hit == 3, "동시 타격 나무 +2가 실제 타격으로 이어지지 않았다 (맞은 나무 " .. hit .. ")")
-assert(trees[1].rushHp == 488, "도끼 피해가 기본 7+나무 피해 5로 계산되지 않았다")
+assert(trees[1].rushHp == 491, "도끼 피해가 기본 4+나무 피해 5로 계산되지 않았다")
 
 -- 담배용 착화 범위(area)만 올려도 도끼 범위는 넓어지지 않아야 한다.
 local narrow = ClearcutMode.new()
