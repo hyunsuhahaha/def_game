@@ -594,7 +594,20 @@ function SelfTest.run(game)
     local berserkEliteFound = false
     for _, e in ipairs(game.clearcut.enemies) do if e.elite then berserkEliteFound = true end end
     assert(berserkEliteFound, "광폭화 시작 시 강제 정예 스폰 실패")
-    assert(game.clearcut:berserkMultiplier() > 2, "광폭화 진행 중 스폰 배율 실패")
+    -- 광폭화 스폰 배율은 531906d(적 압박 완화)에서 2.4+0.25/주기 → 1.45+0.1/주기로
+    -- 의도적으로 낮췄다. 절대값을 다시 박으면 밸런스를 만질 때마다 또 깨지므로,
+    -- "대기 < 경고 < 진행"과 주기가 쌓일수록 세진다는 계약만 고정한다.
+    local berserkStateBefore, berserkCycleBefore = game.clearcut.berserkState, game.clearcut.berserkCycleCount
+    local berserkActive = game.clearcut:berserkMultiplier()
+    game.clearcut.berserkState = "warn"
+    local berserkWarn = game.clearcut:berserkMultiplier()
+    game.clearcut.berserkState = "idle"
+    local berserkIdle = game.clearcut:berserkMultiplier()
+    game.clearcut.berserkState, game.clearcut.berserkCycleCount = "active", berserkCycleBefore + 2
+    local berserkLater = game.clearcut:berserkMultiplier()
+    game.clearcut.berserkState, game.clearcut.berserkCycleCount = berserkStateBefore, berserkCycleBefore
+    assert(berserkIdle == 1 and berserkWarn > berserkIdle and berserkActive > berserkWarn and berserkLater > berserkActive,
+        "광폭화 진행 중 스폰 배율 실패")
     game.clearcut.berserkTimer = 0
     game.clearcut.kills = game.clearcut.berserkKillsStart + 3
     game.clearcut:updateBerserk(.01, game)
