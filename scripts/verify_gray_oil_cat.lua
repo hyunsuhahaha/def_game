@@ -24,7 +24,8 @@ for _,spot in ipairs(mode.oilTrail)do
     assert(spot.group=="drum_1" and spot.lifetime==20,"drum oil spot lost its group or lifetime")
     earliest,latest=math.min(earliest,spot.spawnedAt),math.max(latest,spot.spawnedAt)
 end
-assert(latest-earliest>=.30,"drum oil appeared at once instead of visibly spreading out from the barrel")
+assert(#mode.oilDrumSpills==1 and mode.oilDrumSpills[1].frameDuration==.12,"dedicated drum spill animation was not created")
+assert(latest-earliest>=.18,"oil collision points did not follow the visible spill timing")
 
 local game={player={x=500,y=350},world={nodes={}},camera=nil}
 local catMode=ClearcutMode.new()

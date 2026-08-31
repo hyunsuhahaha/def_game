@@ -49,6 +49,7 @@ local WoodSettlementArt = require("src.wood_settlement_art")
 local ClearcutMode = {}
 ClearcutMode.__index = ClearcutMode
 ClearcutMode.GrayOilCatArt = require("src.gray_oil_cat_art")
+ClearcutMode.OilDrumSpillArt = require("src.oil_drum_spill_art")
 
 local scoreWeaponDefinitions = {
     {id="cigarette",name="담배"},
@@ -204,7 +205,7 @@ function ClearcutMode.new()
         smokerWeaponProjectiles={},smokerWeaponCooldown=0,vapeCharge=0,vapeKick=0,vapeWindLeaves={},
         treeSparks={}, treeSparkArrivals={}, strawTimer=0, strawBales={}, strawBaleSequence=0,
         oilTrail={}, oilTrailTimer=0, oilTrailLastX=nil, oilTrailLastY=nil, oilTrailSequence=0,
-        oilDrums={},oilDrumTimer=0,oilDrumSequence=0,oilPuddleGroups={},grayOilCat=nil,
+        oilDrums={},oilDrumSpills={},oilDrumTimer=0,oilDrumSequence=0,oilPuddleGroups={},grayOilCat=nil,
         job=nil, attackCooldown=0, dashing=nil, dashTrail={}, smoking=nil,
         minerClawAction=nil, minerClawFx={}, minerClawMarks={}, minerBurrow=nil, minerBurrowCooldown=0, thrownTrees={}, burrowTracks={}, burrowTrackSequence=0,moleCompanion=nil,moleCompanions={},
         smokeRing=nil, smokeRingCooldown=0, smokeRingCharge=nil, smokeRingChargeDuration=1.5,
@@ -586,6 +587,7 @@ function ClearcutMode:setup(game)
     if self.scoreAttack and (self.permanentTraits.scoreMoleCompanion or 0)>0 then self:initMoleCompanion(game) end
     if self.scoreAttack and (self.permanentTraits.scoreOilDrum or 0)>0 then
         ClearcutMode.GrayOilCatArt.load()
+        ClearcutMode.OilDrumSpillArt.load()
         self.oilDrumTimer=3.5
     end
     local notice=self.scoreAttack and string.format("벌목 기록 — 활성 나무가 %d그루에 닿으면 종료",self.scoreTreeAllowance)or(Maps.get(self.mapId).name.." — 마우스를 누른 채 나무 근처로 이동하세요")
@@ -842,18 +844,23 @@ function ClearcutMode:spillOilDrum(drum,source)
     if not drum or drum.state=="spilled"then return false end
     drum.state,drum.spillAge,drum.claimed="spilled",0,false
     drum.angle=drum.angle~=0 and drum.angle or 1.35
+    drum.hasSpillFx=true
+    self.oilDrumSpills[#self.oilDrumSpills+1]={
+        x=drum.x,y=drum.y,age=0,frameDuration=.12,lifetime=20,
+        facing=drum.spillFacing or 1,source=source,drumId=drum.id
+    }
     self.oilTrailSequence=(self.oilTrailSequence or 0)+1
     local group="drum_"..tostring(drum.id or self.oilTrailSequence)
     local spots={}
     for index=1,11 do
         local ring=index==1 and 0 or(index<=5 and 34 or 68)
         local angle=(index*2.399963)+((drum.id or 0)*.41)
-        local spreadDelay=(ring/68)*.30+((index-1)%3)*.025
+        local spreadDelay=.82+(ring/68)*.18+((index-1)%3)*.02
         local spot={
             x=drum.x+math.cos(angle)*ring,y=drum.y+math.sin(angle)*ring*.48,
             spawnedAt=self.smokerGroundTime+spreadDelay,ignited=false,angle=angle,
             variant=(index-1)%3+1,sequence=self.oilTrailSequence+index,
-            source="drum",group=group,lifetime=20
+            source="drum",group=group,lifetime=20,hiddenGround=true
         }
         self.oilTrail[#self.oilTrail+1]=spot;spots[#spots+1]=spot
     end
@@ -866,6 +873,7 @@ function ClearcutMode:hitOilDrum(drum,damage,game)
     drum.hp=math.max(0,(drum.hp or drum.maxHp or 8)-(damage or 4))
     drum.hitFlash=.16
     drum.angle=(drum.angle or 0)+((drum.hp%2==0)and-.07 or .07)
+    drum.spillFacing=drum.x>game.player.x and 1 or-1
     SupplementArt.impact(self,"axe",drum.x,drum.y-42,24)
     if drum.hp<=0 then self:spillOilDrum(drum,"axe")end
     return true
@@ -931,6 +939,7 @@ function ClearcutMode:updateGrayOilCat(dt,game)
     elseif cat.state=="push"then
         local p=math.min(1,cat.stateTime/cat.pushDuration)
         drum.angle=cat.facing*p*1.28
+        drum.spillFacing=cat.facing
         drum.x=drum.x+cat.facing*dt*18
         if p>=.56 and drum.state~="spilled"then self:spillOilDrum(drum,"cat")end
         if p>=.72 then self:beginGrayOilCatExit(cat)end
@@ -967,6 +976,11 @@ function ClearcutMode:updateOilDrums(dt,game)
             drum.alpha=math.max(0,1-drum.spillAge/1.4)
             if drum.spillAge>=1.4 then table.remove(self.oilDrums,index)end
         end
+    end
+    for index=#self.oilDrumSpills,1,-1 do
+        local spill=self.oilDrumSpills[index]
+        spill.age=(spill.age or 0)+dt
+        if spill.age>(spill.lifetime or 20)+.7 then table.remove(self.oilDrumSpills,index)end
     end
     if (self.permanentTraits.scoreGrayCat or 0)>0 and not self.grayOilCat then
         for _,drum in ipairs(self.oilDrums)do
@@ -6386,8 +6400,14 @@ function ClearcutMode:queueWorldActors(queue,t)
             draw=function()self:drawMoleCompanion(companion)end}
     end
     for _,value in ipairs(self.oilDrums or{})do local drum=value
+        if not(drum.state=="spilled"and drum.hasSpillFx)then
         queue[#queue+1]={x=drum.x,y=drum.y,anchorY=drum.y,sortBias=.001,
             draw=function()ClearcutMode.GrayOilCatArt.drawDrum(drum)end}
+        end
+    end
+    for _,value in ipairs(self.oilDrumSpills or{})do local spill=value
+        queue[#queue+1]={y=-100001+spill.y*.001,ground=true,
+            draw=function()ClearcutMode.OilDrumSpillArt.draw(spill)end}
     end
     if self.grayOilCat then local cat=self.grayOilCat
         queue[#queue+1]={x=cat.x,y=cat.y,anchorY=cat.y,sortBias=.002,
@@ -6405,13 +6425,15 @@ function ClearcutMode:queueWorldActors(queue,t)
         local spot=value
         -- Ground liquid is always behind actors; flame/smoke participates in
         -- the regular quarter-view foot-depth order.
-        queue[#queue+1]={y=-100000+spot.y*.001,ground=true,draw=function() OilTrailArt.drawGround(spot,groundTime) end}
+        if not spot.hiddenGround then
+            queue[#queue+1]={y=-100000+spot.y*.001,ground=true,draw=function() OilTrailArt.drawGround(spot,groundTime) end}
+        end
         if spot.ignited then
             queue[#queue+1]={x=spot.x,y=spot.y+.1,anchorY=spot.y,draw=function() OilTrailArt.drawFlame(spot,groundTime) end}
         end
         local previous=self.oilTrail[index-1]
         local sameGroup=previous and((not previous.group and not spot.group)or previous.group==spot.group)
-        if sameGroup then
+        if sameGroup and not(previous.hiddenGround or spot.hiddenGround)then
             queue[#queue+1]={y=-99999+math.min(previous.y,spot.y)*.001,ground=true,draw=function() OilTrailArt.drawGroundBridge(previous,spot,groundTime) end}
             if previous.ignited and spot.ignited then
                 queue[#queue+1]={x=(previous.x+spot.x)*.5,y=(previous.y+spot.y)*.5+.1,anchorY=(previous.y+spot.y)*.5,draw=function() OilTrailArt.drawFlameBridge(previous,spot,groundTime) end}
