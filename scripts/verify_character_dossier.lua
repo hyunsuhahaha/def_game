@@ -1,65 +1,37 @@
--- The static dossier is a required mirror of every in-game skill definition.
-package.path="./?.lua;./?/init.lua;"..package.path
 local function read(path)
     local file=assert(io.open(path,"rb"));local value=file:read("*a");file:close();return value
 end
-local source=read("src/clearcut_mode.lua").."\n"..read("src/score_operations.lua")
+
 local dossier=read("docs/character_dossier.html")
--- Index once. Re-running a leading [^\r\n]* pattern against the dossier's
--- intentionally long system-note line for every skill caused quadratic
--- backtracking as that documentation grew.
-local dossierById={}
-for line in dossier:gmatch("[^\r\n]+") do
-    local id=line:match('id:"([^"]+)"')
-    if id then dossierById[id]=line end
+for _,removed in ipairs({
+    "const SKILLS","const SYNERGIES","const SYNERGY_TAGS","const SKILL_BRANCHES",
+    "const FUSIONS","renderSkillsPanel","스킬·운영","태그 시너지"
+})do
+    assert(not dossier:find(removed,1,true),"removed skill/synergy dossier content remains: "..removed)
 end
-local checked=0
-for line in source:gmatch("[^\r\n]+") do
-    local id=line:match('{id="([^"]+)"')
-    local name=line:match('name="([^"]+)"')
-    local desc=line:match('desc="([^"]*)"')
-    local max=line:match('max=(%d+)')
-    if id and name and desc and max then
-        local dossierLine=dossierById[id]
-        assert(dossierLine,"character_dossier.html is missing skill "..id)
-        assert(dossierLine:find('name:"'..name..'"',1,true),"dossier skill name is stale: "..id)
-        assert(dossierLine:find('desc:"'..desc..'"',1,true),"dossier skill description is stale: "..id)
-        -- Older static entries may omit max only when it is the universal 6.
-        local documentedMax=dossierLine:match('max:(%d+)') or "6"
-        assert(documentedMax==max,"dossier skill max level is stale: "..id)
-        checked=checked+1
-    end
-end
-assert(checked>=35,"dossier verifier found too few skill and operation definitions")
-local fusionSource=read("src/clearcut_fusions.lua")
-local fusionChecked=0
-for id,name,needs,desc in fusionSource:gmatch('{id="([^"]+)".-name="([^"]+)".-needs={(.-)}.-\n%s*desc="([^"]*)"') do
-    local dossierLine=dossierById[id]
-    assert(dossierLine,"character_dossier.html is missing fusion "..id)
-    assert(dossierLine:find('name:"'..name..'"',1,true),"dossier fusion name is stale: "..id)
-    assert(dossierLine:find('desc:"'..desc..'"',1,true),"dossier fusion description is stale: "..id)
-    for ingredient in needs:gmatch('"([^"]+)"') do
-        assert(dossierLine:find('"'..ingredient..'"',1,true),"dossier fusion ingredient is stale: "..id)
-    end
-    fusionChecked=fusionChecked+1
-end
-assert(fusionChecked>=7,"dossier verifier found too few fusion definitions")
+assert(dossier:find('let mode = "traits"',1,true),"dossier does not open on permanent traits")
+assert(dossier:find('traits: { label: "로비 특성"',1,true),"permanent trait dossier mode is missing")
+assert(dossier:find("기존 조합 보너스의 계산·연계 파동·HUD·선택 카드 표시는 제거",1,true),
+    "dossier system note does not record the removed combination system")
 assert(dossier:find('id="score-mode-summary"',1,true),"dossier is missing the visible score-mode rules summary")
-assert(dossier:find("0그루 달성 · 0.86초 잎/프리즘 단계 상승 연출 · 6그루 순차 발아 · 다음 단계 영구 해금",1,true)and dossier:find("첫 45초 없음",1,true),"dossier score-mode opening pacing is stale")
+assert(dossier:find("0그루 달성 · 0.86초 잎/프리즘 단계 상승 연출 · 6그루 순차 발아 · 다음 단계 영구 해금",1,true),
+    "dossier score-mode opening pacing is stale")
 assert(dossier:find("목재 5부터 빠른 운영·전투 강화 3택",1,true),"dossier score-mode growth summary is stale")
-assert(dossier:find("중앙 루트에서 상·하·좌·우 4방향 분기 · 방향별 동일 단계 간격 · 기준 간격의 85~115% 줌 · 화면 해상도별 한글 폰트 재래스터",1,true),"dossier research-board summary is stale")
-assert(dossier:find("수종별 목재 집계 → 1개씩 회전 코인으로 순차 변환 → 강화하기/재도전 (이동 시 잔여분 즉시 정산)",1,true),"dossier result-screen summary is stale")
-assert(dossier:find("운영 6종과 공격속도·추가 꽁초·착화 범위·연소속도 상승 4종",1,true),"dossier score-mode system note is stale")
-assert(dossier:find("공용 스킬 · 운영·전투 강화 19종 활성",1,true),"dossier does not document the active score cards")
-assert(dossier:find("fire_score_prewarm",1,true)and dossier:find("fire_score_stock",1,true),"dossier score-mode permanent traits are stale")
-assert(dossier:find("universal_robot_start",1,true)and dossier:find("universal_robot_motor",1,true),"dossier baby robot permanent research is stale")
-for _,id in ipairs({"universal_mole_companion","universal_mole_damage","universal_mole_speed","universal_mole_attack_speed",
-    "universal_mole_claw","universal_mole_dual","universal_mole_extra"})do
-    assert(dossier:find('id:"'..id..'"',1,true),"dossier split mole node is missing: "..id)
+assert(dossier:find("중앙 루트에서 상·하·좌·우 4방향 분기 · 방향별 동일 단계 간격 · 기준 간격의 85~115% 줌 · 화면 해상도별 한글 폰트 재래스터",1,true),
+    "dossier research-board summary is stale")
+assert(dossier:find("수종별 목재 집계 → 1개씩 회전 코인으로 순차 변환 → 강화하기/재도전 (이동 시 잔여분 즉시 정산)",1,true),
+    "dossier result-screen summary is stale")
+assert(dossier:find("fire_score_prewarm",1,true)and dossier:find("fire_score_stock",1,true),
+    "dossier score-mode permanent traits are stale")
+assert(dossier:find("universal_robot_start",1,true)and dossier:find("universal_robot_motor",1,true),
+    "dossier baby robot permanent research is stale")
+for _,id in ipairs({
+    "universal_mole_companion","universal_mole_damage","universal_mole_speed","universal_mole_attack_speed",
+    "universal_mole_claw","universal_mole_dual","universal_mole_extra","universal_oil_drum",
+    "universal_oil_interval","universal_oil_radius","universal_oil_duration","universal_oil_damage",
+    "universal_gray_cat","universal_gray_cat_chance","universal_gray_cat_delay","universal_gray_cat_speed"
+})do
+    assert(dossier:find('id:"'..id..'"',1,true),"dossier permanent trait is missing: "..id)
 end
-for _,id in ipairs({"universal_oil_drum","universal_oil_interval","universal_oil_radius","universal_oil_duration","universal_oil_damage",
-    "universal_gray_cat","universal_gray_cat_chance","universal_gray_cat_delay","universal_gray_cat_speed"})do
-    assert(dossier:find('id:"'..id..'"',1,true),"dossier gray oil-cat node is missing: "..id)
-end
-assert(not dossier:find("fire_score_procurement",1,true)and not dossier:find('id:"forest_expansion"',1,true),"removed automation content remains in dossier")
-print("CHARACTER_DOSSIER_OK skills="..checked.." fusions="..fusionChecked.." names/descriptions/max=synced")
+
+print("CHARACTER_DOSSIER_OK permanent-traits-only synergy+legacy-skills=removed")

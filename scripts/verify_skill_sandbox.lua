@@ -35,6 +35,6 @@ local endedGuard=assert(gameSource:find("if self.ended then return end",sandboxG
 assert(sandboxGuard<endedGuard,"practice panel input is blocked by gameplay end/emergence guards")
 local dossier=assert(io.open("docs/character_dossier.html","rb")):read("*a")
 assert(not dossier:find("시스템 연동",1,true) and not dossier:find("system%-note"),"internal system note is still visible in the dossier")
-assert(dossier:find("화염 농축 %[인게임 구현%]")and dossier:find("흡입→압축→원뿔형 풍압",1,true)
-    and dossier:find("연습장에서 꽁초 투척",1,true),"dossier does not expose live smoker routes/practice support")
-print("SKILL_SANDBOX_OK rows=click-to-level smoker=rank3-route+rank6-auto-evolution shared=rank3 scroll=wheel dossier=clean")
+assert(not dossier:find("화염 농축 %[인게임 구현%]")and not dossier:find("연습장에서 꽁초 투척",1,true),
+    "removed legacy skill/practice catalog remains in the dossier")
+print("SKILL_SANDBOX_OK rows=click-to-level smoker=rank3-route+rank6-auto-evolution shared=rank3 scroll=wheel dossier=traits-only")

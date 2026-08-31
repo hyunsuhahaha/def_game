@@ -75,8 +75,8 @@ for _,r in ipairs(results)do
 end
 local opening,early,mid,late,contested=results[1],results[2],results[3],results[4],results[5]
 assert(opening.rate<1.5,"opening build already mass-clears the forest")
-assert(early.rate<3.5,"early synergy build reaches payoff too soon")
+assert(early.rate<3.5,"early build reaches payoff too soon")
 assert(mid.rate>early.rate*1.45,"midgame has no visible power step")
 assert(late.rate>mid.rate*1.55 and late.felled>=360,"completed build lacks late mass-clearing payoff")
-assert(contested.revived>=180 and contested.felled>contested.revived*2,"late forest does not visibly refill or completed build cannot overcome it")
+assert(contested.revived>=180 and contested.felled>contested.revived*1.8,"late forest does not visibly refill or completed build cannot overcome it after synergy removal")
 print("CLEARCUT_POWER_CURVE_OK opening=restrained early=restrained mid=step late=mass_clear contested=regrowth_vs_clear window=30s trees=651")
