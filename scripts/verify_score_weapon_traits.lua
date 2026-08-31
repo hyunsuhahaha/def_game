@@ -284,4 +284,24 @@ local jack = hire.moleCompanions[1]
 assert(jack.kind == "lumberjack", "합류한 동료가 나무꾼이 아니다")
 assert(jack.damage == 5, "나무꾼 피해가 내 도끼(4+5=9)의 절반이 아니다 (" .. jack.damage .. ")")
 
+-- 두더지는 자기 갈래로 따로 자라는 독립 유닛이고, 나무꾼은 내 도끼 빌드의 복제다.
+-- 충격파·밑동 절단·연속 벌목을 물려받지 않으면 두더지와 스프라이트만 다른 같은 유닛이 된다.
+local built = ClearcutMode.new()
+built.scoreAttack, built.sandbox, built.job, built.mapId = true, true, "fire", "forest"
+built.permanentTraits.treeDamage = 5
+built.permanentTraits.scoreAxeShock = 3
+built.permanentTraits.scoreAxeExecute = .12
+built.permanentTraits.scoreAxeChain = .54
+assert(built:initLumberjackCompanion(crewGame), "나무꾼 동료가 합류하지 않았다")
+local skilled = built.moleCompanions[1]
+assert(skilled.shockLevel == 3 and math.abs(skilled.executeChance - .12) < 1e-9
+    and math.abs(skilled.chainChance - .54) < 1e-9,
+    "나무꾼이 내 도끼 빌드(충격파·밑동 절단·연속 벌목)를 물려받지 않았다")
+
+local plain = ClearcutMode.new()
+plain.scoreAttack, plain.sandbox, plain.job, plain.mapId = true, true, "fire", "forest"
+plain:initLumberjackCompanion(crewGame)
+assert(plain.moleCompanions[1].shockLevel == 0,
+    "도끼 상위 갈래를 안 찍었는데 나무꾼이 충격파를 쓴다")
+
 print("SCORE_WEAPON_TRAITS_OK shared=tree_damage axe=area+speed+targets+execute rocket=radius+damage+speed+ignite+cooldown")

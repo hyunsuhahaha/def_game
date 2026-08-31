@@ -725,7 +725,13 @@ function ClearcutMode:initLumberjackCompanion(game)
         attackDuration=.62/(1+math.max(0,traits.scoreAxeSpeed or 0)),struck=false,
         speed=210*(1+math.max(0,traits.moveSpeed and traits.moveSpeed-1 or 0)),
         damage=math.max(1,math.floor(axeDamage*.5+.5)),
-        attackReach=104+math.max(0,traits.scoreAxeArea or 0)*.5,treesFelled=0}
+        attackReach=104+math.max(0,traits.scoreAxeArea or 0)*.5,treesFelled=0,
+        -- 두더지는 자기 갈래로 따로 자라는 독립 유닛이고, 나무꾼은 내 도끼 빌드의
+        -- 복제다. 충격파·밑동 절단·연속 벌목을 그대로 물려받아야 "내가 하던 일을
+        -- 대신한다"가 되고, 도끼 갈래에 넣은 코인이 졸업 후에도 계속 일한다.
+        shockLevel=math.max(0,math.floor(traits.scoreAxeShock or 0)),
+        executeChance=traits.scoreAxeExecute or 0,
+        chainChance=traits.scoreAxeChain or 0}
     self.moleCompanion=self.moleCompanion or self.moleCompanions[1]
     return true
 end
@@ -764,10 +770,23 @@ function ClearcutMode:moleCompanionImpact(companion,game)
     else
         MoleClawArt.spawn(self,contactX,contactY,angle,companion.clawLevel or 1,curveFlip,nil,1,companion.dualClaw)
     end
+    if (companion.executeChance or 0)>0 and node.rushHp and love.math.random()<companion.executeChance then
+        node.rushHp=1
+    end
+    local treeX,treeY=node.x,node.y
     node.rushHp=(node.rushHp or node.rushMaxHp)-companion.damage
     game.world:impactNode(node,game,true)
     SupplementArt.impact(self,"axe",contactX,contactY,20)
-    if node.rushHp<=0 and self:fellTree(node,game)then companion.treesFelled=companion.treesFelled+1 end
+    if node.rushHp<=0 and self:fellTree(node,game)then
+        companion.treesFelled=companion.treesFelled+1
+        if (companion.shockLevel or 0)>0 then
+            self:axeShockwave(treeX,treeY,companion.shockLevel,game)
+        end
+        -- 연속 벌목: 쓰러뜨리면 다음 휘두르기를 기다리지 않고 바로 이어 친다.
+        if (companion.chainChance or 0)>0 and love.math.random()<companion.chainChance then
+            companion.state,companion.target,companion.attackT,companion.struck="seek",nil,0,false
+        end
+    end
     return true
 end
 
