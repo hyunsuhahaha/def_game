@@ -93,6 +93,29 @@ end
 for _,id in ipairs({"score_extra_butts","score_ignition_radius","score_burn_speed"})do
     assert(mode:getUpgradeDefinition(id)==nil,"weapon-specific combat card is back in the run draft: "..id)
 end
+local hpBefore=mode.hp
+game.mode="playing"
+mode:damagePlayer(9999,game)
+assert(mode.hp==hpBefore and not mode.dead and game.mode=="playing","score mode still has player HP damage or death")
+
+-- 10개 카드 x 3단계를 모두 찍은 뒤에는 빈 레벨업을 현장 휴식으로 바꾸지 않고
+-- XP/선택 대기열을 닫는다. 목재 점수 자체는 계속 누적된다.
+local maxed=require("src.clearcut_mode").new();maxed.scoreAttack=true;maxed.job="fire"
+for _,def in ipairs(maxed:upgradePool())do maxed.levels[def.id]=def.max end
+assert(#maxed:upgradePool()==0,"max-rank score draft still has an upgrade candidate")
+maxed.pending,maxed.xp,maxed.level,maxed.totalWood,maxed.scoreWoodEarned=7,4,31,0,0
+game.mode="playing"
+maxed:openUpgradeChoices(game)
+assert(game.mode=="playing"and maxed.pending==0 and #maxed.choices==0,"max-rank score draft still opened a level-up screen")
+maxed:onWood(100,game)
+assert(maxed.level==31 and maxed.pending==0 and maxed.xp==0 and maxed.totalWood==100 and maxed.scoreWoodEarned==100,
+    "max-rank score draft kept generating level-up prompts or stopped counting wood")
+local banished=require("src.clearcut_mode").new();banished.scoreAttack=true;banished.job="fire";banished.totalWood=9999;banished.pending=1
+for _,def in ipairs(banished:upgradePool())do banished.banished[def.id]=true end
+banished.choices={{id="yard_management",name="작업장 확장",scoreOperation=true,max=3}};banished.banished.yard_management=nil;banished.banishArmed=true
+game.mode="clearcut_upgrade"
+assert(banished:choose(1,game)and game.mode=="playing"and banished.pending==0,
+    "banishing the final score card left an empty level-up screen open")
 mode.scoreInitialSmokingStarted=true;mode.levels.score_attack_speed=0;mode:startSmoking(game);local baseSmokingDuration=mode.smoking.dur
 mode.levels.score_attack_speed=3;mode:startSmoking(game)
 assert(mode.smoking.dur<baseSmokingDuration,"attack-speed card did not shorten the real smoking reload")
@@ -286,4 +309,16 @@ local completedVisualTime=settleMode.resultSettlement.elapsed
 settleMode.resultSettlement.bursts={{t=.44,dur=.48,rowIndex=1,seed=1}}
 settleMode:updateResults(.12,game)
 assert(settleMode.resultSettlement.elapsed>completedVisualTime and #settleMode.resultSettlement.bursts==0,"completed settlement froze its coin animation clock or final transfer burst")
+
+-- 대량 목재는 한 개씩 수백 번 세지 않고 묶음 단위로 정산해 몇 초 안에 끝낸다.
+local bulkMode=require("src.clearcut_mode").new();bulkMode.scoreAttack=true;bulkMode.mapId="forest"
+bulkMode.lumberInventory={broadleaf=130,pine=110,birch=125,maple=132};bulkMode.treesFelled=497
+bulkMode.scoreStartingRegenTier=1;bulkMode.scoreRegenTier=1;bulkMode.scoreHighestRegenTier=1
+game.result=nil;game.ended=false
+local bulkCoinsBefore=Traits.data.currency
+bulkMode:finish(game,true)
+local bulkExpected=130*2+110*2+125*4+132*4
+for _=1,240 do bulkMode:updateResults(1/60,game)end
+assert(bulkMode.resultSettlement.complete and game.result.traitEarned==bulkExpected and Traits.data.currency==bulkCoinsBefore+bulkExpected,
+    "bulk lumber settlement did not finish within four seconds or lost coins")
 print("SCORE_ATTACK_MODE_OK start=6 persistent_regen_tier wood_xp=operations combat=permanent")

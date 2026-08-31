@@ -1551,6 +1551,9 @@ function ClearcutMode:updateBees(dt, game)
 end
 
 function ClearcutMode:damagePlayer(amount, game)
+    -- 벌목 기록 모드의 유일한 실패 조건은 숲 과밀이다. 일반 작전용 적과
+    -- 재해가 남아 있더라도 플레이어 HP나 사망 상태를 만들지 않는다.
+    if self.scoreAttack then return end
     if self.dead or self.invulnTimer > 0 or amount <= 0 then return end
     if self.minerBurrow and (self.minerBurrow.state=="enter" or self.minerBurrow.state=="tunnel") then return end
     amount = amount * (self.dmgTakenMul or 1)
@@ -5242,6 +5245,12 @@ function ClearcutMode:onWood(amount, game)
     self.totalWood = self.totalWood + amount
     game.wood = self.totalWood
     if self.scoreAttack then self.scoreWoodEarned=(self.scoreWoodEarned or 0)+amount end
+    -- 기록 모드의 10개 카드(각 3단계)를 모두 마스터한 뒤에는 목재를 계속
+    -- 점수로 세되, 더 이상 레벨/선택 대기열을 만들지 않는다.
+    if self.scoreAttack and #self:upgradePool()==0 then
+        self.xp,self.pending=0,0
+        return
+    end
     local xpMult = self.scoreAttack and ScoreOperations.woodXpMultiplier(self)or 1
     self.xp = self.xp + amount * xpMult
     while self.xp >= self.xpNext do
@@ -5272,7 +5281,7 @@ function ClearcutMode:rollChoices()
     for i=#pool,2,-1 do local j=love.math.random(i); pool[i],pool[j]=pool[j],pool[i] end
     self.choices={}
     for i=1,math.min(3,#pool) do self.choices[i]=pool[i] end
-    if #self.choices==0 then self.choices[1]=recoveryChoice end
+    if #self.choices==0 and not self.scoreAttack then self.choices[1]=recoveryChoice end
 end
 
 -- 아직 안 고른 아르카나만 모아 셔플한다. 스테이지 클리어 강제 선택과, 일반 카드 화면의
@@ -5299,6 +5308,13 @@ function ClearcutMode:openUpgradeChoices(game)
     if not self.scoreAttack and self:checkEvolutions(game) then return end
     self.rerollCount, self.banishArmed, self.selectionKind = 0, false, "upgrade"
     self:rollChoices()
+    if self.scoreAttack and #self.choices==0 then
+        self.pending=0
+        self.specialCard=nil
+        self.choiceBoxes={}
+        game.mode="playing"
+        return false
+    end
     self.specialCard = nil
     if not self.scoreAttack and love.math.random() < .12 and #self:arcanaPool() > 0 then
         local pool = self:arcanaPool()
@@ -5344,7 +5360,7 @@ function ClearcutMode:refillChoice(index)
     for _, def in ipairs(self:upgradePool()) do if not used[def.id] then pool[#pool+1] = def end end
     if #pool > 0 then self.choices[index] = pool[love.math.random(#pool)]
     else table.remove(self.choices,index) end
-    if #self.choices==0 then self.choices[1]=recoveryChoice end
+    if #self.choices==0 and not self.scoreAttack then self.choices[1]=recoveryChoice end
 end
 
 function ClearcutMode:chooseArcana(index, game)
@@ -5443,6 +5459,11 @@ function ClearcutMode:choose(index, game)
         self.banishArmed = false
         self:refillChoice(index)
         game:setNotice(def.name .. " — 영구 제외", "ore")
+        if self.scoreAttack and #self.choices==0 then
+            self.pending=0
+            self.choiceBoxes={}
+            game.mode="playing"
+        end
         return true
     end
     local wasChest=self.chestPending
@@ -5647,7 +5668,10 @@ function ClearcutMode:finish(game, victory)
     local zonesSecured,zonesTotal=ForestZones.status(self)
     game.result={elapsed=math.floor(self.elapsed),wood=self.scoreAttack and math.floor(self.scoreWoodEarned or 0)or self.totalWood,woodBalance=math.floor(self.totalWood),trees=self.treesFelled,total=self.initialTrees,maxMulti=self.maxMulti,maxChain=self.maxChain,level=self.level,stage=self.stage,stageCode=Maps.stageCode(self.mapId,self.stage),regrowPulses=self.regrowPulses,treesRevived=self.treesRevived,rootedCount=self.rootedCount,beeSwarms=self.beeSwarmsTriggered,victory=victory,kills=self.kills,zonesSecured=zonesSecured,zonesTotal=zonesTotal,traitEarned=traitReward,traitCurrency=game.characterTraits and game.characterTraits.data.currency or traitReward,mapId=self.mapId,operationName=BiomeBosses.operationName(self.mapId),bossName=self.operationBossName,failureReason=self.failureReason,scoreAttack=self.scoreAttack,totalTreesSpawned=self.totalTreesSpawned,peakActiveTrees=self.peakActiveTrees,treeAllowance=self.scoreTreeAllowance,treeSpawnRate=self:scoreTreeSpawnRate(),peakTreesPerSecond=self.peakTreesPerSecond or 0,regenTier=self.scoreRegenTier,startingRegenTier=self.scoreStartingRegenTier,highestRegenTier=self.scoreHighestRegenTier,lumberRows=lumberRows,lumberCoinTotal=lumberCoinTotal or traitReward}
     if self.scoreAttack then
-        self.resultSettlement={rows=lumberRows or{},rowIndex=1,accumulator=0,rowPause=.32,elapsed=0,converted=0,total=lumberCoinTotal or 0,bursts={},saveCounter=0,complete=(lumberCoinTotal or 0)==0}
+        local settlementUnits=0
+        for _,row in ipairs(lumberRows or{})do settlementUnits=settlementUnits+(row.remaining or 0)end
+        self.resultSettlement={rows=lumberRows or{},rowIndex=1,accumulator=0,rowPause=.32,elapsed=0,converted=0,total=lumberCoinTotal or 0,
+            unitTotal=settlementUnits,batchSize=math.max(1,math.ceil(settlementUnits/90)),bursts={},saveCounter=0,complete=(lumberCoinTotal or 0)==0}
     end
     if game.achievements then game.achievements:recordRun(game.result) end
     game.mode="clearcut_results"
@@ -5666,16 +5690,18 @@ function ClearcutMode:updateResults(dt,game)
     local row=s.rows[s.rowIndex]
     if not row then s.complete=true;if game.characterTraits then game.characterTraits:save()end;return end
     local progress=s.total>0 and s.converted/s.total or 1
-    local interval=math.max(.012,.070-progress*.052)
+    local interval=math.max(.014,.032-progress*.018)
     s.accumulator=s.accumulator+dt
     local steps=0
     while s.accumulator>=interval and row.remaining>0 and steps<24 do
         s.accumulator=s.accumulator-interval;steps=steps+1
-        row.remaining=row.remaining-1;row.converted=row.converted+1
-        s.converted=s.converted+row.coin
-        game.result.traitEarned=(game.result.traitEarned or 0)+row.coin
-        if game.characterTraits then game.characterTraits:addCurrency(row.coin,true);game.result.traitCurrency=game.characterTraits.data.currency end
-        s.saveCounter=(s.saveCounter or 0)+1
+        local units=math.min(row.remaining,s.batchSize or 1)
+        local coins=units*row.coin
+        row.remaining=row.remaining-units;row.converted=row.converted+units
+        s.converted=s.converted+coins
+        game.result.traitEarned=(game.result.traitEarned or 0)+coins
+        if game.characterTraits then game.characterTraits:addCurrency(coins,true);game.result.traitCurrency=game.characterTraits.data.currency end
+        s.saveCounter=(s.saveCounter or 0)+units
         if s.saveCounter>=12 and game.characterTraits then game.characterTraits:save();s.saveCounter=0 end
         s.bursts[#s.bursts+1]={t=0,dur=.48,rowIndex=s.rowIndex,seed=(row.converted*17+s.rowIndex*31)%11}
         if #s.bursts>18 then table.remove(s.bursts,1)end
@@ -7381,8 +7407,10 @@ function ClearcutMode:drawHUD(game,fonts)
         love.graphics.printf("융합  "..table.concat(evoNames," · "),20,111,320,"left")
     end
 
-    local hpW=math.floor(260*uiScale);HUDArt.bar(20,135,hpW,14,math.max(0,self.hp/self.maxHp),"health",self.hp/self.maxHp<.3)
-    love.graphics.setFont(fonts.micro or fonts.small);love.graphics.setColor(1,.94,.88);love.graphics.printf("HP  "..math.ceil(self.hp).." / "..self.maxHp,20,134,hpW,"center")
+    if not self.scoreAttack then
+        local hpW=math.floor(260*uiScale);HUDArt.bar(20,135,hpW,14,math.max(0,self.hp/self.maxHp),"health",self.hp/self.maxHp<.3)
+        love.graphics.setFont(fonts.micro or fonts.small);love.graphics.setColor(1,.94,.88);love.graphics.printf("HP  "..math.ceil(self.hp).." / "..self.maxHp,20,134,hpW,"center")
+    end
 
     local pct = self:destructionPct()
     local barW = math.floor(330*uiScale)
