@@ -31,7 +31,8 @@ local function nodeOf(id) return assert(CharacterTraits:getNode(id), id .. " 특
 -- 1. 무기별 갈래가 실제로 존재한다.
 local axeNodes = {"fire_score_axe_area", "fire_score_axe_speed", "fire_score_axe_targets", "fire_score_axe_execute"}
 local rocketNodes = {"fire_score_rocket_radius", "fire_score_rocket_damage", "fire_score_rocket_speed",
-    "fire_score_rocket_ignite", "fire_score_rocket_cooldown"}
+    "fire_score_rocket_ignite", "fire_score_rocket_cooldown", "fire_score_rocket_twin",
+    "fire_score_rocket_cluster", "fire_score_rocket_finale"}
 for _, id in ipairs(axeNodes) do assert(nodeOf(id).scoreMode, id .. "가 기록 모드 연구판에 없다") end
 for _, id in ipairs(rocketNodes) do assert(nodeOf(id).scoreMode, id .. "가 기록 모드 연구판에 없다") end
 assert(nodeOf("fire_score_edge").effect == "scoreTreeDamage", "공용 나무 피해 노드가 treeDamage를 올리지 않는다")
@@ -52,13 +53,16 @@ end
 -- 3. 만렙 효과가 실제 수치로 합산된다.
 for _, id in ipairs({"fire_score_edge", "fire_score_axe_area", "fire_score_axe_speed", "fire_score_axe_targets",
     "fire_score_axe_execute", "fire_score_rocket_radius", "fire_score_rocket_damage", "fire_score_rocket_speed",
-    "fire_score_rocket_ignite", "fire_score_rocket_cooldown"}) do
+    "fire_score_rocket_ignite", "fire_score_rocket_cooldown", "fire_score_rocket_twin",
+    "fire_score_rocket_cluster", "fire_score_rocket_finale"}) do
     store.data.levels[id] = nodeOf(id).max
 end
 local effects = store:scoreAttackEffects()
 assert(effects.scoreTreeDamage == 5, "공용 나무 피해 만렙이 +5가 아니다")
 assert(effects.scoreAxeArea == 45 and effects.scoreAxeTargets == 2, "도끼 갈래 만렙 수치가 어긋난다")
 assert(effects.scoreRocketRadius == 80 and effects.scoreRocketDamage == 10, "폭죽 갈래 만렙 수치가 어긋난다")
+assert(effects.scoreRocketTwin==1 and effects.scoreRocketCluster==1 and effects.scoreRocketFinale==1,
+    "폭죽 시각 특성 만렙 효과가 합산되지 않는다")
 
 -- 4. 런타임이 공용 키를 실제 전투 수치로 접어 넣는다.
 local mode = ClearcutMode.new()
@@ -132,6 +136,27 @@ slowRocket.permanentTraits.scoreRocketUnlock = 1
 slowRocket.smokerWeaponCooldown = 0
 slowRocket:updateHeldAxe(1, rocketGame, true)
 assert(slowRocket.smokerWeaponProjectiles[1].dur > shot.dur, "폭죽 비행 속도 특성이 도달 시간을 줄이지 않는다")
+
+local spectacle=ClearcutMode.new()
+spectacle.scoreAttack,spectacle.sandbox,spectacle.job,spectacle.mapId=true,true,"fire","forest"
+spectacle.permanentTraits.scoreRocketUnlock=1;spectacle.permanentTraits.scoreRocketTwin=1
+spectacle.smokerWeaponCooldown=0
+assert(spectacle:updateHeldAxe(1,rocketGame,true),"쌍발 폭죽을 발사하지 못했다")
+assert(#spectacle.smokerWeaponProjectiles==2 and
+    (spectacle.smokerWeaponProjectiles[1].x1~=spectacle.smokerWeaponProjectiles[2].x1 or spectacle.smokerWeaponProjectiles[1].y1~=spectacle.smokerWeaponProjectiles[2].y1),
+    "쌍발 발사대가 좌우로 갈라진 폭죽 2발을 만들지 않는다")
+local primary=spectacle.smokerWeaponProjectiles[1]
+spectacle.smokerWeaponProjectiles={};spectacle.permanentTraits.scoreRocketCluster=1;spectacle.permanentTraits.scoreRocketFinale=1
+spectacle:detonateFirework(primary,rocketGame)
+local children,echoes,bursts=0,0,0
+for _,projectile in ipairs(spectacle.smokerWeaponProjectiles)do
+    if projectile.clusterChild then children=children+1 elseif projectile.kind=="firework_echo"then echoes=echoes+1 elseif projectile.kind=="firework_burst"then bursts=bursts+1 end
+end
+assert(children==5 and echoes==2 and bursts==1,"폭죽 자탄 5발/삼단 지연 폭발 상태가 만들어지지 않는다")
+spectacle:updateSmokerWeaponProjectiles(.23,rocketGame)
+local burstAfterEcho=0
+for _,projectile in ipairs(spectacle.smokerWeaponProjectiles)do if projectile.kind=="firework_burst"then burstAfterEcho=burstAfterEcho+1 end end
+assert(burstAfterEcho>=2,"삼단 대단원의 첫 지연 폭발이 보이는 버스트로 이어지지 않는다")
 
 -- 7. 상시 흡연은 루트 직후, 그 뒤 자동 투척 → 폭죽 순서로 이어진다.
 assert(nodeOf("fire_score_alwayssmoke").requires[1][1] == "fire_score_prewarm",

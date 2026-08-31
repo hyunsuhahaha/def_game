@@ -72,4 +72,22 @@ local choice=Mode.new();choice.job="fire";choice.level=18;choice.levels.molotov=
 choice.branchChoices=require("src.clearcut_skill_branches").smokerEvolutionChoices();choice.selectionKind="branch";choice.choicesRevealAt=-2
 fixture.time=2;fixture.reset();choice:drawSelectionContent({mode="clearcut_upgrade",setNotice=function()end},fonts,width,height)
 fixture.save("docs/previews/smoker-weapon-evolution-choice-draws.json")
+
+local spectacle=Mode.new();spectacle.scoreAttack=true;spectacle.job="fire"
+spectacle.permanentTraits.scoreRocketUnlock=1;spectacle.permanentTraits.scoreRocketTwin=1
+spectacle.permanentTraits.scoreRocketCluster=1;spectacle.permanentTraits.scoreRocketFinale=1
+local spectacleGame={player={x=112,y=304,facing=1,gather=1,clearClearcutAction=function()end},tools={axe={speed=1}},
+ camera={screenToWorld=function()return 420,178 end},world={nodes={}},setNotice=function()end}
+spectacle:updateFireworkAttack(1,spectacleGame,true)
+local reviewTimes={.08,.46,.70,.92};local reviewTime=0
+for index,targetTime in ipairs(reviewTimes)do
+ while reviewTime+1/60<=targetTime do spectacle:updateSmokerWeaponProjectiles(1/60,spectacleGame);reviewTime=reviewTime+1/60 end
+ fixture.reset();fixture.time=targetTime
+ love.graphics.setColor(1,1,1,.76);love.graphics.draw(bg,0,0,0,640/bw,360/bh)
+ love.graphics.setColor(.015,.035,.028,.64);love.graphics.rectangle("fill",0,0,640,360)
+ love.graphics.setColor(.13,.27,.15,.78);love.graphics.rectangle("fill",0,276,640,84)
+ love.graphics.setColor(1,1,1,1);love.graphics.draw(smoker,smokerQuad,112,304,0,.61,.61,48,190)
+ for _,projectile in ipairs(spectacle.smokerWeaponProjectiles)do Art.drawProjectile(projectile)end
+ fixture.save("docs/previews/firework-research-traits-v1-draws-"..index..".json")
+end
 print("SMOKER_WEAPON_EVOLUTION_CAPTURE_OK overview=6 vape=48frames@30fps firework=30fps window=none")

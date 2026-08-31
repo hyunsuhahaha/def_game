@@ -252,6 +252,9 @@ local scoreFireNodes={
     {id="fire_score_rocket_speed",name="폭죽 비행 속도 상승",short="비행 속도",desc="폭죽 로켓이 목표까지 날아가는 속도 +12%",effect="scoreRocketSpeed",value=.12,max=4,costs={22,38,58,82},wx=1420,wy=1560,icon="wind",color={.82,.74,.46},requires={{"fire_score_rocket_radius",2}}},
     {id="fire_score_rocket_ignite",name="폭죽 착탄 점화 확률 상승",short="착탄 점화",desc="폭발로 쓰러지지 않은 나무에 불이 붙을 확률 +6%p (기본 38%)",effect="scoreRocketIgnite",value=.06,max=5,wx=1790,wy=1660,icon="ember",color={1,.62,.24},requires={{"fire_score_rocket_radius",3}}},
     {id="fire_score_rocket_cooldown",name="폭죽 발사 속도 상승",short="발사 속도",desc="폭죽 로켓 재발사 대기시간 단계마다 9% 감소",effect="scoreRocketCooldown",value=.09,max=5,wx=2130,wy=1400,icon="clock",color={.94,.58,.22},requires={{"fire_score_rocket_damage",3}}},
+    {id="fire_score_rocket_twin",name="폭죽 쌍발 발사대",short="동시 2발",desc="폭죽을 조준점 좌우로 동시에 2발 발사합니다.",effect="scoreRocketTwin",value=1,max=1,costs={240},wx=1420,wy=1900,icon="blast",color={1,.72,.24},requires={{"fire_score_rocket_speed",4},{"fire_score_rocket_cooldown",3}}},
+    {id="fire_score_rocket_cluster",name="폭죽 자탄 불꽃",short="자탄 5발",desc="주 폭발에서 소형 폭죽 5발이 별 모양으로 퍼진 뒤 다시 폭발합니다.",effect="scoreRocketCluster",value=1,max=1,costs={320},wx=1810,wy=1980,icon="ember",color={1,.46,.16},requires={{"fire_score_rocket_radius",5},{"fire_score_rocket_ignite",3}}},
+    {id="fire_score_rocket_finale",name="폭죽 삼단 대단원",short="삼단 폭발",desc="주 폭발 뒤 크기가 줄어드는 두 번의 지연 폭발이 연속으로 터집니다.",effect="scoreRocketFinale",value=1,max=1,costs={650},wx=1630,wy=2290,icon="capstone",color={1,.34,.12},requires={{"fire_score_rocket_twin",1},{"fire_score_rocket_cluster",1}},capstone=true},
 }
 for _,node in ipairs(scoreFireNodes)do node.job="fire";node.scoreMode=true;node.max=node.max or 5;node.costs=node.costs or{18,32,50,74,104};jobs.fire.nodes[#jobs.fire.nodes+1]=node end
 
@@ -615,6 +618,7 @@ function CharacterTraits:scoreAttackEffects()
         scoreAxeArea=0,scoreAxeSpeed=0,scoreAxeTargets=0,scoreAxeExecute=0,
         scoreAxeShock=0,scoreAxeChain=0,scoreAxeCrew=0,
         scoreRocketRadius=0,scoreRocketDamage=0,scoreRocketSpeed=0,scoreRocketIgnite=0,scoreRocketCooldown=0,
+        scoreRocketTwin=0,scoreRocketCluster=0,scoreRocketFinale=0,
         scoreAutoThrow=0,scoreRocketUnlock=0,scoreAlwaysSmoking=0,
         -- 담배 탄약 관리 갈래.
         scoreReloadSpeed=0,scoreCartonSize=0,scoreCartonReload=0,scoreAutoThrowRate=0

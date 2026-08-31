@@ -533,6 +533,9 @@ const TRAITS = {
       {id:"fire_score_rocket_speed",name:"폭죽 비행 속도 상승",short:"비행 속도",desc:"폭죽 로켓이 목표까지 날아가는 속도 +12%",max:4,costs:[22,38,58,82],requires:[["fire_score_rocket_radius",2]]},
       {id:"fire_score_rocket_ignite",name:"폭죽 착탄 점화 확률 상승",short:"착탄 점화",desc:"폭발로 쓰러지지 않은 나무에 불이 붙을 확률 +6%p (기본 38%)",max:5,costs:[18,32,50,74,104],requires:[["fire_score_rocket_radius",3]]},
       {id:"fire_score_rocket_cooldown",name:"폭죽 발사 속도 상승",short:"발사 속도",desc:"폭죽 로켓 재발사 대기시간 단계마다 9% 감소",max:5,costs:[18,32,50,74,104],requires:[["fire_score_rocket_damage",3]]},
+      {id:"fire_score_rocket_twin",name:"폭죽 쌍발 발사대",short:"동시 2발",desc:"폭죽을 조준점 좌우로 동시에 2발 발사합니다.",max:1,costs:[240],requires:[["fire_score_rocket_speed",4],["fire_score_rocket_cooldown",3]]},
+      {id:"fire_score_rocket_cluster",name:"폭죽 자탄 불꽃",short:"자탄 5발",desc:"주 폭발에서 소형 폭죽 5발이 별 모양으로 퍼진 뒤 다시 폭발합니다.",max:1,costs:[320],requires:[["fire_score_rocket_radius",5],["fire_score_rocket_ignite",3]]},
+      {id:"fire_score_rocket_finale",name:"폭죽 삼단 대단원",short:"삼단 폭발",desc:"주 폭발 뒤 크기가 줄어드는 두 번의 지연 폭발이 연속으로 터집니다.",max:1,costs:[650],requires:[["fire_score_rocket_twin",1],["fire_score_rocket_cluster",1]],capstone:true},
     ]
   },
   toxic: {

@@ -172,11 +172,11 @@ assert(math.abs(2.6/(1+throwEffects.scoreAutoThrowRate)-2.6/1.36)<1e-9,"auto-thr
 
 -- 추가 꽁초는 자동 투척에도 그대로 실린다. 1단계에서 멈춰 있던 상한을 2단계로 연다.
 assert(store:getNode("fire_score_stock").max==2,"extra-butt research is still capped at a single rank")
--- 불 갈래 30 = 담배 9 + 탄약 관리 3(개비 재장전·보루 용량·보루 교체) + 공용 나무 피해 1
+-- 불 갈래 33 = 기존 30개 + 폭죽 시각 특성 3개(쌍발·자탄·삼단 대단원).
 -- + 도끼 4 + 도끼 상위 3(충격파·연속 벌목·나무꾼 고용) + 후반 해금 3(상시 흡연·자동 투척·폭죽)
 -- + 자동 투척 주기 1 + 폭죽 5. 탄약 관리 갈래는 startSmoking의 세 상수(개비 재장전 하한,
 -- 보루 재장전 하한, 보루 크기 20)를 각각 여는 노드다.
-assert(#store:getScoreAttackNodes("fire")==30 and #store:getScoreAttackNodes("universal")==21,"active research board did not expose the split companion graphs and the weapon-slot branches")
+assert(#store:getScoreAttackNodes("fire")==33 and #store:getScoreAttackNodes("universal")==21,"active research board did not expose the split companion graphs and the weapon-slot branches")
 for _, job in ipairs({"physical","fire","toxic","developer"}) do
     assert(#store:getNodes(job) >= 30, job .. " character graph has too few trait nodes")
 end

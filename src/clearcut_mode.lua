@@ -242,7 +242,8 @@ function ClearcutMode.new()
             scoreOilDrum=0,scoreOilDrumInterval=0,scoreOilRadius=0,scoreOilIgnitionRadius=0,
             scoreOilDuration=0,scoreOilBurnDuration=0,scoreOilDamage=0,
             scoreGrayCat=0,scoreGrayCatChance=0,scoreGrayCatDelay=0,scoreGrayCatSpeed=0,
-            scoreReloadSpeed=0,scoreCartonSize=0,scoreCartonReload=0,scoreAutoThrowRate=0
+            scoreReloadSpeed=0,scoreCartonSize=0,scoreCartonReload=0,scoreAutoThrowRate=0,
+            scoreRocketTwin=0,scoreRocketCluster=0,scoreRocketFinale=0
         },
         reviveCharges=0,
         vinePlantTimer=60, vineSpawns={},
@@ -3393,12 +3394,20 @@ function ClearcutMode:updateFireworkAttack(dt,game,held)
     game.player.facing=nx<0 and -1 or 1
     local x0,y0=game.player.x+nx*46,game.player.y-64+ny*8
     local flightSpeed=820*(1+(self.permanentTraits.scoreRocketSpeed or 0))
-    local distance=math.sqrt((tx-x0)^2+(ty-y0)^2);local dur=math.max(.38,distance/flightSpeed)
-    self.smokerWeaponProjectiles[#self.smokerWeaponProjectiles+1]={
-        kind="firework",x=x0,y=y0,x0=x0,y0=y0,x1=tx,y1=ty,t=0,age=0,dur=dur,
-        angle=(math.atan2 and math.atan2(ny,nx) or math.atan(ny/nx)),radius=180+blastRadius,
-        damage=8+self.permanentTraits.treeDamage*1.1+(self.permanentTraits.scoreRocketDamage or 0)+ScoreOperations.weaponDamage(self)
-    }
+    local damage=8+self.permanentTraits.treeDamage*1.1+(self.permanentTraits.scoreRocketDamage or 0)+ScoreOperations.weaponDamage(self)
+    local px,py=-ny,nx
+    local lanes=(self.permanentTraits.scoreRocketTwin or 0)>0 and{-1,1}or{0}
+    for _,lane in ipairs(lanes)do
+        local sx,sy=x0+px*lane*10,y0+py*lane*10
+        local ex,ey=tx+px*lane*62,ty+py*lane*62
+        local dx,dy=ex-sx,ey-sy
+        local distance=math.sqrt(dx*dx+dy*dy);local dur=math.max(.38,distance/flightSpeed)
+        self.smokerWeaponProjectiles[#self.smokerWeaponProjectiles+1]={
+            kind="firework",x=sx,y=sy,x0=sx,y0=sy,x1=ex,y1=ey,t=0,age=0,dur=dur,
+            angle=(math.atan2 and math.atan2(dy,dx) or math.atan(dy/dx)),radius=180+blastRadius,damage=damage,
+            twinLane=lane
+        }
+    end
     self.actionAudit.fireworkShot=(self.actionAudit.fireworkShot or 0)+1
     self.smokerWeaponCooldown=.86
         /((game.tools.axe.speed or 1)*game.player.gather*self.permanentTraits.attackSpeed
@@ -3418,6 +3427,26 @@ function ClearcutMode:detonateFirework(projectile,game)
     end end
     self.maxChain=math.max(self.maxChain,felled)
     self.smokerWeaponProjectiles[#self.smokerWeaponProjectiles+1]={kind="firework_burst",x=projectile.x1,y=projectile.y1,age=0,life=1,radius=radius}
+    -- 쌍발 두 발이 각각 자탄과 대단원을 복제하면 한 번에 10개 자탄과 4개 후속
+    -- 폭발이 겹쳐 화면을 가린다. 좌측 선두 탄만 고급 연쇄를 맡아 형태를 읽게 한다.
+    if not projectile.clusterChild and not projectile.echo and (projectile.twinLane or 0)<=0 then
+        if (self.permanentTraits.scoreRocketCluster or 0)>0 then
+            local childCount=5
+            for child=1,childCount do
+                local angle=-math.pi/2+(child-1)*math.pi*2/childCount
+                local distance=radius*.66
+                local ex,ey=projectile.x1+math.cos(angle)*distance,projectile.y1+math.sin(angle)*distance
+                self.smokerWeaponProjectiles[#self.smokerWeaponProjectiles+1]={
+                    kind="firework",x=projectile.x1,y=projectile.y1,x0=projectile.x1,y0=projectile.y1,x1=ex,y1=ey,
+                    t=0,age=0,dur=.24,angle=angle,radius=math.max(46,radius*.24),damage=projectile.damage*.38,clusterChild=true
+                }
+            end
+        end
+        if (self.permanentTraits.scoreRocketFinale or 0)>0 then
+            self.smokerWeaponProjectiles[#self.smokerWeaponProjectiles+1]={kind="firework_echo",x1=projectile.x1,y1=projectile.y1,age=0,delay=.22,radius=radius*.72,damage=projectile.damage*.32,echo=true}
+            self.smokerWeaponProjectiles[#self.smokerWeaponProjectiles+1]={kind="firework_echo",x1=projectile.x1,y1=projectile.y1,age=0,delay=.44,radius=radius*.48,damage=projectile.damage*.22,echo=true}
+        end
+    end
 end
 
 function ClearcutMode:updateSmokerWeaponProjectiles(dt,game)
@@ -3468,6 +3497,9 @@ function ClearcutMode:updateSmokerWeaponProjectiles(dt,game)
             if projectile.t>=projectile.dur then bursts[#bursts+1]=projectile;table.remove(list,index)end
         elseif projectile.kind=="firework_burst" then
             projectile.age=projectile.age+dt;if projectile.age>=projectile.life then table.remove(list,index)end
+        elseif projectile.kind=="firework_echo" then
+            projectile.age=projectile.age+dt
+            if projectile.age>=projectile.delay then bursts[#bursts+1]=projectile;table.remove(list,index)end
         end
     end
     for _,projectile in ipairs(bursts)do self:detonateFirework(projectile,game)end
@@ -6841,8 +6873,10 @@ function ClearcutMode:queueProjectedOverlay(game,t)
         -- The burst is an aerial firework, not a ground actor. Keeping it in
         -- ordinary foot-depth order lets the dense score-attack canopy cover
         -- almost the entire authored sprite even though it was drawn.
-        local sortY=projectile.kind=="firework_burst"and projectile.y+100000 or projectile.y+.03
-        queueUpright(queue,projectile.x,projectile.y,function()SmokerWeaponArt.drawProjectile(projectile)end,sortY,projectile.y)
+        if projectile.x and projectile.y then
+            local sortY=projectile.kind=="firework_burst"and projectile.y+100000 or projectile.y+.03
+            queueUpright(queue,projectile.x,projectile.y,function()SmokerWeaponArt.drawProjectile(projectile)end,sortY,projectile.y)
+        end
     end
     for _,value in ipairs(self.vapeWindLeaves or {})do local leaf=value
         queueUpright(queue,leaf.x,leaf.y,function()SmokerWeaponArt.drawWindLeaf(leaf)end,leaf.y+.04,leaf.y)
