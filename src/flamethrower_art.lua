@@ -2,11 +2,11 @@
 local Art={}
 local streamImage,equipmentImage,streamQuads
 local CELL_W,CELL_H,FRAMES=1280,768,8
-local SOURCE_REACH,SOURCE_HALF=1160,340
+local SOURCE_REACH,SOURCE_HALF=1160,286
 
 local function load()
     if streamImage then return end
-    streamImage=love.graphics.newImage("assets/effects/smoker-flamethrower-stream-atlas-v1.png")
+    streamImage=love.graphics.newImage("assets/effects/smoker-flamethrower-stream-atlas-v2.png")
     equipmentImage=love.graphics.newImage("assets/effects/smoker-flamethrower-equipment-v1.png")
     streamImage:setFilter("nearest","nearest");equipmentImage:setFilter("nearest","nearest")
     streamQuads={}
@@ -41,10 +41,10 @@ function Art.drawStream(stream)
     load()
     local time=stream.t or 0
     local frame=math.floor(time*18)%FRAMES+1
-    -- The gameplay cone lives on the ground plane. Upright FX compensate for
-    -- the active camera pitch so the long core still points at the cursor.
+    -- The gameplay stream lives on the ground plane. Upright FX compensate for
+    -- camera pitch while preserving the authored constant-width rolling column.
     local angle=atan2((stream.ny or 0)*.62,stream.nx or 1)
-    local halfWidth=math.tan(stream.halfAngle or .42)*(stream.reach or 250)*.62
+    local halfWidth=(stream.halfWidth or 72)*.62
     local scaleX=(stream.reach or 250)/SOURCE_REACH
     local scaleY=math.max(.26,halfWidth/SOURCE_HALF)
     love.graphics.setBlendMode("alpha")

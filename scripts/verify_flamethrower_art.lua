@@ -11,12 +11,12 @@ local function game()
     return{player=player,world=world,tools={axe={speed=1}},camera={screenToWorld=function()return 350,0 end}}
 end
 
-local stream={x=34,y=-58,nx=1,ny=0,reach=380,halfAngle=.63,t=0}
+local stream={x=34,y=-58,nx=1,ny=0,reach=380,halfWidth=90,t=0}
 fixture.reset();Art.drawHeld({flameStream=stream},{player={x=0,y=0,facing=1}});Art.drawStream(stream)
 local equipment,atlas=0,0
 for _,command in ipairs(fixture.commands)do if command.op=="draw"then
     if command.file=="assets/effects/smoker-flamethrower-equipment-v1.png"then equipment=equipment+1 end
-    if command.file=="assets/effects/smoker-flamethrower-stream-atlas-v1.png"then atlas=atlas+1 end
+    if command.file=="assets/effects/smoker-flamethrower-stream-atlas-v2.png"then atlas=atlas+1 end
 end end
 assert(equipment==1 and atlas==1,"flamethrower did not use its authored equipment and stream atlases")
 
@@ -24,7 +24,7 @@ local frameKeys={}
 for index=0,7 do
     fixture.reset();stream.t=index/18;Art.drawStream(stream)
     local command=fixture.commands[1]
-    assert(command and command.file=="assets/effects/smoker-flamethrower-stream-atlas-v1.png","stream atlas draw disappeared")
+    assert(command and command.file=="assets/effects/smoker-flamethrower-stream-atlas-v2.png","stream atlas draw disappeared")
     frameKeys[(command.quad[1]or 0)..":"..(command.quad[2]or 0)]=true
 end
 local frameCount=0;for _ in pairs(frameKeys)do frameCount=frameCount+1 end
@@ -36,7 +36,7 @@ local queued=false
 for _,entry in ipairs(g.world.billboardQueue)do
     if entry.draw then fixture.reset();entry.draw()
         for _,command in ipairs(fixture.commands)do
-            if command.op=="draw"and command.file=="assets/effects/smoker-flamethrower-stream-atlas-v1.png"then queued=true end
+            if command.op=="draw"and command.file=="assets/effects/smoker-flamethrower-stream-atlas-v2.png"then queued=true end
         end
     end
 end

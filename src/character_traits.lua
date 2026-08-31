@@ -261,10 +261,10 @@ local scoreFireNodes={
     {id="fire_score_rocket_crew",name="폭죽 원숭이 해금",short="폭죽 원숭이",desc="내 폭죽 빌드의 절반 성능을 물려받은 졸업 원숭이 1마리가 자동으로 폭죽을 쏩니다.",effect="scoreRocketCrew",value=1,max=1,costs={900},wx=1100,wy=2600,icon="capstone",color={1,.62,.22},requires={{"fire_score_rocket_finale",1}},capstone=true},
     -- 폭죽까지 넘기고 빈 손에 드는 마지막 무기. 담배·도끼·폭죽이 전부 단발이었던 것과
     -- 달리 누르고 있는 동안 계속 뿜는 지속 무기라, 후반 과밀 숲을 훑어서 태운다.
-    {id="fire_score_flame_unlock",name="화염방사기 해금",short="화염방사기",desc="근접 대상이 없을 때의 원거리 공격이 화염방사기로 자동 전환됩니다. 누르고 있는 동안 부채꼴로 계속 화염을 뿜습니다.",effect="scoreFlameUnlock",value=1,max=1,costs={380},wx=1100,wy=2850,icon="ember",color={1,.44,.12},requires={{"fire_score_rocket_crew",1}},capstone=true},
+    {id="fire_score_flame_unlock",name="화염방사기 해금",short="화염방사기",desc="근접 대상이 없을 때의 원거리 공격이 화염방사기로 자동 전환됩니다. 누르고 있는 동안 굵은 화염 기둥이 매 틱 직접 피해를 주고, 추가로 불을 붙입니다.",effect="scoreFlameUnlock",value=1,max=1,costs={380},wx=1100,wy=2850,icon="ember",color={1,.44,.12},requires={{"fire_score_rocket_crew",1}},capstone=true},
     {id="fire_score_flame_damage",name="화염 피해 상승",short="화염 피해",desc="화염이 나무에 주는 초당 피해 +1 (기본 초당 3)",effect="scoreFlameDamage",value=1,max=5,costs={30,52,80,116,158},wx=750,wy=3100,icon="fist",color={1,.56,.20},requires={{"fire_score_flame_unlock",1}}},
     {id="fire_score_flame_range",name="화염 분사 거리 상승",short="분사 거리",desc="화염이 닿는 거리 +26 (기본 250)",effect="scoreFlameRange",value=26,max=5,costs={26,46,72,104,142},wx=1100,wy=3100,icon="wind",color={.94,.66,.28},requires={{"fire_score_flame_unlock",1}}},
-    {id="fire_score_flame_width",name="화염 분사 폭 상승",short="분사 폭",desc="화염 부채꼴의 좌우 각도가 단계마다 6도씩 넓어집니다. (기본 좌우 24도)",effect="scoreFlameWidth",value=.105,max=4,costs={34,58,88,126},wx=1450,wy=3100,icon="split",color={1,.50,.16},requires={{"fire_score_flame_unlock",1}}},
+    {id="fire_score_flame_width",name="화염 기둥 굵기 상승",short="기둥 굵기",desc="화염 기둥의 전체 폭 +28 (기본 폭 144)",effect="scoreFlameWidth",value=14,max=4,costs={34,58,88,126},wx=1450,wy=3100,icon="split",color={1,.50,.16},requires={{"fire_score_flame_unlock",1}}},
     {id="fire_score_flame_ignite",name="화염 착화 확률 상승",short="착화 확률",desc="화염에 닿아 있는 나무가 초당 불붙을 확률 +8%p (기본 18%)",effect="scoreFlameIgnite",value=.08,max=4,costs={38,64,98,140},wx=1100,wy=3350,icon="ember",color={1,.36,.10},requires={{"fire_score_flame_range",2},{"fire_score_flame_width",2}}},
 }
 for _,node in ipairs(scoreFireNodes)do node.job="fire";node.scoreMode=true;node.max=node.max or 5;node.costs=node.costs or{18,32,50,74,104};jobs.fire.nodes[#jobs.fire.nodes+1]=node end

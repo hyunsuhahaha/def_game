@@ -19,9 +19,9 @@ for frame=0,7 do
     love.graphics.draw(tree,835,515,0,.56,.56,tree:getWidth()/2,tree:getHeight()*.91)
     love.graphics.draw(smoker,smokerQuad,214,610,0,.61,.61,48,190)
     local mode=Mode.new();mode.scoreAttack=true;mode.job="fire";mode.permanentTraits.scoreFlameUnlock=1
-    mode.flameStream={x=248,y=552,nx=1,ny=0,reach=430,halfAngle=.84,t=fixture.time}
+    mode.flameStream={x=248,y=552,nx=1,ny=0,reach=430,halfWidth=100,t=fixture.time}
     Art.drawHeld(mode,{player={x=214,y=610,facing=1}})
     Art.drawStream(mode.flameStream)
-    fixture.save("docs/previews/flamethrower-fx-v1-draws-"..frame..".json")
+    fixture.save("docs/previews/flamethrower-fx-v2-draws-"..frame..".json")
 end
-print("FLAMETHROWER_FX_V1_CAPTURE_OK frames=8 reach=430 halfAngle=.84 window=none")
+print("FLAMETHROWER_FX_V2_CAPTURE_OK frames=8 reach=430 width=200 window=none")

@@ -3438,19 +3438,18 @@ function ClearcutMode:updateVapeAttack(dt,game,held)
     return false
 end
 
--- 부채꼴 판정. 거리와 각도를 따로 보므로 반경만 쓰는 원형 판정과 달리 "앞으로
--- 뿜는다"는 무기 성격이 판정에 그대로 드러난다. 총구 바로 앞(28 이내)은 각도를
--- 묻지 않는다 — 나무에 붙어 선 채로 쏘면 각도 계산이 불안정해지기 때문이다.
-function ClearcutMode.flameConeCovers(ox,oy,nx,ny,reach,halfAngle,x,y)
+-- 굵기가 일정한 전방 화염 기둥 판정. 조준축 위의 투영 거리와 수직 거리를 따로
+-- 재서, 멀어질수록 벌어지는 부채꼴 대신 둥근 끝을 가진 긴 화염 덩어리와 일치한다.
+function ClearcutMode.flameStreamCovers(ox,oy,nx,ny,reach,halfWidth,x,y)
     local dx,dy=x-ox,y-oy
-    local distance=math.sqrt(dx*dx+dy*dy)
-    if distance>reach then return false end
-    if distance<28 then return true end
-    return (dx*nx+dy*ny)/distance>=math.cos(halfAngle)
+    local along=dx*nx+dy*ny
+    if along<0 or along>reach then return false end
+    local acrossX,acrossY=dx-nx*along,dy-ny*along
+    return acrossX*acrossX+acrossY*acrossY<=halfWidth*halfWidth
 end
 
 -- 화염방사기는 담배·도끼·폭죽과 달리 단발이 아니다. 쿨다운으로 한 발을 끊는 대신
--- 누르고 있는 동안 이 간격마다 부채꼴 안의 모든 나무를 한꺼번에 지진다. 공격속도는
+-- 누르고 있는 동안 이 간격마다 화염 기둥 안의 모든 나무를 한꺼번에 지진다. 공격속도는
 -- 틱 간격을 줄여 초당 피해와 착화 기회를 함께 올린다. 이 파일은 Lua 5.1의 청크당
 -- 지역변수 200개 한도에 닿아 있어 새 상수는 모듈 테이블에 붙인다.
 ClearcutMode.FLAME_TICK=.12
@@ -3459,7 +3458,7 @@ function ClearcutMode:updateFlamethrowerAttack(dt,game,held)
     local traits=self.permanentTraits
     self.smokerWeaponCooldown=math.max(0,(self.smokerWeaponCooldown or 0)-dt)
     local reach=250+(traits.scoreFlameRange or 0)+ScoreOperations.weaponRange(self)*.4
-    local halfAngle=.42+(traits.scoreFlameWidth or 0)
+    local halfWidth=72+(traits.scoreFlameWidth or 0)+ScoreOperations.weaponArea(self)*.35
     local tx,ty,nx,ny=smokerAim(self,game,reach)
     self.aimX,self.aimY,self.aimRadius=tx,ty,reach*.5
     if not held then
@@ -3469,7 +3468,7 @@ function ClearcutMode:updateFlamethrowerAttack(dt,game,held)
     end
     game.player.facing=nx<0 and -1 or 1
     local originX,originY=game.player.x+nx*34,game.player.y-58+ny*10
-    self.flameStream={x=originX,y=originY,nx=nx,ny=ny,reach=reach,halfAngle=halfAngle,
+    self.flameStream={x=originX,y=originY,nx=nx,ny=ny,reach=reach,halfWidth=halfWidth,
         angle=(math.atan2 and math.atan2(ny,nx)or math.atan(ny/(nx==0 and 1e-6 or nx))),
         t=(self.flameStream and self.flameStream.t or 0)+dt}
     if game.player.setClearcutAction then game.player:setClearcutAction(.5+math.sin(self.flameStream.t*22)*.16)end
@@ -3477,14 +3476,15 @@ function ClearcutMode:updateFlamethrowerAttack(dt,game,held)
     local speed=(game.tools.axe.speed or 1)*game.player.gather*traits.attackSpeed
         *ScoreOperations.attackSpeedMultiplier(self)
     self.smokerWeaponCooldown=ClearcutMode.FLAME_TICK/math.max(.25,speed)
-    -- 노드 설명은 "초당"으로 읽히므로 틱 피해와 착화 확률 모두 틱 간격을 곱해 나눈다.
+    -- 직접 피해가 본체다. 점화는 이 피해와 독립된 추가 효과라 비가 오거나 확률이
+    -- 실패해도 누르고 있는 동안 매 틱 체력은 계속 깎인다.
     local damage=(3+(traits.treeDamage or 0)+(traits.scoreFlameDamage or 0)
         +ScoreOperations.weaponDamage(self))*ClearcutMode.FLAME_TICK
     local igniteChance=(.18+(traits.scoreFlameIgnite or 0))*ClearcutMode.FLAME_TICK
     local hit=false
     for _,node in ipairs(game.world.nodes)do
         if node.rushTree and node.active and not node.treeEmergence
-            and ClearcutMode.flameConeCovers(originX,originY,nx,ny,reach,halfAngle,node.x,node.y)then
+            and ClearcutMode.flameStreamCovers(originX,originY,nx,ny,reach,halfWidth,node.x,node.y)then
             hit=true
             local felled=self:damageTreeWithSmokerWeapon(node,damage,game)
             if not felled and not self.rainSuppressFire and not node.burning
@@ -3494,7 +3494,7 @@ function ClearcutMode:updateFlamethrowerAttack(dt,game,held)
         end
     end
     for _,enemy in ipairs(self.enemies)do
-        if enemy.hp>0 and ClearcutMode.flameConeCovers(originX,originY,nx,ny,reach,halfAngle,enemy.x,enemy.y)then
+        if enemy.hp>0 and ClearcutMode.flameStreamCovers(originX,originY,nx,ny,reach,halfWidth,enemy.x,enemy.y)then
             hit=true
             enemy.hp=enemy.hp-(6+damage*2);enemy.visualHit=.12
             self:igniteEnemy(enemy,game,self.smokerGroundTime)
@@ -7012,7 +7012,7 @@ function ClearcutMode:queueProjectedOverlay(game,t)
     for _,value in ipairs(self.molotovs) do local flight=value;local x,y=CigaretteButts.flightPosition(flight)
         queueUpright(queue,x,y,function()CigaretteButtArt.drawFlight(flight,self.smokerGroundTime)end)
     end
-    -- 화염방사기는 투사체가 없는 지속 무기다. 부채꼴 판정과 같은 각도·거리로 그려
+    -- 화염방사기는 투사체가 없는 지속 무기다. 화염 기둥 판정과 같은 굵기·거리로 그려
     -- 보이는 불길과 실제로 타는 범위가 어긋나지 않게 한다.
     if self.flameStream then
         local stream=self.flameStream

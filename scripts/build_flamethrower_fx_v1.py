@@ -38,111 +38,87 @@ def poly(draw, points, fill):
     draw.polygon([(snap(x), snap(y)) for x, y in points], fill=fill)
 
 
-def stream_profile(frame, width_scale=1.0, length_scale=1.0):
-    """One coherent jagged flame mass; later layers shrink inside this profile."""
-    rng = random.Random(9173 + frame * 71 + round(width_scale * 100))
-    phase = frame * math.tau / FRAMES
-    top, bottom = [], []
-    samples = 31
-    for index in range(samples):
-        u = index / (samples - 1)
-        x = 58 + 1160 * u * length_scale
-        envelope = (34 + 306 * math.sin(u * math.pi) ** .82) * width_scale
-        envelope *= .70 + .30 * min(1, u / .14)
-        tooth = math.sin(phase * 1.3 + index * 1.81) * (10 + 34 * u)
-        tooth += math.sin(phase * .73 - index * 2.43) * (7 + 20 * u)
-        tooth += rng.choice((-12, -6, 0, 6, 12)) * u
-        center = 384 + math.sin(phase + u * 7.5) * (7 + 18 * u)
-        top.append((x, center - envelope - tooth))
-        bottom.append((x, center + envelope - math.sin(phase * .91 + index * 1.57) * (12 + 31 * u)))
-    return top + list(reversed(bottom))
-
-
-def detached_tongue(draw, x, y, length, width, angle, colors):
-    nx, ny = math.cos(angle), math.sin(angle)
-    px, py = -ny, nx
-    for inset, color in enumerate(colors):
-        scale = 1 - inset * .18
-        if scale <= .25:
-            break
-        l, w = length * scale, width * scale
-        ox = x + nx * length * inset * .055
-        oy = y + ny * length * inset * .055
-        poly(draw, [
-            (ox - px * w, oy - py * w),
-            (ox + nx * l * .42 - px * w * .70, oy + ny * l * .42 - py * w * .70),
-            (ox + nx * l, oy + ny * l),
-            (ox + nx * l * .56 + px * w * .58, oy + ny * l * .56 + py * w * .58),
-            (ox + px * w, oy + py * w),
-        ], color)
+def ellipse(draw, cx, cy, rx, ry, fill):
+    draw.ellipse((snap(cx-rx), snap(cy-ry), snap(cx+rx), snap(cy+ry)), fill=fill)
 
 
 def make_stream(frame):
+    """Eight authored frames of a rolling, constant-width fire column."""
     image = Image.new("RGBA", (CELL_W, CELL_H))
     draw = ImageDraw.Draw(image)
     phase = frame * math.tau / FRAMES
-    # Smoke sits behind the fire and breaks away at the long end instead of
-    # becoming a translucent geometric cone.
-    for index in range(9):
-        u = .48 + index * .065
-        x = 58 + 1160 * u + math.sin(frame * .77 + index * 1.9) * 22
-        y = 384 + math.sin(frame * .91 + index * 1.37) * (62 + index * 8)
-        radius = 42 + index * 10
-        color = (SMOKE_DARK, SMOKE, SMOKE_LIT)[(index + frame) % 3]
-        poly(draw, [
-            (x - radius, y + radius * .18), (x - radius * .72, y - radius * .55),
-            (x - radius * .20, y - radius), (x + radius * .45, y - radius * .72),
-            (x + radius, y - radius * .10), (x + radius * .66, y + radius * .72),
-            (x, y + radius),
-        ], color)
+    rng = random.Random(4417 + frame * 97)
+    centers = (145, 320, 500, 680, 860, 1042, 1140)
 
-    layers = [
-        (1.00, 1.00, INK), (.965, .985, RED), (.915, .965, RED_LIT),
-        (.86, .94, VERMILION), (.77, .89, VERMILION_LIT), (.69, .82, ORANGE),
-        (.59, .73, AMBER), (.49, .62, GOLD), (.31, .42, YELLOW),
-        (.21, .33, CREAM), (.14, .25, PALE), (.085, .17, WHITE),
-    ]
-    for width_scale, length_scale, color in layers:
-        poly(draw, stream_profile(frame, width_scale, length_scale), color)
+    # Sparse exhaust sits behind the orange mass; it must never become the
+    # silhouette. The column itself is built from overlapping round billows.
+    for index in range(7):
+        x = 690 + index * 82 + math.sin(phase + index) * 16
+        y = 384 + (-1 if index % 2 else 1) * (205 + (index % 3) * 18)
+        radius = 22 + (index % 3) * 8
+        ellipse(draw, x, y, radius, radius*.72, (SMOKE_DARK, SMOKE, SMOKE_LIT)[(index+frame)%3])
 
-    # Ordered streamwise texture describes pressure and heat direction. These
-    # are clustered streaks on existing flame faces, not random noise sprinkled
-    # into transparent space.
-    flow_colors = (RED_LIT, VERMILION_LIT, AMBER, GOLD, YELLOW, CREAM)
-    for band in range(7):
-        color = flow_colors[band % len(flow_colors)]
-        for index in range(12):
-            u = .10 + index * .068 + (band % 2) * .018
-            x = 58 + 1050 * u + math.sin(phase + index * 1.2) * 8
-            envelope = (32 + 245 * math.sin(u * math.pi) ** .9)
-            lane = (band - 3) / 3
-            y = 384 + lane * envelope * .68 + math.sin(phase * .7 + index * 1.43 + band) * 9
-            length = 12 + ((index + band * 2) % 5) * 6
-            draw.rectangle((snap(x), snap(y), snap(x) + length, snap(y) + (2 if index % 3 else 4)), fill=color)
+    lobes = []
+    for index, cx in enumerate(centers):
+        pulse = math.sin(phase + index * 1.31)
+        cy = 384 + pulse * (16 if index else 5)
+        rx = (150 if index < 6 else 118) + math.cos(phase*.8 + index)*12
+        ry = (216 if index in (1,2,3,4,5) else 174) + pulse*14
+        lobes.append((cx, cy, rx, ry))
 
-    # Independent edge tongues and far-end fragments make the animation read
-    # as a pressured jet, not one silhouette being scaled or pulsed.
-    tongue_colors = (INK, RED, VERMILION, ORANGE, GOLD, YELLOW)
+    # Dark outline and twelve stepped heat bands keep each cloud readable while
+    # overlaps weld them into a single pressured blast.
+    bands = (
+        (1.00, INK), (.965, RED), (.91, RED_LIT), (.855, VERMILION),
+        (.79, VERMILION_LIT), (.72, ORANGE), (.64, AMBER), (.55, GOLD),
+        (.44, YELLOW), (.34, CREAM), (.25, PALE), (.16, WHITE),
+    )
+    for scale, color in bands:
+        for index, (cx, cy, rx, ry) in enumerate(reversed(lobes)):
+            real_index = len(lobes)-1-index
+            # Hot cores roll around each other instead of sharing one centered
+            # gradient, producing the reference's circular cannon rhythm.
+            drift_x = (1-scale)*rx*.36*math.cos(phase*1.2+real_index*1.4)
+            drift_y = (1-scale)*ry*.30*math.sin(phase+real_index*1.7)
+            ellipse(draw, cx+drift_x, cy+drift_y, rx*scale, ry*scale, color)
+
+    # Crescent/spiral cuts describe rotation on the flame surface. All strokes
+    # are hard pixel steps; no blur, translucent glow, or procedural noise.
+    for index, (cx, cy, rx, ry) in enumerate(lobes[1:6], 1):
+        flip = -1 if (index+frame)%2 else 1
+        box = (snap(cx-rx*.58), snap(cy-ry*.57), snap(cx+rx*.58), snap(cy+ry*.57))
+        start = int(30 + (frame*19 + index*47)%120)
+        draw.arc(box, start=start, end=start+215, fill=VERMILION_LIT, width=18)
+        inner = (snap(cx-rx*.40), snap(cy-ry*.39), snap(cx+rx*.40), snap(cy+ry*.39))
+        draw.arc(inner, start=start+35*flip, end=start+35*flip+175, fill=YELLOW, width=14)
+        ellipse(draw, cx+flip*rx*.25, cy-ry*.18, 17, 11, CREAM)
+
+    # Streamwise hot seams and edge tongues add dense, intentional pixel
+    # texture without breaking the round-lobe silhouette.
+    for index in range(34):
+        x = 92 + index*32 + math.sin(phase*1.7+index)*8
+        lane = ((index*5+frame)%7)-3
+        y = 384 + lane*39 + math.sin(index*1.9+phase)*11
+        length = 10 + (index%5)*5
+        color = (RED_LIT, ORANGE, GOLD, YELLOW, CREAM)[index%5]
+        draw.rectangle((snap(x), snap(y), snap(x+length), snap(y+4+(index%2)*2)), fill=color)
+    for index in range(16):
+        x = 180 + ((index*71 + frame*29)%1030)
+        side = -1 if (index+frame)%2 else 1
+        y = 384 + side*(185 + (index%4)*17)
+        tip = 22 + (index%4)*10
+        poly(draw, [(x-20,y-side*5),(x+10,y-side*18),(x+tip,y+side*7),(x-8,y+side*18)],
+             (RED, VERMILION, ORANGE, GOLD)[index%4])
     for index in range(12):
-        u = .18 + index * .065
-        side = -1 if (index + frame) % 2 else 1
-        x = 58 + 1120 * u
-        envelope = 54 + 268 * math.sin(u * math.pi) ** .82
-        y = 384 + side * envelope + math.sin(phase + index) * 18
-        angle = side * (.45 + .18 * math.sin(phase * .8 + index * 1.3))
-        detached_tongue(draw, x, y, 58 + index * 5, 16 + (index % 3) * 4, angle, tongue_colors)
-    for index in range(13):
-        x = 910 + ((index * 79 + frame * 31) % 330)
-        y = 384 + math.sin(index * 2.1 + phase) * (120 + (index % 4) * 43)
-        size = (4, 6, 8)[index % 3]
-        draw.rectangle((snap(x), snap(y), snap(x) + size, snap(y) + size), fill=YELLOW if index % 2 else ORANGE)
+        x = 930 + ((index*61 + frame*37)%300); y = 384 + math.sin(index*2.2+phase)*(214+(index%3)*18)
+        size = (4,6,8)[index%3]
+        draw.rectangle((snap(x),snap(y),snap(x+size),snap(y+size)),fill=YELLOW if index%2 else ORANGE)
 
-    # Stable white-hot nozzle root prevents the stream from floating away from
-    # the weapon while every upper tongue continues to move.
-    poly(draw, [(48, 360), (122, 350), (214, 366), (230, 384), (214, 402), (122, 418), (48, 408)], INK)
-    poly(draw, [(54, 366), (145, 360), (208, 374), (218, 384), (208, 394), (145, 408), (54, 402)], ORANGE)
-    poly(draw, [(58, 372), (154, 370), (198, 380), (204, 384), (198, 388), (154, 398), (58, 396)], YELLOW)
-    poly(draw, [(58, 378), (171, 378), (190, 384), (171, 390), (58, 390)], WHITE)
+    # Stable white-hot nozzle root prevents the rolling column from floating.
+    poly(draw, [(48,360),(118,348),(222,364),(250,384),(222,404),(118,420),(48,408)], INK)
+    poly(draw, [(54,366),(150,358),(226,372),(240,384),(226,396),(150,410),(54,402)], ORANGE)
+    poly(draw, [(58,372),(168,368),(218,378),(230,384),(218,390),(168,400),(58,396)], YELLOW)
+    poly(draw, [(58,378),(186,376),(210,384),(186,392),(58,390)], WHITE)
     return image
 
 
@@ -210,7 +186,7 @@ for frame in range(FRAMES):
     cell = make_stream(frame)
     frames.append(cell)
     atlas.alpha_composite(cell, ((frame % COLS) * CELL_W, (frame // COLS) * CELL_H))
-atlas.save(ASSET / "smoker-flamethrower-stream-atlas-v1.png", optimize=True)
+atlas.save(ASSET / "smoker-flamethrower-stream-atlas-v2.png", optimize=True)
 equipment = make_equipment()
 equipment.save(ASSET / "smoker-flamethrower-equipment-v1.png", optimize=True)
 
@@ -221,5 +197,5 @@ for index, frame in enumerate(frames[:4]):
     board.paste(thumb, ((index % 2) * 640 + 20, (index // 2) * 180 - 78), thumb)
 zoom = frames[5].crop((32, 180, 672, 564)).resize((1280, 768), Image.Resampling.NEAREST).crop((0, 0, 1280, 300))
 board.paste(zoom, (0, 420), zoom)
-board.save(PREVIEW / "flamethrower-fx-v1-pixel-board.png")
-print("FLAMETHROWER_FX_V1_BUILT stream=1280x768x8 atlas=5120x1536 equipment=384x128 grid=2")
+board.save(PREVIEW / "flamethrower-fx-v2-pixel-board.png")
+print("FLAMETHROWER_FX_V2_BUILT stream=1280x768x8 atlas=5120x1536 equipment=384x128 grid=2 rolling=column")

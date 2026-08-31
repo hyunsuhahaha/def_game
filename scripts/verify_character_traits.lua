@@ -210,16 +210,30 @@ crewMode:configureGraduateMonkeyWeapon(axeMonkey)
 assert(fireworkMonkey.attackReach>axeMonkey.attackReach and fireworkMonkey.damage==6,
     "firework monkey did not inherit the rocket branch numbers")
 
--- 화염방사기 부채꼴. 판정은 거리와 각도를 따로 보므로 옆이나 뒤의 나무는 사거리
--- 안이어도 타지 않는다. 그리기와 판정이 같은 각도를 쓰는 것이 전제다.
-local cone=ClearcutMode.flameConeCovers
-assert(cone(0,0,1,0,250,.42,200,0),"flame cone missed a tree straight ahead")
-assert(not cone(0,0,1,0,250,.42,300,0),"flame cone reached past its range")
-assert(not cone(0,0,1,0,250,.42,-200,0),"flame cone burned a tree behind the player")
-assert(not cone(0,0,1,0,250,.42,0,200),"flame cone burned a tree at right angles")
-assert(cone(0,0,1,0,250,.42,10,4),"flame cone dropped a target at point blank")
--- 분사 폭 4단계(+0.42rad)면 좌우 90도에 가까워져 옆 나무까지 들어온다.
-assert(cone(0,0,1,0,250,.42+.42,140,140),"widened flame cone did not cover the diagonal")
+-- 화염방사기는 멀어질수록 벌어지는 부채꼴이 아니라 폭이 일정한 전방 기둥이다.
+local stream=ClearcutMode.flameStreamCovers
+assert(stream(0,0,1,0,250,72,200,0),"flame stream missed its center line")
+assert(stream(0,0,1,0,250,72,200,70),"flame stream missed its authored edge")
+assert(not stream(0,0,1,0,250,72,300,0),"flame stream reached past its range")
+assert(not stream(0,0,1,0,250,72,-20,0),"flame stream burned behind the nozzle")
+assert(not stream(0,0,1,0,250,72,200,90),"flame stream widened like a cone")
+assert(stream(0,0,1,0,250,128,200,118),"thickness research did not widen the column")
+
+-- 비로 점화를 완전히 막아도 직접 피해는 매 틱 독립적으로 들어가야 한다.
+local flameMode=ClearcutMode.new();flameMode.scoreAttack=true;flameMode.rainSuppressFire=true
+flameMode.permanentTraits.scoreFlameUnlock=1;flameMode.permanentTraits.scoreFlameIgnite=0
+local flameTree={rushTree=true,active=true,x=120,y=-30,rushHp=100,rushMaxHp=100,burning=false}
+local flameWorld={nodes={flameTree}}
+function flameWorld:impactNode()end
+local flamePlayer={x=0,y=0,facing=1,gather=1}
+function flamePlayer:setClearcutAction(value)self.clearcutActionProgress=value end
+function flamePlayer:clearClearcutAction()self.clearcutActionProgress=nil end
+local flameGame={player=flamePlayer,world=flameWorld,tools={axe={speed=1}},camera={screenToWorld=function()return 300,0 end}}
+assert(flameMode:updateFlamethrowerAttack(.13,flameGame,true),"first continuous flame tick missed")
+local afterFirstTick=flameTree.rushHp
+assert(flameMode:updateFlamethrowerAttack(.13,flameGame,true),"second continuous flame tick missed")
+assert(flameTree.rushHp<afterFirstTick and not flameTree.burning,
+    "direct flame damage stopped when ignition was unavailable")
 -- 불 갈래 33 = 담배 9 + 탄약 관리 3(개비 재장전·보루 용량·보루 교체) + 공용 나무 피해 1
 -- + 도끼 4 + 도끼 상위 3(충격파·연속 벌목·나무꾼 고용) + 후반 해금 3(상시 흡연·자동 투척·폭죽)
 -- + 자동 투척 주기 1 + 폭죽 5. 탄약 관리 갈래는 startSmoking의 세 상수(개비 재장전 하한,
