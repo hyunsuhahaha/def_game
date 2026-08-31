@@ -521,7 +521,7 @@ function ClearcutMode:setup(game)
         self.scoreFellTimes,self.scoreFellHead={},1
         self.currentTreesPerSecond,self.peakTreesPerSecond=0,0
         self.scoreWoodEarned=0
-        -- 기록 모드는 첫 수십 초 동안 직접 착화와 레벨업 선택으로 빌드를 정한다.
+        -- 기록 모드는 첫 수십 초 동안 직접 착화와 영구 연구 빌드로 버틴다.
         -- 일반 스테이지의 파괴율 웨이브와 별도로, 45초 뒤부터 소수만 투입한다.
         self.scoreEnemyTimer=45
         self.scoreRegenTier=game.characterTraits and game.characterTraits.getRegenTier and game.characterTraits:getRegenTier()or 1
@@ -558,7 +558,10 @@ function ClearcutMode:setup(game)
         self.levels.baby_robot=math.max(self:levelOf("baby_robot"),math.floor(self.permanentTraits.scoreStartingBabyRobot or 0))
         self:applySmokerEvolution(game)
         self.totalWood=0
-        self.xp,self.xpNext,self.level,self.pending=0,5,1,0
+        -- 기록 모드는 플레이 중 레벨업/3택을 사용하지 않는다. 목재는 점수와
+        -- 정산용 수종 재고로만 누적되고 성장은 로비 영구 연구에서만 일어난다.
+        self.xp,self.xpNext,self.level,self.pending=0,0,1,0
+        self.choices,self.choiceBoxes={},{}
         self.scoreDeficitTimer,self.scoreCollapseActive=0,false
         game.wood=0
     end
@@ -2273,6 +2276,11 @@ function ClearcutMode:updateChests(dt, game)
 end
 
 function ClearcutMode:openChest(game)
+    if self.scoreAttack then
+        self:onWood(40,game)
+        game:setNotice("보물상자 — 목재 점수 +40","food")
+        return false
+    end
     if self:checkEvolutions(game) then
         self.fusionChestRewards=(self.fusionChestRewards or 0)+1
         return
@@ -5392,31 +5400,31 @@ function ClearcutMode:onWood(amount, game)
     amount = amount * (self.woodGainMul or 1)
     self.totalWood = self.totalWood + amount
     game.wood = self.totalWood
-    if self.scoreAttack then self.scoreWoodEarned=(self.scoreWoodEarned or 0)+amount end
-    -- 기록 모드의 10개 카드(각 3단계)를 모두 마스터한 뒤에는 목재를 계속
-    -- 점수로 세되, 더 이상 레벨/선택 대기열을 만들지 않는다.
-    if self.scoreAttack and #self:upgradePool()==0 then
+    if self.scoreAttack then
+        self.scoreWoodEarned=(self.scoreWoodEarned or 0)+amount
+        -- 과거 저장/테스트에서 남은 대기열까지 매 획득 시 정리해, 대량 목재가
+        -- 들어와도 선택 창이 연속으로 다시 열리지 않게 한다.
         self.xp,self.pending=0,0
+        self.choices,self.choiceBoxes={},{}
         return
     end
-    local xpMult = self.scoreAttack and ScoreOperations.woodXpMultiplier(self)or 1
-    self.xp = self.xp + amount * xpMult
+    self.xp = self.xp + amount
     while self.xp >= self.xpNext do
         self.xp = self.xp - self.xpNext
         self.level, self.pending = self.level + 1, self.pending + 1
-        self.xpNext = self.scoreAttack and(5+(self.level-1)*3)or math.floor(10+(self.level-1)*6.5)
+        self.xpNext = math.floor(10+(self.level-1)*6.5)
     end
     if self.pending > 0 and game.mode == "playing" and not self.sandbox and not os.getenv("LAST_HAUL_SELF_TEST") then self:openUpgradeChoices(game) end
 end
 
 function ClearcutMode:upgradePool()
+    -- 활성 벌목 기록 모드의 성장은 로비 영구 연구 하나로 통합했다. 정의는 일반
+    -- 작전·샌드박스 복구를 위해 보존하지만 기록 모드 후보 풀에는 넣지 않는다.
+    if self.scoreAttack then return {} end
     local pool = {}
     for _, def in ipairs(definitions) do
-        -- 기록 모드 드래프트는 scoreOperation 카드만 쓴다. 운영 카드 여섯 장과
-        -- 무기 중립 전투 카드 네 장(공격속도·피해·범위·사거리)이 여기에 해당한다.
-        -- 무기별 전용 수치는 드래프트에 넣지 않는다 — 다른 무기를 든 판에서 죽은
-        -- 카드가 되고 무기를 추가할 때마다 카드도 늘려야 한다. 그쪽은 영구 연구가 맡는다.
-        -- 일반 작전의 직업별 전투 카드는 삭제하지 않고 그대로 보존한다.
+        -- 기록 모드는 위에서 빈 풀로 끝난다. 아래 분류는 일반 작전·샌드박스 복구용
+        -- 정의를 삭제하지 않기 위해 보존한다.
         local jobOk = self.scoreAttack and def.scoreOperation==true or((not self.scoreAttack)and((def.job ~= nil and self.job ~= nil and def.job == self.job)or def.sharedDraft==true))
         local modeOk = not def.scoreOnly or self.scoreAttack
         if jobOk and modeOk and not self.banished[def.id] and self:levelOf(def.id) < def.max then pool[#pool+1]=def end
@@ -5453,6 +5461,14 @@ function ClearcutMode:banishCost() return 45 end
 -- 새 업그레이드 3택 화면을 여는 공용 진입점. 리롤 횟수/배니시 무장 상태를 초기화하고,
 -- 아주 낮은 확률로 뒷면에서 앞면으로 뒤집히며 등장하는 4번째 스페셜(아르카나) 카드를 끼워 넣는다.
 function ClearcutMode:openUpgradeChoices(game)
+    if self.scoreAttack then
+        self.xp,self.pending=0,0
+        self.choices,self.choiceBoxes={},{}
+        self.specialCard,self.fusionChoice,self.branchChoiceSkill=nil,nil,nil
+        self.selectionKind="upgrade"
+        game.mode="playing"
+        return false
+    end
     if not self.scoreAttack and self:checkEvolutions(game) then return end
     self.rerollCount, self.banishArmed, self.selectionKind = 0, false, "upgrade"
     self:rollChoices()
@@ -5524,6 +5540,7 @@ end
 
 -- Guaranteed acquisition screen; never mixed into a random upgrade pool.
 function ClearcutMode:checkEvolutions(game)
+    if self.scoreAttack then return false end
     local def=Fusions.nextReady(self)
     if not def then return false end
     self.fusionChoice=def
@@ -5558,6 +5575,11 @@ function ClearcutMode:chooseFusion(index,game)
 end
 
 function ClearcutMode:openBranchChoice(skill,game)
+    if self.scoreAttack then
+        self.branchChoiceSkill=nil;self.branchChoices={};self.pending=0
+        game.mode="playing"
+        return false
+    end
     self.branchChoiceSkill=skill
     self.branchChoices=SkillBranches.forSkill(skill) or {}
     self.selectionKind="branch";self.specialCard=nil;self.banishArmed=false;self.choiceBoxes={}
@@ -8127,7 +8149,7 @@ function ClearcutMode:drawSelectionContent(game,fonts,w,h)
     end
 
     love.graphics.setFont(fonts.title); love.graphics.setColor(1,.82,.3); love.graphics.printf(self.scoreAttack and"현장 운영 선택"or"벌목 방식 진화",0,66,w,"center")
-    love.graphics.setFont(fonts.small); love.graphics.setColor(.72,.88,.76); love.graphics.printf(self.scoreAttack and"목재 경험치로 이번 작업의 비전투 설비를 강화합니다."or"스킬 하나를 선택합니다.",0,112,w,"center")
+    love.graphics.setFont(fonts.small); love.graphics.setColor(.72,.88,.76); love.graphics.printf(self.scoreAttack and"벌목 기록 모드는 인게임 강화를 사용하지 않습니다."or"스킬 하나를 선택합니다.",0,112,w,"center")
     local numCards = self.specialCard and 4 or 3
     local progressH=self.scoreAttack and 0 or 30+#Fusions.forJob(self)*22
     local buttonY=h-progressH-12-44-14

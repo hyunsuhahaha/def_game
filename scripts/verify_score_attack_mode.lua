@@ -50,7 +50,10 @@ assert(mode.scoreTreeAllowance==12,"fresh score mode did not use the 12-tree bas
 assert(game.world.width==2240 and game.world.height==1400,"score mode world was not reduced to 70 percent")
 assert(game.world.playBounds.w==1680 and game.world.playBounds.h==980 and game.world.cameraTopReveal==630,
     "score mode playable bounds or camera reveal did not follow the 70-percent map scale")
-assert(mode.xpNext==5,"score mode did not start with the fast five-wood first upgrade")
+assert(mode.xp==0 and mode.xpNext==0 and mode.level==1 and mode.pending==0,
+    "score mode still initialized an in-run level-up track")
+assert(game:grantTestLevels(20)==0 and mode.level==1 and mode.pending==0,
+    "developer level grant reopened score-mode upgrades")
 assert(#game.world.nodes==6 and mode:scoreActiveTreeCount()==6 and mode.totalTreesSpawned==6,"score mode did not start with exactly six active trees")
 assert(mode.remainingTrees==6 and mode.initialTrees==6 and mode.peakActiveTrees==6,"starting score trees were not included in occupancy metrics")
 assert(not mode:checkWorldTreeSpawn(game),"opening score field incorrectly summoned the world tree")
@@ -82,13 +85,11 @@ mode:updateBerserk(999,game);mode:updateVinePlants(999,game);mode:updateDisaster
 assert(mode.berserkTimer==berserkBefore and mode.vinePlantTimer==vinesBefore and mode.disasterTimer==disasterBefore,"normal-stage threat systems remained active in score mode")
 
 local scorePool=mode:upgradePool()
-assert(#scorePool==10,"score mode did not expose six operation and four combat cards")
-for _,def in ipairs(scorePool)do assert(def.scoreOperation and not def.job,"combat skill leaked into the operation draft: "..def.id)end
+assert(#scorePool==0,"score mode still exposes in-run upgrade choices")
 assert(mode:getUpgradeDefinition("baby_robot").scoreOperation==true,"baby robot is not marked as a score operation")
--- 전투 카드는 전부 무기 중립 수치다. 무기별 카드를 두면 다른 무기를 든 판에서
--- 죽은 카드가 되고, 무기를 추가할 때마다 카드도 같이 늘려야 한다.
+-- 보존된 정의는 일반 작전/샌드박스 복구용일 뿐 활성 기록 모드 후보에는 들어가지 않는다.
 for _,id in ipairs({"score_attack_speed","score_weapon_damage","score_weapon_area","score_weapon_range"})do
-    assert(mode:getUpgradeDefinition(id).scoreOperation==true,"score combat card is not active: "..id)
+    assert(mode:getUpgradeDefinition(id).scoreOperation==true,"preserved score card definition disappeared: "..id)
 end
 for _,id in ipairs({"score_extra_butts","score_ignition_radius","score_burn_speed"})do
     assert(mode:getUpgradeDefinition(id)==nil,"weapon-specific combat card is back in the run draft: "..id)
@@ -98,24 +99,24 @@ game.mode="playing"
 mode:damagePlayer(9999,game)
 assert(mode.hp==hpBefore and not mode.dead and game.mode=="playing","score mode still has player HP damage or death")
 
--- 10개 카드 x 3단계를 모두 찍은 뒤에는 빈 레벨업을 현장 휴식으로 바꾸지 않고
--- XP/선택 대기열을 닫는다. 목재 점수 자체는 계속 누적된다.
+-- 과거 테스트/저장 상태가 선택 대기열을 들고 있어도 기록 모드는 즉시 폐기한다.
 local maxed=require("src.clearcut_mode").new();maxed.scoreAttack=true;maxed.job="fire"
-for _,def in ipairs(maxed:upgradePool())do maxed.levels[def.id]=def.max end
-assert(#maxed:upgradePool()==0,"max-rank score draft still has an upgrade candidate")
 maxed.pending,maxed.xp,maxed.level,maxed.totalWood,maxed.scoreWoodEarned=7,4,31,0,0
 game.mode="playing"
 maxed:openUpgradeChoices(game)
-assert(game.mode=="playing"and maxed.pending==0 and #maxed.choices==0,"max-rank score draft still opened a level-up screen")
+assert(game.mode=="playing"and maxed.pending==0 and #maxed.choices==0,"stale score draft still opened a level-up screen")
 maxed:onWood(100,game)
 assert(maxed.level==31 and maxed.pending==0 and maxed.xp==0 and maxed.totalWood==100 and maxed.scoreWoodEarned==100,
-    "max-rank score draft kept generating level-up prompts or stopped counting wood")
-local banished=require("src.clearcut_mode").new();banished.scoreAttack=true;banished.job="fire";banished.totalWood=9999;banished.pending=1
-for _,def in ipairs(banished:upgradePool())do banished.banished[def.id]=true end
-banished.choices={{id="yard_management",name="작업장 확장",scoreOperation=true,max=3}};banished.banished.yard_management=nil;banished.banishArmed=true
-game.mode="clearcut_upgrade"
-assert(banished:choose(1,game)and game.mode=="playing"and banished.pending==0,
-    "banishing the final score card left an empty level-up screen open")
+    "disabled score draft generated prompts or stopped counting wood")
+maxed.choices={{id="yard_management"}};maxed.pending=2;game.mode="clearcut_upgrade"
+assert(maxed:openUpgradeChoices(game)==false and game.mode=="playing"and maxed.pending==0 and #maxed.choices==0,
+    "score mode did not force-close a legacy upgrade screen")
+local chestWood=maxed.totalWood
+assert(maxed:openChest(game)==false and game.mode=="playing"and maxed.totalWood==chestWood+40 and #maxed.choices==0,
+    "score chest reopened an upgrade/fusion selection instead of becoming score wood")
+maxed.levels.molotov,maxed.levels.dry_forest=6,6
+assert(not maxed:checkEvolutions(game)and maxed:openBranchChoice("molotov",game)==false and game.mode=="playing",
+    "score mode still opened a branch or fusion choice through a legacy skill state")
 mode.scoreInitialSmokingStarted=true;mode.levels.score_attack_speed=0;mode:startSmoking(game);local baseSmokingDuration=mode.smoking.dur
 mode.levels.score_attack_speed=3;mode:startSmoking(game)
 assert(mode.smoking.dur<baseSmokingDuration,"attack-speed card did not shorten the real smoking reload")
@@ -148,14 +149,12 @@ assert(math.abs(mode:scoreTimePressureMultiplier()-4)<.001,
     "new one-minute time pressure does not match the former two-minute multiplier")
 mode.stageElapsed=90
 
-local pending=mode.pending
 game.mode="test"
 mode:onWood(5,game)
-assert(mode.pending==pending+1 and mode.level==2 and mode.xpNext==8 and mode.scoreWoodEarned==5,"score wood did not use the fast 5/8 opening level curve")
+assert(mode.pending==0 and mode.level==1 and mode.xp==0 and mode.xpNext==0 and mode.scoreWoodEarned==5,
+    "score wood still generated XP or a level-up prompt")
 mode:rollChoices()
-assert(#mode.choices==3,"score level-up did not roll exactly three choices")
-for _,choice in ipairs(mode.choices)do assert(choice.id~="forest_expansion","removed forest automation card returned")end
-for _,choice in ipairs(mode.choices)do assert(choice.scoreOperation and not choice.job,"score draft offered a combat card: "..choice.id)end
+assert(#mode.choices==0,"score mode rolled choices after in-run upgrades were disabled")
 assert(mode.buyScoreAutomation==nil and mode.updateScoreAutomation==nil,"removed automation runtime methods remain")
 game.mode="playing"
 
@@ -259,7 +258,8 @@ game.clearcut:updateOneMoleCompanion(mole,.01,game)
 game.clearcut:updateOneMoleCompanion(mole,.25,game)
 assert(landmark.rushHp<50,"mole stood beside a giant-canopy tree without chopping it")
 game.world.nodes=ordinaryNodes;mole.state,mole.target="seek",nil
-assert(game.clearcut.totalWood==0 and game.clearcut.level==1 and game.clearcut.pending==0,"score run did not start with a clean wood-XP progression")
+assert(game.clearcut.totalWood==0 and game.clearcut.level==1 and game.clearcut.xpNext==0 and game.clearcut.pending==0,
+    "score run did not start with its in-run progression disabled")
 assert(game.clearcut.smoking and game.clearcut.smoking.dur<.75,"first ignition preparation trait did not shorten the opening load")
 game.clearcut:hurlMolotovAt(game.player.x+600,game.player.y,game)
 assert(#game.clearcut.molotovs==2 and game.clearcut.molotovs[1].approachDur<.5,"projectile-speed/additional-butt traits are not live")
@@ -277,7 +277,7 @@ local beforeDispatchX=idleRobot.x
 game.world:updateHelpers(1,game)
 assert(idleRobot.target==game.world.drops[1] and idleRobot.x>beforeDispatchX,"score robot did not dispatch to map-wide wood")
 for _=1,900 do game.world:updateHelpers(1/60,game)end
-assert(#game.world.helpers==1 and #game.world.drops==0 and game.clearcut.totalWood==deliveredBefore+1,"baby robot did not convert a landed wood drop into wood XP")
+assert(#game.world.helpers==1 and #game.world.drops==0 and game.clearcut.totalWood==deliveredBefore+1,"baby robot did not convert a landed wood drop into score wood")
 assert(game.player.wood==carriedBefore and game.world.helpers[1].carrying==nil,"baby robot incorrectly carried wood back to the player")
 game.clearcut.levels.baby_robot=3
 game.world:updateHelpers(1/60,game)
@@ -321,4 +321,4 @@ local bulkExpected=130*2+110*2+125*4+132*4
 for _=1,240 do bulkMode:updateResults(1/60,game)end
 assert(bulkMode.resultSettlement.complete and game.result.traitEarned==bulkExpected and Traits.data.currency==bulkCoinsBefore+bulkExpected,
     "bulk lumber settlement did not finish within four seconds or lost coins")
-print("SCORE_ATTACK_MODE_OK start=6 persistent_regen_tier wood_xp=operations combat=permanent")
+print("SCORE_ATTACK_MODE_OK start=6 persistent_regen_tier run_upgrades=disabled combat=permanent")

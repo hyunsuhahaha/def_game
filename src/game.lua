@@ -264,6 +264,11 @@ function Game:grantTestLevels(count)
     count = math.max(1, math.floor(count or 10))
     local track=self.clearcut or self.rush
     if track then
+        if track.scoreAttack then
+            track.xp,track.xpNext,track.pending=0,0,0
+            track.choices,track.choiceBoxes={},{}
+            return 0
+        end
         for _=1,count do
             track.level,track.pending=track.level+1,track.pending+1
             track.xpNext=math.floor(10+(track.level-1)*6.5)
@@ -345,14 +350,16 @@ function Game:useTestOption(index)
         if activeRun then self:grantTestRunResources(); self.testMessage="현재 런 자원을 각각 1,000,000개 지급했습니다."
         else self.testGrantNextRun=true; self.testMessage="다음 런 자원 1,000,000개 지급을 예약했습니다." end
     elseif index==3 then
-        if activeRun then self:grantTestLevels(10); self.testMessage="현재 런 레벨 +10을 지급했습니다. 메뉴를 닫으면 3택이 시작됩니다."
+        if activeRun and self.clearcut and self.clearcut.scoreAttack then self.testMessage="벌목 기록 모드는 인게임 레벨업을 사용하지 않습니다."
+        elseif activeRun then self:grantTestLevels(10); self.testMessage="현재 런 레벨 +10을 지급했습니다. 메뉴를 닫으면 3택이 시작됩니다."
         else self.testLevelsNextRun,self.testLevelsNextRunManual=20,false; self.testMessage="다음 런 시작 레벨 +20을 예약했습니다. 강화는 무작위로 자동 선택됩니다." end
     elseif index==4 then
         if self.testResetArmed and self.testResetTime>0 then self.progression:reset();self.characterTraits:reset();self.achievements:reset();self.testResetArmed=false;self.testMessage="영구 재화·특성·업적 기록을 초기화했습니다."
         else self.testResetArmed,self.testResetTime=true,4; self.testMessage="초기화하려면 4초 안에 버튼을 한 번 더 누르세요." end
     elseif index==5 then
-        self.testLevelsNextRun,self.testLevelsNextRunManual=20,true
-        self.testMessage="다음 런 시작 레벨 +20을 예약했습니다. 강화를 직접 3택으로 고릅니다."
+        if activeRun and self.clearcut and self.clearcut.scoreAttack then self.testMessage="벌목 기록 모드는 인게임 레벨업을 사용하지 않습니다."
+        else self.testLevelsNextRun,self.testLevelsNextRunManual=20,true
+            self.testMessage="다음 런 시작 레벨 +20을 예약했습니다. 강화를 직접 3택으로 고릅니다." end
     end
 end
 
@@ -1654,8 +1661,9 @@ function Game:drawTestOptions()
     UI.button(bx,220,580,58,"연구 코인 +1,000,000",true,f.heading)
     UI.button(bx,300,580,58,"런 자원 각 +1,000,000  (식량·광석·목재·돌)",true,f.body)
     local activeRun=self.testReturnMode=="playing" or self.testReturnMode=="upgrade" or self.testReturnMode=="rush_upgrade" or self.testReturnMode=="clearcut_upgrade"
-    UI.button(bx,380,580,58,activeRun and "현재 런 레벨 +10  (강화 3택 테스트)" or "다음 런 시작 레벨 +20  (자동 선택)",true,f.body)
-    UI.button(bx,460,580,58,"다음 런 시작 레벨 +20  (수동 선택 · 직접 3택)",true,f.body)
+    local scoreRun=activeRun and self.clearcut and self.clearcut.scoreAttack
+    UI.button(bx,380,580,58,scoreRun and "벌목 기록 모드 · 인게임 레벨업 비활성"or(activeRun and "현재 런 레벨 +10  (강화 3택 테스트)" or "다음 런 시작 레벨 +20  (자동 선택)"),not scoreRun,f.body)
+    UI.button(bx,460,580,58,scoreRun and "벌목 기록 모드 · 강화 3택 없음"or"다음 런 시작 레벨 +20  (수동 선택 · 직접 3택)",not scoreRun,f.body)
     UI.button(bx,540,580,58,self.testResetArmed and "정말 초기화 — 다시 클릭" or "영구 재화·특성 초기화",true,f.body)
     UI.button(bx,640,580,46,"돌아가기  [F10 / ESC]",true,f.body)
     love.graphics.setColor(self.testResetArmed and {1,.42,.25} or {.68,.82,.76}); love.graphics.printf(self.testMessage or "",w/2-315,615,630,"center")

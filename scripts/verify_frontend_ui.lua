@@ -13,7 +13,7 @@ assert(not lobby:find("숲이 다시 자라기 전에",1,true),"removed lobby sl
 assert(lobby:find("게임 시작",1,true),"active score-mode start button missing")
 assert(lobby:find('ACTIVE_DEVELOPMENT_MODE="score_attack"',1,true)and lobby:find("시작 6그루 · 영구 재생 단계",1,true),"score mode is not clearly marked with the persistent regeneration opening")
 assert(lobby:find("강화하기",1,true)and lobby:find("영구 전투 · 재생 단계 · 허용량",1,true),"active score upgrade entry is missing from lobby")
-assert(lobby:find("목재 경험치 · 운영 3택",1,true)and not lobby:find("목재로 자동화 설비 구매",1,true),"score growth rules are stale")
+assert(lobby:find("인게임 3택 없음 · 영구 연구",1,true)and not lobby:find("목재 경험치 · 운영 3택",1,true),"score growth rules are stale")
 assert(not game:find("automationKeys",1,true)and not game:find("automationClick",1,true),"removed score automation input is still wired")
 assert(game:find("function Game:startClearcutScoreAttack",1,true),"score attack entry point missing")
 assert(game:find('self.mode="clearcut_briefing"',1,true),"map selection still skips briefing")
