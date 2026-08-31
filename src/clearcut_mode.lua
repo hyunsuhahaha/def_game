@@ -237,7 +237,8 @@ function ClearcutMode.new()
             moveSpeed=1, pickupRadius=0, hpRegen=0, reviveCharges=0,
             scoreInitialIgnitionReduction=0,scoreMoleCompanion=0,scoreMoleDamage=0,scoreMoleSpeed=0,
             scoreMoleAttackSpeed=0,scoreMoleClawTier=0,scoreMoleDualClaw=0,scoreMoleExtraCompanions=0,
-            scoreOilDrum=0,scoreGrayCat=0
+            scoreOilDrum=0,scoreOilDrumInterval=0,scoreOilRadius=0,scoreOilDuration=0,scoreOilDamage=0,
+            scoreGrayCat=0,scoreGrayCatChance=0,scoreGrayCatDelay=0,scoreGrayCatSpeed=0
         },
         reviveCharges=0,
         vinePlantTimer=60, vineSpawns={},
@@ -845,26 +846,30 @@ function ClearcutMode:spillOilDrum(drum,source)
     drum.state,drum.spillAge,drum.claimed="spilled",0,false
     drum.angle=drum.angle~=0 and drum.angle or 1.35
     drum.hasSpillFx=true
+    local radius=105+(self.permanentTraits.scoreOilRadius or 0)
+    local radiusScale=radius/105
+    local lifetime=20+(self.permanentTraits.scoreOilDuration or 0)
+    local oilDamage=self.permanentTraits.scoreOilDamage or 0
     self.oilDrumSpills[#self.oilDrumSpills+1]={
-        x=drum.x,y=drum.y,age=0,frameDuration=.12,lifetime=20,
+        x=drum.x,y=drum.y,age=0,frameDuration=.12,lifetime=lifetime,scale=radiusScale,
         facing=drum.spillFacing or 1,source=source,drumId=drum.id
     }
     self.oilTrailSequence=(self.oilTrailSequence or 0)+1
     local group="drum_"..tostring(drum.id or self.oilTrailSequence)
     local spots={}
     for index=1,11 do
-        local ring=index==1 and 0 or(index<=5 and 34 or 68)
+        local ring=(index==1 and 0 or(index<=5 and 34 or 68))*radiusScale
         local angle=(index*2.399963)+((drum.id or 0)*.41)
         local spreadDelay=.82+(ring/68)*.18+((index-1)%3)*.02
         local spot={
             x=drum.x+math.cos(angle)*ring,y=drum.y+math.sin(angle)*ring*.48,
             spawnedAt=self.smokerGroundTime+spreadDelay,ignited=false,angle=angle,
             variant=(index-1)%3+1,sequence=self.oilTrailSequence+index,
-            source="drum",group=group,lifetime=20,hiddenGround=true
+            source="drum",group=group,lifetime=lifetime,hiddenGround=true,damage=4+oilDamage
         }
         self.oilTrail[#self.oilTrail+1]=spot;spots[#spots+1]=spot
     end
-    self.oilPuddleGroups[group]={id=group,x=drum.x,y=drum.y,radius=105,spots=spots,tickTimer=0,source=source}
+    self.oilPuddleGroups[group]={id=group,x=drum.x,y=drum.y,radius=radius,spots=spots,tickTimer=0,source=source,damage=1+oilDamage}
     return true
 end
 
@@ -919,7 +924,7 @@ function ClearcutMode:beginGrayOilCatExit(cat)
     if not cat or cat.state=="exit"then return end
     cat.state,cat.stateTime,cat.jumpZ="exit",0,0
     local distance=clearcutDistance(cat.x,cat.y,cat.exitX,cat.exitY)
-    cat.exitDuration=math.max(.7,distance/470)
+    cat.exitDuration=math.max(.5,distance/(330*(1+(self.permanentTraits.scoreGrayCatSpeed or 0))))
 end
 
 function ClearcutMode:updateGrayOilCat(dt,game)
@@ -933,7 +938,7 @@ function ClearcutMode:updateGrayOilCat(dt,game)
         local distance,dx,dy=clearcutDistance(cat.x,cat.y,cat.approachX,cat.approachY)
         if distance<=6 then cat.x,cat.y,cat.state,cat.stateTime=cat.approachX,cat.approachY,"push",0
         else
-            local step=math.min(distance,360*dt)
+            local step=math.min(distance,250*(1+(self.permanentTraits.scoreGrayCatSpeed or 0))*dt)
             cat.x,cat.y=cat.x+dx/distance*step,cat.y+dy/distance*step
         end
     elseif cat.state=="push"then
@@ -959,7 +964,7 @@ function ClearcutMode:updateOilDrums(dt,game)
     if not self.scoreAttack or (self.permanentTraits.scoreOilDrum or 0)<=0 then return false end
     self.oilDrumTimer=(self.oilDrumTimer or 0)-dt
     if self.oilDrumTimer<=0 then
-        self.oilDrumTimer=22
+        self.oilDrumTimer=math.max(10,22-(self.permanentTraits.scoreOilDrumInterval or 0))
         self:spawnOilDrum(game)
     end
     for index=#self.oilDrums,1,-1 do
@@ -984,7 +989,20 @@ function ClearcutMode:updateOilDrums(dt,game)
     end
     if (self.permanentTraits.scoreGrayCat or 0)>0 and not self.grayOilCat then
         for _,drum in ipairs(self.oilDrums)do
-            if drum.state=="settled"and not drum.claimed then self:startGrayOilCat(drum,game);break end
+            if drum.state=="settled"and not drum.claimed then
+                if drum.catDecision==nil then
+                    drum.catDecision=true
+                    local chance=math.min(.95,.35+(self.permanentTraits.scoreGrayCatChance or 0))
+                    if love.math.random()<chance then
+                        drum.catWillCome=true
+                        drum.catDelay=math.max(.45,2.2-(self.permanentTraits.scoreGrayCatDelay or 0))
+                    else drum.claimed=true end
+                end
+                if drum.catWillCome then
+                    drum.catDelay=(drum.catDelay or 0)-dt
+                    if drum.catDelay<=0 then self:startGrayOilCat(drum,game);break end
+                end
+            end
         end
     end
     self:updateGrayOilCat(dt,game)
@@ -2364,7 +2382,7 @@ function ClearcutMode:updateOilTrail(dt, game)
             spot.tickTimer = (spot.tickTimer or 0) - dt
             if spot.tickTimer <= 0 then
                 spot.tickTimer = .4
-                self:damageEnemiesInRadius(spot.x, spot.y, 55, 4, game)
+                self:damageEnemiesInRadius(spot.x, spot.y, 55,spot.damage or 4, game)
                 self:igniteEnemiesInRadius(spot.x,spot.y,55,game,0)
             end
             if now - spot.ignitedAt >= math.min(5,spot.lifetime or 5) then table.remove(self.oilTrail, i) end
@@ -2386,7 +2404,7 @@ function ClearcutMode:updateOilTrail(dt, game)
                 for _,node in ipairs(game.world.nodes or{})do if node.active and node.rushTree then
                     local dx,dy=node.x-group.x,node.y-group.y
                     if dx*dx+dy*dy<=group.radius*group.radius then
-                        self:damageTreeWithSmokerWeapon(node,1,game)
+                        self:damageTreeWithSmokerWeapon(node,group.damage or 1,game)
                     end
                 end end
             end

@@ -28,8 +28,9 @@ function Art.draw(value)
     -- The generated sheet is authored pouring to the right. The barrel's
     -- lower contact point stays on the original drum foot while the puddle
     -- grows in the push/axe-hit direction.
+    local scale=SCALE*(value.scale or 1)
     love.graphics.draw(image,quads[frame],math.floor(value.x+.5),math.floor(value.y+.5),0,
-        SCALE*facing,SCALE,145,338)
+        scale*facing,scale,145,338)
     love.graphics.setColor(1,1,1,1)
 end
 

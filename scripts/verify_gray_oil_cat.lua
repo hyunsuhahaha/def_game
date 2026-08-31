@@ -27,6 +27,21 @@ end
 assert(#mode.oilDrumSpills==1 and mode.oilDrumSpills[1].frameDuration==.12,"dedicated drum spill animation was not created")
 assert(latest-earliest>=.18,"oil collision points did not follow the visible spill timing")
 
+local upgraded=ClearcutMode.new()
+upgraded.scoreAttack=true
+upgraded.permanentTraits.scoreOilDrum=1
+upgraded.permanentTraits.scoreOilRadius=54
+upgraded.permanentTraits.scoreOilDuration=9
+upgraded.permanentTraits.scoreOilDamage=3
+upgraded.smokerGroundTime=4
+local upgradedDrum={id=8,x=300,y=300,state="settled",hp=8,maxHp=8,angle=0}
+assert(upgraded:spillOilDrum(upgradedDrum,"axe"),"upgraded drum did not spill")
+assert(upgraded.oilPuddleGroups.drum_8.radius==159,"oil radius upgrade did not change collision radius")
+assert(upgraded.oilDrumSpills[1].lifetime==29 and math.abs(upgraded.oilDrumSpills[1].scale-159/105)<1e-9,
+    "oil radius/duration upgrades did not change the visible spill")
+assert(upgraded.oilTrail[1].damage==7 and upgraded.oilPuddleGroups.drum_8.damage==4,
+    "oil damage upgrade did not change enemy and tree damage")
+
 local game={player={x=500,y=350},world={nodes={}},camera=nil}
 local catMode=ClearcutMode.new()
 catMode.scoreAttack=true
@@ -37,10 +52,28 @@ catMode.oilDrums={catDrum}
 assert(catMode:startGrayOilCat(catDrum,game),"gray cat did not enter from offscreen")
 local startedX=catMode.grayOilCat.x
 assert(startedX<0 or startedX>1600,"gray cat did not start outside the screen")
-for _=1,140 do catMode:updateGrayOilCat(.05,game)end
+for _=1,220 do catMode:updateGrayOilCat(.05,game)end
 assert(catDrum.state=="spilled","gray cat did not tip the target drum")
 assert(catMode.grayOilCat==nil,"gray cat did not jump out through the opposite screen edge")
 assert(#catMode.oilTrail==11,"gray cat tip did not create the same oil spill as an axe hit")
+
+local random=love.math.random
+local noCat=ClearcutMode.new();noCat.scoreAttack=true;noCat.oilDrumTimer=999
+noCat.permanentTraits.scoreOilDrum=1;noCat.permanentTraits.scoreGrayCat=1
+noCat.oilDrums={{id=10,x=500,y=350,state="settled",hp=8,maxHp=8,claimed=false}}
+love.math.random=function()return .99 end
+noCat:updateOilDrums(.1,game)
+assert(noCat.grayOilCat==nil and noCat.oilDrums[1].claimed,"base cat unlock incorrectly guaranteed an immediate response")
+local trainedCat=ClearcutMode.new();trainedCat.scoreAttack=true;trainedCat.oilDrumTimer=999
+trainedCat.permanentTraits.scoreOilDrum=1;trainedCat.permanentTraits.scoreGrayCat=1
+trainedCat.permanentTraits.scoreGrayCatChance=.6;trainedCat.permanentTraits.scoreGrayCatDelay=1.35
+trainedCat.oilDrums={{id=11,x=500,y=350,state="settled",hp=8,maxHp=8,claimed=false}}
+love.math.random=function()return .5 end
+trainedCat:updateOilDrums(.1,game)
+assert(trainedCat.grayOilCat==nil and trainedCat.oilDrums[1].catDelay>.7,"trained cat skipped its remaining dispatch delay")
+trainedCat:updateOilDrums(.8,game)
+assert(trainedCat.grayOilCat~=nil,"trained cat chance/delay upgrades did not dispatch the cat")
+love.math.random=random
 
 local damageMode=ClearcutMode.new()
 damageMode.scoreAttack=true
