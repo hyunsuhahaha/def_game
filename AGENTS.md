@@ -22,6 +22,8 @@
 - 실제 게임 크기와 확대 픽셀 뷰를 모두 확인한다. 수치와 테스트만 통과시킨 결과를 완성으로 보고하지 않는다. 게임 창은 자동 실행하지 않는다.
 - 기존 저품질 자산이나 아래의 기존 아틀라스 크기는 품질 기준을 낮출 근거가 아니다. 사용자의 명시적 허용 없이는 이 기준을 완화하지 않는다.
 
+**자산을 연결하거나 버전을 올린 작업은 `python scripts/verify_asset_versions.py`를 함께 통과시킨다.** 낡은 버전이나 미채택 시안을 런타임에 연결하면 실패한다. "미채택 v1/v2를 연결하지 않는다"는 규칙을 글이 아니라 기계가 강제한다.
+
 **FOR ALL AGENTS: Mandatory for ALL future graphics work. Match or exceed the authored pixel detail, material shading and readability of the reference sprite. Large image dimensions alone do not qualify. Do not upscale a tiny sprite or use a photorealistic image as the final pixel art. Read the linked specification first.**
 
 # 프로젝트 작업 규칙
