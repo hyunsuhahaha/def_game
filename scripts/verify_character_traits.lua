@@ -120,9 +120,63 @@ assert(linkedGroup.radius==194 and math.abs(linkedSpill.scale-194/105)<1e-9,
 assert(linkedSpill.lifetime==29 and linkedGroup.damage==4 and linkedOilMode.oilTrail[1].damage==7,
     "lobby oil duration or damage ranks did not reach the runtime puddle")
 assert(activeScore.scoreStartingWood==nil and activeScore.scoreAutomationDiscount==nil,"removed score automation traits still affect runtime")
--- 불 갈래 25 = 담배 9 + 공용 나무 피해 1 + 도끼 4 + 도끼 상위 3(충격파·연속 벌목·나무꾼 고용)
--- + 후반 해금 3(상시 흡연·자동 투척·폭죽) + 폭죽 5.
-assert(#store:getScoreAttackNodes("fire")==26 and #store:getScoreAttackNodes("universal")==21,"active research board did not expose the split companion graphs and the weapon-slot branches")
+
+-- 담배 탄약 관리 갈래. 이 세 노드는 startSmoking에 상수로 박혀 있던 세 벽
+-- (개비 재장전 하한 0.75초, 보루 재장전 하한 2.4초, 보루 크기 20개비)을 각각 연다.
+-- 하한에도 배수를 걸지 않으면 2~3단계부터 노드가 아무 일도 하지 않으므로,
+-- 여기서는 "하한에 걸린 상태"를 일부러 만들어 그 하한이 실제로 내려가는지 본다.
+local ammoStore=CharacterTraits.new(true)
+ammoStore.data.currency=4000
+assert(ammoStore:buy("fire_score_prewarm"),"smoker root purchase failed for the ammo branch")
+for _=1,5 do assert(ammoStore:buy("fire_score_reload"),"butt reload rank purchase failed") end
+for _=1,5 do assert(ammoStore:buy("fire_score_carton_size"),"carton size rank purchase failed") end
+for _=1,4 do assert(ammoStore:buy("fire_score_carton_reload"),"carton reload rank purchase failed") end
+local ammo=ammoStore:scoreAttackEffects()
+assert(math.abs(ammo.scoreReloadSpeed-.40)<1e-9 and ammo.scoreCartonSize==30 and math.abs(ammo.scoreCartonReload-.48)<1e-9,
+    "cigarette ammo research did not reach score runtime effects")
+
+local ammoMode=ClearcutMode.new()
+ammoMode.scoreAttack=true
+ammoMode.permanentTraits=ammo
+ammoMode.permanentTraits.attackSpeed=1
+local ammoGame={tools={axe={speed=1}},player={gather=1,setClearcutAction=function()end,clearClearcutAction=function()end}}
+ammoMode.cartonAmmo=nil
+-- 루트(`최초 흡연 준비시간 감소`)의 일회성 개시 보너스는 첫 흡연에만 붙는다.
+-- 여기서는 정상 상태의 재장전 길이를 재야 하므로 그 일회성 분기를 미리 소진시킨다.
+ammoMode.scoreInitialSmokingStarted=true
+ammoMode:startSmoking(ammoGame)
+-- 보루 크기: 기본 20 + 6*5 = 50개비. 긴 재장전이 2.5배 드물어진다.
+assert(ammoMode.cartonSize==50 and ammoMode.cartonAmmo==50,"carton size research did not enlarge the runtime magazine")
+-- 개비 재장전: 1.25/1.40 = 0.893초. 하한 .75/1.40 = 0.536초보다 크므로 나눗셈 쪽이 이긴다.
+assert(math.abs(ammoMode.smoking.dur-1.25/1.4)<1e-9,"butt reload research did not shorten the runtime reload")
+-- 공격속도를 크게 올려 하한에 걸리게 만든다. 하한에도 배수가 걸려야 0.75가 아니라 0.536이 나온다.
+ammoMode.permanentTraits.attackSpeed=8
+ammoMode:startSmoking(ammoGame)
+assert(math.abs(ammoMode.smoking.dur-.75/1.4)<1e-9,"butt reload research did not lower the reload floor")
+-- 보루 교체: 탄약을 다 쓴 상태. 하한 2.4/1.48 = 1.622초.
+ammoMode.cartonAmmo=0
+ammoMode:startSmoking(ammoGame)
+assert(ammoMode.smoking.newCarton and math.abs(ammoMode.smoking.dur-2.4/1.48)<1e-9,
+    "carton reload research did not lower the long-reload floor")
+
+-- 자동 투척 주기. 손이 도끼·폭죽으로 넘어간 뒤의 담배 화력은 오직 이 간격으로만 자란다.
+local throwStore=CharacterTraits.new(true)
+throwStore.data.currency=4000
+throwStore.data.levels.fire_score_prewarm=1
+throwStore.data.levels.fire_score_alwayssmoke=1
+throwStore.data.levels.fire_score_autothrow=1
+for _=1,4 do assert(throwStore:buy("fire_score_autothrow_rate"),"auto-throw rate rank purchase failed") end
+local throwEffects=throwStore:scoreAttackEffects()
+assert(math.abs(throwEffects.scoreAutoThrowRate-.36)<1e-9,"auto-throw rate research did not reach score runtime effects")
+assert(math.abs(2.6/(1+throwEffects.scoreAutoThrowRate)-2.6/1.36)<1e-9,"auto-throw interval formula drifted from the runtime")
+
+-- 추가 꽁초는 자동 투척에도 그대로 실린다. 1단계에서 멈춰 있던 상한을 2단계로 연다.
+assert(store:getNode("fire_score_stock").max==2,"extra-butt research is still capped at a single rank")
+-- 불 갈래 30 = 담배 9 + 탄약 관리 3(개비 재장전·보루 용량·보루 교체) + 공용 나무 피해 1
+-- + 도끼 4 + 도끼 상위 3(충격파·연속 벌목·나무꾼 고용) + 후반 해금 3(상시 흡연·자동 투척·폭죽)
+-- + 자동 투척 주기 1 + 폭죽 5. 탄약 관리 갈래는 startSmoking의 세 상수(개비 재장전 하한,
+-- 보루 재장전 하한, 보루 크기 20)를 각각 여는 노드다.
+assert(#store:getScoreAttackNodes("fire")==30 and #store:getScoreAttackNodes("universal")==21,"active research board did not expose the split companion graphs and the weapon-slot branches")
 for _, job in ipairs({"physical","fire","toxic","developer"}) do
     assert(#store:getNodes(job) >= 30, job .. " character graph has too few trait nodes")
 end
