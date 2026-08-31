@@ -9,7 +9,10 @@ CharacterTraitBoard.__index = CharacterTraitBoard
 -- 로비에서는 실제 적용되는 두 연구군만 의도적으로 노출한다.
 local archivedJobOrder = {"physical", "fire", "toxic", "developer", "miner", "philosopher", "universal"}
 local ACTIVE_DEVELOPMENT_MODE="score_attack"
-local jobOrder = ACTIVE_DEVELOPMENT_MODE=="score_attack" and {"fire","universal"} or archivedJobOrder
+-- 기록 모드의 작업자는 흡연자 하나뿐이라 캐릭터 구분이 의미가 없다. 흡연자 연구와
+-- 공용 연구를 한 판에 합쳐 보여주고 탭 줄 자체를 없앤다.
+local scoreAttackGroups = {"fire","universal"}
+local jobOrder = ACTIVE_DEVELOPMENT_MODE=="score_attack" and {"all"} or archivedJobOrder
 local jobNames = {physical="생계형 나무꾼", fire="흡연자", toxic="비건 단체 회장", developer="부동산 개발업자", miner="코인 채굴꾼", philosopher="차라투스트라는 이렇게 말했다", universal="공용 복지"}
 local jobTabNames = {philosopher="차라투스트라"}
 local STRUCTURE={.32,.78,.62}
@@ -116,17 +119,23 @@ end
 function CharacterTraitBoard.new(store, fonts, sprites)
     local first=store:getScoreAttackNodes("fire")[1]
     return setmetatable({
-        store=store, fonts=fonts, sprites=sprites,researchBackground=nil,selectedJob="fire",activeDevelopmentMode=ACTIVE_DEVELOPMENT_MODE,
+        store=store, fonts=fonts, sprites=sprites,researchBackground=nil,selectedJob=jobOrder[1],activeDevelopmentMode=ACTIVE_DEVELOPMENT_MODE,
         tabBoxes={}, nodeBoxes={}, nodeHover={}, particles={}, time=0,
         message="", messageTime=0, messageKind="ok", unlockFx=nil,
         selectedNodeId=first and first.id or"fire_score_prewarm", blockedNode=nil, blockedTime=0, tabPulse=0,
-        canvasW=2200,canvasH=2650,panX=1100,panY=920,zoom=.80,referenceZoom=.80,panVX=0,panVY=0,drag=nil,viewport=nil,viewInitialized=false,crispFonts={},
+        canvasW=4100,canvasH=2650,panX=1100,panY=920,zoom=.80,referenceZoom=.80,panVX=0,panVY=0,drag=nil,viewport=nil,viewInitialized=false,crispFonts={},
         minimapBox=nil,resetViewBox=nil
     }, CharacterTraitBoard)
 end
 
 function CharacterTraitBoard:nodesFor(job)
-    if self.activeDevelopmentMode=="score_attack"then return self.store:getScoreAttackNodes(job)end
+    if self.activeDevelopmentMode=="score_attack"then
+        local merged={}
+        for _,group in ipairs(scoreAttackGroups)do
+            for _,node in ipairs(self.store:getScoreAttackNodes(group))do merged[#merged+1]=node end
+        end
+        return merged
+    end
     return self.store:getNodes(job)
 end
 
@@ -152,7 +161,7 @@ function CharacterTraitBoard:fitResearchTree()
     local nodes=self:nodesFor(self.selectedJob);if #nodes==0 then return end
     local minX,maxX,minY,maxY=math.huge,-math.huge,math.huge,-math.huge
     for _,node in ipairs(nodes)do local x,y=self:nodeWorld(node);minX,maxX=math.min(minX,x),math.max(maxX,x);minY,maxY=math.min(minY,y),math.max(maxY,y)end
-    self.panX,self.panY=(minX+maxX)/2,(minY+maxY)/2+(self.selectedJob=="fire"and 70 or 0)
+    self.panX,self.panY=(minX+maxX)/2,(minY+maxY)/2
     -- Reset returns to the authored reference spacing. Zoom remains a narrow
     -- readability adjustment instead of collapsing or stretching branch gaps.
     self.referenceZoom=clamp((self.viewport.w/1748)*.80,.56,.80)
@@ -304,11 +313,13 @@ function CharacterTraitBoard:nodeWorld(node)
         fire_score_rocket_radius={400,2350},fire_score_rocket_damage={750,2350},
         fire_score_rocket_speed={1100,2350},fire_score_rocket_ignite={1450,2350},
         fire_score_rocket_cooldown={1800,2350},
-        universal_yard={700,850},universal_robot_start={1100,850},universal_robot_motor={1500,850},
-        universal_mole_companion={1100,1100},
-        universal_mole_damage={700,1320},universal_mole_claw={500,1570},universal_mole_dual={500,1820},
-        universal_mole_speed={1100,1370},universal_mole_extra={1100,1650},
-        universal_mole_attack_speed={1500,1320},
+        -- 공용 연구는 흡연자 갈래와 같은 좌표를 쓰고 있었다(각자 다른 탭이었으므로).
+        -- 한 판으로 합치면서 흡연자 오른쪽으로 통째로 옮긴다.
+        universal_yard={2600,850},universal_robot_start={3000,850},universal_robot_motor={3400,850},
+        universal_oil_drum={3800,850},universal_gray_cat={3800,1100},
+        universal_mole_companion={3000,1100},
+        universal_mole_damage={2600,1350},universal_mole_speed={3000,1350},universal_mole_attack_speed={3400,1350},
+        universal_mole_claw={2600,1600},universal_mole_extra={3000,1600},universal_mole_dual={2600,1850},
     }
     local fixed=scoreLayout[node.id]
     if fixed then return fixed[1],fixed[2] end
@@ -504,7 +515,7 @@ function CharacterTraitBoard:draw()
     end
     local titleY=18*textScale;local subtitleY=titleY+fonts.title:getHeight()-2*textScale
     local tabY=subtitleY+fonts.small:getHeight()+10*textScale
-    local tabH=44*textScale;local infoY=tabY+tabH+10*textScale;local infoH=88*textScale
+    local tabH=#jobOrder>1 and 44*textScale or 0;local infoY=tabY+tabH+(#jobOrder>1 and 10*textScale or 0);local infoH=88*textScale
     local graphY=infoY+infoH+10*textScale;local footerH=34*textScale
     self.backBox={x=26*textScale,y=18*textScale,w=132*textScale,h=40*textScale}
     Frontend.button(self.backBox,"← 돌아가기",fonts.small,{accent=STRUCTURE})
@@ -514,11 +525,12 @@ function CharacterTraitBoard:draw()
     love.graphics.setFont(fonts.small);love.graphics.setColor(.38,.40,.37);love.graphics.printf("연구 코인",w-250*textScale,20*textScale,118*textScale,"right")
     love.graphics.setFont(fonts.big);love.graphics.setColor(.24,.54,.32);love.graphics.printf(tostring(self.store.data.currency),w-126*textScale,16*textScale,100*textScale,"right")
 
+    self.tabBoxes={}
+    if #jobOrder>1 then
     local tabGap=8*textScale
     local tabCount=#jobOrder
     local tabW=math.min(260*textScale,(w-52*textScale-tabGap*(tabCount-1))/tabCount)
     local startX=(w-(tabW*tabCount+tabGap*(tabCount-1)))/2
-    self.tabBoxes={}
     for i,job in ipairs(jobOrder) do
         local box={x=startX+(i-1)*(tabW+tabGap),y=tabY,w=tabW,h=tabH}
         self.tabBoxes[i]=box
@@ -530,6 +542,7 @@ function CharacterTraitBoard:draw()
         if selected then love.graphics.rectangle("fill",box.x+10,box.y+box.h-2,box.w-20,2) end
         love.graphics.setFont(fonts.body); love.graphics.setColor(selected and {.14,.17,.14,1} or {.31,.32,.30,1})
         love.graphics.printf(i.."  "..(jobTabNames[job] or jobNames[job]),box.x,box.y+(box.h-fonts.body:getHeight())/2,box.w,"center")
+    end
     end
 
     local nodes=self:nodesFor(self.selectedJob)
