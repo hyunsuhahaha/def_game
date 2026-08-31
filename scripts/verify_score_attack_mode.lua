@@ -29,6 +29,7 @@ game:startClearcutScoreAttack()
 local mode=assert(game.clearcut)
 assert(game.mode=="playing"and mode.scoreAttack and mode.job=="fire"and mode.stageTimeLimit==math.huge,"score mode still has a visible fixed timer")
 assert(mode.scoreTreeAllowance==12,"fresh score mode did not use the 12-tree base allowance")
+assert(mode.xpNext==5,"score mode did not start with the fast five-wood first upgrade")
 assert(#game.world.nodes==6 and mode:scoreActiveTreeCount()==6 and mode.totalTreesSpawned==6,"score mode did not start with exactly six active trees")
 assert(mode.remainingTrees==6 and mode.initialTrees==6 and mode.peakActiveTrees==6,"starting score trees were not included in occupancy metrics")
 assert(not mode:checkWorldTreeSpawn(game),"opening score field incorrectly summoned the world tree")
@@ -60,9 +61,24 @@ mode:updateBerserk(999,game);mode:updateVinePlants(999,game);mode:updateDisaster
 assert(mode.berserkTimer==berserkBefore and mode.vinePlantTimer==vinesBefore and mode.disasterTimer==disasterBefore,"normal-stage threat systems remained active in score mode")
 
 local scorePool=mode:upgradePool()
-assert(#scorePool==6,"score mode did not expose exactly six operation cards")
+assert(#scorePool==10,"score mode did not expose six operation and four combat cards")
 for _,def in ipairs(scorePool)do assert(def.scoreOperation and not def.job,"combat skill leaked into the operation draft: "..def.id)end
 assert(mode:getUpgradeDefinition("baby_robot").scoreOperation==true,"baby robot is not marked as a score operation")
+for _,id in ipairs({"score_attack_speed","score_extra_butts","score_ignition_radius","score_burn_speed"})do
+    assert(mode:getUpgradeDefinition(id).scoreOperation==true,"score combat card is not active: "..id)
+end
+mode.scoreInitialSmokingStarted=true;mode.levels.score_attack_speed=0;mode:startSmoking(game);local baseSmokingDuration=mode.smoking.dur
+mode.levels.score_attack_speed=3;mode:startSmoking(game)
+assert(mode.smoking.dur<baseSmokingDuration,"attack-speed card did not shorten the real smoking reload")
+mode.levels.score_extra_butts=2
+mode.levels.score_ignition_radius=2;mode.levels.score_burn_speed=3
+assert(math.abs(require("src.score_operations").attackSpeedMultiplier(mode)-1.54)<1e-9 and
+    require("src.score_operations").extraButts(mode)==2 and require("src.score_operations").ignitionRadius(mode)==48 and
+    math.abs(require("src.score_operations").burnSpeedMultiplier(mode)-1.54)<1e-9,"score combat card values are stale")
+mode:hurlMolotovAt(game.player.x+240,game.player.y,game)
+assert(#mode.molotovs==3 and mode.molotovs[1].radius==138,"additional butt count or ignition radius did not affect the real attack")
+mode.molotovs={};mode.levels.score_attack_speed=0;mode.levels.score_extra_butts=0
+mode.levels.score_ignition_radius=0;mode.levels.score_burn_speed=0
 
 local nodes=game.world.nodes
 nodes[#nodes+1]={rushTree=true,active=false}
@@ -81,8 +97,8 @@ assert(math.abs(mode:scoreTimePressureMultiplier()-2^1.5)<.001,"time pressure di
 
 local pending=mode.pending
 game.mode="test"
-mode:onWood(10,game)
-assert(mode.pending==pending+1 and mode.level==2 and mode.scoreWoodEarned==10,"score wood did not feed the normal level-up queue")
+mode:onWood(5,game)
+assert(mode.pending==pending+1 and mode.level==2 and mode.xpNext==8 and mode.scoreWoodEarned==5,"score wood did not use the fast 5/8 opening level curve")
 mode:rollChoices()
 assert(#mode.choices==3,"score level-up did not roll exactly three choices")
 for _,choice in ipairs(mode.choices)do assert(choice.id~="forest_expansion","removed forest automation card returned")end
@@ -137,7 +153,8 @@ for second=1,90 do
     mode.stageElapsed=second
     if mode:updateScoreTreeGrowth(1,game)then unattendedEnd=second;break end
 end
-assert(unattendedEnd and unattendedEnd>=30 and unattendedEnd<=40,"time pressure did not end an unattended tier-1 run in its intended opening window")
+assert(unattendedEnd and unattendedEnd>=18 and unattendedEnd<=26 and mode.scoreCollapseActive,
+    "a losing tier-1 run did not trigger forest collapse and end quickly")
 
 Traits.data.levels.universal_yard=7
 Traits.data.levels.universal_robot_start=1

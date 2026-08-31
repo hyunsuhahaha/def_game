@@ -9,6 +9,10 @@ ScoreOperations.definitions = {
     {id="forest_zoning",track="supplement",name="조림 구획 지정",desc="새 나무가 가장자리보다 작업자 주변의 벌목 가능한 구역에 모여 자랍니다.",max=3,color={.38,.72,.34},scoreOperation=true},
     {id="wood_sorter",track="supplement",name="목재 선별기",desc="회수한 목재가 주는 경험치가 단계마다 15% 증가합니다.",max=3,color={.90,.68,.24},scoreOperation=true},
     {id="safety_system",track="supplement",name="안전 관리 장치",desc="나무가 허용량에 닿았을 때 과밀 판정 전 유예시간을 단계마다 0.25초 확보합니다.",max=3,color={.88,.48,.28},scoreOperation=true},
+    {id="score_attack_speed",track="fire",name="공격속도 상승",desc="담배를 피우고 튕기는 전체 동작이 단계마다 18% 빨라집니다.",max=3,color={.92,.48,.24},scoreOperation=true},
+    {id="score_extra_butts",track="fire",name="추가 꽁초 투척",desc="클릭 한 번마다 단계 수만큼 추가 꽁초를 함께 투척합니다.",max=3,color={1,.66,.20},scoreOperation=true},
+    {id="score_ignition_radius",track="fire",name="착화 범위 상승",desc="꽁초의 착화 범위가 단계마다 24 증가합니다.",max=3,color={1,.48,.14},scoreOperation=true},
+    {id="score_burn_speed",track="fire",name="연소속도 상승",desc="나무가 타는 속도가 단계마다 18% 빨라집니다.",max=3,color={1,.30,.12},scoreOperation=true},
 }
 
 local byId={}
@@ -17,5 +21,9 @@ function ScoreOperations.is(id)return byId[id]~=nil end
 function ScoreOperations.get(id)return byId[id]end
 function ScoreOperations.woodXpMultiplier(mode)return 1+(mode:levelOf("wood_sorter")*.15)end
 function ScoreOperations.overcrowdGrace(mode)return mode:levelOf("safety_system")*.25 end
+function ScoreOperations.attackSpeedMultiplier(mode)return 1+mode:levelOf("score_attack_speed")*.18 end
+function ScoreOperations.extraButts(mode)return mode:levelOf("score_extra_butts")end
+function ScoreOperations.ignitionRadius(mode)return mode:levelOf("score_ignition_radius")*24 end
+function ScoreOperations.burnSpeedMultiplier(mode)return 1+mode:levelOf("score_burn_speed")*.18 end
 
 return ScoreOperations

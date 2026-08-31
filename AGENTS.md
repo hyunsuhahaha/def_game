@@ -54,6 +54,12 @@
 - 기존 원본·초안·이전 버전은 삭제하지 않는다. 새 결과는 버전이 붙은 별도 파일로 저장한다.
 - 사용자가 명시적으로 허용하지 않는 한 검증을 위해 게임 창을 띄우지 않는다. 이 프로젝트에서는 현재 사용자의 상시 지시에 따라 게임 창을 절대 자동 실행하지 않고 헤드리스 검사만 수행한다.
 
+## 플레이어 강화 이름 규칙
+
+플레이어가 선택하거나 구매하는 강화의 이름은 효과를 그대로 이해할 수 있는 직관적인 표현을 사용한다. `공격속도 상승`, `이동속도 상승`, `추가 투척`, `착화 범위 상승`처럼 이름만 읽어도 실제 수치 변화가 드러나야 한다. 블랙코미디나 세계관 농담은 설명문에 넣고, 효과를 감춘 별칭·은유·작업명은 강화 이름으로 사용하지 않는다.
+
+**PLAYER-FACING UPGRADE NAMES:** Use literal mechanical names that reveal the effect. Keep flavor and jokes in the description, not in opaque upgrade titles.
+
 ## 특성/스킬 문서화
 
 로비 특성(`src/character_traits.lua`), 인게임 스킬(`src/clearcut_mode.lua`의 `definitions`), 융합 스킬(`src/clearcut_fusions.lua`)을 추가·수정하면 반드시 **같은 작업 안에서 [`docs/character_dossier.html`](docs/character_dossier.html)의 데이터(`TRAITS`/`SKILLS`/`FUSIONS` 객체)를 같이 갱신**한다. 이름·설명·레벨·조합 조건·효과 중 하나라도 바뀌면 대상이다. 이 동기화가 빠진 작업은 구현과 테스트가 끝났더라도 미완료로 취급한다. 이 파일이 1차 소스다 — 저장소에 커밋되는 평범한 정적 HTML이라 Claude 로그인 없이 로컬에서 바로 열리고, Codex를 포함한 어떤 에이전트든 일반 텍스트 파일로 읽고 고칠 수 있다.

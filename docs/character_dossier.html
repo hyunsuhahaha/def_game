@@ -415,7 +415,7 @@
     <div class="score-rule"><span class="score-rule-label">종료 조건</span><span class="score-rule-value">활성 나무 12그루 · 영구 강화와 운영 카드로 확장</span></div>
     <div class="score-rule"><span class="score-rule-label">자동 산림 공급</span><span class="score-rule-value">0그루 달성 · 0.86초 잎/프리즘 단계 상승 연출 · 6그루 순차 발아 · 다음 단계 영구 해금</span></div>
     <div class="score-rule"><span class="score-rule-label">몬스터 투입</span><span class="score-rule-value">첫 45초 없음 · 이후 동시 1→2→3→4마리</span></div>
-    <div class="score-rule"><span class="score-rule-label">런 성장</span><span class="score-rule-value">목재 경험치 → 비전투 운영 카드 3택</span></div>
+    <div class="score-rule"><span class="score-rule-label">런 성장</span><span class="score-rule-value">목재 5부터 빠른 운영·전투 강화 3택</span></div>
     <div class="score-rule"><span class="score-rule-label">강화하기 화면</span><span class="score-rule-value">중앙 루트에서 상·하·좌·우 4방향 분기 · 방향별 동일 단계 간격 · 기준 간격의 85~115% 줌 · 화면 해상도별 한글 폰트 재래스터</span></div>
     <div class="score-rule"><span class="score-rule-label">결과 화면</span><span class="score-rule-value">수종별 목재 집계 → 1개씩 회전 코인으로 순차 변환 → 강화하기/재도전 (이동 시 잔여분 즉시 정산)</span></div>
   </section>
@@ -757,9 +757,9 @@ const SKILLS = {
       {id:"saliva_gland",track:"venom",name:"침샘 발달",desc:"침에 맞은 대상은 서서히 중독되어 지속 피해를 입습니다."},
     ]
   },
-  universal: { label: "공용 스킬 · 운영 6종 활성", accent: "var(--c-universal)",
+  universal: { label: "공용 스킬 · 운영·전투 강화 10종 활성", accent: "var(--c-universal)",
     tagline: "직업이 뭐든, 몸에서 알아서 나가는 것들이 있다.",
-    doctrine: "공용 전투 패시브 7종은 코드·자산·연습장에 보존하고 기록 모드 드래프트에서는 제외한다. 기록 모드는 목재 경험치로 아기 로봇·탐지·작업장·조림·선별·안전관리 여섯 비전투 운영 카드만 선택한다.",
+    doctrine: "기록 모드는 목재 경험치로 운영 카드 6종과 직관적인 전투 강화 4종을 선택한다. 첫 강화는 목재 5에서 시작하고 이후 요구량은 8, 11 순서로 증가한다.",
     nodes: [
       {id:"bat_swarm",track:"supplement",name:"박쥐 떼",desc:"주위를 맴도는 박쥐가 사거리 안의 생존 몬스터만 골라 주기적으로 급강하해 쪼아버립니다."},
       {id:"thorn_aura",track:"supplement",name:"가시 오라",desc:"몸 주위의 넓은 가시덩굴 지대가 주기적으로 주변 나무와 적에게 피해를 줍니다."},
@@ -774,6 +774,10 @@ const SKILLS = {
       {id:"forest_zoning",track:"supplement",name:"조림 구획 지정",desc:"새 나무가 가장자리보다 작업자 주변의 벌목 가능한 구역에 모여 자랍니다.",max:3},
       {id:"wood_sorter",track:"supplement",name:"목재 선별기",desc:"회수한 목재가 주는 경험치가 단계마다 15% 증가합니다.",max:3},
       {id:"safety_system",track:"supplement",name:"안전 관리 장치",desc:"나무가 허용량에 닿았을 때 과밀 판정 전 유예시간을 단계마다 0.25초 확보합니다.",max:3},
+      {id:"score_attack_speed",track:"fire",name:"공격속도 상승",desc:"담배를 피우고 튕기는 전체 동작이 단계마다 18% 빨라집니다.",max:3},
+      {id:"score_extra_butts",track:"fire",name:"추가 꽁초 투척",desc:"클릭 한 번마다 단계 수만큼 추가 꽁초를 함께 투척합니다.",max:3},
+      {id:"score_ignition_radius",track:"fire",name:"착화 범위 상승",desc:"꽁초의 착화 범위가 단계마다 24 증가합니다.",max:3},
+      {id:"score_burn_speed",track:"fire",name:"연소속도 상승",desc:"나무가 타는 속도가 단계마다 18% 빨라집니다.",max:3},
     ]
   }
 };
@@ -832,7 +836,7 @@ const FUSIONS = {
 const ORDER = ["physical","fire","toxic","developer","miner","philosopher","universal"];
 const MODE_META = {
   traits: { label: "로비 특성", sub: "영구 · 연구 코인 구매", masthead: "직업별 전용 특성 6종 + 전 직군 공용 복지 특성 — LAST HAUL 벌목지 연구망 전체 목록", stamp: "연구 코인 결재 완료", data: TRAITS },
-  skills: { label: "스킬·운영", sub: "세부 특성 영구 · 운영 런 중", masthead: "흡연자는 세부 전투 특성을 영구 강화 · 목재 경험치 드래프트는 비전투 운영 카드 6종 — 보존된 전체 스킬 목록", stamp: "영구 특성 + 런 운영", data: SKILLS },
+  skills: { label: "스킬·운영", sub: "세부 특성 영구 · 운영 런 중", masthead: "흡연자는 세부 전투 특성을 영구 강화 · 목재 경험치 드래프트는 운영·전투 강화 10종 — 보존된 전체 스킬 목록", stamp: "영구 특성 + 런 운영", data: SKILLS },
 };
 
 let mode = "skills";
@@ -1007,7 +1011,7 @@ function renderAll() {
   document.getElementById("masthead-stamp").textContent = MODE_META[mode].stamp;
   document.getElementById("footer").textContent = mode === "traits"
     ? "src/character_traits.lua 기준 · 노드 순서는 선행 조건 깊이(단계) 순"
-    : "src/clearcut_mode.lua + score_operations.lua + character_traits.lua 기준 · 현재 로비는 흡연자 벌목 기록 모드만 활성화 · 저장된 재생 단계에서 6그루로 시작하고 0그루 달성 시 0.86초 전투 정지·잎/프리즘 단계 상승 FX·6그루 순차 발아 후 다음 단계가 영구 해금 · 재생 속도 0.14×1.75^(단계-1)×2^(플레이 시간/60초), HP 1.03^(단계-1) 정수 반올림으로 체력보다 재생 물량이 난도를 주도하며 같은 단계 무한 유지를 차단 · 불붙은 나무는 0.15~0.35초 불규칙 박자마다 전용 12프레임 화염 파열·좌우 불티·1~2픽셀 반응을 내고 전파 순간에는 목표 방향으로 큰 불씨를 보냄 · 공용 특성 두더지 작업반 채용은 플레이어를 따라오지 않고 가까운 활성 나무를 찾아 접촉 프레임마다 직접 할퀴는 두더지 동료를 런 시작부터 소환 · 강화하기 화면은 밝은 회백색 작업면 위 중앙 루트에서 상·하·좌·우 네 갈래로 뻗으며 선택한 노드의 이름·효과·단계·비용을 상단 한 곳에 표시하고 미니맵·숲 배경·중복 설명을 두지 않음 · 결과 화면은 생존 기록·핵심 통계 3개·연구 코인·강화하기/재도전 순서로 표시 · 목재 경험치 드래프트에는 아기 로봇·탐지 안테나·작업장 확장·조림 구획·목재 선별기·안전 관리 장치만 등장 · 로비 영구 성장은 스킬 레벨을 지급하지 않고 투척 거리·착화 반경·착화/확산 확률·흡연/비행/연소 속도·추가 꽁초 특성으로 분리 · 일반 작전·공용 전투 스킬·융합·시너지 코드는 삭제 없이 비활성 보존";
+    : "src/clearcut_mode.lua + score_operations.lua + character_traits.lua 기준 · 현재 로비는 흡연자 벌목 기록 모드만 활성화 · 저장된 재생 단계에서 6그루로 시작하고 0그루 달성 시 0.86초 전투 정지·잎/프리즘 단계 상승 FX·6그루 순차 발아 후 다음 단계가 영구 해금 · 재생 속도 0.14×1.75^(단계-1)×2^(플레이 시간/60초), HP 1.03^(단계-1) 정수 반올림으로 체력보다 재생 물량이 난도를 주도하며 같은 단계 무한 유지를 차단 · 허용량 60% 이상에서 최근 5초 벌목량이 자연 재생보다 낮은 상태가 5초 지속되면 숲 폭주가 시작되어 약한 런을 빠르게 종료 · 첫 강화는 목재 5, 이후 8·11 순서이며 운영 6종과 공격속도·추가 꽁초·착화 범위·연소속도 상승 4종을 선택 · 공용 특성 두더지 작업반 채용은 플레이어를 따라오지 않고 가까운 활성 나무를 찾아 접촉 프레임마다 직접 할퀴는 두더지 동료를 런 시작부터 소환 · 강화하기 화면은 밝은 회백색 작업면 위 중앙 루트에서 상·하·좌·우 네 갈래로 뻗으며 선택한 노드의 이름·효과·단계·비용을 상단 한 곳에 표시하고 미니맵·숲 배경·중복 설명을 두지 않음 · 결과 화면은 생존 기록·핵심 통계 3개·연구 코인·강화하기/재도전 순서로 표시 · 로비 영구 성장은 스킬 레벨을 지급하지 않고 투척 거리·착화 반경·착화/확산 확률·흡연/비행/연소 속도·추가 꽁초 특성으로 분리 · 일반 작전·공용 전투 스킬·융합·시너지 코드는 삭제 없이 비활성 보존";
   buildModeSwitch();
   buildTabs();
   renderPanel(document.getElementById("search").value);

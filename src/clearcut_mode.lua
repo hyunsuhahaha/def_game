@@ -210,7 +210,7 @@ function ClearcutMode.new()
         stage=1, stageBossHpMul=1, stageElapsed=0, stageTimeLimit=stageTimeLimit(1), failureReason=nil,
         scoreAttack=false,scoreHardCap=720,scoreStartingTrees=6,scoreBaseTreeAllowance=12,scoreTreeAllowance=12,scoreRegenTier=1,scoreTierFx=nil,
         scoreWoodEarned=0,
-        scoreFellTimes={},scoreFellHead=1,currentTreesPerSecond=0,peakTreesPerSecond=0,
+        scoreFellTimes={},scoreFellHead=1,currentTreesPerSecond=0,peakTreesPerSecond=0,scoreDeficitTimer=0,scoreCollapseActive=false,
         treeSpawnRate=.55,scoreSpawnRateMultiplier=1,treeSpawnAccumulator=0,
         totalTreesSpawned=0,peakActiveTrees=0,scoreActiveTreeCap=180,scoreGrowthPulses=0,
         berserkState="idle", berserkTimer=170, berserkCycleCount=0, berserkTreeTimer=0, berserkKillsStart=0, berserkFlashNodes={},
@@ -515,6 +515,8 @@ function ClearcutMode:setup(game)
         self.levels.baby_robot=math.max(self:levelOf("baby_robot"),math.floor(self.permanentTraits.scoreStartingBabyRobot or 0))
         self:applySmokerEvolution(game)
         self.totalWood=0
+        self.xp,self.xpNext,self.level,self.pending=0,5,1,0
+        self.scoreDeficitTimer,self.scoreCollapseActive=0,false
         game.wood=0
     end
     if game.achievements then
@@ -583,9 +585,35 @@ function ClearcutMode:scoreTreeSpawnRate()
     local density=self:scoreForestDensityMultiplier()
     local base=math.max(0,self.treeSpawnRate or .55)
     if self.scoreAttack then
-        return self:scoreTimedTreeSpawnRate()*self:scoreTimePressureMultiplier()*density
+        base=self:scoreTimedTreeSpawnRate()*self:scoreTimePressureMultiplier()*density
+        if self.scoreCollapseActive then
+            local age=math.max(0,(self.scoreDeficitTimer or 5)-5)
+            return math.max(base*(1+math.min(5,age*1.2)),1.35+math.min(2.4,age*.40))
+        end
     end
     return base
+end
+
+function ClearcutMode:scoreRecentProductionRate(window)
+    window=window or 5
+    local cutoff=(self.stageElapsed or 0)-window
+    local count=0
+    for index=#(self.scoreFellTimes or{}),1,-1 do
+        if self.scoreFellTimes[index]<cutoff then break end
+        count=count+1
+    end
+    return count/window
+end
+
+function ClearcutMode:updateScoreCollapse(dt)
+    if not self.scoreAttack then return false end
+    local occupancy=self:scoreActiveTreeCount()/math.max(1,self.scoreTreeAllowance or 12)
+    local natural=self:scoreTimedTreeSpawnRate()*self:scoreTimePressureMultiplier()*self:scoreForestDensityMultiplier()
+    local losing=occupancy>=.60 and self:scoreRecentProductionRate(5)+.001<natural
+    if losing then self.scoreDeficitTimer=(self.scoreDeficitTimer or 0)+dt
+    else self.scoreDeficitTimer=math.max(0,(self.scoreDeficitTimer or 0)-dt*2)end
+    self.scoreCollapseActive=self.scoreDeficitTimer>=5
+    return self.scoreCollapseActive
 end
 
 function ClearcutMode:scoreForestDensityMultiplier()
@@ -758,6 +786,7 @@ end
 
 function ClearcutMode:updateScoreTreeGrowth(dt,game)
     if not self.scoreAttack then return false end
+    self:updateScoreCollapse(dt)
     self.treeSpawnAccumulator=math.min(48,(self.treeSpawnAccumulator or 0)+dt*self:scoreTreeSpawnRate())
     local grown=0
     while self.treeSpawnAccumulator>=1 and grown<24 do
@@ -2161,13 +2190,13 @@ function ClearcutMode:throwMolotov(game, wildfire)
         self.molotovs[#self.molotovs+1] = {
             x0=tipX, y0=mouthY, x1=target.x+28, y1=target.y+22,
             t=0, dur=math.max(.18,dist/(1200*(self.permanentTraits.cigaretteProjectileSpeed or 1))), target=target, wildfire=wildfire,
-            radius=(90+self:power("molotov")*20+self.permanentTraits.area)
+            radius=(90+self:power("molotov")*20+self.permanentTraits.area+ScoreOperations.ignitionRadius(self))
                 *(self:skillBranch("molotov")=="flame_route"and 1.25 or 1),
             landingAngle=.18+math.sin(target.x*.013)*.6
         }
     end
     self:trackMolotovBarrage(game)
-    for _ = 1, math.floor(self.permanentTraits.extraFires) do
+    for _ = 1, math.floor(self.permanentTraits.extraFires)+ScoreOperations.extraButts(self) do
         if #candidates > 0 then self:hurlMolotovAt(candidates[love.math.random(#candidates)].x, candidates[love.math.random(#candidates)].y, game, true) end
     end
 end
@@ -2207,7 +2236,7 @@ function ClearcutMode:hurlMolotovAt(tx, ty, game, isBarrage)
         x0=tipX, y0=mouthY, x1=x1, y1=y1,
         t=0, dur=approachDur+fallDuration, approachDur=approachDur,fallDuration=fallDuration,
         fallsOffMap=fallsOffMap,dropDistance=2600,dropDrift=(tx-x1)*.16,
-        manual=true, radius=(90+self:power("molotov")*20+self.permanentTraits.area)
+        manual=true, radius=(90+self:power("molotov")*20+self.permanentTraits.area+ScoreOperations.ignitionRadius(self))
             *(self:skillBranch("molotov")=="flame_route"and 1.25 or 1),
         landingAngle=.18+math.sin(tx*.013+ty*.017)*.6
     }
@@ -2219,7 +2248,7 @@ function ClearcutMode:hurlMolotovAt(tx, ty, game, isBarrage)
             self:hurlMolotovAt(tx+px*54,ty+py*54,game,true)
             self:hurlMolotovAt(tx-px*54,ty-py*54,game,true)
         end
-        for _ = 1, math.floor(self.permanentTraits.extraFires) do
+        for _ = 1, math.floor(self.permanentTraits.extraFires)+ScoreOperations.extraButts(self) do
             self:hurlMolotovAt(tx + love.math.random(-40,40), ty + love.math.random(-40,40), game, true)
         end
     end
@@ -2347,7 +2376,8 @@ function ClearcutMode:updateFire(dt, game)
     local routeFire=self:skillBranch("molotov")=="flame_route"and 1.3 or 1
     local spreadChancePerSec = (.12 + dryPower * .14 + self.permanentTraits.spreadChance) * Synergies.ignitionChanceMultiplier(self)*routeFire
     local spreadRadius = (130 + dryPower * 45) * Synergies.ignitionRadiusMultiplier(self)
-    local burnDuration = math.max(2.2, (3.6 - dryPower * .35) / self.permanentTraits.burnSpeed)
+    local burnDuration = math.max(2.2, (3.6 - dryPower * .35) /
+        (self.permanentTraits.burnSpeed*ScoreOperations.burnSpeedMultiplier(self)))
     self:updateStrawBales(dt, game)
     self:updateOilTrail(dt, game)
     self:updateSecondhandSmoke(dt, game)
@@ -2780,7 +2810,7 @@ function ClearcutMode:updateFireAttack(dt, game, heldOverride)
     if evolution=="fireworks" then return self:updateFireworkAttack(dt,game,held)end
     local maxRange = 320 + self:power("molotov") * 40 + self.permanentTraits.range
     local tx, ty = self:aimPoint(game, maxRange)
-    self.aimX, self.aimY, self.aimRadius = tx, ty, 90 + self:power("molotov") * 20 + self.permanentTraits.area
+    self.aimX, self.aimY, self.aimRadius = tx, ty, 90 + self:power("molotov") * 20 + self.permanentTraits.area+ScoreOperations.ignitionRadius(self)
     if not self.smoking then self:startSmoking(game) end
     local smoking = self.smoking
     -- Movement owns facing while smoking/ready. Mouse aim only turns the body
@@ -2804,7 +2834,7 @@ function ClearcutMode:updateFireAttack(dt, game, heldOverride)
 
     if smoking.phase == "loaded" then
         if not held then return false end
-        smoking.phase, smoking.t, smoking.dur = "flick", 0, math.max(.38, .52 / ((game.tools.axe.speed or 1) * game.player.gather * self.permanentTraits.attackSpeed))
+        smoking.phase, smoking.t, smoking.dur = "flick", 0, math.max(.24, .52 / ((game.tools.axe.speed or 1) * game.player.gather * self.permanentTraits.attackSpeed*ScoreOperations.attackSpeedMultiplier(self)))
         smoking.loaded, smoking.fired, smoking.tx, smoking.ty = false, false, tx, ty
         smoking.facing = tx < game.player.x and -1 or 1
         game.player.facing = smoking.facing
@@ -2836,7 +2866,7 @@ end
 function ClearcutMode:startSmoking(game)
     self.cartonSize = self.cartonSize or 20
     if self.cartonAmmo == nil then self.cartonAmmo = self.cartonSize end
-    local speed = (game.tools.axe.speed or 1) * game.player.gather * self.permanentTraits.attackSpeed
+    local speed = (game.tools.axe.speed or 1) * game.player.gather * self.permanentTraits.attackSpeed*ScoreOperations.attackSpeedMultiplier(self)
     local newCarton = self.cartonAmmo <= 0
     local dur = newCarton and math.max(2.4, 4.4 / speed) or math.max(.75, 1.25 / speed)
     if self.scoreAttack and not self.scoreInitialSmokingStarted then
@@ -4575,7 +4605,7 @@ function ClearcutMode:onWood(amount, game)
     while self.xp >= self.xpNext do
         self.xp = self.xp - self.xpNext
         self.level, self.pending = self.level + 1, self.pending + 1
-        self.xpNext = math.floor(10 + (self.level - 1) * 6.5)
+        self.xpNext = self.scoreAttack and(5+(self.level-1)*3)or math.floor(10+(self.level-1)*6.5)
     end
     if self.pending > 0 and game.mode == "playing" and not self.sandbox and not os.getenv("LAST_HAUL_SELF_TEST") then self:openUpgradeChoices(game) end
 end
@@ -6720,10 +6750,10 @@ function ClearcutMode:drawHUD(game,fonts)
     love.graphics.setFont(fonts.big);love.graphics.setColor(urgent and {1,.30,.18} or {1,.96,.82});love.graphics.print(timeText,18,16)
     love.graphics.setFont(fonts.micro or fonts.small);love.graphics.setColor(urgent and {1,.55,.30} or {.82,.84,.76});love.graphics.print(self.scoreAttack and"벌목 기록 · 흡연자"or("제한 시간 · "..Maps.stageCode(self.mapId,self.stage).." · "..(jobNames[self.job]or"벌목꾼")),20,51)
     love.graphics.setColor(.92,.90,.72);love.graphics.print(self.scoreAttack and string.format("목재 %d   벌목 %d   생성 %d",self.totalWood,self.treesFelled,self.totalTreesSpawned or 0)or string.format("목재 %d   벌목 %d/%d",self.totalWood,self.treesFelled,self.initialTrees),20,71)
-    local statusColor = (self.rootedTimer > 0 or self.beeSlow) and {1,.6,.35} or {.6,.72,.66}
+    local statusColor = self.scoreCollapseActive and {1,.38,.12}or((self.rootedTimer > 0 or self.beeSlow) and {1,.6,.35} or {.6,.72,.66})
     love.graphics.setColor(statusColor)
     local secured,totalZones=ForestZones.status(self)
-    local status = self.rootedTimer > 0 and "발이 묶임!" or self.beeSlow and "벌떼에 쫓기는 중" or(self.scoreAttack and string.format("재생 %d단계 · 생성 %.2f그루/초",self.scoreRegenTier or 1,self:scoreTreeSpawnRate())or string.format("구역 %d/%d 확보 · 재생 %d회 · 숲 압력 x%.1f",secured,totalZones,self.regrowPulses,self:forestPressure()))
+    local status = self.rootedTimer > 0 and "발이 묶임!" or self.beeSlow and "벌떼에 쫓기는 중" or(self.scoreAttack and(self.scoreCollapseActive and string.format("숲 폭주! · 생성 %.2f그루/초",self:scoreTreeSpawnRate())or string.format("재생 %d단계 · 생성 %.2f그루/초",self.scoreRegenTier or 1,self:scoreTreeSpawnRate()))or string.format("구역 %d/%d 확보 · 재생 %d회 · 숲 압력 x%.1f",secured,totalZones,self.regrowPulses,self:forestPressure()))
     love.graphics.setFont(fonts.micro or fonts.small);love.graphics.setColor(statusColor);love.graphics.print(status,20,91)
     local evoNames=Fusions.activeNames(self)
     if #evoNames>0 then
@@ -7173,7 +7203,8 @@ local selectionDescriptions={
     chain_lightning="번개가 근처 나무와 적 사이를 연쇄로 튀며 여러 번 피해를 줍니다.",
 }
 local function selectionDescription(def)return selectionDescriptions[def.id] or def.desc end
-local scoreOperationIconAliases={robot_scanner="chain_lightning",yard_management="straw_bale",forest_zoning="vine_whip",wood_sorter="seed_mine",safety_system="thorn_aura"}
+local scoreOperationIconAliases={robot_scanner="chain_lightning",yard_management="straw_bale",forest_zoning="vine_whip",wood_sorter="seed_mine",safety_system="thorn_aura",
+    score_attack_speed="cigarette",score_extra_butts="dry_forest",score_ignition_radius="oil_drum",score_burn_speed="dry_forest"}
 
 function ClearcutMode:drawSelection(game,fonts)
     local w,h=love.graphics.getDimensions()
