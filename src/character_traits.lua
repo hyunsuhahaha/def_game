@@ -387,17 +387,20 @@ expand("universal",{
     {id="universal_mole_claw",name="두더지 공격범위 상승",short="공격범위 상승",desc="두더지의 공격 가능 거리와 발톱 자국 크기가 단계마다 증가합니다.",effect="scoreMoleClawTier",value=1,max=2,costs={56,92},wx=500,wy=1570,icon="split",color={.92,.42,.22},requires={{"universal_mole_damage",2}},scoreMode=true},
     {id="universal_mole_dual",name="두더지 양손 공격",short="양손 공격",desc="두더지가 한 번의 공격에 양손 발톱 자국을 남깁니다.",effect="scoreMoleDualClaw",value=1,max=1,costs={125},wx=500,wy=1820,icon="capstone",color={1,.32,.16},requires={{"universal_mole_claw",2}},scoreMode=true},
     {id="universal_mole_extra",name="두더지 추가 동료",short="추가 동료",desc="단계마다 두더지 동료 1마리가 추가로 합류합니다.",effect="scoreMoleExtraCompanions",value=1,max=2,costs={110,180},wx=1100,wy=1650,icon="split",color={.72,.58,.32},requires={{"universal_mole_speed",2},{"universal_mole_attack_speed",2}},scoreMode=true},
-    {id="universal_oil_drum",name="기름 드럼통 생성",short="드럼통 생성",desc="벌목 기록 모드에서 22초마다 기름 드럼통이 떨어집니다. 도끼로 두 번 타격하면 드럼통이 넘어지고 전용 8프레임 유출 애니메이션으로 기름이 넓게 퍼집니다.",effect="scoreOilDrum",value=1,max=1,costs={64},wx=1740,wy=930,icon="oil_drum",color={.42,.50,.52},requires={{"universal_robot_start",1}},scoreMode=true},
+    {id="universal_oil_drum",name="기름 드럼통 생성",short="드럼통 생성",desc="벌목 기록 모드에서 22초마다 기름 드럼통이 떨어집니다. 도끼로 두 번 타격하면 반경 180 안에 검은 기름 픽셀이 매번 다른 형태로 튑니다.",effect="scoreOilDrum",value=1,max=1,costs={64},wx=1740,wy=930,icon="oil_drum",color={.42,.50,.52},requires={{"universal_robot_start",1}},scoreMode=true},
     {id="universal_oil_interval",name="드럼통 등장 주기",short="등장 주기 감소",desc="단계마다 기름 드럼통 등장 주기가 2초 감소합니다.",effect="scoreOilDrumInterval",value=2,max=3,costs={38,64,96},wx=2050,wy=700,icon="clock",color={.48,.58,.60},requires={{"universal_oil_drum",1}},scoreMode=true},
-    {id="universal_oil_radius",name="기름 범위",short="기름 범위 상승",desc="기본 반경은 140이며, 단계마다 기름 웅덩이의 보이는 크기와 피해 범위가 18 증가합니다.",effect="scoreOilRadius",value=18,max=3,costs={32,54,82},wx=2350,wy=700,icon="split",color={.55,.45,.30},requires={{"universal_oil_interval",1}},scoreMode=true},
-    {id="universal_oil_ignition_radius",name="기름 인화 범위 상승",short="인화 범위 상승",desc="단계마다 담배꽁초가 드럼통 기름에 불을 붙이는 거리가 14 증가합니다.",effect="scoreOilIgnitionRadius",value=14,max=3,costs={34,58,88},wx=2350,wy=470,icon="ember",color={.86,.54,.20},requires={{"universal_oil_radius",2}},scoreMode=true},
-    {id="universal_oil_duration",name="기름 지속시간",short="지속시간 상승",desc="단계마다 기름 웅덩이의 지속시간이 3초 증가합니다.",effect="scoreOilDuration",value=3,max=3,costs={28,48,74},wx=2050,wy=930,icon="clock",color={.44,.40,.34},requires={{"universal_oil_drum",1}},scoreMode=true},
-    {id="universal_oil_burn_duration",name="기름 발화 지속시간 상승",short="발화 지속시간",desc="단계마다 불붙은 드럼통 기름의 화염 유지시간이 1.5초 증가합니다.",effect="scoreOilBurnDuration",value=1.5,max=3,costs={42,70,106},wx=2350,wy=1160,icon="ember",color={.92,.38,.14},requires={{"universal_oil_duration",2}},scoreMode=true},
-    {id="universal_oil_damage",name="기름 피해",short="기름 피해 상승",desc="단계마다 불붙은 기름의 나무 및 적 피해가 1 증가합니다.",effect="scoreOilDamage",value=1,max=3,costs={45,72,110},wx=2350,wy=930,icon="ember",color={.78,.40,.20},requires={{"universal_oil_radius",2},{"universal_oil_duration",2}},scoreMode=true},
+    {id="universal_oil_radius",name="기름 살포 거리",short="살포 거리 상승",desc="기본 살포 반경은 180이며, 단계마다 기름 픽셀이 튀는 최대 거리가 30 증가합니다.",effect="scoreOilRadius",value=30,max=5,costs={28,46,70,100,138},wx=2350,wy=700,icon="split",color={.55,.45,.30},requires={{"universal_oil_interval",1}},scoreMode=true},
+    {id="universal_oil_splash_count",name="기름 튐 개수",short="기름 자국 증가",desc="단계마다 서로 다른 검은 기름 자국이 3개 더 생성되어 빈틈이 줄어듭니다.",effect="scoreOilSplashCount",value=3,max=4,costs={30,50,76,108},wx=2650,wy=700,icon="split",color={.31,.34,.38},requires={{"universal_oil_radius",1}},scoreMode=true},
+    {id="universal_oil_patch_scale",name="기름 자국 크기",short="자국 크기 상승",desc="단계마다 개별 기름 자국의 픽셀 면적과 실제 타격 반경이 8% 증가합니다.",effect="scoreOilPatchScale",value=.08,max=4,costs={34,56,84,118},wx=2800,wy=1040,icon="oil_drum",color={.24,.27,.31},requires={{"universal_oil_splash_count",1}},scoreMode=true},
+    {id="universal_oil_ignition_radius",name="기름 인화 범위 상승",short="인화 범위 상승",desc="단계마다 담배꽁초가 기름 자국에 불을 붙이는 거리가 16 증가합니다.",effect="scoreOilIgnitionRadius",value=16,max=4,costs={34,56,84,118},wx=2350,wy=470,icon="ember",color={.86,.54,.20},requires={{"universal_oil_radius",2}},scoreMode=true},
+    {id="universal_oil_duration",name="기름 지속시간",short="지속시간 상승",desc="단계마다 검은 기름 자국의 지속시간이 3초 증가합니다.",effect="scoreOilDuration",value=3,max=4,costs={28,46,70,100},wx=2050,wy=930,icon="clock",color={.44,.40,.34},requires={{"universal_oil_drum",1}},scoreMode=true},
+    {id="universal_oil_burn_duration",name="기름 발화 지속시간 상승",short="발화 지속시간",desc="단계마다 기름 자국 위에 생성된 불꽃 오브젝트의 유지시간이 1.5초 증가합니다.",effect="scoreOilBurnDuration",value=1.5,max=4,costs={40,66,98,138},wx=2350,wy=1160,icon="ember",color={.92,.38,.14},requires={{"universal_oil_duration",2}},scoreMode=true},
+    {id="universal_oil_damage",name="기름 피해",short="기름 피해 상승",desc="단계마다 불붙은 기름의 나무 및 적 피해가 1 증가합니다.",effect="scoreOilDamage",value=1,max=5,costs={42,66,96,132,174},wx=2800,wy=1400,icon="ember",color={.78,.40,.20},requires={{"universal_oil_patch_scale",2},{"universal_oil_duration",2}},scoreMode=true},
     {id="universal_gray_cat",name="회색 고양이 동료",short="고양이 동료 해금",desc="드럼통마다 기본 35% 확률로 회색 고양이가 2.2초 뒤 출동해 드럼통을 밀어 넘어뜨립니다. 사용자가 먼저 부수면 출동을 취소합니다.",effect="scoreGrayCat",value=1,max=1,costs={92},wx=1740,wy=1270,icon="gray_cat",color={.56,.62,.68},requires={{"universal_oil_drum",1}},scoreMode=true},
     {id="universal_gray_cat_chance",name="고양이 출현 확률",short="고양이 출현 확률",desc="단계마다 고양이 출현 확률이 20% 증가합니다.",effect="scoreGrayCatChance",value=.20,max=3,costs={40,68,104},wx=2050,wy=1210,icon="gray_cat",color={.62,.66,.70},requires={{"universal_gray_cat",1}},scoreMode=true},
     {id="universal_gray_cat_delay",name="고양이 출동 대기시간",short="고양이 대기시간",desc="단계마다 고양이 출동 대기시간이 0.45초 감소합니다.",effect="scoreGrayCatDelay",value=.45,max=3,costs={34,58,88},wx=2350,wy=1210,icon="clock",color={.50,.66,.72},requires={{"universal_gray_cat_chance",1}},scoreMode=true},
-    {id="universal_gray_cat_speed",name="고양이 이동속도",short="고양이 이동속도",desc="단계마다 고양이의 진입 및 퇴장 이동속도가 15% 증가합니다.",effect="scoreGrayCatSpeed",value=.15,max=3,costs={30,52,80},wx=2050,wy=1470,icon="road",color={.52,.64,.68},requires={{"universal_gray_cat",1}},scoreMode=true},
+    {id="universal_gray_cat_speed",name="고양이 등장 속도",short="빠른 등장",desc="단계마다 고양이가 화면 밖에서 드럼통까지 달려오는 속도가 20% 증가합니다.",effect="scoreGrayCatSpeed",value=.20,max=4,costs={28,46,70,100},wx=2050,wy=1470,icon="road",color={.52,.64,.68},requires={{"universal_gray_cat",1}},scoreMode=true},
+    {id="universal_gray_cat_exit_speed",name="고양이 퇴장 속도",short="빠른 퇴장",desc="단계마다 드럼통을 넘어뜨린 고양이가 화면 밖으로 사라지는 속도가 25% 증가합니다.",effect="scoreGrayCatExitSpeed",value=.25,max=4,costs={30,50,76,108},wx=2350,wy=1470,icon="road",color={.48,.60,.66},requires={{"universal_gray_cat_speed",1}},scoreMode=true},
 })
 
 local byId = {}
@@ -582,8 +585,8 @@ function CharacterTraits:effects(job)
         scoreInitialIgnitionReduction=0,scoreCigaretteImpact=0,scoreStartingBabyRobot=0,scoreRobotSpeed=0,scoreMoleCompanion=0,
         scoreMoleDamage=0,scoreMoleSpeed=0,scoreMoleAttackSpeed=0,scoreMoleClawTier=0,scoreMoleDualClaw=0,scoreMoleExtraCompanions=0,
         scoreOilDrum=0,scoreOilDrumInterval=0,scoreOilRadius=0,scoreOilIgnitionRadius=0,
-        scoreOilDuration=0,scoreOilBurnDuration=0,scoreOilDamage=0,
-        scoreGrayCat=0,scoreGrayCatChance=0,scoreGrayCatDelay=0,scoreGrayCatSpeed=0
+        scoreOilDuration=0,scoreOilBurnDuration=0,scoreOilDamage=0,scoreOilSplashCount=0,scoreOilPatchScale=0,
+        scoreGrayCat=0,scoreGrayCatChance=0,scoreGrayCatDelay=0,scoreGrayCatSpeed=0,scoreGrayCatExitSpeed=0
     }
     local function accumulate(nodes)
         for _, node in ipairs(nodes) do
@@ -610,8 +613,8 @@ function CharacterTraits:scoreAttackEffects()
         scoreStartingBabyRobot=0,scoreRobotSpeed=0,scoreMoleCompanion=0,
         scoreMoleDamage=0,scoreMoleSpeed=0,scoreMoleAttackSpeed=0,scoreMoleClawTier=0,scoreMoleDualClaw=0,scoreMoleExtraCompanions=0,
         scoreOilDrum=0,scoreOilDrumInterval=0,scoreOilRadius=0,scoreOilIgnitionRadius=0,
-        scoreOilDuration=0,scoreOilBurnDuration=0,scoreOilDamage=0,
-        scoreGrayCat=0,scoreGrayCatChance=0,scoreGrayCatDelay=0,scoreGrayCatSpeed=0,
+        scoreOilDuration=0,scoreOilBurnDuration=0,scoreOilDamage=0,scoreOilSplashCount=0,scoreOilPatchScale=0,
+        scoreGrayCat=0,scoreGrayCatChance=0,scoreGrayCatDelay=0,scoreGrayCatSpeed=0,scoreGrayCatExitSpeed=0,
         -- 문맥 자동 무기 3종용. scoreTreeDamage는 도끼·폭죽 공용이고, 나머지는 각 무기가
         -- 담배용 수치를 계수로 나눠 쓰던 것을 전용으로 분리한 값이다.
         scoreTreeDamage=0,

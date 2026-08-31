@@ -35,9 +35,10 @@ moleUpgradeStore.data.currency=5000
 moleUpgradeStore.data.levels.universal_robot_start=1
 assert(moleUpgradeStore:buy("universal_mole_companion")and not moleUpgradeStore:buy("universal_mole_companion"),"mole hire root was not a one-rank node")
 assert(moleUpgradeStore:buy("universal_oil_drum")and moleUpgradeStore:buy("universal_gray_cat"),"gray oil-cat research chain was not purchasable")
-for _,spec in ipairs({{"universal_oil_interval",3},{"universal_oil_radius",3},{"universal_oil_ignition_radius",3},
-    {"universal_oil_duration",3},{"universal_oil_burn_duration",3},{"universal_oil_damage",3},
-    {"universal_gray_cat_chance",3},{"universal_gray_cat_delay",3},{"universal_gray_cat_speed",3}})do
+for _,spec in ipairs({{"universal_oil_interval",3},{"universal_oil_radius",5},{"universal_oil_splash_count",4},
+    {"universal_oil_patch_scale",4},{"universal_oil_ignition_radius",4},{"universal_oil_duration",4},
+    {"universal_oil_burn_duration",4},{"universal_oil_damage",5},{"universal_gray_cat_chance",3},
+    {"universal_gray_cat_delay",3},{"universal_gray_cat_speed",4},{"universal_gray_cat_exit_speed",4}})do
     for rank=1,spec[2]do assert(moleUpgradeStore:buy(spec[1]),spec[1].." rank "..rank.." was not purchasable")end
 end
 for _,spec in ipairs({{"universal_mole_damage",3},{"universal_mole_speed",3},{"universal_mole_attack_speed",3},
@@ -49,10 +50,12 @@ assert(moleEffects.scoreMoleCompanion==1 and moleEffects.scoreMoleDamage==3 and 
     math.abs(moleEffects.scoreMoleAttackSpeed-.36)<1e-9 and moleEffects.scoreMoleClawTier==2 and moleEffects.scoreMoleDualClaw==1 and
     moleEffects.scoreMoleExtraCompanions==2,"split mole research nodes did not accumulate independently")
 assert(moleEffects.scoreOilDrum==1 and moleEffects.scoreGrayCat==1,"gray oil-cat research effects were not accumulated")
-assert(moleEffects.scoreOilDrumInterval==6 and moleEffects.scoreOilRadius==54 and moleEffects.scoreOilIgnitionRadius==42 and
-    moleEffects.scoreOilDuration==9 and moleEffects.scoreOilBurnDuration==4.5 and moleEffects.scoreOilDamage==3 and
+assert(moleEffects.scoreOilDrumInterval==6 and moleEffects.scoreOilRadius==150 and moleEffects.scoreOilSplashCount==12 and
+    math.abs(moleEffects.scoreOilPatchScale-.32)<1e-9 and moleEffects.scoreOilIgnitionRadius==64 and
+    moleEffects.scoreOilDuration==12 and moleEffects.scoreOilBurnDuration==6 and moleEffects.scoreOilDamage==5 and
     math.abs(moleEffects.scoreGrayCatChance-.6)<1e-9 and math.abs(moleEffects.scoreGrayCatDelay-1.35)<1e-9 and
-    math.abs(moleEffects.scoreGrayCatSpeed-.45)<1e-9,"split oil drum and gray cat upgrades did not accumulate")
+    math.abs(moleEffects.scoreGrayCatSpeed-.8)<1e-9 and moleEffects.scoreGrayCatExitSpeed==1,
+    "split oil drum and gray cat upgrades did not accumulate")
 local roundTrip=CharacterTraits.decode(CharacterTraits.encode(store.data))
 assert(roundTrip.regenTier==3,"persistent regeneration tier did not survive save encoding")
 local migrated=CharacterTraits.decode("fire_score_filter=6\nfire_score_lighter=6\nfire_score_ash=6\nfire_score_drag=6\nfire_score_heat=6\n")
@@ -76,10 +79,12 @@ store.data.levels.universal_robot_start=1
 store.data.levels.universal_robot_motor=5
 store.data.levels.universal_oil_drum=1
 store.data.levels.universal_gray_cat=1
-store.data.levels.universal_oil_interval=3;store.data.levels.universal_oil_radius=3
-store.data.levels.universal_oil_ignition_radius=3;store.data.levels.universal_oil_duration=3
-store.data.levels.universal_oil_burn_duration=3;store.data.levels.universal_oil_damage=3
-store.data.levels.universal_gray_cat_chance=3;store.data.levels.universal_gray_cat_delay=3;store.data.levels.universal_gray_cat_speed=3
+store.data.levels.universal_oil_interval=3;store.data.levels.universal_oil_radius=5
+store.data.levels.universal_oil_splash_count=4;store.data.levels.universal_oil_patch_scale=4
+store.data.levels.universal_oil_ignition_radius=4;store.data.levels.universal_oil_duration=4
+store.data.levels.universal_oil_burn_duration=4;store.data.levels.universal_oil_damage=5
+store.data.levels.universal_gray_cat_chance=3;store.data.levels.universal_gray_cat_delay=3
+store.data.levels.universal_gray_cat_speed=4;store.data.levels.universal_gray_cat_exit_speed=4
 store.data.levels.universal_mole_companion=1
 store.data.levels.universal_mole_damage=3;store.data.levels.universal_mole_speed=3
 store.data.levels.universal_mole_attack_speed=3;store.data.levels.universal_mole_claw=2
@@ -105,7 +110,7 @@ assert(activeScore.scoreInitialIgnitionReduction==.4,"score-mode opening ignitio
 assert(activeScore.scoreStartingBabyRobot==1 and activeScore.scoreRobotSpeed==.5,"score-mode baby robot permanent research is not active")
 assert(activeScore.scoreMoleCompanion==1 and activeScore.scoreMoleDamage==3 and activeScore.scoreMoleExtraCompanions==2,
     "split score-mode mole companion upgrades are not active")
-assert(activeScore.scoreOilDrum==1 and activeScore.scoreOilIgnitionRadius==42 and activeScore.scoreOilBurnDuration==4.5 and activeScore.scoreGrayCat==1,
+assert(activeScore.scoreOilDrum==1 and activeScore.scoreOilIgnitionRadius==64 and activeScore.scoreOilBurnDuration==6 and activeScore.scoreGrayCat==1,
     "oil drum ignition upgrades or gray oil-cat permanent research are not active")
 local linkedOilMode=ClearcutMode.new()
 linkedOilMode.scoreAttack=true
@@ -115,9 +120,9 @@ local linkedDrum={id=77,x=400,y=300,state="settled",hp=8,maxHp=8,angle=0}
 assert(linkedOilMode:spillOilDrum(linkedDrum,"axe"),"lobby oil research did not reach the runtime spill path")
 local linkedGroup=assert(linkedOilMode.oilPuddleGroups.drum_77,"runtime did not register the lobby-upgraded oil group")
 local linkedSpill=assert(linkedOilMode.oilDrumSpills[1],"runtime did not create the lobby-upgraded visible oil spill")
-assert(linkedGroup.radius==194 and math.abs(linkedSpill.scale-194/105)<1e-9,
-    "lobby oil-radius ranks did not enlarge both collision and visible spill geometry")
-assert(linkedSpill.lifetime==29 and linkedGroup.damage==4 and linkedOilMode.oilTrail[1].damage==7,
+assert(linkedGroup.radius==330 and #linkedOilMode.oilTrail==28 and linkedOilMode.oilTrail[1].visualScale>=.95,
+    "lobby oil range/count/patch ranks did not enlarge the generated stain geometry")
+assert(linkedSpill.lifetime==32 and linkedGroup.damage==6 and linkedOilMode.oilTrail[1].damage==9,
     "lobby oil duration or damage ranks did not reach the runtime puddle")
 assert(activeScore.scoreStartingWood==nil and activeScore.scoreAutomationDiscount==nil,"removed score automation traits still affect runtime")
 
@@ -176,7 +181,7 @@ assert(store:getNode("fire_score_stock").max==2,"extra-butt research is still ca
 -- + 도끼 4 + 도끼 상위 3(충격파·연속 벌목·나무꾼 고용) + 후반 해금 3(상시 흡연·자동 투척·폭죽)
 -- + 자동 투척 주기 1 + 폭죽 5. 탄약 관리 갈래는 startSmoking의 세 상수(개비 재장전 하한,
 -- 보루 재장전 하한, 보루 크기 20)를 각각 여는 노드다.
-assert(#store:getScoreAttackNodes("fire")==33 and #store:getScoreAttackNodes("universal")==21,"active research board did not expose the split companion graphs and the weapon-slot branches")
+assert(#store:getScoreAttackNodes("fire")==33 and #store:getScoreAttackNodes("universal")==24,"active research board did not expose the split companion graphs and the weapon-slot branches")
 for _, job in ipairs({"physical","fire","toxic","developer"}) do
     assert(#store:getNodes(job) >= 30, job .. " character graph has too few trait nodes")
 end
@@ -221,6 +226,7 @@ assert(oilY<catY and oilCatDistance>=500 and oilCatDistance<=750,
 local chanceX,chanceY=board:nodeWorld(store:getNode("universal_gray_cat_chance"))
 local delayX,delayY=board:nodeWorld(store:getNode("universal_gray_cat_delay"))
 local speedX,speedY=board:nodeWorld(store:getNode("universal_gray_cat_speed"))
+local exitX,exitY=board:nodeWorld(store:getNode("universal_gray_cat_exit_speed"))
 local function catDistance(ax,ay,bx,by)return math.sqrt((ax-bx)^2+(ay-by)^2)end
 assert(catDistance(catX,catY,chanceX,chanceY)<=320,
     "gray cat chance upgrade is not attached to the cat unlock")
@@ -228,10 +234,13 @@ assert(catDistance(chanceX,chanceY,delayX,delayY)<=320,
     "gray cat delay upgrade is not the next node in the cat branch")
 assert(catDistance(catX,catY,speedX,speedY)<=430,
     "gray cat speed upgrade is not visibly grouped with the cat unlock")
+local exitNode=store:getNode("universal_gray_cat_exit_speed")
+assert(exitNode.requires[1][1]=="universal_gray_cat_speed"and not(speedX==exitX and speedY==exitY),
+    "gray cat exit-speed upgrade is not a distinct child of the entry-speed node")
 assert(not(chanceX==delayX and chanceY==delayY)and not(chanceX==speedX and chanceY==speedY),
     "gray cat upgrades overlap instead of forming visible branches")
-local oilIds={"universal_oil_drum","universal_oil_interval","universal_oil_radius","universal_oil_ignition_radius",
-    "universal_oil_duration","universal_oil_damage","universal_oil_burn_duration"}
+local oilIds={"universal_oil_drum","universal_oil_interval","universal_oil_radius","universal_oil_splash_count",
+    "universal_oil_patch_scale","universal_oil_ignition_radius","universal_oil_duration","universal_oil_damage","universal_oil_burn_duration"}
 local oilPositions={}
 for _,id in ipairs(oilIds)do
     local ox,oy=board:nodeWorld(store:getNode(id));oilPositions[id]={x=ox,y=oy}

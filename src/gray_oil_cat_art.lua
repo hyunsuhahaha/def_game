@@ -8,7 +8,7 @@ local DRUM_SCALE=.94
 -- The approved sheet has a fixed authored facing per pose. Normalize each
 -- row before applying the runtime direction so the exact approved pixels are
 -- preserved without making push face backwards.
-local AUTHORED_FACING={run=1,push=-1,jump=1}
+local AUTHORED_FACING={run=-1,push=-1,jump=-1}
 
 local function load()
     if cat then return end

@@ -51,8 +51,7 @@ ClearcutMode.__index = ClearcutMode
 ClearcutMode.SCORE_TIME_DOUBLING_SECONDS=30
 ClearcutMode.GrayOilCatArt = require("src.gray_oil_cat_art")
 ClearcutMode.OilDrumSpillArt = require("src.oil_drum_spill_art")
-ClearcutMode.OIL_BASE_RADIUS=140
-ClearcutMode.OIL_ART_RADIUS=105
+ClearcutMode.OIL_BASE_RADIUS=180
 
 local scoreWeaponDefinitions = {
     {id="cigarette",name="담배"},
@@ -240,8 +239,8 @@ function ClearcutMode.new()
             scoreInitialIgnitionReduction=0,scoreCigaretteImpact=0,scoreMoleCompanion=0,scoreMoleDamage=0,scoreMoleSpeed=0,
             scoreMoleAttackSpeed=0,scoreMoleClawTier=0,scoreMoleDualClaw=0,scoreMoleExtraCompanions=0,
             scoreOilDrum=0,scoreOilDrumInterval=0,scoreOilRadius=0,scoreOilIgnitionRadius=0,
-            scoreOilDuration=0,scoreOilBurnDuration=0,scoreOilDamage=0,
-            scoreGrayCat=0,scoreGrayCatChance=0,scoreGrayCatDelay=0,scoreGrayCatSpeed=0,
+            scoreOilDuration=0,scoreOilBurnDuration=0,scoreOilDamage=0,scoreOilSplashCount=0,scoreOilPatchScale=0,
+            scoreGrayCat=0,scoreGrayCatChance=0,scoreGrayCatDelay=0,scoreGrayCatSpeed=0,scoreGrayCatExitSpeed=0,
             scoreReloadSpeed=0,scoreCartonSize=0,scoreCartonReload=0,scoreAutoThrowRate=0,
             scoreRocketTwin=0,scoreRocketCluster=0,scoreRocketFinale=0
         },
@@ -910,6 +909,11 @@ local function clearcutDistance(ax,ay,bx,by)
     return math.sqrt(dx*dx+dy*dy),dx,dy
 end
 
+local function oilNoise(seed,index)
+    local value=math.sin(seed*12.9898+index*78.233)*43758.5453
+    return value-math.floor(value)
+end
+
 function ClearcutMode:spawnOilDrum(game)
     if not self.scoreAttack or (self.permanentTraits.scoreOilDrum or 0)<=0 then return false end
     local live=0
@@ -948,25 +952,38 @@ function ClearcutMode:spillOilDrum(drum,source)
     drum.angle=(drum.spillFacing or 1)*math.pi*.5
     drum.hasSpillFx=false
     local radius=ClearcutMode.OIL_BASE_RADIUS+(self.permanentTraits.scoreOilRadius or 0)
-    local radiusScale=radius/ClearcutMode.OIL_ART_RADIUS
     local lifetime=20+(self.permanentTraits.scoreOilDuration or 0)
     local oilDamage=self.permanentTraits.scoreOilDamage or 0
+    local splashCount=16+math.floor(self.permanentTraits.scoreOilSplashCount or 0)
+    local patchScale=1+(self.permanentTraits.scoreOilPatchScale or 0)
+    local burnDuration=5+(self.permanentTraits.scoreOilBurnDuration or 0)
     self.oilTrailSequence=(self.oilTrailSequence or 0)+1
     local group="drum_"..tostring(drum.id or self.oilTrailSequence)
+    local seed=(drum.id or self.oilTrailSequence)*97+self.oilTrailSequence*31
     self.oilDrumSpills[#self.oilDrumSpills+1]={
-        x=drum.x,y=drum.y,age=0,frameDuration=.12,lifetime=lifetime,scale=radiusScale,
-        radius=radius,facing=drum.spillFacing or 1,source=source,drumId=drum.id,group=group
+        x=drum.x,y=drum.y,age=0,frameDuration=.085,lifetime=lifetime,
+        radius=radius,facing=drum.spillFacing or 1,source=source,drumId=drum.id,group=group,seed=seed
     }
     local spots={}
-    for index=1,11 do
-        local ring=(index==1 and 0 or(index<=5 and 34 or 68))*radiusScale
-        local angle=(index*2.399963)+((drum.id or 0)*.41)
-        local spreadDelay=.82+(ring/68)*.18+((index-1)%3)*.02
+    for index=1,splashCount do
+        local facing=drum.spillFacing or 1
+        local forward=(index==1 and 0 or(18+oilNoise(seed,index)*radius))
+        if index%7==0 then forward=-oilNoise(seed,index+14)*radius*.28 end
+        local lateral=(oilNoise(seed,index+29)-.5)*radius*1.05
+        local x=drum.x+facing*forward
+        local y=drum.y+lateral*.48
+        local distance=math.sqrt((x-drum.x)^2+(y-drum.y)^2)
+        local angle=math.atan2(y-drum.y,x-drum.x)
+        local spreadDelay=.18+(distance/math.max(1,radius))*.48+oilNoise(seed,index+41)*.08
+        local visualScale=(.72+oilNoise(seed,index+53)*.70)*patchScale
         local spot={
-            x=drum.x+math.cos(angle)*ring,y=drum.y+math.sin(angle)*ring*.48,
+            x=x,y=y,
             spawnedAt=self.smokerGroundTime+spreadDelay,ignited=false,angle=angle,
-            variant=(index-1)%3+1,sequence=self.oilTrailSequence+index,
-            source="drum",group=group,lifetime=lifetime,hiddenGround=true,damage=4+oilDamage
+            sequence=self.oilTrailSequence*100+index,pixelSeed=seed+index*13,
+            source="drum",group=group,lifetime=lifetime,damage=4+oilDamage,
+            visualScale=visualScale,stretchX=.82+oilNoise(seed,index+61)*.9,
+            stretchY=.72+oilNoise(seed,index+67)*.55,pixelChunks=18+math.floor(oilNoise(seed,index+71)*13),
+            hitRadius=32*visualScale,flameCount=1+math.floor(oilNoise(seed,index+79)*2),burnDuration=burnDuration
         }
         self.oilTrail[#self.oilTrail+1]=spot;spots[#spots+1]=spot
     end
@@ -1032,7 +1049,7 @@ function ClearcutMode:beginGrayOilCatExit(cat)
     if not cat or cat.state=="exit"then return end
     cat.state,cat.stateTime,cat.jumpZ="exit",0,0
     local distance=clearcutDistance(cat.x,cat.y,cat.exitX,cat.exitY)
-    cat.exitDuration=math.max(.5,distance/(330*(1+(self.permanentTraits.scoreGrayCatSpeed or 0))))
+    cat.exitDuration=math.max(.22,distance/(430*(1+(self.permanentTraits.scoreGrayCatExitSpeed or 0))))
 end
 
 function ClearcutMode:updateGrayOilCat(dt,game)
@@ -1046,7 +1063,7 @@ function ClearcutMode:updateGrayOilCat(dt,game)
         local distance,dx,dy=clearcutDistance(cat.x,cat.y,cat.approachX,cat.approachY)
         if distance<=6 then cat.x,cat.y,cat.state,cat.stateTime=cat.approachX,cat.approachY,"push",0
         else
-            local step=math.min(distance,250*(1+(self.permanentTraits.scoreGrayCatSpeed or 0))*dt)
+            local step=math.min(distance,320*(1+(self.permanentTraits.scoreGrayCatSpeed or 0))*dt)
             cat.x,cat.y=cat.x+dx/distance*step,cat.y+dy/distance*step
         end
     elseif cat.state=="push"then
@@ -2497,8 +2514,9 @@ function ClearcutMode:updateOilTrail(dt, game)
             spot.tickTimer = (spot.tickTimer or 0) - dt
             if spot.tickTimer <= 0 then
                 spot.tickTimer = .4
-                self:damageEnemiesInRadius(spot.x, spot.y, 55,spot.damage or 4, game)
-                self:igniteEnemiesInRadius(spot.x,spot.y,55,game,0)
+                local hitRadius=spot.source=="drum"and(spot.hitRadius or 42)or 55
+                self:damageEnemiesInRadius(spot.x, spot.y,hitRadius,spot.damage or 4, game)
+                self:igniteEnemiesInRadius(spot.x,spot.y,hitRadius,game,0)
             end
             local burnDuration=5+(spot.source=="drum"and(self.permanentTraits.scoreOilBurnDuration or 0)or 0)
             if now - spot.ignitedAt >= math.min(burnDuration,spot.lifetime or burnDuration) then table.remove(self.oilTrail, i) end
@@ -2525,10 +2543,14 @@ function ClearcutMode:updateOilTrail(dt, game)
             if group.tickTimer<=0 then
                 group.tickTimer=.45
                 for _,node in ipairs(game.world.nodes or{})do if node.active and node.rushTree then
-                    local dx,dy=node.x-group.x,node.y-group.y
-                    if dx*dx+dy*dy<=group.radius*group.radius then
-                        self:damageTreeWithSmokerWeapon(node,group.damage or 1,game)
-                    end
+                    for _,spot in ipairs(self.oilTrail)do if spot.group==id and spot.ignited then
+                        local dx,dy=node.x-spot.x,node.y-spot.y
+                        local hitRadius=spot.hitRadius or 42
+                        if dx*dx+dy*dy<=hitRadius*hitRadius then
+                            self:damageTreeWithSmokerWeapon(node,group.damage or 1,game)
+                            break
+                        end
+                    end end
                 end end
             end
         end

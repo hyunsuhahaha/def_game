@@ -31,14 +31,14 @@ mode:queueWorldActors(queue,mode.smokerGroundTime)
 assert(#queue==6,"oil ground/flame bridge depth entries missing")
 table.sort(queue,function(a,b) return a.y<b.y end)
 for _,entry in ipairs(queue) do entry.draw() end
-local draws=0
+local rectangles,polygons,draws=0,0,0
 for _,op in ipairs(fixture.commands) do
-    assert(op.op=="draw","oil art regressed to primitive geometry: "..op.op)
-    assert(op.file=="assets/fx/oil-trail/oil-trail-atlas-pixel-v2.png",op.file)
-    assert(op.filter=="nearest","oil atlas is not nearest-filtered")
-    draws=draws+1
+    if op.op=="rectangle"then rectangles=rectangles+1
+    elseif op.op=="polygon"then polygons=polygons+1
+    elseif op.op=="draw"then draws=draws+1 end
 end
-assert(draws>=10,"continuous oil/fire bridge layers did not draw")
+assert(rectangles>=40 and polygons>=60 and draws>=2,
+    "oil road did not use dense code-native black pixels with separate authored flame objects")
 
 mode.smokerGroundTime=2.5
 game.player.isMoving=false
@@ -47,4 +47,4 @@ assert(mode.damageAudit and mode.damageAudit.radius==55 and mode.damageAudit.dam
 mode.smokerGroundTime=7.1
 mode:updateOilTrail(.01,game)
 assert(#mode.oilTrail==0,"five-second fire lifetime changed")
-print("OIL_TRAIL_FX_OK atlas=12 depth=ground+flame chain=preserved gameplay=preserved")
+print("OIL_TRAIL_FX_OK runtime-pixels depth=ground+separate-flame chain=preserved gameplay=preserved")
