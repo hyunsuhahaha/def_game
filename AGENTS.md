@@ -26,6 +26,12 @@
 
 # 프로젝트 작업 규칙
 
+## 전체 구조 먼저 보기 — 시스템 맵
+
+**새 무기·특성·시스템을 추가하기 전에 [`docs/SYSTEM_MAP.md`](docs/SYSTEM_MAP.md)를 먼저 읽는다.** 무기 3종의 실제 수치, 불 모델(확산 임계점·연소 틱), 성장 두 층의 역할 분담, 난도 곡선, 그리고 아직 해결되지 않은 구조적 문제가 현재 코드 값으로 한 장에 정리돼 있다. 수치를 바꾸면 같은 작업 안에서 이 문서도 갱신한다.
+
+**ALL AGENTS: Read [`docs/SYSTEM_MAP.md`](docs/SYSTEM_MAP.md) before adding weapons, traits, or systems. It is the one-page map of the active mode with real current values, and it must be updated in the same task whenever those values change.**
+
 ## 현재 활성 개발 모드 — 벌목 기록 모드
 
 **현재 로비에서 플레이어에게 노출하는 주 모드는 흡연자 `벌목 기록 모드(score_attack)` 하나다.** 일반 스테이지 작전, 다른 작업자, 지구본, 브리핑, 보스전, 러시 등 기존 코드는 폐기한 것이 아니라 향후 재사용을 위해 **의도적으로 비활성화**한 상태다. 삭제하거나 기록 모드에 억지로 합치지 않는다. 활성 범위와 복구 지점은 [`docs/ACTIVE_DEVELOPMENT_MODE.md`](docs/ACTIVE_DEVELOPMENT_MODE.md)를 따른다.
