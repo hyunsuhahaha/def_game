@@ -7,8 +7,8 @@ local SCALE=.75
 local function load()
     if spillImage then return end
     spillImage=love.graphics.newImage("assets/fx/oil-drum-spill/oil-drum-spill-atlas-pixel-v2.png")
-    puddleImage=love.graphics.newImage("assets/fx/oil-drum-spill/oil-puddle-atlas-pixel-v1.png")
-    fireImage=love.graphics.newImage("assets/fx/oil-drum-spill/oil-fire-overlay-atlas-pixel-v1.png")
+    puddleImage=love.graphics.newImage("assets/fx/oil-drum-spill/oil-puddle-atlas-pixel-v2.png")
+    fireImage=love.graphics.newImage("assets/fx/oil-drum-spill/oil-fire-overlay-atlas-pixel-v2.png")
     spillImage:setFilter("nearest","nearest");puddleImage:setFilter("nearest","nearest");fireImage:setFilter("nearest","nearest")
     spillQuads={};puddleQuads={};fireQuads={}
     for frame=0,FRAME_COUNT-1 do
@@ -36,7 +36,10 @@ function Art.drawGround(value)
         frame=math.min(FRAME_COUNT,math.floor(age/(value.frameDuration or .12))+1)
         image,quads,originX=spillImage,spillQuads,95
     else
-        frame=math.floor(age*3)%FRAME_COUNT+1
+        -- Puddle cells are stable variants, not a loop animation. Cycling
+        -- different outer edges makes settled oil look as if it is wobbling.
+        -- Pick one per drum and keep it for the full puddle lifetime.
+        frame=((value.drumId or 1)-1)%FRAME_COUNT+1
         image,quads,originX=puddleImage,puddleQuads,128
     end
     local facing=value.facing or 1
@@ -53,28 +56,15 @@ end
 function Art.drawFire(value)
     load()
     if not value.ignited then return end
-    local logicalRadius=value.radius or 105*(value.scale or 1)
-    local radius=logicalRadius*.8
-    local halfHeight=logicalRadius*.32
-    local stepX,stepY=42,22
     local ignitionAge=value.ignitedAge or 0
-    local spread=math.min(1,ignitionAge/.42)
-    local pop=1+math.sin(math.min(1,ignitionAge/.42)*math.pi)*.32
-    local baseFrame=math.floor(ignitionAge*8)
-    love.graphics.setColor(1,1,1,fadeFor(value))
-    for y=-halfHeight,halfHeight,stepY do
-        local rowWidth=radius*math.sqrt(math.max(0,1-(y/halfHeight)^2))
-        for x=-rowWidth,rowWidth,stepX do
-            local distance=math.sqrt((x/radius)^2+(y/halfHeight)^2)
-            if distance<=spread*1.12 then
-                local phase=(math.floor((x+radius)/stepX)*3+math.floor((y+halfHeight)/stepY)*5)%FRAME_COUNT
-                local frame=(baseFrame+phase)%FRAME_COUNT+1
-                local scale=.29*pop
-                love.graphics.draw(fireImage,fireQuads[frame],math.floor(value.x+x+.5),math.floor(value.y+y+.5),0,
-                    scale,scale,128,184)
-            end
-        end
-    end
+    local frame=math.floor(ignitionAge*8)%FRAME_COUNT+1
+    local alpha=math.min(1,ignitionAge/.22)*fadeFor(value)
+    local scale=SCALE*(value.scale or 1)
+    love.graphics.setColor(1,1,1,alpha)
+    -- v2 is one coherent full-puddle flame sheet. Drawing it once avoids the
+    -- tiled bonfire pattern and keeps every flame root fixed to the oil edge.
+    love.graphics.draw(fireImage,fireQuads[frame],math.floor(value.x+.5),math.floor(value.y+.5),0,
+        scale,scale,128,185)
     love.graphics.setColor(1,1,1,1)
 end
 

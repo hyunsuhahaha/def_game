@@ -131,20 +131,25 @@ damageMode.oilTrail={}
 damageMode:updateOilTrail(.1,damageGame)
 assert(not damageMode.oilDrumSpills[1].ignited,"expired oil fire did not switch back to the ground-oil atlas")
 
-local drawCount=0
+local drawCount,lastGroundQuad,lastScale=0,nil,nil
 love.graphics.newImage=function()return{setFilter=function()end,getDimensions=function()return 1024,400 end}end
-love.graphics.newQuad=function()return{}end
+love.graphics.newQuad=function(x,y)return{x=x,y=y}end
 love.graphics.setColor=function()end
-love.graphics.draw=function()drawCount=drawCount+1 end
+love.graphics.draw=function(_,quad,_,_,_,scale)drawCount=drawCount+1;lastGroundQuad=quad;lastScale=scale end
 local art=ClearcutMode.OilDrumSpillArt
-art.drawGround({x=100,y=100,age=2,lifetime=20,radius=105,scale=1})
+local stableSpill={x=100,y=100,age=2,lifetime=20,radius=105,scale=1,drumId=4}
+art.drawGround(stableSpill)
 assert(drawCount==1,"ground oil was not rendered as one independent layer")
+local settledQuad=lastGroundQuad
+stableSpill.age=7
+art.drawGround(stableSpill)
+assert(lastGroundQuad==settledQuad,"settled ground oil still cycles silhouettes and visibly wobbles")
 drawCount=0
 art.drawFire({x=100,y=100,age=2,lifetime=20,radius=105,ignited=true,ignitedAge=.5})
-local baseFireDraws=drawCount
+local baseFireDraws,baseFireScale=drawCount,lastScale
 drawCount=0
-art.drawFire({x=100,y=100,age=2,lifetime=20,radius=159,ignited=true,ignitedAge=.5})
-assert(baseFireDraws>1 and drawCount>baseFireDraws,
-    "independent fire overlay did not add coverage when the oil radius increased")
+art.drawFire({x=100,y=100,age=2,lifetime=20,radius=159,scale=159/105,ignited=true,ignitedAge=.5})
+assert(baseFireDraws==1 and drawCount==1 and lastScale>baseFireScale,
+    "coherent fire overlay regressed to tiled or radius-desynchronized draws")
 
 print("GRAY_OIL_CAT_OK exact-approved-atlas runtime-flow=enter,push,spill,jump oil-spots=11")
