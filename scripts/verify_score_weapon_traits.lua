@@ -119,8 +119,10 @@ slowRocket:updateHeldAxe(1, rocketGame, true)
 assert(slowRocket.smokerWeaponProjectiles[1].dur > shot.dur, "폭죽 비행 속도 특성이 도달 시간을 줄이지 않는다")
 
 -- 7. 후반 해금 순서: 담배 자동 투척 → 그 다음 노드가 폭죽 해금.
-assert(nodeOf("fire_score_autothrow").requires[1][1] == "fire_score_stock",
-    "담배 자동 투척이 담배 갈래 끝에 붙어 있지 않다")
+assert(nodeOf("fire_score_alwayssmoke").requires[1][1] == "fire_score_stock",
+    "상시 흡연이 담배 갈래 끝에 붙어 있지 않다")
+assert(nodeOf("fire_score_autothrow").requires[1][1] == "fire_score_alwayssmoke",
+    "담배 자동 투척이 상시 흡연 다음 노드가 아니다")
 assert(nodeOf("fire_score_rocket_unlock").requires[1][1] == "fire_score_autothrow",
     "폭죽 해금이 담배 자동 투척 다음 노드가 아니다")
 for _, id in ipairs({"fire_score_rocket_radius", "fire_score_rocket_damage"}) do
@@ -154,6 +156,15 @@ local swap = ClearcutMode.new()
 swap.scoreAttack, swap.sandbox, swap.job, swap.mapId = true, true, "fire", "forest"
 local swapGame = axeGame({tree(120)})
 swap.scoreWeaponSlot = 1
+swap:updateHeldAxe(0, swapGame, false)
+-- 기본은 담배를 들어야만 피운다. 도끼를 들면 재장전이 멈춰 있어야 한다.
+local stalled = swap.smoking.t
+swap:setScoreWeaponSlot(2, swapGame)
+for _ = 1, 200 do swap:updateHeldAxe(1 / 60, swapGame, false) end
+assert(swap.smoking.phase == "reload" and swap.smoking.t == stalled,
+    "상시 흡연 특성 없이도 다른 무기를 든 채 담배가 재장전된다")
+swap.permanentTraits.scoreAlwaysSmoking = 1
+swap:setScoreWeaponSlot(1, swapGame)
 swap:updateHeldAxe(0, swapGame, false)
 assert(swap.smoking and swap.smoking.phase == "reload", "담배를 들었는데 재장전이 시작되지 않았다")
 swap:setScoreWeaponSlot(2, swapGame)

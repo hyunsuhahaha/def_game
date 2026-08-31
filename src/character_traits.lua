@@ -222,7 +222,11 @@ local scoreFireNodes={
     -- 담배 갈래의 종착점. 여기서부터 손이 비고, 그 빈손이 폭죽 해금으로 이어진다.
     -- 자동 투척 루프 자체는 updateFire에 이미 있고(캠페인의 molotov 레벨용), 이 노드가
     -- 기록 모드에서 그 루프를 깨운다.
-    {id="fire_score_autothrow",name="담배 자동 투척",short="자동 투척",desc="어떤 무기를 들고 있든 2.6초마다 꽁초가 자동으로 날아갑니다. 담배를 직접 들면 수동 투척이 그 위에 더해집니다.",effect="scoreAutoThrow",value=1,max=1,costs={240},wx=2020,wy=900,icon="cigarette",color={1,.46,.14},requires={{"fire_score_stock",1}},capstone=true},
+    -- 기본 흡연자는 담배를 손에 들어야만 한 모금 빨고 던진다. 다른 무기를 들면
+    -- 재장전이 멈추므로, 슬롯을 바꿔 던지려면 매번 기다려야 한다. 이 특성을 찍으면
+    -- 무엇을 들고 있든 계속 피우고 있어서 바꾸는 즉시 던질 수 있다.
+    {id="fire_score_alwayssmoke",name="상시 흡연",short="상시 흡연",desc="다른 무기를 들고 있어도 계속 담배를 피웁니다. 담배로 바꾼 즉시 던질 수 있습니다.",effect="scoreAlwaysSmoking",value=1,max=1,costs={200},wx=2020,wy=760,icon="cigarette",color={.94,.72,.36},requires={{"fire_score_stock",1}},capstone=true},
+    {id="fire_score_autothrow",name="담배 자동 투척",short="자동 투척",desc="어떤 무기를 들고 있든 2.6초마다 꽁초가 자동으로 날아갑니다. 담배를 직접 들면 수동 투척이 그 위에 더해집니다.",effect="scoreAutoThrow",value=1,max=1,costs={240},wx=2020,wy=900,icon="cigarette",color={1,.46,.14},requires={{"fire_score_alwayssmoke",1}},capstone=true},
     {id="fire_score_rocket_unlock",name="폭죽 로켓 해금",short="폭죽 해금",desc="3번 무기 슬롯에 폭죽 로켓이 열립니다. 담배가 알아서 날아가는 동안 손으로 쏘는 원거리 광역 무기입니다.",effect="scoreRocketUnlock",value=1,max=1,costs={260},wx=1150,wy=1250,icon="blast",color={1,.34,.10},requires={{"fire_score_autothrow",1}},capstone=true},
     {id="fire_score_rocket_radius",name="폭죽 폭발 반경 상승",short="폭발 반경",desc="폭죽 로켓의 폭발 반경 +16",effect="scoreRocketRadius",value=16,max=5,wx=1700,wy=1300,icon="blast",color={1,.52,.18},requires={{"fire_score_rocket_unlock",1}}},
     {id="fire_score_rocket_damage",name="폭죽 폭발 피해 상승",short="폭발 피해",desc="폭죽 폭발이 나무에 주는 피해 +2",effect="scoreRocketDamage",value=2,max=5,wx=2050,wy=1350,icon="ember",color={1,.38,.14},requires={{"fire_score_rocket_unlock",1}}},
@@ -551,7 +555,7 @@ function CharacterTraits:scoreAttackEffects()
         scoreTreeDamage=0,
         scoreAxeArea=0,scoreAxeSpeed=0,scoreAxeTargets=0,scoreAxeExecute=0,
         scoreRocketRadius=0,scoreRocketDamage=0,scoreRocketSpeed=0,scoreRocketIgnite=0,scoreRocketCooldown=0,
-        scoreAutoThrow=0,scoreRocketUnlock=0
+        scoreAutoThrow=0,scoreRocketUnlock=0,scoreAlwaysSmoking=0
     }
     for _,job in ipairs({"fire","universal"})do
         for _,node in ipairs(self:getScoreAttackNodes(job))do

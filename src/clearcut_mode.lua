@@ -2731,11 +2731,14 @@ function ClearcutMode:berserkerSpeedMult()
     return 1 + self:power("berserker") * .07 * math.min(self.streak, 14)
 end
 
--- 담배는 인벤토리에서 잠깐 바꿔 들고 휙 던지는 무기다. 다른 무기를 들고 있는 동안에도
--- 재장전이 흘러야 슬롯을 바꾼 순간 바로 던지고 도끼로 돌아올 수 있다. 예전에는 도끼를
--- 드는 순간 담배 재장전이 멈춰서, 바꿀 때마다 1초 넘게 기다린 뒤에야 던질 수 있었다.
+-- `상시 흡연`을 찍으면 다른 무기를 들고 있는 동안에도 담배 재장전이 흐른다. 그래야
+-- 슬롯을 바꾼 순간 바로 던지고 도끼로 돌아올 수 있다. 찍기 전에는 도끼를 드는 순간
+-- 재장전이 멈추므로, 바꿀 때마다 한 모금 빨 시간을 기다려야 한다.
 -- 손은 도끼질 중이므로 플레이어 애니메이션은 건드리지 않는다.
 function ClearcutMode:tickSmokerReload(dt, game)
+    -- 기본은 담배를 손에 들어야만 피운다. `상시 흡연`을 찍어야 무엇을 들고 있든
+    -- 계속 피우고 있어서, 슬롯을 바꾼 즉시 던질 수 있다.
+    if (self.permanentTraits.scoreAlwaysSmoking or 0)<=0 then return end
     local smoking=self.smoking
     if not smoking or smoking.phase~="reload" then return end
     smoking.t=math.min(smoking.dur,smoking.t+dt)

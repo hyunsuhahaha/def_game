@@ -120,7 +120,7 @@ function CharacterTraitBoard.new(store, fonts, sprites)
         tabBoxes={}, nodeBoxes={}, nodeHover={}, particles={}, time=0,
         message="", messageTime=0, messageKind="ok", unlockFx=nil,
         selectedNodeId=first and first.id or"fire_score_prewarm", blockedNode=nil, blockedTime=0, tabPulse=0,
-        canvasW=2200,canvasH=2400,panX=1100,panY=920,zoom=.80,referenceZoom=.80,panVX=0,panVY=0,drag=nil,viewport=nil,viewInitialized=false,crispFonts={},
+        canvasW=2200,canvasH=2650,panX=1100,panY=920,zoom=.80,referenceZoom=.80,panVX=0,panVY=0,drag=nil,viewport=nil,viewInitialized=false,crispFonts={},
         minimapBox=nil,resetViewBox=nil
     }, CharacterTraitBoard)
 end
@@ -299,10 +299,11 @@ function CharacterTraitBoard:nodeWorld(node)
         fire_score_edge={400,1100},
         fire_score_axe_area={400,1350},fire_score_axe_speed={750,1350},
         fire_score_axe_targets={400,1600},fire_score_axe_execute={750,1600},
-        fire_score_autothrow={1100,1600},fire_score_rocket_unlock={1100,1850},
-        fire_score_rocket_radius={400,2100},fire_score_rocket_damage={750,2100},
-        fire_score_rocket_speed={1100,2100},fire_score_rocket_ignite={1450,2100},
-        fire_score_rocket_cooldown={1800,2100},
+        fire_score_alwayssmoke={1100,1600},fire_score_autothrow={1100,1850},
+        fire_score_rocket_unlock={1100,2100},
+        fire_score_rocket_radius={400,2350},fire_score_rocket_damage={750,2350},
+        fire_score_rocket_speed={1100,2350},fire_score_rocket_ignite={1450,2350},
+        fire_score_rocket_cooldown={1800,2350},
         universal_yard={700,850},universal_robot_start={1100,850},universal_robot_motor={1500,850},
         universal_mole_companion={1100,1100},
         universal_mole_damage={700,1320},universal_mole_claw={500,1570},universal_mole_dual={500,1820},
