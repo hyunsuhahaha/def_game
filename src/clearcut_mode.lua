@@ -577,12 +577,14 @@ end
 -- 도끼 몇 번(스킬 몇 개만 찍어도 한 방)이면 쓰러졌다 — 굵고 단단해 보이는 나무는 실제로도
 -- 더 오래 버티도록 종류별로 나눴다. 순서는 world.lua/clearcut_maps.lua의 variant 그림 순서와 맞춘다.
 -- 초반에 나무가 너무 순식간에 쓰러져 긴장감이 없다는 피드백으로 전반적으로 상향
--- (기존 대비 약 1.6~2배).
+-- (기존 대비 약 1.6~2배). 2026-08-31 다시 1.75배 상향 — 나무가 여전히 가벼웠다.
+-- 주의: 불로 태워 쓰러뜨리는 경로는 burnDuration만 보고 체력을 전혀 읽지 않는다.
+-- 따라서 이 표를 올리면 도끼·폭죽·두더지만 느려지고 흡연 빌드는 영향받지 않는다.
 local treeHpByMapVariant = {
-    forest = {7, 5, 4, 9},      -- 활엽수, 소나무, 자작나무, 단풍나무
-    mangrove = {9, 7, 4},       -- 맹그로브, 아비케니아, 니파야자
-    madagascar = {14, 7, 4},    -- 바오밥(굵은 몸통), 타마린드, 코미포라
-    island = {5, 7, 7},         -- 야자, 씨아몬드, 판다누스
+    forest = {12, 9, 7, 16},    -- 활엽수, 소나무, 자작나무, 단풍나무
+    mangrove = {16, 12, 7},     -- 맹그로브, 아비케니아, 니파야자
+    madagascar = {25, 12, 7},   -- 바오밥(굵은 몸통), 타마린드, 코미포라
+    island = {9, 12, 12},       -- 야자, 씨아몬드, 판다누스
 }
 local function treeHpFor(mapId, variant)
     local list = treeHpByMapVariant[mapId] or treeHpByMapVariant.forest
