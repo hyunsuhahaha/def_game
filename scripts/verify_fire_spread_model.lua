@@ -91,4 +91,44 @@ mode:beginTreeBurn(ignited, 0)
 assert(ignited.burning and ignited.spreadBudget ~= nil and ignited.spreadDone == 0,
     "beginTreeBurn이 확산 예산을 초기화하지 않았다")
 
-print(string.format("FIRE_SPREAD_MODEL_OK base=%.2f maxed=%.2f burn_speed_independent", base, maxedFactor))
+-- 8. 불은 지속 피해다. 연소 시간 안에 체력을 다 깎지 못하면 나무는 쓰러지지 않는다.
+local function burnUntilSettled(hp, burnSpeed)
+    local burner = ClearcutMode.new()
+    burner.scoreAttack, burner.sandbox, burner.job, burner.mapId = true, true, "fire", "forest"
+    burner.permanentTraits.burnSpeed = burnSpeed or 1
+    local node = {kind = "tree", rushTree = true, active = true, x = 0, y = 0, rushHp = hp, rushMaxHp = hp}
+    local felled = false
+    local burnGame = {
+        player = {x = 0, y = 0}, world = {nodes = {node}, igniteFx = function() end, impactNode = function() end},
+        setNotice = function() end,
+    }
+    burner.fellTree = function(_, target) felled = true; target.active = false; return true end
+    burner:beginTreeBurn(node, 0)
+    for _ = 1, 600 do
+        if not node.burning then break end
+        burner:updateFire(1 / 60, burnGame)
+    end
+    return felled, node
+end
+
+-- 기본 총 피해 3.5 x 3.6 = 12.6. 흔한 수종은 넘어가고 굵은 수종은 살아남는다.
+local fellsCommon = burnUntilSettled(12)
+assert(fellsCommon, "기본 불이 흔한 수종(활엽수 12)을 넘기지 못한다")
+local fellsThick, survivor = burnUntilSettled(25)
+assert(not fellsThick, "불이 아직 체력을 무시하고 굵은 나무(바오밥 25)를 넘긴다")
+assert(survivor.rushHp > 0 and survivor.rushHp < 25 and not survivor.burning,
+    "살아남은 나무가 그을린 채로 남지 않았다")
+
+-- `연소속도`는 타격 주기를 줄여 연소 시간 안의 타격 횟수를 늘린다. 예전처럼 연소
+-- 시간 자체를 줄이면 총 피해가 오히려 줄어 특성이 자기 발등을 찍었다.
+local function burnTotal(burnSpeed)
+    local _, node = burnUntilSettled(9999, burnSpeed)
+    return 9999 - node.rushHp
+end
+assert(burnTotal(1) == 12, "기본 연소가 1초마다 4피해 x 3회가 아니다")
+assert(burnTotal(1.36) == 16, "연소속도 만렙이 타격 횟수를 4회로 늘리지 않는다")
+assert(burnTotal(2.09) == 28, "연소속도 만렙 + 런 카드가 타격 횟수를 7회로 늘리지 않는다")
+assert(burnTotal(1.36) > burnTotal(1), "연소속도를 올렸는데 총 피해가 늘지 않는다")
+assert(burnUntilSettled(25, 2.09), "연소속도를 끝까지 올려도 바오밥(25)을 넘기지 못한다")
+
+print(string.format("FIRE_SPREAD_MODEL_OK base=%.2f maxed=%.2f burn_speed_independent dot=hp_aware", base, maxedFactor))

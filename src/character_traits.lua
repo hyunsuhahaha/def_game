@@ -199,7 +199,7 @@ local scoreFireNodes={
     -- 확실히 넘겨 산불이 스스로 번지게 한다.
     {id="fire_score_ash",name="마른 재 흩뿌리기",short="확산량",desc="불붙은 나무가 옮겨붙이는 기대 그루 +0.17 (만렙 1.45그루 — 1.00을 넘으면 산불이 스스로 번집니다)",effect="scoreSpreadChance",value=.047,max=6,costs={18,32,50,74,104,142},wx=1080,wy=940,icon="ash",color={.72,.52,.36},requires={{"fire_score_lighter",2}}},
     {id="fire_score_drag",name="한 모금만 피우기",short="공격속도",desc="담배·도끼·폭죽 3무기의 공격속도 +4%",effect="scoreAttackSpeed",value=.04,max=6,costs={18,32,50,74,104,142},wx=1430,wy=470,icon="clock",color={.78,.76,.67},requires={{"fire_score_launch",2}}},
-    {id="fire_score_heat",name="송진 묻은 불씨",short="연소 속도",desc="불붙은 나무의 연소 속도 +6%",effect="scoreBurnSpeed",value=.06,max=6,costs={18,32,50,74,104,142},wx=1430,wy=820,icon="warning",color={1,.34,.08},requires={{"fire_score_prewarm",1}}},
+    {id="fire_score_heat",name="송진 묻은 불씨",short="연소 속도",desc="불이 나무를 태우는 주기 6% 단축 (기본 1초마다 4피해, 연소 3.6초)",effect="scoreBurnSpeed",value=.06,max=6,costs={18,32,50,74,104,142},wx=1430,wy=820,icon="warning",color={1,.34,.08},requires={{"fire_score_prewarm",1}}},
     {id="fire_score_stock",name="주머니 속 마지막 한 개비",short="추가 꽁초",desc="투척할 때 추가 꽁초 +1",effect="scoreExtraFires",value=1,max=1,costs={180},wx=1780,wy=650,icon="pack",color={1,.30,.08},requires={{"fire_score_heat",3}},capstone=true},
 
     -- 무기 슬롯 3종(담배·도끼·폭죽) 공용 갈래. 도끼는 3+treeDamage, 폭죽은

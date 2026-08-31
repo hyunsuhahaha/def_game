@@ -12,7 +12,7 @@ ScoreOperations.definitions = {
     {id="score_attack_speed",track="fire",name="공격속도 상승",desc="담배를 피우고 튕기는 전체 동작이 단계마다 18% 빨라집니다.",max=3,color={.92,.48,.24},scoreOperation=true},
     {id="score_extra_butts",track="fire",name="추가 꽁초 투척",desc="클릭 한 번마다 단계 수만큼 추가 꽁초를 함께 투척합니다.",max=3,color={1,.66,.20},scoreOperation=true},
     {id="score_ignition_radius",track="fire",name="착화 범위 상승",desc="꽁초의 착화 범위가 단계마다 24 증가합니다.",max=3,color={1,.48,.14},scoreOperation=true},
-    {id="score_burn_speed",track="fire",name="연소속도 상승",desc="나무가 타는 속도가 단계마다 18% 빨라집니다.",max=3,color={1,.30,.12},scoreOperation=true},
+    {id="score_burn_speed",track="fire",name="연소속도 상승",desc="불이 나무를 태우는 주기가 단계마다 18% 짧아집니다. 기본은 1초마다 4피해이며, 연소 시간(3.6초) 안에 체력을 다 깎지 못하면 나무는 쓰러지지 않습니다.",max=3,color={1,.30,.12},scoreOperation=true},
 }
 
 local byId={}

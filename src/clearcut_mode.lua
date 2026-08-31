@@ -354,6 +354,20 @@ local levelCurve = {0, .5, 1.2, 2.0, 3.0, 4.2, 5.6}
 -- 이제 확산은 점화 시점에 "이 나무가 옮겨붙일 나무 수"를 확정하고 연소 구간에 균등
 -- 배치한다. 연소속도는 회전율에만 영향을 주고 연쇄 규모는 건드리지 않는다.
 local SPREAD_REFERENCE_BURN = 3.6
+
+-- 불은 정해진 시간 동안 일정 주기로 피해를 넣는 지속 피해다. `연소속도`는 그 주기를
+-- 짧게 만든다(1초 -> 0.9초 -> ...). 연소 시간은 고정이므로 주기가 짧아질수록 창 안에
+-- 들어가는 타격 횟수가 늘어난다.
+--   기본: 3.6초 동안 1초마다 4 -> 3회 12피해. 활엽수 12/소나무 9/자작 7은 넘어가고
+--         단풍 16과 바오밥 25는 그을린 채 살아남는다.
+--   연소속도 만렙(x1.36): 주기 0.74초 -> 4회 16피해 -> 단풍까지 넘어간다.
+--   + 런 카드까지(x2.09): 주기 0.48초 -> 7회 28피해 -> 바오밥까지 넘어간다.
+local BURN_WINDOW = 3.6
+local BURN_TICK_INTERVAL = 1
+local BURN_TICK_DAMAGE = 4
+ClearcutMode.BURN_WINDOW = BURN_WINDOW
+ClearcutMode.BURN_TICK_INTERVAL = BURN_TICK_INTERVAL
+ClearcutMode.BURN_TICK_DAMAGE = BURN_TICK_DAMAGE
 ClearcutMode.SPREAD_REFERENCE_BURN = SPREAD_REFERENCE_BURN
 
 function ClearcutMode:power(id)
@@ -2221,7 +2235,7 @@ end
 function ClearcutMode:beginTreeBurn(node, depth)
     node.burning, node.burnTimer, node.fireTickTimer = true, 0, 0
     node.spreadDepth = depth or 0
-    node.spreadBudget, node.spreadDone = self:rollSpreadBudget(), 0
+    node.spreadBudget, node.spreadDone, node.burnDamageTimer = self:rollSpreadBudget(), 0, nil
 end
 
 -- 확정된 확산 예산을 연소 구간에 균등 배치한다. 예산 n은 연소의 1/(n+1), 2/(n+1) …
@@ -2461,8 +2475,12 @@ function ClearcutMode:updateFire(dt, game)
     local dryLevel = self:levelOf("dry_forest")
     local dryPower = self:power("dry_forest")
     local spreadRadius = (130 + dryPower * 45) * Synergies.ignitionRadiusMultiplier(self)
-    local burnDuration = math.max(2.2, (3.6 - dryPower * .35) /
-        (self.permanentTraits.burnSpeed*ScoreOperations.burnSpeedMultiplier(self)))
+    -- 연소 시간이 끝날 때까지 체력을 다 깎지 못하면 나무는 쓰러지지 않고 불만 꺼진다.
+    -- 연소 시간은 고정하고 `연소속도`는 타격 주기를 줄인다 — 연소 시간 자체를 줄이는
+    -- 방식이면 특성을 살수록 총 피해가 오히려 줄어 자기 발등을 찍는다.
+    local burnDuration = BURN_WINDOW
+    local burnTickInterval = BURN_TICK_INTERVAL
+        / (self.permanentTraits.burnSpeed * ScoreOperations.burnSpeedMultiplier(self))
     self:updateStrawBales(dt, game)
     self:updateOilTrail(dt, game)
     self:updateSecondhandSmoke(dt, game)
@@ -2488,10 +2506,29 @@ function ClearcutMode:updateFire(dt, game)
                 self:damageEnemiesInRadius(node.x, node.y, 75, 3 * falloff, game)
                 self:igniteEnemiesInRadius(node.x, node.y, 75, game, node.spreadDepth)
             end
-            if node.burnTimer >= burnDuration then
+            node.burnDamageTimer = (node.burnDamageTimer or burnTickInterval) - dt
+            if node.burnDamageTimer <= 0 then
+                node.burnDamageTimer = node.burnDamageTimer + burnTickInterval
+                node.rushHp = (node.rushHp or node.rushMaxHp or 1) - BURN_TICK_DAMAGE
+                -- 한 번 씹을 때마다 눈에 보이게. 몇 번 더 타야 넘어가는지 읽혀야 한다.
+                node.hitFlash = math.max(node.hitFlash or 0, .14)
+            end
+            if node.rushHp <= 0 then
                 node.burning = false
+                -- 예정된 확산을 다 내보내기 전에 나무가 먼저 타 없어질 수 있다. 남은
+                -- 몫을 여기서 털어야 "확산량 = 옮겨붙일 기대 그루"가 체력과 무관해진다.
+                local pending = (node.spreadBudget or 0) - (node.spreadDone or 0)
+                if pending > 0 then
+                    node.spreadDone = node.spreadBudget
+                    self:igniteNear(node, game, spreadRadius, pending)
+                end
                 self:onTreeBurnedDown(node, game)
                 self:fellTree(node, game)
+            elseif node.burnTimer >= burnDuration then
+                -- 다 탔는데 아직 살아 있다. 그을린 채로 남고, 다시 불을 붙이거나
+                -- 도끼로 마무리해야 한다.
+                node.burning, node.burnTimer, node.fireTickTimer = false, nil, nil
+                node.spreadBudget, node.spreadDone, node.burnDamageTimer = nil, nil, nil
             elseif self:releaseSpread(node, burnDuration) then
                 self:igniteNear(node, game, spreadRadius, 1)
             end
