@@ -529,6 +529,11 @@ function ClearcutMode:setup(game)
         self.permanentTraits.attackSpeed=(self.permanentTraits.attackSpeed or 1)*(1+(self.permanentTraits.scoreAttackSpeed or 0))
         self.permanentTraits.burnSpeed=(self.permanentTraits.burnSpeed or 1)*(1+(self.permanentTraits.scoreBurnSpeed or 0))
         self.permanentTraits.extraFires=(self.permanentTraits.extraFires or 0)+math.floor(self.permanentTraits.scoreExtraFires or 0)
+        -- 무기 슬롯 공용/도끼 수치. 도끼·폭죽 피해는 treeDamage를 읽으므로 여기서 합치고,
+        -- 도끼 전용 범위/공속/폭죽 수치는 각 공격 함수가 permanentTraits에서 직접 읽는다.
+        self.permanentTraits.treeDamage=(self.permanentTraits.treeDamage or 0)+(self.permanentTraits.scoreTreeDamage or 0)
+        self.permanentTraits.extraTargets=(self.permanentTraits.extraTargets or 0)+math.floor(self.permanentTraits.scoreAxeTargets or 0)
+        self.permanentTraits.executeChance=(self.permanentTraits.executeChance or 0)+(self.permanentTraits.scoreAxeExecute or 0)
         self.permanentTraits.cigaretteProjectileSpeed=1+(self.permanentTraits.scoreProjectileSpeed or 0)
         self.levels.baby_robot=math.max(self:levelOf("baby_robot"),math.floor(self.permanentTraits.scoreStartingBabyRobot or 0))
         self:applySmokerEvolution(game)
@@ -2722,31 +2727,44 @@ function ClearcutMode:updateScoreAxeAttack(dt,game,heldOverride)
     local held=heldOverride
     if held==nil then held=love.mouse.isDown(1)end
     local range=190+self.permanentTraits.range
+    -- 도끼 범위는 담배용 착화 범위(area)를 ×0.2로 얻어 쓰던 것을 전용 수치로 분리했다.
+    local axeArea=self.permanentTraits.scoreAxeArea or 0
     local tx,ty=self:aimPoint(game,range)
-    self.aimX,self.aimY,self.aimRadius=tx,ty,54+self.permanentTraits.area*.2
+    self.aimX,self.aimY,self.aimRadius=tx,ty,54+axeArea
     game.player.facing=tx<game.player.x and -1 or 1
     game.player.axeHolding=held
     self.axeCooldown=math.max(0,(self.axeCooldown or 0)-dt)
     if not held or self.axeCooldown>0 then return false end
-    local target,bestDistance
+    local reach=82+axeArea
+    local candidates={}
     for _,node in ipairs(game.world.nodes)do if node.rushTree and node.active then
         local playerDistance=(node.x-game.player.x)^2+(node.y-game.player.y)^2
         local aimDistance=(node.x-tx)^2+(node.y-ty)^2
-        if playerDistance<=range*range and aimDistance<=(82+self.permanentTraits.area*.2)^2 and(not bestDistance or aimDistance<bestDistance)then
-            target,bestDistance=node,aimDistance
+        if playerDistance<=range*range and aimDistance<=reach*reach then
+            candidates[#candidates+1]={node=node,d=aimDistance}
         end
     end end
-    if not target then target=self:closestTreeInAxeRange(game)end
-    if not target then return false end
+    table.sort(candidates,function(a,b)return a.d<b.d end)
+    local targets={}
+    for i=1,math.min(#candidates,1+math.floor(self.permanentTraits.extraTargets or 0))do targets[i]=candidates[i].node end
+    if #targets==0 then targets[1]=self:closestTreeInAxeRange(game)end
+    if not targets[1] then return false end
+    local primary=targets[1]
     game.player:cancelInteraction()
-    game.player:playAutoAxeSwing(target.x)
+    game.player:playAutoAxeSwing(primary.x)
     local damage=3+(self.permanentTraits.treeDamage or 0)
-    self:damageTreeWithSmokerWeapon(target,damage,game)
-    self:damageEnemiesInRadius(target.x,target.y,62+self.permanentTraits.area*.2,14+damage*2,game)
-    self.traitFx:emit("axe",target.x,target.y,{radius=66,power=1,particles=12})
+    local executeChance=self.permanentTraits.executeChance or 0
+    for _,node in ipairs(targets)do
+        -- 밑동 절단은 체력을 0으로 만들어 같은 타격 판정에서 쓰러지게 한다.
+        if executeChance>0 and node.rushHp and love.math.random()<executeChance then node.rushHp=1 end
+        self:damageTreeWithSmokerWeapon(node,damage,game)
+        self:damageEnemiesInRadius(node.x,node.y,62+axeArea,14+damage*2,game)
+        self.traitFx:emit("axe",node.x,node.y,{radius=66,power=1,particles=12})
+    end
+    self.maxMulti=math.max(self.maxMulti or 0,#targets)
     self.actionAudit.scoreAxe=(self.actionAudit.scoreAxe or 0)+1
     local speed=(game.tools.axe.speed or 1)*game.player.gather*self.permanentTraits.attackSpeed
-    self.axeCooldown=.62/speed
+    self.axeCooldown=.62/(speed*(1+(self.permanentTraits.scoreAxeSpeed or 0)))
     return true
 end
 
@@ -2846,19 +2864,23 @@ end
 
 function ClearcutMode:updateFireworkAttack(dt,game,held)
     self.smokerWeaponCooldown=math.max(0,(self.smokerWeaponCooldown or 0)-dt)
+    -- 폭발 반경은 담배용 착화 범위(area)를 ×0.3으로 얻어 쓰던 것을 전용 수치로 분리했다.
+    local blastRadius=self.permanentTraits.scoreRocketRadius or 0
     local tx,ty,nx,ny=smokerAim(self,game,720+self.permanentTraits.range)
-    self.aimX,self.aimY,self.aimRadius=tx,ty,178+self.permanentTraits.area*.3
+    self.aimX,self.aimY,self.aimRadius=tx,ty,178+blastRadius
     if not held or self.smokerWeaponCooldown>0 then return false end
     game.player.facing=nx<0 and -1 or 1
     local x0,y0=game.player.x+nx*46,game.player.y-64+ny*8
-    local distance=math.sqrt((tx-x0)^2+(ty-y0)^2);local dur=math.max(.38,distance/820)
+    local flightSpeed=820*(1+(self.permanentTraits.scoreRocketSpeed or 0))
+    local distance=math.sqrt((tx-x0)^2+(ty-y0)^2);local dur=math.max(.38,distance/flightSpeed)
     self.smokerWeaponProjectiles[#self.smokerWeaponProjectiles+1]={
         kind="firework",x=x0,y=y0,x0=x0,y0=y0,x1=tx,y1=ty,t=0,age=0,dur=dur,
-        angle=(math.atan2 and math.atan2(ny,nx) or math.atan(ny/nx)),radius=180+self.permanentTraits.area*.3,
-        damage=8+self.permanentTraits.treeDamage*1.1
+        angle=(math.atan2 and math.atan2(ny,nx) or math.atan(ny/nx)),radius=180+blastRadius,
+        damage=8+self.permanentTraits.treeDamage*1.1+(self.permanentTraits.scoreRocketDamage or 0)
     }
     self.actionAudit.fireworkShot=(self.actionAudit.fireworkShot or 0)+1
-    self.smokerWeaponCooldown=.86*Synergies.cooldownMultiplier(self)/((game.tools.axe.speed or 1)*game.player.gather*self.permanentTraits.attackSpeed)
+    self.smokerWeaponCooldown=.86*Synergies.cooldownMultiplier(self)
+        /((game.tools.axe.speed or 1)*game.player.gather*self.permanentTraits.attackSpeed*(1+(self.permanentTraits.scoreRocketCooldown or 0)))
     return true
 end
 
@@ -2866,7 +2888,7 @@ function ClearcutMode:detonateFirework(projectile,game)
     local radius=projectile.radius;local felled=0
     for _,node in ipairs(game.world.nodes)do if node.rushTree and node.active and CombatGeometry.circleOverlapsTarget(projectile.x1,projectile.y1,radius,node,24)then
         if self:damageTreeWithSmokerWeapon(node,projectile.damage,game)then felled=felled+1
-        elseif not self.rainSuppressFire and love.math.random()<.38 then self:beginTreeBurn(node,0) end
+        elseif not self.rainSuppressFire and love.math.random()<.38+(self.permanentTraits.scoreRocketIgnite or 0) then self:beginTreeBurn(node,0) end
     end end
     for _,enemy in ipairs(self.enemies)do if enemy.hp>0 and CombatGeometry.circleOverlapsTarget(projectile.x1,projectile.y1,radius,enemy)then
         enemy.hp=enemy.hp-(28+projectile.damage*1.5);enemy.visualHit=.18

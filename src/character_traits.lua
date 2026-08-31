@@ -190,7 +190,7 @@ expand("fire",{
 -- 일반 흡연자 연구는 삭제하지 않고 저장 호환을 위해 위에 그대로 보존한다.
 local scoreFireNodes={
     {id="fire_score_prewarm",name="출근 전 라이터 예열",short="첫 불씨 단축",desc="벌목 기록 모드 최초 흡연 준비시간 -0.08초",effect="scoreInitialIgnitionReduction",value=.08,wx=390,wy=710,icon="ember",color={1,.48,.12}},
-    {id="fire_score_filter",name="긴 필터 밀어 던지기",short="투척 거리",desc="꽁초 투척 사거리 +16",effect="scoreRange",value=16,max=6,costs={18,32,50,74,104,142},wx=730,wy=520,icon="filter",color={.88,.66,.32},requires={{"fire_score_prewarm",1}}},
+    {id="fire_score_filter",name="긴 필터 밀어 던지기",short="무기 사거리",desc="담배·도끼·폭죽 3무기의 사거리 +16",effect="scoreRange",value=16,max=6,costs={18,32,50,74,104,142},wx=730,wy=520,icon="filter",color={.88,.66,.32},requires={{"fire_score_prewarm",1}}},
     {id="fire_score_lighter",name="불씨 반경 넓히기",short="착화 범위",desc="꽁초가 불씨를 옮기는 착화 반경 +12",effect="scoreArea",value=12,max=6,costs={18,32,50,74,104,142},wx=730,wy=900,icon="ember",color={.96,.43,.16},requires={{"fire_score_prewarm",1}}},
     {id="fire_score_spark",name="심지 끝까지 달구기",short="착화 확률",desc="꽁초의 착화 성공 확률 +1.2%p",effect="scoreIgnitionChance",value=.012,wx=1080,wy=380,icon="ember",color={1,.56,.16},requires={{"fire_score_filter",2}}},
     {id="fire_score_launch",name="손가락 튕기기 연습",short="비행 속도",desc="꽁초 비행 속도 +7%",effect="scoreProjectileSpeed",value=.07,wx=1080,wy=650,icon="wind",color={.82,.72,.42},requires={{"fire_score_prewarm",1}}},
@@ -198,9 +198,29 @@ local scoreFireNodes={
     -- 기대 그루 수"로 쓴다. 0레벨 0.43그루 → 6레벨 1.45그루로, 만렙이 임계점 1.00을
     -- 확실히 넘겨 산불이 스스로 번지게 한다.
     {id="fire_score_ash",name="마른 재 흩뿌리기",short="확산량",desc="불붙은 나무가 옮겨붙이는 기대 그루 +0.17 (만렙 1.45그루 — 1.00을 넘으면 산불이 스스로 번집니다)",effect="scoreSpreadChance",value=.047,max=6,costs={18,32,50,74,104,142},wx=1080,wy=940,icon="ash",color={.72,.52,.36},requires={{"fire_score_lighter",2}}},
-    {id="fire_score_drag",name="한 모금만 피우기",short="흡연 속도",desc="흡연·재장전 속도 +4%",effect="scoreAttackSpeed",value=.04,max=6,costs={18,32,50,74,104,142},wx=1430,wy=470,icon="clock",color={.78,.76,.67},requires={{"fire_score_launch",2}}},
+    {id="fire_score_drag",name="한 모금만 피우기",short="공격속도",desc="담배·도끼·폭죽 3무기의 공격속도 +4%",effect="scoreAttackSpeed",value=.04,max=6,costs={18,32,50,74,104,142},wx=1430,wy=470,icon="clock",color={.78,.76,.67},requires={{"fire_score_launch",2}}},
     {id="fire_score_heat",name="송진 묻은 불씨",short="연소 속도",desc="불붙은 나무의 연소 속도 +6%",effect="scoreBurnSpeed",value=.06,max=6,costs={18,32,50,74,104,142},wx=1430,wy=820,icon="warning",color={1,.34,.08},requires={{"fire_score_prewarm",1}}},
     {id="fire_score_stock",name="주머니 속 마지막 한 개비",short="추가 꽁초",desc="투척할 때 추가 꽁초 +1",effect="scoreExtraFires",value=1,max=1,costs={180},wx=1780,wy=650,icon="pack",color={1,.30,.08},requires={{"fire_score_heat",3}},capstone=true},
+
+    -- 무기 슬롯 3종(담배·도끼·폭죽) 공용 갈래. 도끼는 3+treeDamage, 폭죽은
+    -- 8+treeDamage*1.1로 피해를 계산하는데 기록 모드에는 treeDamage 노드가 하나도
+    -- 없어서 두 무기의 주력 수치가 영구히 고정돼 있었다. 여기가 그 성장 경로다.
+    {id="fire_score_edge",name="나무 피해 상승",short="무기 피해",desc="도끼·폭죽이 나무에 주는 피해 +1 (담배는 불로 태우므로 영향 없음)",effect="scoreTreeDamage",value=1,max=5,costs={26,46,72,104,142},wx=390,wy=1120,icon="fist",color={.86,.62,.34},requires={{"fire_score_prewarm",1}}},
+
+    -- 도끼 갈래. 이전에는 담배용 착화 범위(scoreArea)를 ×0.2로 얻어 쓰고 있어서
+    -- 담배 특성을 사야 도끼가 자라는 기묘한 의존이 있었다. 전용 수치로 분리한다.
+    {id="fire_score_axe_area",name="도끼 타격 범위 상승",short="도끼 범위",desc="도끼의 조준 포착 범위와 주변 타격 범위 +9",effect="scoreAxeArea",value=9,max=5,wx=730,wy=1320,icon="split",color={.72,.76,.80},requires={{"fire_score_edge",1}}},
+    {id="fire_score_axe_speed",name="도끼 공격속도 상승",short="도끼 공속",desc="도끼 연속 타격 속도 +7%",effect="scoreAxeSpeed",value=.07,max=5,wx=730,wy=1640,icon="clock",color={.90,.72,.36},requires={{"fire_score_edge",1}}},
+    {id="fire_score_axe_targets",name="도끼 동시 타격 나무 +1",short="동시 타격",desc="한 번의 도끼질이 조준 범위 안의 나무를 단계마다 1그루 더 때립니다",effect="scoreAxeTargets",value=1,max=2,costs={96,158},wx=380,wy=1470,icon="axe",color={.82,.52,.28},requires={{"fire_score_axe_area",3}}},
+    {id="fire_score_axe_execute",name="도끼 밑동 절단 확률 상승",short="즉시 벌목",desc="도끼 타격이 단계마다 3% 확률로 나무를 체력과 무관하게 즉시 쓰러뜨립니다",effect="scoreAxeExecute",value=.03,max=4,costs={54,84,120,164},wx=380,wy=1790,icon="stump",color={.76,.33,.20},requires={{"fire_score_axe_speed",3}}},
+
+    -- 폭죽 갈래. 폭발 반경도 담배용 scoreArea를 ×0.3으로 나눠 쓰고 있었고,
+    -- 비행 속도(820)와 착탄 점화 확률(0.38)은 상수로 박혀 성장 자체가 불가능했다.
+    {id="fire_score_rocket_radius",name="폭죽 폭발 반경 상승",short="폭발 반경",desc="폭죽 로켓의 폭발 반경 +16",effect="scoreRocketRadius",value=16,max=5,wx=1430,wy=1320,icon="blast",color={1,.52,.18},requires={{"fire_score_edge",1}}},
+    {id="fire_score_rocket_damage",name="폭죽 폭발 피해 상승",short="폭발 피해",desc="폭죽 폭발이 나무에 주는 피해 +2",effect="scoreRocketDamage",value=2,max=5,wx=1430,wy=1640,icon="ember",color={1,.38,.14},requires={{"fire_score_edge",1}}},
+    {id="fire_score_rocket_speed",name="폭죽 비행 속도 상승",short="비행 속도",desc="폭죽 로켓이 목표까지 날아가는 속도 +12%",effect="scoreRocketSpeed",value=.12,max=4,costs={22,38,58,82},wx=1790,wy=1180,icon="wind",color={.82,.74,.46},requires={{"fire_score_rocket_radius",2}}},
+    {id="fire_score_rocket_ignite",name="폭죽 착탄 점화 확률 상승",short="착탄 점화",desc="폭발로 쓰러지지 않은 나무에 불이 붙을 확률 +6%p (기본 38%)",effect="scoreRocketIgnite",value=.06,max=5,wx=1790,wy=1470,icon="ember",color={1,.62,.24},requires={{"fire_score_rocket_radius",3}}},
+    {id="fire_score_rocket_cooldown",name="폭죽 발사 속도 상승",short="발사 속도",desc="폭죽 로켓 재발사 대기시간 단계마다 9% 감소",effect="scoreRocketCooldown",value=.09,max=5,wx=1790,wy=1790,icon="clock",color={.94,.58,.22},requires={{"fire_score_rocket_damage",3}}},
 }
 for _,node in ipairs(scoreFireNodes)do node.job="fire";node.scoreMode=true;node.max=node.max or 5;node.costs=node.costs or{18,32,50,74,104};jobs.fire.nodes[#jobs.fire.nodes+1]=node end
 
@@ -517,7 +537,12 @@ function CharacterTraits:scoreAttackEffects()
         scoreIgnitionChance=0,scoreSpreadChance=0,scoreProjectileSpeed=0,
         scoreBurnSpeed=0,scoreExtraFires=0,scoreInitialIgnitionReduction=0,
         scoreStartingBabyRobot=0,scoreRobotSpeed=0,scoreMoleCompanion=0,
-        scoreMoleDamage=0,scoreMoleSpeed=0,scoreMoleAttackSpeed=0,scoreMoleClawTier=0,scoreMoleDualClaw=0,scoreMoleExtraCompanions=0
+        scoreMoleDamage=0,scoreMoleSpeed=0,scoreMoleAttackSpeed=0,scoreMoleClawTier=0,scoreMoleDualClaw=0,scoreMoleExtraCompanions=0,
+        -- 무기 슬롯 3종용. scoreTreeDamage는 도끼·폭죽 공용이고, 나머지는 각 무기가
+        -- 담배용 수치를 계수로 나눠 쓰던 것을 전용으로 분리한 값이다.
+        scoreTreeDamage=0,
+        scoreAxeArea=0,scoreAxeSpeed=0,scoreAxeTargets=0,scoreAxeExecute=0,
+        scoreRocketRadius=0,scoreRocketDamage=0,scoreRocketSpeed=0,scoreRocketIgnite=0,scoreRocketCooldown=0
     }
     for _,job in ipairs({"fire","universal"})do
         for _,node in ipairs(self:getScoreAttackNodes(job))do
