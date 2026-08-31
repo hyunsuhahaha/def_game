@@ -757,11 +757,13 @@ end
 function ClearcutMode:findMoleCompanionTree(companion,game)
     local claimed={}
     for _,other in ipairs(self.moleCompanions or{})do
-        if other~=companion and other.target and other.target.active then claimed[other.target]=true end
+        if other~=companion and other.target and other.target.active and not other.target.treeEmergence then claimed[other.target]=true end
     end
     local best,bestDistance,fallback,fallbackDistance
     for _,node in ipairs(game.world.nodes)do
-        if node.rushTree and node.active and not node.giantTree and not node.treeEmergence then
+        -- giantTree는 큰 수관을 고르는 시각 표식일 뿐 살아 있는 벌목 대상이다. 이를
+        -- 제외하면 큰 나무만 남은 순간 동료가 화면의 나무 옆에서 영원히 대기한다.
+        if node.rushTree and node.active and not node.treeEmergence then
             local dx,dy=node.x-companion.x,node.y-companion.y
             local distance=dx*dx+dy*dy
             if not fallbackDistance or distance<fallbackDistance then fallback,fallbackDistance=node,distance end
@@ -851,8 +853,8 @@ function ClearcutMode:updateOneMoleCompanion(companion,dt,game)
         return true
     end
     local target=companion.target
-    if not target or not target.active or target.giantTree or target.treeEmergence then target=self:findMoleCompanionTree(companion,game)end
-    if not target then return false end
+    if not target or not target.active or target.treeEmergence then target=self:findMoleCompanionTree(companion,game)end
+    if not target then companion.state="seek";companion.stuckTime=0;return false end
     local dx,dy=target.x-companion.x,target.y-companion.y
     local distance=math.sqrt(dx*dx+dy*dy)
     if math.abs(dx)>2 then companion.facing=dx<0 and -1 or 1 end
@@ -860,10 +862,19 @@ function ClearcutMode:updateOneMoleCompanion(companion,dt,game)
     if distance>attackReach then
         local step=math.min(distance-attackReach,companion.speed*dt)
         local x,y=companion.x+dx/distance*step,companion.y+dy/distance*step
+        local oldX,oldY=companion.x,companion.y
         companion.x,companion.y=require("src.clearcut_maps").constrain(game.world,x,y,42)
+        local moved=(companion.x-oldX)^2+(companion.y-oldY)^2
+        companion.stuckTime=moved<.01 and(companion.stuckTime or 0)+dt or 0
+        if companion.stuckTime>=.35 then
+            -- 축소 맵 가장자리나 섬 해안 제약에 막힌 타깃을 계속 바라보며 서 있지
+            -- 않도록 즉시 포기하고 다음 프레임에 다른 살아 있는 나무를 고른다.
+            companion.target=nil;companion.state="seek";companion.stuckTime=0
+            return false
+        end
         companion.state="walk"
     else
-        companion.state,companion.attackT,companion.struck="attack",0,false
+        companion.state,companion.attackT,companion.struck,companion.stuckTime="attack",0,false,0
     end
     return true
 end

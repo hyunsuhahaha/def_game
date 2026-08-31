@@ -225,6 +225,17 @@ assert((not moleTree.active)or moleTree.rushHp<moleHp,"mole companion claw conta
 assert(#game.clearcut.minerClawFx==1,"mole companion did not produce one authored claw contact effect")
 assert(game.clearcut.minerClawFx[1].level==5 and game.clearcut.minerClawFx[1].dual,
     "max-rank mole companion did not use the large two-handed claw effect")
+-- 큰 수관 표식은 시각 크기일 뿐 살아 있는 벌목 대상이다. 이것만 남아도 두더지가
+-- 옆에서 멈추지 않고 찾아가 실제 피해를 줘야 한다.
+local ordinaryNodes=game.world.nodes
+local landmark={kind="tree",rushTree=true,active=true,giantTree=true,x=mole.x+96,y=mole.y,
+    rushHp=50,rushMaxHp=50,treeVariant=1,respawn=math.huge}
+game.world.nodes={landmark};mole.state,mole.target,mole.attackT,mole.struck="seek",nil,0,false
+assert(game.clearcut:findMoleCompanionTree(mole,game)==landmark,"mole ignored a live giant-canopy tree")
+game.clearcut:updateOneMoleCompanion(mole,.01,game)
+game.clearcut:updateOneMoleCompanion(mole,.25,game)
+assert(landmark.rushHp<50,"mole stood beside a giant-canopy tree without chopping it")
+game.world.nodes=ordinaryNodes;mole.state,mole.target="seek",nil
 assert(game.clearcut.totalWood==0 and game.clearcut.level==1 and game.clearcut.pending==0,"score run did not start with a clean wood-XP progression")
 assert(game.clearcut.smoking and game.clearcut.smoking.dur<.75,"first ignition preparation trait did not shorten the opening load")
 game.clearcut:hurlMolotovAt(game.player.x+600,game.player.y,game)
