@@ -66,6 +66,16 @@ function Player:setClearcutSprite(sprite, job)
         self.clearcutFrames.walk[i + 1] = love.graphics.newQuad(i * fw, 0, fw, fh, sprite.image:getDimensions())
         self.clearcutFrames.action[i + 1] = love.graphics.newQuad(i * fw, fh, fw, fh, sprite.image:getDimensions())
     end
+    self.scoreAxeFrames=nil
+    if sprite.scoreAxeImage then
+        local axeWidth=sprite.scoreAxeImage:getWidth()/6
+        local axeHeight=sprite.scoreAxeImage:getHeight()
+        self.scoreAxeFrameWidth,self.scoreAxeFrameHeight=axeWidth,axeHeight
+        self.scoreAxeFrames={}
+        for i=0,5 do
+            self.scoreAxeFrames[i+1]=love.graphics.newQuad(i*axeWidth,0,axeWidth,axeHeight,sprite.scoreAxeImage:getDimensions())
+        end
+    end
 end
 
 function Player:setClearcutAction(progress)
@@ -78,13 +88,9 @@ end
 
 -- Shared by the body renderer and attachments so frame, flip and bob agree.
 function Player:clearcutPose()
-    local scoreAxeAction=self.clearcutSprite and self.axeHolding and self.autoAxeClock~=nil
-    local action = scoreAxeAction or self.clearcutActionProgress ~= nil
+    local action = self.clearcutActionProgress ~= nil
     local row = action and "action" or "walk"
-    local axeProgress=scoreAxeAction and math.max(0,math.min(.999,self.autoAxeClock/self.autoAxeDuration))or nil
-    local axeFrames={4,4,5,6,6,4}
-    local frame = scoreAxeAction and axeFrames[math.floor(axeProgress*6)+1]
-        or action and (math.floor(self.clearcutActionProgress * 6) + 1)
+    local frame = action and (math.floor(self.clearcutActionProgress * 6) + 1)
         or (self.isMoving and (math.floor(self.walkClock) % 6 + 1) or 1)
     local sprite = self.clearcutSprite
     local directions = sprite[row .. "Facing"]
@@ -152,13 +158,26 @@ end
 
 function Player:draw()
     local pulse = self.isMoving and math.sin(self.walkClock * math.pi) or 0
-    if self.axeHolding then
+    if self.axeHolding and not self.hideAxeRange then
         love.graphics.setColor(1, .68, .2, .08); love.graphics.ellipse("fill", self.x, self.y + 3, self.axeRange, self.axeRange * .38)
         love.graphics.setColor(1, .75, .28, .48); love.graphics.setLineWidth(2); love.graphics.ellipse("line", self.x, self.y + 3, self.axeRange, self.axeRange * .38)
     end
     love.graphics.setColor(0, 0, 0, .42); love.graphics.ellipse("fill", self.x + 3, self.y + 3, 22 - math.abs(pulse) * 2, 7)
     love.graphics.setColor(1, 1, 1)
     if self.clearcutSprite then
+        if self.scoreAxeEquipped and self.scoreAxeFrames then
+            local frame=1
+            if self.autoAxeClock~=nil then
+                local progress=math.max(0,math.min(.999,self.autoAxeClock/self.autoAxeDuration))
+                frame=math.floor(progress*6)+1
+            end
+            local image=self.clearcutSprite.scoreAxeImage
+            local scale=self.clearcutSprite.scale or .23
+            local foot=(self.clearcutSprite.scoreAxeFeet or{190,190,190,190,190,190})[frame]
+            love.graphics.draw(image,self.scoreAxeFrames[frame],self.x,self.y,0,
+                scale*(self.facing or 1),scale,self.scoreAxeFrameWidth/2,foot)
+            return
+        end
         local row, frame, flip, foot, bob, poseScale = self:clearcutPose()
         local scale = self.clearcutSprite.scale or .23
         love.graphics.draw(self.clearcutSprite.image, self.clearcutFrames[row][frame],

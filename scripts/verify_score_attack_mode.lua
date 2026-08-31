@@ -69,21 +69,25 @@ local scorePool=mode:upgradePool()
 assert(#scorePool==10,"score mode did not expose six operation and four combat cards")
 for _,def in ipairs(scorePool)do assert(def.scoreOperation and not def.job,"combat skill leaked into the operation draft: "..def.id)end
 assert(mode:getUpgradeDefinition("baby_robot").scoreOperation==true,"baby robot is not marked as a score operation")
-for _,id in ipairs({"score_attack_speed","score_extra_butts","score_ignition_radius","score_burn_speed"})do
+-- 전투 카드는 전부 무기 중립 수치다. 무기별 카드를 두면 다른 무기를 든 판에서
+-- 죽은 카드가 되고, 무기를 추가할 때마다 카드도 같이 늘려야 한다.
+for _,id in ipairs({"score_attack_speed","score_weapon_damage","score_weapon_area","score_weapon_range"})do
     assert(mode:getUpgradeDefinition(id).scoreOperation==true,"score combat card is not active: "..id)
+end
+for _,id in ipairs({"score_extra_butts","score_ignition_radius","score_burn_speed"})do
+    assert(mode:getUpgradeDefinition(id)==nil,"weapon-specific combat card is back in the run draft: "..id)
 end
 mode.scoreInitialSmokingStarted=true;mode.levels.score_attack_speed=0;mode:startSmoking(game);local baseSmokingDuration=mode.smoking.dur
 mode.levels.score_attack_speed=3;mode:startSmoking(game)
 assert(mode.smoking.dur<baseSmokingDuration,"attack-speed card did not shorten the real smoking reload")
-mode.levels.score_extra_butts=2
-mode.levels.score_ignition_radius=2;mode.levels.score_burn_speed=3
-assert(math.abs(require("src.score_operations").attackSpeedMultiplier(mode)-1.54)<1e-9 and
-    require("src.score_operations").extraButts(mode)==2 and require("src.score_operations").ignitionRadius(mode)==48 and
-    math.abs(require("src.score_operations").burnSpeedMultiplier(mode)-1.54)<1e-9,"score combat card values are stale")
+local Ops=require("src.score_operations")
+mode.levels.score_weapon_damage=2;mode.levels.score_weapon_area=2;mode.levels.score_weapon_range=3
+assert(math.abs(Ops.attackSpeedMultiplier(mode)-1.54)<1e-9 and Ops.weaponDamage(mode)==2 and
+    Ops.weaponArea(mode)==36 and Ops.weaponRange(mode)==120,"score combat card values are stale")
 mode:hurlMolotovAt(game.player.x+240,game.player.y,game)
-assert(#mode.molotovs==3 and mode.molotovs[1].radius==138,"additional butt count or ignition radius did not affect the real attack")
-mode.molotovs={};mode.levels.score_attack_speed=0;mode.levels.score_extra_butts=0
-mode.levels.score_ignition_radius=0;mode.levels.score_burn_speed=0
+assert(#mode.molotovs==1 and mode.molotovs[1].radius==126,"weapon area card did not widen the real cigarette ignition radius")
+mode.molotovs={};mode.levels.score_attack_speed=0;mode.levels.score_weapon_damage=0
+mode.levels.score_weapon_area=0;mode.levels.score_weapon_range=0
 
 local nodes=game.world.nodes
 nodes[#nodes+1]={rushTree=true,active=false}
