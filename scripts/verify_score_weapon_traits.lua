@@ -175,4 +175,49 @@ swap:setScoreWeaponSlot(1, swapGame)
 assert(swap:updateHeldAxe(1 / 60, swapGame, true) == false and swap.smoking.phase == "flick",
     "슬롯을 담배로 되돌린 직후 투척 동작이 바로 시작되지 않았다")
 
+-- 11. 공용 단어를 쓴 수치는 실제로 3무기 전부에 걸려야 한다. `공격속도 상승` 카드는
+-- 이름이 공용인데 담배 쿨다운만 읽고 있었다 — 도끼를 든 초반에는 죽은 카드였다.
+local function axeCooldownWith(cardLevel)
+    local m = ClearcutMode.new()
+    m.scoreAttack, m.sandbox, m.job, m.mapId = true, true, "fire", "forest"
+    m.levels.score_attack_speed, m.scoreWeaponSlot = cardLevel, 2
+    m:updateHeldAxe(1, axeGame({tree(0)}), true)
+    return m.axeCooldown
+end
+assert(axeCooldownWith(3) < axeCooldownWith(0),
+    "공격속도 상승 카드가 도끼를 빠르게 하지 않는다 — 공용 이름인데 담배 전용이다")
+
+local function rocketCooldownWith(cardLevel)
+    local m = ClearcutMode.new()
+    m.scoreAttack, m.sandbox, m.job, m.mapId = true, true, "fire", "forest"
+    m.permanentTraits.scoreRocketUnlock = 1
+    m.levels.score_attack_speed, m.scoreWeaponSlot, m.smokerWeaponCooldown = cardLevel, 3, 0
+    local g = axeGame({})
+    g.camera = {screenToWorld = function() return 600, 0 end}
+    m:updateHeldAxe(1, g, true)
+    return m.smokerWeaponCooldown
+end
+assert(rocketCooldownWith(3) < rocketCooldownWith(0),
+    "공격속도 상승 카드가 폭죽을 빠르게 하지 않는다")
+
+-- `무기 피해`도 공용 이름이므로 불의 타격 피해에도 더해져야 한다.
+local function burnTotalWith(treeDamage)
+    local m = ClearcutMode.new()
+    m.scoreAttack, m.sandbox, m.job, m.mapId = true, true, "fire", "forest"
+    m.permanentTraits.treeDamage = treeDamage
+    local node = {kind = "tree", rushTree = true, active = true, x = 0, y = 0, rushHp = 9999, rushMaxHp = 9999}
+    local g = {player = {x = 0, y = 0},
+        world = {nodes = {node}, igniteFx = function() end, impactNode = function() end},
+        setNotice = function() end}
+    m.fellTree = function(_, t) t.active = false; return true end
+    m:beginTreeBurn(node, 0)
+    for _ = 1, 600 do
+        if not node.burning then break end
+        m:updateFire(1 / 60, g)
+    end
+    return 9999 - node.rushHp
+end
+assert(burnTotalWith(5) > burnTotalWith(0),
+    "무기 피해가 불의 타격 피해에 더해지지 않는다 — 공용 이름인데 도끼·폭죽 전용이다")
+
 print("SCORE_WEAPON_TRAITS_OK shared=tree_damage axe=area+speed+targets+execute rocket=radius+damage+speed+ignite+cooldown")

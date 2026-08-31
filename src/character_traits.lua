@@ -208,7 +208,7 @@ local scoreFireNodes={
     -- 수치(도끼 범위, 폭죽 반경 등)는 그 무기 이름을 그대로 쓴다. 도끼는 3+treeDamage, 폭죽은
     -- 8+treeDamage*1.1로 피해를 계산하는데 기록 모드에는 treeDamage 노드가 하나도
     -- 없어서 두 무기의 주력 수치가 영구히 고정돼 있었다. 여기가 그 성장 경로다.
-    {id="fire_score_edge",name="나무 피해 상승",short="무기 피해",desc="무기가 나무에 주는 타격 피해 +1",effect="scoreTreeDamage",value=1,max=5,costs={26,46,72,104,142},wx=390,wy=1120,icon="fist",color={.86,.62,.34},requires={{"fire_score_prewarm",1}}},
+    {id="fire_score_edge",name="나무 피해 상승",short="무기 피해",desc="무기가 나무에 주는 피해 +1 (불의 타격 피해에도 더해집니다)",effect="scoreTreeDamage",value=1,max=5,costs={26,46,72,104,142},wx=390,wy=1120,icon="fist",color={.86,.62,.34},requires={{"fire_score_prewarm",1}}},
 
     -- 도끼 갈래. 이전에는 담배용 착화 범위(scoreArea)를 ×0.2로 얻어 쓰고 있어서
     -- 담배 특성을 사야 도끼가 자라는 기묘한 의존이 있었다. 전용 수치로 분리한다.
