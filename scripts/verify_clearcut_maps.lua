@@ -26,6 +26,17 @@ for i=1,30 do local name,value=debug.getupvalue(Game.new,i);if name=="loadClearc
 local sprites=assert(loader)()
 local fonts={}
 for name,size in pairs({micro=12,small=14,body=17,heading=21,big=28,title=36,display=48}) do fonts[name]=love.graphics.newFont("assets/font-korean-regular.ttf",size) end
+for _,def in ipairs(Maps.catalog)do
+    local compact={clearcutMapScale=Maps.SCORE_MAP_SCALE,images={treeVariants={}},treeVisual={}}
+    Maps.configure(compact,def.id)
+    local expectedW,expectedH=def.id=="island"and 2380 or 2240,def.id=="island"and 1540 or 1400
+    local expectedPlayW=def.id=="island"and 1540 or 1680
+    assert(compact.width==expectedW and compact.height==expectedH,def.id.." score world is not 70-percent sized")
+    assert(compact.playBounds.w==expectedPlayW and compact.playBounds.h==980 and compact.cameraTopReveal==630,
+        def.id.." score play/camera bounds did not scale with the world")
+    local edgeX,edgeY=Maps.constrain(compact,-99999,99999,75)
+    assert(Maps.insidePlayable(compact,edgeX,edgeY,75),def.id.." compact movement escaped scaled bounds")
+end
 local function newGame()
     local g=setmetatable({characterTraits=traits,clearcutSprites=sprites,fonts=fonts,tools={axe={speed=.8}},wood=0},Game)
     function g:resetRun()

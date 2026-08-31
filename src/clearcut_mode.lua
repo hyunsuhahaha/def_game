@@ -528,6 +528,7 @@ function ClearcutMode:setup(game)
         self.scoreHighestRegenTier=self.scoreRegenTier
         self.scoreTierClearTimer,self.scoreTierClearLatch,self.scoreTierSpawned,self.scoreTierFx=0,false,0,nil
     end
+    game.world.clearcutMapScale=self.scoreAttack and Maps.SCORE_MAP_SCALE or 1
     Maps.configure(game.world,self.mapId)
     Maps.configureStage(game.world,self.stage)
     self.mapWorld=game.world

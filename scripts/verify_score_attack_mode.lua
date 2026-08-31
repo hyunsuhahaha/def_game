@@ -34,6 +34,9 @@ assert(not lobbySource:find("SMOKER ONLY",1,true)and not lobbySource:find("흡�
     "active lobby still presents a smoker/character premise")
 assert(not modeSource:find("벌목 기록 · 흡연자",1,true),"score HUD still presents a selected character")
 assert(mode.scoreTreeAllowance==12,"fresh score mode did not use the 12-tree base allowance")
+assert(game.world.width==2240 and game.world.height==1400,"score mode world was not reduced to 70 percent")
+assert(game.world.playBounds.w==1680 and game.world.playBounds.h==980 and game.world.cameraTopReveal==630,
+    "score mode playable bounds or camera reveal did not follow the 70-percent map scale")
 assert(mode.xpNext==5,"score mode did not start with the fast five-wood first upgrade")
 assert(#game.world.nodes==6 and mode:scoreActiveTreeCount()==6 and mode.totalTreesSpawned==6,"score mode did not start with exactly six active trees")
 assert(mode.remainingTrees==6 and mode.initialTrees==6 and mode.peakActiveTrees==6,"starting score trees were not included in occupancy metrics")

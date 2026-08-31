@@ -1,5 +1,6 @@
 -- Playable biomes. Terrain predicates are mirrored by clearcut-terrain.glsl.
 local Maps={}
+Maps.SCORE_MAP_SCALE=.70
 -- One geometry source for collision, wildlife and the terrain shader.
 Maps.island={radiusX=1300,radiusY=660,width=3400,height=2200}
 Maps.catalog={
@@ -70,12 +71,14 @@ function Maps.configureStage(world,stage)
     stage=math.max(1,stage or 1);world.clearcutStage=stage
     local kind=world.clearcutMap=="island" and "island" or "normal"
     local size=stageSizes[kind][math.min(stage,4)]
-    world.playBounds={x=(world.width-size[1])/2,y=(world.height-size[2])/2,w=size[1],h=size[2]}
+    local scale=world.clearcutMapScale or 1
+    local playW,playH=math.floor(size[1]*scale+.5),math.floor(size[2]*scale+.5)
+    world.playBounds={x=(world.width-playW)/2,y=(world.height-playH)/2,w=playW,h=playH}
     -- Movement remains inside playBounds, but the camera may look past the
     -- northern edge. This keeps an upward-moving player framed naturally and
     -- reveals the decorative biome panorama beyond the authored ridge instead
     -- of pinning the view to an invisible wall.
-    world.cameraTopReveal=900
+    world.cameraTopReveal=math.floor(900*scale+.5)
     world.northBackdrop=true
     world.cameraBounds={x=world.playBounds.x,y=world.playBounds.y-world.cameraTopReveal,
         w=world.playBounds.w,h=world.playBounds.h+world.cameraTopReveal}
@@ -140,7 +143,8 @@ function Maps.constrainGroundPlant(world,x,y,override)
     return x,y
 end
 function Maps.islandDistance(x,y,w,h)
-    local dx,dy=(x-w/2)/Maps.island.radiusX,(y-h/2)/Maps.island.radiusY
+    local scale=math.min(w/Maps.island.width,h/Maps.island.height)
+    local dx,dy=(x-w/2)/(Maps.island.radiusX*scale),(y-h/2)/(Maps.island.radiusY*scale)
     local a=math.atan2(dy,dx)
     return math.sqrt(dx*dx+dy*dy)/(1+.065*math.sin(a*3+.4)+.035*math.cos(a*5))
 end
@@ -191,7 +195,8 @@ function Maps.constrain(world,x,y,margin)
     local b=world.playBounds
     if b then x=math.max(b.x+margin,math.min(b.x+b.w-margin,x));y=math.max(b.y+margin,math.min(b.y+b.h-margin,y)) end
     if world.clearcutMap~="island" then return x,y end
-    local limit=1-margin/Maps.island.radiusY
+    local scale=world.clearcutMapScale or 1
+    local limit=1-margin/(Maps.island.radiusY*scale)
     local d=Maps.islandDistance(x,y,world.width,world.height)
     if d>limit then
         local scale=limit/d
@@ -201,10 +206,11 @@ function Maps.constrain(world,x,y,margin)
 end
 function Maps.configure(world,id)
     local def=Maps.get(id);world.clearcutMap=def.id
-    world.width,world.height=3200,2000
+    local scale=world.clearcutMapScale or 1
+    world.width,world.height=math.floor(3200*scale+.5),math.floor(2000*scale+.5)
     world.overviewBounds=nil
     if def.id=="island" then
-        world.width,world.height=Maps.island.width,Maps.island.height
+        world.width,world.height=math.floor(Maps.island.width*scale+.5),math.floor(Maps.island.height*scale+.5)
         -- Includes crown overhang, beach, sea on every side, and room for the HUD.
     end
     Maps.configureStage(world,1)
@@ -244,7 +250,8 @@ function Maps.drawGround(world,time)
     if not shader then shader=love.graphics.newShader("assets/shaders/clearcut-terrain.glsl") end
     local previous=love.graphics.getShader()
     shader:send("worldSize",{world.width,world.height})
-    shader:send("islandRadii",{Maps.island.radiusX,Maps.island.radiusY})
+    local scale=world.clearcutMapScale or 1
+    shader:send("islandRadii",{Maps.island.radiusX*scale,Maps.island.radiusY*scale})
     local ox,oy,sw,sh=0,0,world.width,world.height
     if def.id=="island" then ox,oy,sw,sh=-world.width,-world.height,world.width*3,world.height*3 end
     shader:send("terrainOrigin",{ox,oy});shader:send("terrainSize",{sw,sh})
