@@ -238,7 +238,8 @@ function ClearcutMode.new()
             moveSpeed=1, pickupRadius=0, hpRegen=0, reviveCharges=0,
             scoreInitialIgnitionReduction=0,scoreMoleCompanion=0,scoreMoleDamage=0,scoreMoleSpeed=0,
             scoreMoleAttackSpeed=0,scoreMoleClawTier=0,scoreMoleDualClaw=0,scoreMoleExtraCompanions=0,
-            scoreOilDrum=0,scoreOilDrumInterval=0,scoreOilRadius=0,scoreOilDuration=0,scoreOilDamage=0,
+            scoreOilDrum=0,scoreOilDrumInterval=0,scoreOilRadius=0,scoreOilIgnitionRadius=0,
+            scoreOilDuration=0,scoreOilBurnDuration=0,scoreOilDamage=0,
             scoreGrayCat=0,scoreGrayCatChance=0,scoreGrayCatDelay=0,scoreGrayCatSpeed=0
         },
         reviveCharges=0,
@@ -2472,7 +2473,8 @@ function ClearcutMode:updateOilTrail(dt, game)
             for _, spot in ipairs(self.oilTrail) do
                 if not spot.ignited and now>=(spot.spawnedAt or 0)then
                     local dx, dy = spot.x - butt.x, spot.y - butt.y
-                    if dx * dx + dy * dy <= 70 * 70 then self:igniteOilTrail(spot, game) end
+                    local ignitionRadius=70+(spot.source=="drum"and(self.permanentTraits.scoreOilIgnitionRadius or 0)or 0)
+                    if dx * dx + dy * dy <= ignitionRadius * ignitionRadius then self:igniteOilTrail(spot, game) end
                 end
             end
         end
@@ -2486,7 +2488,8 @@ function ClearcutMode:updateOilTrail(dt, game)
                 self:damageEnemiesInRadius(spot.x, spot.y, 55,spot.damage or 4, game)
                 self:igniteEnemiesInRadius(spot.x,spot.y,55,game,0)
             end
-            if now - spot.ignitedAt >= math.min(5,spot.lifetime or 5) then table.remove(self.oilTrail, i) end
+            local burnDuration=5+(spot.source=="drum"and(self.permanentTraits.scoreOilBurnDuration or 0)or 0)
+            if now - spot.ignitedAt >= math.min(burnDuration,spot.lifetime or burnDuration) then table.remove(self.oilTrail, i) end
         elseif now - spot.spawnedAt >= (spot.lifetime or 6) then
             table.remove(self.oilTrail, i)
         end

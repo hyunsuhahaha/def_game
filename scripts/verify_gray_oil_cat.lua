@@ -33,6 +33,8 @@ upgraded.scoreAttack=true
 upgraded.permanentTraits.scoreOilDrum=1
 upgraded.permanentTraits.scoreOilRadius=54
 upgraded.permanentTraits.scoreOilDuration=9
+upgraded.permanentTraits.scoreOilIgnitionRadius=42
+upgraded.permanentTraits.scoreOilBurnDuration=4.5
 upgraded.permanentTraits.scoreOilDamage=3
 upgraded.smokerGroundTime=4
 local upgradedDrum={id=8,x=300,y=300,state="settled",hp=8,maxHp=8,angle=0}
@@ -42,6 +44,28 @@ assert(upgraded.oilDrumSpills[1].lifetime==29 and math.abs(upgraded.oilDrumSpill
     "oil radius/duration upgrades did not change the visible spill")
 assert(upgraded.oilTrail[1].damage==7 and upgraded.oilPuddleGroups.drum_8.damage==4,
     "oil damage upgrade did not change enemy and tree damage")
+
+local ignitionMode=ClearcutMode.new()
+ignitionMode.scoreAttack=true
+ignitionMode.smokerGroundTime=2
+ignitionMode.permanentTraits.scoreOilIgnitionRadius=42
+ignitionMode.permanentTraits.scoreOilBurnDuration=4.5
+ignitionMode.cigaretteButts={{x=205,y=100}}
+ignitionMode.oilTrail={{x=100,y=100,spawnedAt=0,source="drum",group="drum_ignition",lifetime=20}}
+ignitionMode.oilPuddleGroups={drum_ignition={x=100,y=100,radius=105,tickTimer=0}}
+ignitionMode.damageEnemiesInRadius=function()end
+ignitionMode.igniteEnemiesInRadius=function()end
+ignitionMode.damageTreeWithSmokerWeapon=function()return false end
+local ignitionGame={player={isMoving=false,x=0,y=0},world={nodes={}}}
+ignitionMode:updateOilTrail(.1,ignitionGame)
+assert(ignitionMode.oilTrail[1]and ignitionMode.oilTrail[1].ignited,
+    "oil ignition-radius upgrade did not reach a cigarette outside the base 70-unit radius")
+ignitionMode.smokerGroundTime=7.2
+ignitionMode:updateOilTrail(.1,ignitionGame)
+assert(#ignitionMode.oilTrail==1,"oil burn-duration upgrade still stopped at the base five seconds")
+ignitionMode.smokerGroundTime=11.6
+ignitionMode:updateOilTrail(.1,ignitionGame)
+assert(#ignitionMode.oilTrail==0,"upgraded oil fire outlived its 9.5-second duration")
 
 local game={player={x=500,y=350},world={nodes={}},camera=nil}
 local catMode=ClearcutMode.new()

@@ -34,7 +34,8 @@ assert(dossier:find("universal_robot_start",1,true)and dossier:find("universal_r
 for _,id in ipairs({
     "universal_mole_companion","universal_mole_damage","universal_mole_speed","universal_mole_attack_speed",
     "universal_mole_claw","universal_mole_dual","universal_mole_extra","universal_oil_drum",
-    "universal_oil_interval","universal_oil_radius","universal_oil_duration","universal_oil_damage",
+    "universal_oil_interval","universal_oil_radius","universal_oil_ignition_radius",
+    "universal_oil_duration","universal_oil_burn_duration","universal_oil_damage",
     "universal_gray_cat","universal_gray_cat_chance","universal_gray_cat_delay","universal_gray_cat_speed"
 })do
     assert(dossier:find('id:"'..id..'"',1,true),"dossier permanent trait is missing: "..id)

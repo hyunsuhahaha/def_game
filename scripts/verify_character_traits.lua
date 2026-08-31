@@ -35,7 +35,8 @@ moleUpgradeStore.data.currency=5000
 moleUpgradeStore.data.levels.universal_robot_start=1
 assert(moleUpgradeStore:buy("universal_mole_companion")and not moleUpgradeStore:buy("universal_mole_companion"),"mole hire root was not a one-rank node")
 assert(moleUpgradeStore:buy("universal_oil_drum")and moleUpgradeStore:buy("universal_gray_cat"),"gray oil-cat research chain was not purchasable")
-for _,spec in ipairs({{"universal_oil_interval",3},{"universal_oil_radius",3},{"universal_oil_duration",3},{"universal_oil_damage",3},
+for _,spec in ipairs({{"universal_oil_interval",3},{"universal_oil_radius",3},{"universal_oil_ignition_radius",3},
+    {"universal_oil_duration",3},{"universal_oil_burn_duration",3},{"universal_oil_damage",3},
     {"universal_gray_cat_chance",3},{"universal_gray_cat_delay",3},{"universal_gray_cat_speed",3}})do
     for rank=1,spec[2]do assert(moleUpgradeStore:buy(spec[1]),spec[1].." rank "..rank.." was not purchasable")end
 end
@@ -48,7 +49,8 @@ assert(moleEffects.scoreMoleCompanion==1 and moleEffects.scoreMoleDamage==3 and 
     math.abs(moleEffects.scoreMoleAttackSpeed-.36)<1e-9 and moleEffects.scoreMoleClawTier==2 and moleEffects.scoreMoleDualClaw==1 and
     moleEffects.scoreMoleExtraCompanions==2,"split mole research nodes did not accumulate independently")
 assert(moleEffects.scoreOilDrum==1 and moleEffects.scoreGrayCat==1,"gray oil-cat research effects were not accumulated")
-assert(moleEffects.scoreOilDrumInterval==6 and moleEffects.scoreOilRadius==54 and moleEffects.scoreOilDuration==9 and moleEffects.scoreOilDamage==3 and
+assert(moleEffects.scoreOilDrumInterval==6 and moleEffects.scoreOilRadius==54 and moleEffects.scoreOilIgnitionRadius==42 and
+    moleEffects.scoreOilDuration==9 and moleEffects.scoreOilBurnDuration==4.5 and moleEffects.scoreOilDamage==3 and
     math.abs(moleEffects.scoreGrayCatChance-.6)<1e-9 and math.abs(moleEffects.scoreGrayCatDelay-1.35)<1e-9 and
     math.abs(moleEffects.scoreGrayCatSpeed-.45)<1e-9,"split oil drum and gray cat upgrades did not accumulate")
 local roundTrip=CharacterTraits.decode(CharacterTraits.encode(store.data))
@@ -75,7 +77,8 @@ store.data.levels.universal_robot_motor=5
 store.data.levels.universal_oil_drum=1
 store.data.levels.universal_gray_cat=1
 store.data.levels.universal_oil_interval=3;store.data.levels.universal_oil_radius=3
-store.data.levels.universal_oil_duration=3;store.data.levels.universal_oil_damage=3
+store.data.levels.universal_oil_ignition_radius=3;store.data.levels.universal_oil_duration=3
+store.data.levels.universal_oil_burn_duration=3;store.data.levels.universal_oil_damage=3
 store.data.levels.universal_gray_cat_chance=3;store.data.levels.universal_gray_cat_delay=3;store.data.levels.universal_gray_cat_speed=3
 store.data.levels.universal_mole_companion=1
 store.data.levels.universal_mole_damage=3;store.data.levels.universal_mole_speed=3
@@ -95,11 +98,12 @@ assert(activeScore.scoreInitialIgnitionReduction==.4,"score-mode opening ignitio
 assert(activeScore.scoreStartingBabyRobot==1 and activeScore.scoreRobotSpeed==.5,"score-mode baby robot permanent research is not active")
 assert(activeScore.scoreMoleCompanion==1 and activeScore.scoreMoleDamage==3 and activeScore.scoreMoleExtraCompanions==2,
     "split score-mode mole companion upgrades are not active")
-assert(activeScore.scoreOilDrum==1 and activeScore.scoreGrayCat==1,"gray oil-cat permanent research is not active")
+assert(activeScore.scoreOilDrum==1 and activeScore.scoreOilIgnitionRadius==42 and activeScore.scoreOilBurnDuration==4.5 and activeScore.scoreGrayCat==1,
+    "oil drum ignition upgrades or gray oil-cat permanent research are not active")
 assert(activeScore.scoreStartingWood==nil and activeScore.scoreAutomationDiscount==nil,"removed score automation traits still affect runtime")
 -- 불 갈래 25 = 담배 9 + 공용 나무 피해 1 + 도끼 4 + 도끼 상위 3(충격파·연속 벌목·나무꾼 고용)
 -- + 후반 해금 3(상시 흡연·자동 투척·폭죽) + 폭죽 5.
-assert(#store:getScoreAttackNodes("fire")==25 and #store:getScoreAttackNodes("universal")==19,"active research board did not expose the split companion graphs and the weapon-slot branches")
+assert(#store:getScoreAttackNodes("fire")==25 and #store:getScoreAttackNodes("universal")==21,"active research board did not expose the split companion graphs and the weapon-slot branches")
 for _, job in ipairs({"physical","fire","toxic","developer"}) do
     assert(#store:getNodes(job) >= 30, job .. " character graph has too few trait nodes")
 end
