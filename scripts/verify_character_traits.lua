@@ -142,7 +142,9 @@ end
 assert(maxMoleY-minMoleY>=700,"mole research graph is still compressed into one non-scrollable node cluster")
 local oilX,oilY=board:nodeWorld(store:getNode("universal_oil_drum"))
 local catX,catY=board:nodeWorld(store:getNode("universal_gray_cat"))
-assert(math.sqrt((oilX-catX)^2+(oilY-catY)^2)<=260,"gray cat unlock is not placed next to the oil drum unlock")
+local oilCatDistance=math.sqrt((oilX-catX)^2+(oilY-catY)^2)
+assert(oilY<catY and oilCatDistance>=500 and oilCatDistance<=750,
+    "oil drum root is not visibly separated above its connected gray-cat branch")
 local chanceX,chanceY=board:nodeWorld(store:getNode("universal_gray_cat_chance"))
 local delayX,delayY=board:nodeWorld(store:getNode("universal_gray_cat_delay"))
 local speedX,speedY=board:nodeWorld(store:getNode("universal_gray_cat_speed"))
@@ -155,6 +157,19 @@ assert(catDistance(catX,catY,speedX,speedY)<=430,
     "gray cat speed upgrade is not visibly grouped with the cat unlock")
 assert(not(chanceX==delayX and chanceY==delayY)and not(chanceX==speedX and chanceY==speedY),
     "gray cat upgrades overlap instead of forming visible branches")
+local oilIds={"universal_oil_drum","universal_oil_interval","universal_oil_radius","universal_oil_ignition_radius",
+    "universal_oil_duration","universal_oil_damage","universal_oil_burn_duration"}
+local oilPositions={}
+for _,id in ipairs(oilIds)do
+    local ox,oy=board:nodeWorld(store:getNode(id));oilPositions[id]={x=ox,y=oy}
+end
+assert(oilPositions.universal_oil_drum.y<catY and oilPositions.universal_oil_interval.y<oilPositions.universal_oil_drum.y,
+    "oil drum research branch was not moved above the cat and facility cluster")
+for i=1,#oilIds do for j=i+1,#oilIds do
+    local a,b=oilPositions[oilIds[i]],oilPositions[oilIds[j]]
+    local dx,dy=a.x-b.x,a.y-b.y
+    assert(dx*dx+dy*dy>=300*300,"oil drum research nodes are still packed too closely: "..oilIds[i].." / "..oilIds[j])
+end end
 local root=store:getNode("fire_score_prewarm")
 local rx,ry=board:nodeWorld(root)
 local directions={left=false,right=false,up=false,down=false}

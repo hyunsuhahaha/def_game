@@ -123,7 +123,7 @@ function CharacterTraitBoard.new(store, fonts, sprites)
         tabBoxes={}, nodeBoxes={}, nodeHover={}, particles={}, time=0,
         message="", messageTime=0, messageKind="ok", unlockFx=nil,
         selectedNodeId=first and first.id or"fire_score_prewarm", blockedNode=nil, blockedTime=0, tabPulse=0,
-        canvasW=4100,canvasH=2650,panX=1100,panY=920,zoom=.80,referenceZoom=.80,panVX=0,panVY=0,drag=nil,viewport=nil,viewInitialized=false,crispFonts={},
+        canvasW=5400,canvasH=2650,panX=1100,panY=920,zoom=.80,referenceZoom=.80,panVX=0,panVY=0,drag=nil,viewport=nil,viewInitialized=false,crispFonts={},
         minimapBox=nil,resetViewBox=nil
     }, CharacterTraitBoard)
 end
@@ -180,11 +180,11 @@ function CharacterTraitBoard:fitResearchTree()
 end
 
 function CharacterTraitBoard:clampCamera()
-    if not self.viewport then return end
-    local halfW=self.viewport.w/(2*self.zoom)
-    local halfH=self.viewport.h/(2*self.zoom)
-    self.panX=clamp(self.panX,math.min(halfW,self.canvasW/2),math.max(self.canvasW-halfW,self.canvasW/2))
-    self.panY=clamp(self.panY,math.min(halfH,self.canvasH/2),math.max(self.canvasH-halfH,self.canvasH/2))
+    -- Free-pan intentionally has no hard canvas edge. The research tree may move
+    -- completely outside the viewport while the pointer keeps dragging, which
+    -- makes dense outer branches inspectable without the camera sticking at an
+    -- invisible boundary. Reopening the board or zooming to the full-tree view
+    -- still restores a useful center.
 end
 
 function CharacterTraitBoard:selectAt(x,y)
@@ -343,7 +343,12 @@ function CharacterTraitBoard:nodeWorld(node)
         -- 공용 연구는 흡연자 갈래와 같은 좌표를 쓰고 있었다(각자 다른 탭이었으므로).
         -- 한 판으로 합치면서 흡연자 오른쪽으로 통째로 옮긴다.
         universal_yard={2600,850},universal_robot_start={3000,850},universal_robot_motor={3400,850},
-        universal_oil_drum={3800,850},universal_gray_cat={3800,1100},
+        -- 드럼통 강화는 설비/고양이 선을 가로지르지 않도록 우측 상단에 독립 배치한다.
+        -- 두 줄의 동일 간격 구조라 범위 계열과 지속 계열이 한눈에 구분된다.
+        universal_oil_drum={3800,425},
+        universal_oil_interval={4200,250},universal_oil_radius={4600,250},universal_oil_ignition_radius={5000,250},
+        universal_oil_duration={4200,600},universal_oil_damage={4600,600},universal_oil_burn_duration={5000,600},
+        universal_gray_cat={3800,1100},
         universal_gray_cat_chance={3800,1350},universal_gray_cat_delay={3800,1600},
         universal_gray_cat_speed={3400,1100},
         universal_mole_companion={3000,1100},
