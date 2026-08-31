@@ -148,7 +148,7 @@ local rectangles,polygons,draws=0,0,0
 love.graphics.setColor=function()end
 love.graphics.rectangle=function()rectangles=rectangles+1 end
 love.graphics.polygon=function()polygons=polygons+1 end
-love.graphics.newImage=function()return{setFilter=function()end,getDimensions=function()return 768,256 end}end
+love.graphics.newImage=function()return{setFilter=function()end,getDimensions=function()return 768,384 end}end
 love.graphics.newQuad=function()return{}end
 love.graphics.draw=function()draws=draws+1 end
 local trailArt=require("src.oil_trail_art")

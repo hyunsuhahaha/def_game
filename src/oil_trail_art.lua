@@ -1,8 +1,8 @@
 -- Oil remains code-native: each spot builds a dense irregular black stain from
--- deterministic 2px scanlines. Only the separate flame object uses the existing
--- authored high-density fire frames.
+-- deterministic 2px scanlines. The separate flame object uses the dedicated
+-- three-shape, six-frame v3 oil-fire atlas.
 local Art={}
-local fireImage,fireQuads,smokeQuad
+local fireImage,fireQuads
 local CELL=128
 
 local function noise(seed,index)
@@ -12,11 +12,12 @@ end
 
 local function loadFire()
     if fireImage then return end
-    fireImage=love.graphics.newImage("assets/fx/oil-trail/oil-trail-atlas-pixel-v2.png")
+    fireImage=love.graphics.newImage("assets/fx/oil-trail/oil-fire-object-atlas-pixel-v3.png")
     fireImage:setFilter("nearest","nearest")
-    fireQuads={}
-    for frame=0,2 do fireQuads[frame+1]=love.graphics.newQuad(frame*CELL,CELL,CELL,CELL,fireImage:getDimensions())end
-    smokeQuad=love.graphics.newQuad(4*CELL,CELL,CELL,CELL,fireImage:getDimensions())
+    fireQuads={{},{},{}}
+    for row=0,2 do for frame=0,5 do
+        fireQuads[row+1][frame+1]=love.graphics.newQuad(frame*CELL,row*CELL,CELL,CELL,fireImage:getDimensions())
+    end end
 end
 
 local function fadeFor(spot,t)
@@ -114,17 +115,13 @@ function Art.drawFlame(spot,t)
     local burnDuration=spot.burnDuration or 5
     local alpha=math.min(1,age/.12)*math.min(1,math.max(0,(burnDuration-age)/.58))
     local seed=spot.pixelSeed or spot.sequence or 1
-    local frame=(math.floor(now*9+seed)%3)+1
-    local scale=.34*math.max(.72,math.min(1.38,spot.visualScale or 1))
+    local variant=(seed%3)+1
+    local frame=(math.floor(now*10+seed)%6)+1
+    local scale=.48*math.max(.72,math.min(1.30,spot.visualScale or 1))
     local flicker=math.floor(math.sin(now*13+seed)*2)
     love.graphics.setColor(1,1,1,alpha)
-    love.graphics.draw(fireImage,fireQuads[frame],math.floor(spot.x/2)*2+flicker,
-        math.floor(spot.y/2)*2,0,scale,scale,CELL/2,116)
-    if (spot.sequence or 0)%5==0 then
-        love.graphics.setColor(.72,.66,.62,alpha*.44)
-        love.graphics.draw(fireImage,smokeQuad,math.floor(spot.x/2)*2-flicker,
-            math.floor(spot.y/2)*2-5,0,scale*.72,scale*.72,CELL/2,116)
-    end
+    love.graphics.draw(fireImage,fireQuads[variant][frame],math.floor(spot.x/2)*2+flicker,
+        math.floor(spot.y/2)*2,0,scale,scale,CELL/2,108)
     love.graphics.setColor(1,1,1,1)
 end
 

@@ -35,7 +35,11 @@ local rectangles,polygons,draws=0,0,0
 for _,op in ipairs(fixture.commands) do
     if op.op=="rectangle"then rectangles=rectangles+1
     elseif op.op=="polygon"then polygons=polygons+1
-    elseif op.op=="draw"then draws=draws+1 end
+    elseif op.op=="draw"then
+        assert(op.file=="assets/fx/oil-trail/oil-fire-object-atlas-pixel-v3.png","oil fire did not use the dedicated v3 object atlas")
+        assert(op.filter=="nearest","oil-fire object atlas is not nearest-filtered")
+        draws=draws+1
+    end
 end
 assert(rectangles>=40 and polygons>=60 and draws>=2,
     "oil road did not use dense code-native black pixels with separate authored flame objects")
@@ -47,4 +51,4 @@ assert(mode.damageAudit and mode.damageAudit.radius==55 and mode.damageAudit.dam
 mode.smokerGroundTime=7.1
 mode:updateOilTrail(.01,game)
 assert(#mode.oilTrail==0,"five-second fire lifetime changed")
-print("OIL_TRAIL_FX_OK runtime-pixels depth=ground+separate-flame chain=preserved gameplay=preserved")
+print("OIL_TRAIL_FX_OK runtime-pixels fire=v3-3x6 depth=ground+separate-flame chain=preserved gameplay=preserved")
