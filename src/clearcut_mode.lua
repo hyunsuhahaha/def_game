@@ -41,6 +41,7 @@ local SkillBranches = require("src.clearcut_skill_branches")
 local SynergyUI = require("src.synergy_ui")
 local SmokerWeaponArt = require("src.smoker_weapon_art")
 local ScoreOperations = require("src.score_operations")
+local ScoreWeaponHotbarArt = require("src.score_weapon_hotbar_art")
 local ScoreTierUpArt = require("src.score_tier_up_art")
 local WoodEconomy = require("src.wood_economy")
 local WoodSettlementArt = require("src.wood_settlement_art")
@@ -49,9 +50,9 @@ local ClearcutMode = {}
 ClearcutMode.__index = ClearcutMode
 
 local scoreWeaponDefinitions = {
-    {id="cigarette",name="담배",hint="꽁초 투척 · 점화"},
-    {id="axe",name="도끼",hint="근접 타격 · 즉시 피해"},
-    {id="firework",name="폭죽 로켓",hint="원거리 폭발 · 광역 피해"},
+    {id="cigarette",name="담배"},
+    {id="axe",name="도끼"},
+    {id="firework",name="폭죽 로켓"},
 }
 ClearcutMode.scoreWeaponDefinitions=scoreWeaponDefinitions
 
@@ -6204,9 +6205,7 @@ function ClearcutMode:drawHeldSmoker(game,t)
 end
 
 function ClearcutMode:scoreWeaponSlotRect(index,w,h)
-    local width,gap=156,8
-    local total=#scoreWeaponDefinitions*width+(#scoreWeaponDefinitions-1)*gap
-    return math.floor((w-total)/2)+(index-1)*(width+gap),h-78,width,58
+    return ScoreWeaponHotbarArt.rect(index,w,h)
 end
 
 function ClearcutMode:scoreWeaponSlotAt(x,y,w,h)
@@ -6219,20 +6218,7 @@ end
 
 function ClearcutMode:drawScoreWeaponSlots(fonts,w,h)
     if not self.scoreAttack then return end
-    for index,def in ipairs(scoreWeaponDefinitions)do
-        local x,y,width,height=self:scoreWeaponSlotRect(index,w,h)
-        local selected=index==(self.scoreWeaponSlot or 1)
-        love.graphics.setColor(selected and{.08,.15,.12,.96}or{.035,.055,.05,.90})
-        love.graphics.rectangle("fill",x,y,width,height,7,7)
-        love.graphics.setLineWidth(selected and 3 or 1)
-        love.graphics.setColor(selected and{1,.64,.16,1}or{.38,.48,.42,.82})
-        love.graphics.rectangle("line",x+.5,y+.5,width-1,height-1,7,7)
-        love.graphics.setFont(fonts.small);love.graphics.setColor(selected and{1,.93,.72}or{.76,.80,.74})
-        love.graphics.print("["..index.."]  "..def.name,x+10,y+8)
-        love.graphics.setFont(fonts.micro or fonts.small);love.graphics.setColor(selected and{1,.70,.28}or{.48,.56,.50})
-        love.graphics.print(def.hint,x+10,y+33)
-    end
-    love.graphics.setLineWidth(1)
+    ScoreWeaponHotbarArt.draw(self.scoreWeaponSlot or 1,w,h)
 end
 
 local function queueUpright(queue,x,y,draw,sortY,anchorY)

@@ -10,5 +10,5 @@ local Mode=require("src.clearcut_mode")
 local mode=Mode.new();mode.scoreAttack=true;mode.job="fire";mode.scoreWeaponSlot=2
 local fonts={small=love.graphics.newFont("assets/font-korean-regular.ttf",16),micro=love.graphics.newFont("assets/font-korean-regular.ttf",13)}
 mode:drawScoreWeaponSlots(fonts,1280,720)
-fixture.save("docs/previews/score-weapon-slots-draws.json")
+fixture.save("docs/previews/score-weapon-hotbar-draws.json")
 print("SCORE_WEAPON_SLOTS_CAPTURE_OK 1280x720 selected=axe window=none")
