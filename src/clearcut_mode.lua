@@ -854,7 +854,7 @@ function ClearcutMode:spillOilDrum(drum,source)
     local group="drum_"..tostring(drum.id or self.oilTrailSequence)
     self.oilDrumSpills[#self.oilDrumSpills+1]={
         x=drum.x,y=drum.y,age=0,frameDuration=.12,lifetime=lifetime,scale=radiusScale,
-        facing=drum.spillFacing or 1,source=source,drumId=drum.id,group=group
+        radius=radius,facing=drum.spillFacing or 1,source=source,drumId=drum.id,group=group
     }
     local spots={}
     for index=1,11 do
@@ -6430,7 +6430,11 @@ function ClearcutMode:queueWorldActors(queue,t)
     end
     for _,value in ipairs(self.oilDrumSpills or{})do local spill=value
         queue[#queue+1]={y=-100001+spill.y*.001,ground=true,
-            draw=function()ClearcutMode.OilDrumSpillArt.draw(spill)end}
+            draw=function()ClearcutMode.OilDrumSpillArt.drawGround(spill)end}
+        if spill.ignited then
+            queue[#queue+1]={x=spill.x,y=spill.y+.1,anchorY=spill.y,
+                draw=function()ClearcutMode.OilDrumSpillArt.drawFire(spill)end}
+        end
     end
     if self.grayOilCat then local cat=self.grayOilCat
         queue[#queue+1]={x=cat.x,y=cat.y,anchorY=cat.y,sortBias=.002,

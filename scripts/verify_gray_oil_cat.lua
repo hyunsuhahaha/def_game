@@ -91,9 +91,25 @@ damageMode.damageTreeWithSmokerWeapon=function(_,node,amount)node.hp=node.hp-amo
 damageMode:updateOilTrail(.5,damageGame)
 assert(tree.hp==1,"ignited drum puddle did not damage a tree in its visible radius")
 assert(damageMode.oilDrumSpills[1].ignited and damageMode.oilDrumSpills[1].ignitedAge==.5,
-    "drum puddle did not switch from the new ground-oil atlas to the new burning-oil atlas")
+    "drum puddle did not enable the independent fire overlay")
 damageMode.oilTrail={}
 damageMode:updateOilTrail(.1,damageGame)
 assert(not damageMode.oilDrumSpills[1].ignited,"expired oil fire did not switch back to the ground-oil atlas")
+
+local drawCount=0
+love.graphics.newImage=function()return{setFilter=function()end,getDimensions=function()return 1024,400 end}end
+love.graphics.newQuad=function()return{}end
+love.graphics.setColor=function()end
+love.graphics.draw=function()drawCount=drawCount+1 end
+local art=ClearcutMode.OilDrumSpillArt
+art.drawGround({x=100,y=100,age=2,lifetime=20,radius=105,scale=1})
+assert(drawCount==1,"ground oil was not rendered as one independent layer")
+drawCount=0
+art.drawFire({x=100,y=100,age=2,lifetime=20,radius=105,ignited=true,ignitedAge=.5})
+local baseFireDraws=drawCount
+drawCount=0
+art.drawFire({x=100,y=100,age=2,lifetime=20,radius=159,ignited=true,ignitedAge=.5})
+assert(baseFireDraws>1 and drawCount>baseFireDraws,
+    "independent fire overlay did not add coverage when the oil radius increased")
 
 print("GRAY_OIL_CAT_OK exact-approved-atlas runtime-flow=enter,push,spill,jump oil-spots=11")
