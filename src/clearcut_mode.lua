@@ -844,8 +844,8 @@ end
 function ClearcutMode:spillOilDrum(drum,source)
     if not drum or drum.state=="spilled"then return false end
     drum.state,drum.spillAge,drum.claimed="spilled",0,false
-    drum.angle=drum.angle~=0 and drum.angle or 1.35
-    drum.hasSpillFx=true
+    drum.angle=(drum.spillFacing or 1)*math.pi*.5
+    drum.hasSpillFx=false
     local radius=105+(self.permanentTraits.scoreOilRadius or 0)
     local radiusScale=radius/105
     local lifetime=20+(self.permanentTraits.scoreOilDuration or 0)
@@ -6418,10 +6418,8 @@ function ClearcutMode:queueWorldActors(queue,t)
             draw=function()self:drawMoleCompanion(companion)end}
     end
     for _,value in ipairs(self.oilDrums or{})do local drum=value
-        if not(drum.state=="spilled"and drum.hasSpillFx)then
         queue[#queue+1]={x=drum.x,y=drum.y,anchorY=drum.y,sortBias=.001,
             draw=function()ClearcutMode.GrayOilCatArt.drawDrum(drum)end}
-        end
     end
     for _,value in ipairs(self.oilDrumSpills or{})do local spill=value
         queue[#queue+1]={y=-100001+spill.y*.001,ground=true,

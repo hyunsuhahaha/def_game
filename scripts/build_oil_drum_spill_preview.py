@@ -2,13 +2,13 @@ from pathlib import Path
 from PIL import Image
 
 root = Path(__file__).resolve().parents[1]
-source = Image.open(root / "assets/fx/oil-drum-spill/oil-drum-spill-generated-v1.png").convert("RGBA")
+source = Image.open(root / "assets/fx/oil-drum-spill/oil-drum-spill-atlas-pixel-v2.png").convert("RGBA")
 out = root / "docs/previews"
 out.mkdir(parents=True, exist_ok=True)
 frames = []
 for index in range(8):
-    x, y = (index % 4) * 543, (index // 4) * 362
-    frame = source.crop((x, y, x + 543, y + 362))
+    x, y = (index % 4) * 256, (index // 4) * 200
+    frame = source.crop((x, y, x + 256, y + 200))
     frame.thumbnail((304, 203), Image.Resampling.NEAREST)
     canvas = Image.new("RGBA", (304, 203), (0, 0, 0, 0))
     canvas.alpha_composite(frame, ((304 - frame.width) // 2, 203 - frame.height))

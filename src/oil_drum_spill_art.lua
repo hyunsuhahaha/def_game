@@ -1,12 +1,12 @@
 local Art={}
 local image,quads
-local FRAME_W,FRAME_H=543,362
+local FRAME_W,FRAME_H=256,200
 local FRAME_COUNT=8
-local SCALE=.56
+local SCALE=.75
 
 local function load()
     if image then return end
-    image=love.graphics.newImage("assets/fx/oil-drum-spill/oil-drum-spill-generated-v1.png")
+    image=love.graphics.newImage("assets/fx/oil-drum-spill/oil-drum-spill-atlas-pixel-v2.png")
     image:setFilter("nearest","nearest")
     quads={}
     for frame=0,FRAME_COUNT-1 do
@@ -30,7 +30,7 @@ function Art.draw(value)
     -- grows in the push/axe-hit direction.
     local scale=SCALE*(value.scale or 1)
     love.graphics.draw(image,quads[frame],math.floor(value.x+.5),math.floor(value.y+.5),0,
-        scale*facing,scale,145,338)
+        scale*facing,scale,95,185)
     love.graphics.setColor(1,1,1,1)
 end
 

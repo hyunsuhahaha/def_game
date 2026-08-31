@@ -25,6 +25,7 @@ for _,spot in ipairs(mode.oilTrail)do
     earliest,latest=math.min(earliest,spot.spawnedAt),math.max(latest,spot.spawnedAt)
 end
 assert(#mode.oilDrumSpills==1 and mode.oilDrumSpills[1].frameDuration==.12,"dedicated drum spill animation was not created")
+assert(math.abs(math.abs(drum.angle)-math.pi*.5)<1e-9 and not drum.hasSpillFx,"original drum did not remain as the separately toppled prop")
 assert(latest-earliest>=.18,"oil collision points did not follow the visible spill timing")
 
 local upgraded=ClearcutMode.new()
