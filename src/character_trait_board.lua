@@ -324,6 +324,9 @@ function CharacterTraitBoard:nodeWorld(node)
     -- 바꾸지 않고 화면에서만 뿌리->가지 방향의 고정 배치를 사용한다.
     local scoreLayout={
         fire_score_prewarm={1100,850},
+        -- 18코인 루트 뒤 32코인으로 열리는 초반 손맛 노드. 기존 네 방향 갈래는
+        -- 움직이거나 삭제하지 않고 북서쪽의 독립 가지로 둔다.
+        fire_score_impact={750,600},
         fire_score_filter={750,850},fire_score_spark={400,850},
         fire_score_lighter={1450,850},fire_score_ash={1800,850},
         fire_score_launch={1100,600},fire_score_drag={1100,350},
@@ -569,7 +572,7 @@ function CharacterTraitBoard:draw()
     Frontend.button(self.backBox,"← 돌아가기",fonts.small,{accent=STRUCTURE})
     local titleX=184*textScale
     love.graphics.setFont(fonts.title); love.graphics.setColor(.18,.19,.17); love.graphics.print("강화하기",titleX,titleY)
-    love.graphics.setFont(fonts.small); love.graphics.setColor(.38,.40,.37); love.graphics.print("중앙 장비에서 네 방향으로 연구를 확장합니다",titleX,subtitleY)
+    love.graphics.setFont(fonts.small); love.graphics.setColor(.38,.40,.37); love.graphics.print("중앙 장비에서 여러 갈래로 연구를 확장합니다",titleX,subtitleY)
     love.graphics.setFont(fonts.small);love.graphics.setColor(.38,.40,.37);love.graphics.printf("연구 코인",w-250*textScale,20*textScale,118*textScale,"right")
     love.graphics.setFont(fonts.big);love.graphics.setColor(.24,.54,.32);love.graphics.printf(tostring(self.store.data.currency),w-126*textScale,16*textScale,100*textScale,"right")
 

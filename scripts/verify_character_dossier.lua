@@ -23,11 +23,11 @@ assert(dossier:find('id="score-mode-summary"',1,true),"dossier is missing the vi
 assert(dossier:find("0그루 달성 · 0.86초 잎/프리즘 단계 상승 연출 · 6그루 순차 발아 · 다음 단계 영구 해금",1,true),
     "dossier score-mode opening pacing is stale")
 assert(dossier:find("목재 5부터 빠른 운영·전투 강화 3택",1,true),"dossier score-mode growth summary is stale")
-assert(dossier:find("중앙 루트에서 상·하·좌·우 4방향 분기 · 방향별 동일 단계 간격 · 기준 간격의 85~115% 줌 · 화면 해상도별 한글 폰트 재래스터",1,true),
+assert(dossier:find("중앙 루트의 기존 상·하·좌·우 분기 + 초반 즉시 타격 대각선 가지 · 방향별 동일 단계 간격 · 기준 간격의 85~115% 줌 · 화면 해상도별 한글 폰트 재래스터",1,true),
     "dossier research-board summary is stale")
 assert(dossier:find("수종별 목재 집계 → 1개씩 회전 코인으로 순차 변환 → 강화하기/재도전 (이동 시 잔여분 즉시 정산)",1,true),
     "dossier result-screen summary is stale")
-assert(dossier:find("fire_score_prewarm",1,true)and dossier:find("fire_score_stock",1,true),
+assert(dossier:find("fire_score_prewarm",1,true)and dossier:find("fire_score_impact",1,true)and dossier:find("fire_score_stock",1,true),
     "dossier score-mode permanent traits are stale")
 assert(dossier:find("universal_robot_start",1,true)and dossier:find("universal_robot_motor",1,true),
     "dossier baby robot permanent research is stale")

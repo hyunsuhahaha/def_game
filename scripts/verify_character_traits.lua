@@ -96,6 +96,8 @@ assert(math.abs(scoreSmoker.scoreAttackSpeed-.20)<1e-9 and math.abs(scoreSmoker.
 local earlySmoking=CharacterTraits.new(true)
 earlySmoking.data.currency=500
 assert(earlySmoking:buy("fire_score_prewarm"),"smoker root purchase failed")
+assert(earlySmoking:buy("fire_score_impact"),"early cigarette-impact node is not purchasable directly after the root")
+assert(earlySmoking:scoreAttackEffects().scoreCigaretteImpact==1,"early impact purchase did not reach score runtime effects")
 assert(earlySmoking:buy("fire_score_alwayssmoke"),"always-smoking node is not purchasable directly after the root")
 assert(earlySmoking:scoreAttackEffects().scoreAlwaysSmoking==1,"early always-smoking purchase did not reach score runtime effects")
 local activeScore=store:scoreAttackEffects()
@@ -120,7 +122,7 @@ assert(linkedSpill.lifetime==29 and linkedGroup.damage==4 and linkedOilMode.oilT
 assert(activeScore.scoreStartingWood==nil and activeScore.scoreAutomationDiscount==nil,"removed score automation traits still affect runtime")
 -- 불 갈래 25 = 담배 9 + 공용 나무 피해 1 + 도끼 4 + 도끼 상위 3(충격파·연속 벌목·나무꾼 고용)
 -- + 후반 해금 3(상시 흡연·자동 투척·폭죽) + 폭죽 5.
-assert(#store:getScoreAttackNodes("fire")==25 and #store:getScoreAttackNodes("universal")==21,"active research board did not expose the split companion graphs and the weapon-slot branches")
+assert(#store:getScoreAttackNodes("fire")==26 and #store:getScoreAttackNodes("universal")==21,"active research board did not expose the split companion graphs and the weapon-slot branches")
 for _, job in ipairs({"physical","fire","toxic","developer"}) do
     assert(#store:getNodes(job) >= 30, job .. " character graph has too few trait nodes")
 end
@@ -189,6 +191,10 @@ for i=1,#oilIds do for j=i+1,#oilIds do
 end end
 local root=store:getNode("fire_score_prewarm")
 local rx,ry=board:nodeWorld(root)
+local impact=store:getNode("fire_score_impact")
+local ix,iy=board:nodeWorld(impact)
+assert(root.costs[1]+impact.costs[1]==50 and impact.requires[1][1]=="fire_score_prewarm" and ix<rx and iy<ry,
+    "cigarette impact unlock is not a 2-3 run early branch beside the smoker root")
 local directions={left=false,right=false,up=false,down=false}
 for _,id in ipairs({"fire_score_filter","fire_score_lighter","fire_score_launch","fire_score_alwayssmoke"})do
     local nx,ny=board:nodeWorld(store:getNode(id));local dx,dy=nx-rx,ny-ry

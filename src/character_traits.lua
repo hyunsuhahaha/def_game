@@ -190,6 +190,7 @@ expand("fire",{
 -- 일반 흡연자 연구는 삭제하지 않고 저장 호환을 위해 위에 그대로 보존한다.
 local scoreFireNodes={
     {id="fire_score_prewarm",name="최초 흡연 준비시간 감소",short="첫 불씨 단축",desc="벌목 기록 모드 최초 흡연 준비시간 -0.08초",effect="scoreInitialIgnitionReduction",value=.08,wx=390,wy=710,icon="ember",color={1,.48,.12}},
+    {id="fire_score_impact",name="꽁초 즉시 타격 반응",short="즉시 타격 반응",desc="꽁초 착지 즉시 최근접 대상 1개를 점화하고 짧은 정지·반동·전용 타격음을 적용합니다.",effect="scoreCigaretteImpact",value=1,max=1,costs={32},wx=750,wy=600,icon="ember",color={1,.42,.10},requires={{"fire_score_prewarm",1}}},
     -- 루트 바로 다음 두 번째 노드. 도끼·폭죽을 들고 있는 동안에도 한 갑을 다 쓴
     -- 긴 재장전을 포함한 흡연 상태가 계속 진행된다.
     {id="fire_score_alwayssmoke",name="상시 흡연",short="상시 흡연",desc="다른 무기를 들고 있어도 계속 담배를 피웁니다. 담배로 바꾼 즉시 던질 수 있습니다.",effect="scoreAlwaysSmoking",value=1,max=1,costs={200},wx=2020,wy=760,icon="cigarette",color={.94,.72,.36},requires={{"fire_score_prewarm",1}}},
@@ -565,7 +566,7 @@ function CharacterTraits:effects(job)
         woodYield=1, forestRestock=0, treeVariety=0, scoreTreeAllowance=0,
         scoreRange=0,scoreArea=0,scoreAttackSpeed=0,scoreIgnitionChance=0,scoreSpreadChance=0,
         scoreProjectileSpeed=0,scoreBurnSpeed=0,scoreExtraFires=0,
-        scoreInitialIgnitionReduction=0,scoreStartingBabyRobot=0,scoreRobotSpeed=0,scoreMoleCompanion=0,
+        scoreInitialIgnitionReduction=0,scoreCigaretteImpact=0,scoreStartingBabyRobot=0,scoreRobotSpeed=0,scoreMoleCompanion=0,
         scoreMoleDamage=0,scoreMoleSpeed=0,scoreMoleAttackSpeed=0,scoreMoleClawTier=0,scoreMoleDualClaw=0,scoreMoleExtraCompanions=0,
         scoreOilDrum=0,scoreOilDrumInterval=0,scoreOilRadius=0,scoreOilIgnitionRadius=0,
         scoreOilDuration=0,scoreOilBurnDuration=0,scoreOilDamage=0,
@@ -592,7 +593,7 @@ function CharacterTraits:scoreAttackEffects()
         moveSpeed=1,pickupRadius=0,hpRegen=0,reviveCharges=0,woodYield=1,
         scoreTreeAllowance=0,scoreRange=0,scoreArea=0,scoreAttackSpeed=0,
         scoreIgnitionChance=0,scoreSpreadChance=0,scoreProjectileSpeed=0,
-        scoreBurnSpeed=0,scoreExtraFires=0,scoreInitialIgnitionReduction=0,
+        scoreBurnSpeed=0,scoreExtraFires=0,scoreInitialIgnitionReduction=0,scoreCigaretteImpact=0,
         scoreStartingBabyRobot=0,scoreRobotSpeed=0,scoreMoleCompanion=0,
         scoreMoleDamage=0,scoreMoleSpeed=0,scoreMoleAttackSpeed=0,scoreMoleClawTier=0,scoreMoleDualClaw=0,scoreMoleExtraCompanions=0,
         scoreOilDrum=0,scoreOilDrumInterval=0,scoreOilRadius=0,scoreOilIgnitionRadius=0,

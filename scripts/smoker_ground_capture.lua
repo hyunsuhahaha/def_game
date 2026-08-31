@@ -16,7 +16,8 @@ local player=Player.new(135,362,world.images.workerWalk,world.images.workerActio
 local loader
 for i=1,30 do local name,value=debug.getupvalue(Game.new,i);if name=="loadClearcutSprites" then loader=value;break end end
 assert(loader);player:setClearcutSprite(loader().fire,"fire")
-local mode=Mode.new();mode.job="fire";mode.smoking={phase="loaded",t=1,dur=1};mode.remainingTrees=5
+local mode=Mode.new();mode.job="fire";mode.scoreAttack=true;mode.permanentTraits.scoreCigaretteImpact=1
+mode.smoking={phase="loaded",t=1,dur=1};mode.remainingTrees=5
 local game={player=player,world=world,setNotice=function() end}
 mode:hurlMolotovAt(372,360,game)
 for frame=0,44 do
@@ -31,7 +32,7 @@ for frame=0,44 do
 end
 assert(target.burning,"capture never reached ignition")
 -- Independent all-failure branch: expired grey butt, never a burning tree.
-local failed=Mode.new();failed.job="fire";failed.smoking=mode.smoking
+local failed=Mode.new();failed.job="fire";failed.scoreAttack=true;failed.smoking=mode.smoking
 target.burning=nil;target.cigaretteIgnitedAt=nil
 target.active=false
 failed:hurlMolotovAt(372,360,game)

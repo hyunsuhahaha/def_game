@@ -205,7 +205,7 @@ function ClearcutMode.new()
         rootHazards={}, rootedTimer=0, rootedCount=0,
         bees={}, beeSlow=false, beeSwarmsTriggered=0, beehiveTotal=0,
         streak=0, lastHitAt=-10, molotovTimer=0, evolutions={}, molotovs={},
-        cigaretteButts={}, emberTransfers={}, emberArrivals={}, cigaretteLandingImpacts={}, smokerGroundTime=0, secondhandSmokeClouds={},
+        cigaretteButts={}, emberTransfers={}, emberArrivals={}, cigaretteLandingImpacts={}, smokerGroundTime=0,cigaretteHitStop=0, secondhandSmokeClouds={},
         smokerWeaponProjectiles={},smokerWeaponCooldown=0,vapeCharge=0,vapeKick=0,vapeWindLeaves={},
         treeSparks={}, treeSparkArrivals={}, strawTimer=0, strawBales={}, strawBaleSequence=0,
         oilTrail={}, oilTrailTimer=0, oilTrailLastX=nil, oilTrailLastY=nil, oilTrailSequence=0,
@@ -240,7 +240,7 @@ function ClearcutMode.new()
             biteDamage=0, plagueDuration=0,
             dashSpeed=1, sterileChance=0, aftershockRadius=0, cooldownRefund=0,
             moveSpeed=1, pickupRadius=0, hpRegen=0, reviveCharges=0,
-            scoreInitialIgnitionReduction=0,scoreMoleCompanion=0,scoreMoleDamage=0,scoreMoleSpeed=0,
+            scoreInitialIgnitionReduction=0,scoreCigaretteImpact=0,scoreMoleCompanion=0,scoreMoleDamage=0,scoreMoleSpeed=0,
             scoreMoleAttackSpeed=0,scoreMoleClawTier=0,scoreMoleDualClaw=0,scoreMoleExtraCompanions=0,
             scoreOilDrum=0,scoreOilDrumInterval=0,scoreOilRadius=0,scoreOilIgnitionRadius=0,
             scoreOilDuration=0,scoreOilBurnDuration=0,scoreOilDamage=0,
@@ -2722,14 +2722,17 @@ function ClearcutMode:updateMolotovImpacts(dt, game)
                     if CombatGeometry.sweptCircleOverlapsTarget(previousX,previousY,x,y,24,e) then
                         flight.hitSet[e] = true
                         e.hp = e.hp - dmg
-                        e.visualHit = math.max(e.visualHit or 0,.20)
-                        e.impactKick=math.max(e.impactKick or 0,.10)
-                        e.impactKickDir=(e.x-previousX)>=0 and 1 or -1
                         self:igniteEnemy(e,game,0)
-                        self.emberArrivals[#self.emberArrivals+1]={x=e.x,y=e.y,startAt=self.smokerGroundTime,
-                            expiresAt=self.smokerGroundTime+.20,duration=.20,scale=.46,targetKind="enemy",instant=true}
-                        self.cigaretteHitStop=math.max(self.cigaretteHitStop or 0,.025)
-                        if game.feedback then game.feedback:play("butt_hit",true) end
+                        local impactReady=not self.scoreAttack or(self.permanentTraits.scoreCigaretteImpact or 0)>0
+                        if impactReady then
+                            e.visualHit=math.max(e.visualHit or 0,.20)
+                            e.impactKick=math.max(e.impactKick or 0,.10)
+                            e.impactKickDir=(e.x-previousX)>=0 and 1 or -1
+                            self.emberArrivals[#self.emberArrivals+1]={x=e.x,y=e.y,startAt=self.smokerGroundTime,
+                                expiresAt=self.smokerGroundTime+.20,duration=.20,scale=.46,targetKind="enemy",instant=true}
+                            self.cigaretteHitStop=math.max(self.cigaretteHitStop or 0,.025)
+                            if game.feedback then game.feedback:play("butt_hit",true) end
+                        else e.visualHit=math.max(e.visualHit or 0,.14)end
                     end
                 end
             end

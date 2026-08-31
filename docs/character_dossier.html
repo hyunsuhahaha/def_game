@@ -405,7 +405,7 @@
     <div class="score-rule"><span class="score-rule-label">자동 산림 공급</span><span class="score-rule-value">0그루 달성 · 0.86초 잎/프리즘 단계 상승 연출 · 6그루 순차 발아 · 다음 단계 영구 해금</span></div>
     <div class="score-rule"><span class="score-rule-label">몬스터 투입</span><span class="score-rule-value">첫 45초 없음 · 이후 동시 1→2→3→4마리</span></div>
     <div class="score-rule"><span class="score-rule-label">런 성장</span><span class="score-rule-value">목재 5부터 빠른 운영·전투 강화 3택</span></div>
-    <div class="score-rule"><span class="score-rule-label">강화하기 화면</span><span class="score-rule-value">중앙 루트에서 상·하·좌·우 4방향 분기 · 방향별 동일 단계 간격 · 기준 간격의 85~115% 줌 · 화면 해상도별 한글 폰트 재래스터</span></div>
+    <div class="score-rule"><span class="score-rule-label">강화하기 화면</span><span class="score-rule-value">중앙 루트의 기존 상·하·좌·우 분기 + 초반 즉시 타격 대각선 가지 · 방향별 동일 단계 간격 · 기준 간격의 85~115% 줌 · 화면 해상도별 한글 폰트 재래스터</span></div>
     <div class="score-rule"><span class="score-rule-label">결과 화면</span><span class="score-rule-value">수종별 목재 집계 → 1개씩 회전 코인으로 순차 변환 → 강화하기/재도전 (이동 시 잔여분 즉시 정산)</span></div>
   </section>
   <div class="toolbar">
@@ -504,6 +504,7 @@ const TRAITS = {
       {id:"fire_claim",name:"실화 책임 전면 부인",short:"책임 없음",desc:"연구 코인 +14%",max:1,costs:[135],requires:[["fire_emberstorm",2],["fire_press",2]],capstone:true},
       {id:"fire_redsky",name:"하늘이 붉은 건 노을",short:"최종 산불",desc:"착화 범위 +42",max:1,costs:[190],requires:[["fire_claim",1]],capstone:true},
       {id:"fire_score_prewarm",name:"최초 흡연 준비시간 감소",short:"첫 불씨 단축",desc:"벌목 기록 모드 최초 흡연 준비시간 -0.08초",max:5,costs:[18,32,50,74,104]},
+      {id:"fire_score_impact",name:"꽁초 즉시 타격 반응",short:"즉시 타격 반응",desc:"꽁초 착지 즉시 최근접 대상 1개를 점화하고 짧은 정지·반동·전용 타격음을 적용합니다.",max:1,costs:[32],requires:[["fire_score_prewarm",1]]},
       {id:"fire_score_alwayssmoke",name:"상시 흡연",short:"상시 흡연",desc:"다른 무기를 들고 있어도 계속 담배를 피웁니다. 담배로 바꾼 즉시 던질 수 있습니다.",max:1,costs:[200],requires:[["fire_score_prewarm",1]]},
       {id:"fire_score_filter",name:"무기 사거리 상승",short:"무기 사거리",desc:"무기 사거리 +16",max:6,costs:[18,32,50,74,104,142],requires:[["fire_score_prewarm",1]]},
       {id:"fire_score_lighter",name:"착화 범위 상승",short:"착화 범위",desc:"꽁초가 불씨를 옮기는 착화 반경 +12",max:6,costs:[18,32,50,74,104,142],requires:[["fire_score_prewarm",1]]},
