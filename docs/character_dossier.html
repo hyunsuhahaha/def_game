@@ -702,7 +702,7 @@ const TRAITS = {
       {id:"universal_robot_motor",name:"아기 로봇 이동속도 상승",short:"로봇 이동속도",desc:"아기 운반 로봇 이동속도 +10%",max:5,costs:[22,38,58,82,112],requires:[["universal_robot_start",1]]},
       {id:"universal_oil_drum",name:"기름 드럼통 생성",short:"드럼통 생성",desc:"벌목 기록 모드에서 22초마다 기름 드럼통이 떨어집니다. 도끼로 두 번 타격하면 드럼통이 넘어지고 전용 8프레임 유출 애니메이션으로 기름이 넓게 퍼집니다.",max:1,costs:[64],requires:[["universal_robot_start",1]]},
       {id:"universal_oil_interval",name:"드럼통 등장 주기",short:"등장 주기 감소",desc:"단계마다 기름 드럼통 등장 주기가 2초 감소합니다.",max:3,costs:[38,64,96],requires:[["universal_oil_drum",1]]},
-      {id:"universal_oil_radius",name:"기름 범위",short:"기름 범위 상승",desc:"단계마다 기름 웅덩이의 보이는 크기와 피해 범위가 18 증가합니다.",max:3,costs:[32,54,82],requires:[["universal_oil_interval",1]]},
+      {id:"universal_oil_radius",name:"기름 범위",short:"기름 범위 상승",desc:"기본 반경은 140이며, 단계마다 기름 웅덩이의 보이는 크기와 피해 범위가 18 증가합니다.",max:3,costs:[32,54,82],requires:[["universal_oil_interval",1]]},
       {id:"universal_oil_ignition_radius",name:"기름 인화 범위 상승",short:"인화 범위 상승",desc:"단계마다 담배꽁초가 드럼통 기름에 불을 붙이는 거리가 14 증가합니다.",max:3,costs:[34,58,88],requires:[["universal_oil_radius",2]]},
       {id:"universal_oil_duration",name:"기름 지속시간",short:"지속시간 상승",desc:"단계마다 기름 웅덩이의 지속시간이 3초 증가합니다.",max:3,costs:[28,48,74],requires:[["universal_oil_drum",1]]},
       {id:"universal_oil_burn_duration",name:"기름 발화 지속시간 상승",short:"발화 지속시간",desc:"단계마다 불붙은 드럼통 기름의 화염 유지시간이 1.5초 증가합니다.",max:3,costs:[42,70,106],requires:[["universal_oil_duration",2]]},

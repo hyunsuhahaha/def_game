@@ -144,4 +144,12 @@ zoom=Image.new("RGBA",(W*2,H),(48,59,38,255));zoom.alpha_composite(combined[3],(
 zoom=zoom.resize((W*4,H*2),Image.Resampling.NEAREST)
 board.alpha_composite(zoom.resize((W*2,H),Image.Resampling.NEAREST),(0,H))
 board.save(PREVIEW / "oil-puddle-fire-v2-board.png")
-print("OIL_PUDDLE_FIRE_V2_OK ground=stable fire=8 atlas=1024x400 cell=256x200")
+
+# Offscreen 1px/world fixture: base radius 140 and max lobby radius 194.
+range_board=Image.new("RGBA",(720,280),(48,59,38,255))
+for x,radius in ((30,140),(390,194)):
+    scale=.75*radius/105
+    sample=combined[3].resize((round(W*scale),round(H*scale)),Image.Resampling.NEAREST)
+    range_board.alpha_composite(sample,(x,255-sample.height))
+range_board.save(PREVIEW / "oil-puddle-fire-v2-range-board.png")
+print("OIL_PUDDLE_FIRE_V2_OK ground=stable fire=8 atlas=1024x400 cell=256x200 base=140 max=194")

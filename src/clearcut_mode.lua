@@ -50,6 +50,8 @@ local ClearcutMode = {}
 ClearcutMode.__index = ClearcutMode
 ClearcutMode.GrayOilCatArt = require("src.gray_oil_cat_art")
 ClearcutMode.OilDrumSpillArt = require("src.oil_drum_spill_art")
+ClearcutMode.OIL_BASE_RADIUS=140
+ClearcutMode.OIL_ART_RADIUS=105
 ClearcutMode.CompanionInventory = require("src.companion_inventory")
 
 local scoreWeaponDefinitions = {
@@ -939,8 +941,8 @@ function ClearcutMode:spillOilDrum(drum,source)
     drum.state,drum.spillAge,drum.claimed="spilled",0,false
     drum.angle=(drum.spillFacing or 1)*math.pi*.5
     drum.hasSpillFx=false
-    local radius=105+(self.permanentTraits.scoreOilRadius or 0)
-    local radiusScale=radius/105
+    local radius=ClearcutMode.OIL_BASE_RADIUS+(self.permanentTraits.scoreOilRadius or 0)
+    local radiusScale=radius/ClearcutMode.OIL_ART_RADIUS
     local lifetime=20+(self.permanentTraits.scoreOilDuration or 0)
     local oilDamage=self.permanentTraits.scoreOilDamage or 0
     self.oilTrailSequence=(self.oilTrailSequence or 0)+1

@@ -18,7 +18,7 @@ mode.oilDrums={drum}
 assert(mode:spillOilDrum(drum,"axe"),"settled drum did not spill")
 assert(drum.state=="spilled" and #mode.oilTrail==11,"drum spill did not create one continuous eleven-spot puddle")
 local group=mode.oilPuddleGroups.drum_1
-assert(group and group.radius==105,"drum oil puddle group was not registered")
+assert(group and group.radius==140,"drum oil puddle base radius was not enlarged")
 local earliest,latest=math.huge,-math.huge
 for _,spot in ipairs(mode.oilTrail)do
     assert(spot.group=="drum_1" and spot.lifetime==20,"drum oil spot lost its group or lifetime")
@@ -39,8 +39,8 @@ upgraded.permanentTraits.scoreOilDamage=3
 upgraded.smokerGroundTime=4
 local upgradedDrum={id=8,x=300,y=300,state="settled",hp=8,maxHp=8,angle=0}
 assert(upgraded:spillOilDrum(upgradedDrum,"axe"),"upgraded drum did not spill")
-assert(upgraded.oilPuddleGroups.drum_8.radius==159,"oil radius upgrade did not change collision radius")
-assert(upgraded.oilDrumSpills[1].lifetime==29 and math.abs(upgraded.oilDrumSpills[1].scale-159/105)<1e-9,
+assert(upgraded.oilPuddleGroups.drum_8.radius==194,"oil radius upgrade did not change collision radius")
+assert(upgraded.oilDrumSpills[1].lifetime==29 and math.abs(upgraded.oilDrumSpills[1].scale-194/105)<1e-9,
     "oil radius/duration upgrades did not change the visible spill")
 assert(upgraded.oilTrail[1].damage==7 and upgraded.oilPuddleGroups.drum_8.damage==4,
     "oil damage upgrade did not change enemy and tree damage")

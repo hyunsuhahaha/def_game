@@ -100,6 +100,18 @@ assert(activeScore.scoreMoleCompanion==1 and activeScore.scoreMoleDamage==3 and 
     "split score-mode mole companion upgrades are not active")
 assert(activeScore.scoreOilDrum==1 and activeScore.scoreOilIgnitionRadius==42 and activeScore.scoreOilBurnDuration==4.5 and activeScore.scoreGrayCat==1,
     "oil drum ignition upgrades or gray oil-cat permanent research are not active")
+local linkedOilMode=ClearcutMode.new()
+linkedOilMode.scoreAttack=true
+linkedOilMode.permanentTraits=activeScore
+linkedOilMode.smokerGroundTime=0
+local linkedDrum={id=77,x=400,y=300,state="settled",hp=8,maxHp=8,angle=0}
+assert(linkedOilMode:spillOilDrum(linkedDrum,"axe"),"lobby oil research did not reach the runtime spill path")
+local linkedGroup=assert(linkedOilMode.oilPuddleGroups.drum_77,"runtime did not register the lobby-upgraded oil group")
+local linkedSpill=assert(linkedOilMode.oilDrumSpills[1],"runtime did not create the lobby-upgraded visible oil spill")
+assert(linkedGroup.radius==194 and math.abs(linkedSpill.scale-194/105)<1e-9,
+    "lobby oil-radius ranks did not enlarge both collision and visible spill geometry")
+assert(linkedSpill.lifetime==29 and linkedGroup.damage==4 and linkedOilMode.oilTrail[1].damage==7,
+    "lobby oil duration or damage ranks did not reach the runtime puddle")
 assert(activeScore.scoreStartingWood==nil and activeScore.scoreAutomationDiscount==nil,"removed score automation traits still affect runtime")
 -- 불 갈래 25 = 담배 9 + 공용 나무 피해 1 + 도끼 4 + 도끼 상위 3(충격파·연속 벌목·나무꾼 고용)
 -- + 후반 해금 3(상시 흡연·자동 투척·폭죽) + 폭죽 5.
