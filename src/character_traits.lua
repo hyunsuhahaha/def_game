@@ -230,10 +230,10 @@ local scoreFireNodes={
     {id="fire_score_axe_shock",name="도끼 충격파",short="충격파",desc="나무를 쓰러뜨리면 주변 나무에 단계마다 2 피해를 줍니다. 범위는 단계마다 34 넓어집니다.",effect="scoreAxeShock",value=1,max=3,costs={90,150,230},wx=200,wy=1470,icon="blast",color={.86,.58,.30},requires={{"fire_score_axe_targets",2}}},
     {id="fire_score_axe_chain",name="연속 벌목",short="연속 벌목",desc="나무를 쓰러뜨리면 단계마다 18% 확률로 도끼 재사용 대기시간이 즉시 초기화됩니다.",effect="scoreAxeChain",value=.18,max=3,costs={90,150,230},wx=200,wy=1790,icon="clock",color={.78,.70,.42},requires={{"fire_score_axe_execute",3}}},
     -- 도끼 갈래의 졸업. 마스터한 무기를 동료에게 넘기고 손은 다음 무기로 넘어간다.
-    {id="fire_score_axe_crew",name="나무꾼 고용",short="나무꾼 고용",desc="도끼를 든 나무꾼이 합류해 스스로 나무를 찾아 법니다. 충격파·밑동 절단·연속 벌목까지 내 도끼 빌드를 그대로 물려받아 절반 성능으로 일하며, 내가 다른 무기를 들고 있어도 계속 벌목합니다.",effect="scoreAxeCrew",value=1,max=1,costs={800},wx=200,wy=2100,icon="capstone",color={.94,.52,.20},requires={{"fire_score_axe_shock",3},{"fire_score_axe_chain",3}},capstone=true},
+    {id="fire_score_axe_crew",name="도끼 원숭이 해금",short="도끼 원숭이",desc="졸업 원숭이 1마리가 합류하고 도끼를 넘겨받습니다. I 장비 가방에서 원숭이 무기를 담배·도끼·폭죽으로 교체할 수 있습니다.",effect="scoreAxeCrew",value=1,max=1,costs={800},wx=200,wy=2100,icon="capstone",color={.94,.52,.20},requires={{"fire_score_axe_shock",3},{"fire_score_axe_chain",3}},capstone=true},
     {id="fire_score_alwayssmoke",name="상시 흡연",short="상시 흡연",desc="다른 무기를 들고 있어도 계속 담배를 피웁니다. 담배로 바꾼 즉시 던질 수 있습니다.",effect="scoreAlwaysSmoking",value=1,max=1,costs={200},wx=2020,wy=760,icon="cigarette",color={.94,.72,.36},requires={{"fire_score_stock",1}},capstone=true},
     {id="fire_score_autothrow",name="담배 자동 투척",short="자동 투척",desc="어떤 무기를 들고 있든 2.6초마다 꽁초가 자동으로 날아갑니다. 담배를 직접 들면 수동 투척이 그 위에 더해집니다.",effect="scoreAutoThrow",value=1,max=1,costs={240},wx=2020,wy=900,icon="cigarette",color={1,.46,.14},requires={{"fire_score_alwayssmoke",1}},capstone=true},
-    {id="fire_score_rocket_unlock",name="폭죽 로켓 해금",short="폭죽 해금",desc="3번 무기 슬롯에 폭죽 로켓이 열립니다. 담배가 알아서 날아가는 동안 손으로 쏘는 원거리 광역 무기입니다.",effect="scoreRocketUnlock",value=1,max=1,costs={260},wx=1150,wy=1250,icon="blast",color={1,.34,.10},requires={{"fire_score_autothrow",1}},capstone=true},
+    {id="fire_score_rocket_unlock",name="폭죽 로켓 해금",short="폭죽 해금",desc="장비 가방에 폭죽 로켓이 추가됩니다. 플레이어의 장착 무기 2칸이나 졸업 원숭이 장비 칸에 넣을 수 있습니다.",effect="scoreRocketUnlock",value=1,max=1,costs={260},wx=1150,wy=1250,icon="blast",color={1,.34,.10},requires={{"fire_score_autothrow",1}},capstone=true},
     {id="fire_score_rocket_radius",name="폭죽 폭발 반경 상승",short="폭발 반경",desc="폭죽 로켓의 폭발 반경 +16",effect="scoreRocketRadius",value=16,max=5,wx=1700,wy=1300,icon="blast",color={1,.52,.18},requires={{"fire_score_rocket_unlock",1}}},
     {id="fire_score_rocket_damage",name="폭죽 폭발 피해 상승",short="폭발 피해",desc="폭죽 폭발이 나무에 주는 피해 +2",effect="scoreRocketDamage",value=2,max=5,wx=2050,wy=1350,icon="ember",color={1,.38,.14},requires={{"fire_score_rocket_unlock",1}}},
     {id="fire_score_rocket_speed",name="폭죽 비행 속도 상승",short="비행 속도",desc="폭죽 로켓이 목표까지 날아가는 속도 +12%",effect="scoreRocketSpeed",value=.12,max=4,costs={22,38,58,82},wx=1420,wy=1560,icon="wind",color={.82,.74,.46},requires={{"fire_score_rocket_radius",2}}},
@@ -395,7 +395,8 @@ table.sort(orderedIds)
 local storyJobs = {"physical", "fire", "toxic", "developer", "miner", "philosopher"}
 
 local function defaults()
-    local data = {currency=0, regenTier=1, levels={}, storySeen={}}
+    local data = {currency=0, regenTier=1, levels={}, storySeen={},equipmentConfigured=false,
+        playerWeapons={1,2},monkeyWeapons={2}}
     for id in pairs(byId) do data.levels[id] = 0 end
     for _, job in ipairs(storyJobs) do data.storySeen[job] = false end
     return data
@@ -410,6 +411,11 @@ function CharacterTraits.decode(text)
         if key:match("^universal_mole_")and key~="universal_mole_companion"then seenNewMoleNode=true end
         if key == "currency" then data.currency = number
         elseif key == "regenTier" then data.regenTier = math.max(1,number)
+        elseif key == "equipment_configured" then data.equipmentConfigured=number>0
+        elseif key == "player_weapon_1" then data.playerWeapons[1]=math.min(3,number)
+        elseif key == "player_weapon_2" then data.playerWeapons[2]=math.min(3,number)
+        elseif key:match("^monkey_weapon_") then
+            local index=tonumber(key:match("(%d+)$"));if index then data.monkeyWeapons[index]=math.min(3,number)end
         elseif byId[key] then data.levels[key] = math.min(number, byId[key].max)
         elseif key:match("^story_") then
             local job = key:sub(7)
@@ -428,7 +434,13 @@ function CharacterTraits.decode(text)
 end
 
 function CharacterTraits.encode(data)
-    local lines = {"version=3", "currency=" .. math.floor(data.currency or 0),"regenTier="..math.max(1,math.floor(data.regenTier or 1))}
+    local lines = {"version=4", "currency=" .. math.floor(data.currency or 0),"regenTier="..math.max(1,math.floor(data.regenTier or 1)),
+        "equipment_configured="..(data.equipmentConfigured and 1 or 0),
+        "player_weapon_1="..math.max(0,math.min(3,math.floor((data.playerWeapons or{})[1]or 0))),
+        "player_weapon_2="..math.max(0,math.min(3,math.floor((data.playerWeapons or{})[2]or 0)))}
+    for index,value in ipairs(data.monkeyWeapons or{})do
+        lines[#lines+1]="monkey_weapon_"..index.."="..math.max(0,math.min(3,math.floor(value or 0)))
+    end
     for _, id in ipairs(orderedIds) do
         local node = byId[id]
         lines[#lines+1] = id .. "=" .. math.min(node.max, math.floor(data.levels[id] or 0))
@@ -465,6 +477,17 @@ end
 function CharacterTraits:getNode(id) return byId[id] end
 function CharacterTraits:getLevel(id) return self.data.levels[id] or 0 end
 function CharacterTraits:getRegenTier()return math.max(1,math.floor(self.data.regenTier or 1))end
+function CharacterTraits:getEquipmentState()
+    return {configured=self.data.equipmentConfigured==true,
+        player={unpack(self.data.playerWeapons or{1,2})},monkeys={unpack(self.data.monkeyWeapons or{2})}}
+end
+function CharacterTraits:saveEquipmentState(player,monkeys)
+    self.data.equipmentConfigured=true
+    self.data.playerWeapons={math.floor(player[1]or 0),math.floor(player[2]or 0)}
+    self.data.monkeyWeapons={}
+    for index,value in ipairs(monkeys or{})do self.data.monkeyWeapons[index]=math.floor(value or 0)end
+    return self:save()
+end
 function CharacterTraits:unlockRegenTier(tier)
     tier=math.max(1,math.floor(tier or 1))
     if tier<=self:getRegenTier()then return false end

@@ -12,7 +12,7 @@ local function load()
 end
 
 function Art.rect(index,w,h)
-    local total=SLOT*3+GAP*2
+    local total=SLOT*2+GAP
     return math.floor((w-total)/2)+(index-1)*(SLOT+GAP),h-SLOT-12,SLOT,SLOT
 end
 
@@ -66,10 +66,11 @@ end
 
 -- locked[index]=true 인 슬롯은 아이콘을 어둡게 깔고 자물쇠를 얹는다. 영구 연구로
 -- 열리는 무기가 이미 쓸 수 있는 것처럼 보이면, 눌렀을 때 조용히 거부당한다.
-function Art.draw(selected,w,h,locked)
+function Art.draw(selected,w,h,locked,equipped)
     load()
     locked=locked or {}
-    for index=1,3 do
+    equipped=equipped or{"cigarette","axe"}
+    for index=1,2 do
         local x,y,size=Art.rect(index,w,h)
         local shut=locked[index]==true
         local active=index==(selected or 1) and not shut
@@ -77,11 +78,12 @@ function Art.draw(selected,w,h,locked)
         frame(x,y,size,active,shut)
         local cx,cy=x+size/2,y+size/2
         love.graphics.setColor(1,1,1,shut and .22 or 1)
-        if index==1 then
+        local weapon=equipped[index]
+        if weapon=="cigarette" then
             love.graphics.draw(cigarette,cx,cy,0,.19,.19,128,24)
-        elseif index==2 then
+        elseif weapon=="axe" then
             love.graphics.draw(axe,cx,cy,0,.30,.30,80,80)
-        else
+        elseif weapon=="firework" then
             love.graphics.draw(equipment,fireworkQuad,cx,cy,0,.43,.43,64,48)
         end
         if shut then drawLock(cx,cy,3) end

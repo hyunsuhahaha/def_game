@@ -430,6 +430,7 @@ function Game:update(dt)
     self.runXPPulse = math.max(0, self.runXPPulse - dt * 1.35)
     if self.mode == "upgrade" or self.mode == "rush_upgrade" or self.mode == "clearcut_upgrade" then return end
     if self.mode == "turret_upgrade" then return end
+    if self.clearcut and self.clearcut.companionInventoryOpen then return end
     if ClearcutIntro.update(self,dt) then return end
     if self.clearcut and self.clearcut:updateBossEntrance(dt,self) then
         self.camera:update(dt,self.player,self.world)
@@ -575,6 +576,13 @@ function Game:keypressed(key)
         elseif key == "return" or key == "escape" then self.mode = "lobby" end
         return
     end
+    if self.runType=="clearcut" and self.clearcut and self.clearcut.scoreAttack then
+        if key=="i" then self.clearcut:toggleCompanionInventory(self);return end
+        if self.clearcut.companionInventoryOpen then
+            if key=="escape"then self.clearcut:toggleCompanionInventory(self)end
+            return
+        end
+    end
     if ClearcutIntro.active(self) then
         if key=="space" or key=="return" or key=="kpenter" or key=="escape" then ClearcutIntro.skip(self) end
         return
@@ -586,7 +594,7 @@ function Game:keypressed(key)
     if self.ended and (key == "r" or key == "return") then self:startRun(); return end
     if key == "p" and self.runType~="rush" and self.runType~="clearcut" then self:prestigeRun(); return end
     if self.runType=="clearcut" then
-        if self.clearcut and self.clearcut.scoreAttack and(key=="1"or key=="2"or key=="3")then
+        if self.clearcut and self.clearcut.scoreAttack and(key=="1"or key=="2")then
             self.clearcut:setScoreWeaponSlot(tonumber(key),self)
             return
         end
@@ -790,6 +798,10 @@ function Game:mousepressed(x, y, button)
     -- Practice controls are screen UI and must remain operable even if a
     -- sandbox scenario leaves gameplay ended or inside an emergence freeze.
     if self.clearcut and self.clearcut.sandbox and button==1 and self:sandboxPanelClick(x, y) then return end
+    if self.clearcut and self.clearcut.companionInventoryOpen then
+        if button==1 then self.clearcut:companionInventoryClick(x,y,self)end
+        return
+    end
     if self.ended then return end
     if self.clearcut and self.clearcut.worldTreeEmergence then return end
     if self.runType=="rush" or self.runType=="clearcut" then

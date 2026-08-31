@@ -120,7 +120,8 @@ rocket.scoreAttack, rocket.sandbox, rocket.job, rocket.mapId = true, true, "fire
 rocket.permanentTraits.scoreRocketRadius, rocket.permanentTraits.scoreRocketDamage = 80, 10
 rocket.permanentTraits.scoreRocketSpeed, rocket.permanentTraits.treeDamage = 0.48, 5
 rocket.permanentTraits.scoreRocketUnlock = 1
-rocket.scoreWeaponSlot, rocket.smokerWeaponCooldown = 3, 0
+rocket.scoreEquippedWeapons={"cigarette","firework"}
+rocket.scoreWeaponSlot, rocket.smokerWeaponCooldown = 2, 0
 assert(rocket:updateHeldAxe(1, rocketGame, true), "폭죽 슬롯이 발사하지 않았다")
 local shot = rocket.smokerWeaponProjectiles[1]
 assert(shot.radius == 260, "폭죽 폭발 반경이 전용 수치를 쓰지 않는다 (" .. shot.radius .. ")")
@@ -129,7 +130,8 @@ assert(math.abs(shot.damage - (8 + 5 * 1.1 + 10)) < 1e-9, "폭죽 폭발 피해�
 local slowRocket = ClearcutMode.new()
 slowRocket.scoreAttack, slowRocket.sandbox, slowRocket.job, slowRocket.mapId = true, true, "fire", "forest"
 slowRocket.permanentTraits.scoreRocketUnlock = 1
-slowRocket.scoreWeaponSlot, slowRocket.smokerWeaponCooldown = 3, 0
+slowRocket.scoreEquippedWeapons={"cigarette","firework"}
+slowRocket.scoreWeaponSlot, slowRocket.smokerWeaponCooldown = 2, 0
 slowRocket:updateHeldAxe(1, rocketGame, true)
 assert(slowRocket.smokerWeaponProjectiles[1].dur > shot.dur, "폭죽 비행 속도 특성이 도달 시간을 줄이지 않는다")
 
@@ -144,15 +146,15 @@ for _, id in ipairs({"fire_score_rocket_radius", "fire_score_rocket_damage"}) do
     assert(nodeOf(id).requires[1][1] == "fire_score_rocket_unlock", id .. "가 폭죽 해금 뒤에 있지 않다")
 end
 
--- 8. 폭죽 슬롯은 해금 전에는 선택되지 않는다.
+-- 8. 폭죽은 해금 전에는 장비 가방에 들어올 수 없다.
 local locked = ClearcutMode.new()
 locked.scoreAttack, locked.sandbox, locked.job, locked.mapId = true, true, "fire", "forest"
 assert(locked:setScoreWeaponSlot(2), "도끼 슬롯은 해금 없이 열려 있어야 한다")
-assert(not locked:setScoreWeaponSlot(3) and locked:scoreWeaponId() == "axe",
-    "폭죽이 영구 연구 없이 선택된다")
+assert(not locked:scoreWeaponUnlocked(3),"폭죽이 영구 연구 없이 장비 가방에 들어온다")
 locked.permanentTraits.scoreRocketUnlock = 1
-assert(locked:setScoreWeaponSlot(3) and locked:scoreWeaponId() == "firework",
-    "폭죽 해금을 사도 슬롯이 열리지 않는다")
+assert(locked:scoreWeaponUnlocked(3),"폭죽 해금을 사도 장비 가방에 들어오지 않는다")
+locked.scoreEquippedWeapons[2]="firework"
+assert(locked:setScoreWeaponSlot(2)and locked:scoreWeaponId()=="firework","폭죽을 플레이어 2번 칸에 장착할 수 없다")
 
 -- 9. 자동 투척은 특성을 사야 돌고, 어떤 무기를 들고 있든 꽁초가 나간다.
 local autoGame = axeGame({tree(120)})
@@ -206,7 +208,7 @@ local function rocketCooldownWith(cardLevel)
     local m = ClearcutMode.new()
     m.scoreAttack, m.sandbox, m.job, m.mapId = true, true, "fire", "forest"
     m.permanentTraits.scoreRocketUnlock = 1
-    m.levels.score_attack_speed, m.scoreWeaponSlot, m.smokerWeaponCooldown = cardLevel, 3, 0
+    m.levels.score_attack_speed,m.scoreEquippedWeapons,m.scoreWeaponSlot,m.smokerWeaponCooldown=cardLevel,{"cigarette","firework"},2,0
     local g = axeGame({})
     g.camera = {screenToWorld = function() return 600, 0 end}
     m:updateHeldAxe(1, g, true)
@@ -235,20 +237,20 @@ end
 assert(burnTotalWith(5) > burnTotalWith(0),
     "무기 피해가 불의 타격 피해에 더해지지 않는다 — 공용 이름인데 도끼·폭죽 전용이다")
 
--- 12. 잠긴 무기는 핫바에도 잠금으로 보여야 한다. 쓸 수 있는 것처럼 그려놓고 누르면
--- 조용히 거부하는 상태가 되면 안 된다.
+-- 12. 플레이어 핫바는 장착된 두 칸만 보이고 빈 칸은 잠금으로 읽힌다.
 local Hotbar = require("src.score_weapon_hotbar_art")
 local realDraw = Hotbar.draw
 local seen
 Hotbar.draw = function(_, _, _, lockedSlots) seen = lockedSlots end
 local hud = ClearcutMode.new()
 hud.scoreAttack, hud.sandbox, hud.job, hud.mapId = true, true, "fire", "forest"
+hud.scoreEquippedWeapons={"cigarette",nil}
 hud:drawScoreWeaponSlots({}, 1280, 720)
-assert(seen and seen[3] == true and seen[1] ~= true and seen[2] ~= true,
-    "해금 전 폭죽이 핫바에 잠금으로 표시되지 않는다")
+assert(seen and seen[2]==true and seen[1]~=true,"빈 두 번째 장비 칸이 핫바에 표시되지 않는다")
 hud.permanentTraits.scoreRocketUnlock = 1
+hud.scoreEquippedWeapons[2]="firework"
 hud:drawScoreWeaponSlots({}, 1280, 720)
-assert(seen[3] ~= true, "폭죽을 해금해도 핫바가 계속 잠금으로 표시한다")
+assert(seen[2]~=true,"장착한 폭죽 칸이 계속 잠금으로 표시된다")
 Hotbar.draw = realDraw
 
 -- 13. 도끼 상위 갈래는 기본 도끼의 하드캡(동시 타격 3그루)을 밀도에 비례하게 푼다.

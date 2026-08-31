@@ -811,6 +811,7 @@ end
 
 function ClearcutMode:configureGraduateMonkeyWeapon(companion)
     if companion.kind~="lumberjack"then return end
+    if not companion.prop then companion.attackReach,companion.damage=0,0;return end
     local traits=self.permanentTraits or{}
     if companion.prop=="cigarette"then
         companion.attackReach=300+math.max(0,traits.scoreRange or 0)*.45
@@ -829,6 +830,7 @@ end
 
 function ClearcutMode:updateOneMoleCompanion(companion,dt,game)
     self:configureGraduateMonkeyWeapon(companion)
+    if companion.kind=="lumberjack"and not companion.prop then companion.state="idle";companion.target=nil;return false end
     companion.walkClock=companion.walkClock+dt*7.5
     if companion.state=="attack"then
         companion.attackT=math.min(companion.attackDuration,companion.attackT+dt)
@@ -875,7 +877,7 @@ end
 function ClearcutMode:drawMoleCompanion(companion)
     if not companion or not companion.sprite then return end
     local action=companion.state=="attack"
-    local row=action and(companion.sprite.graduateMonkey and(companion.prop or"axe")or"action")or"walk"
+    local row=action and(companion.sprite.graduateMonkey and(companion.prop or"walk")or"action")or"walk"
     local progress=action and math.min(.999,companion.attackT/companion.attackDuration)or 0
     local frame=action and(math.floor(progress*6)+1)or(math.floor(companion.walkClock)%6+1)
     local sprite=companion.sprite
@@ -3088,6 +3090,7 @@ end
 function ClearcutMode:updateHeldAxe(dt, game, heldOverride)
     if self.scoreAttack and self.job=="fire" then
         local weapon=self:scoreWeaponId()
+        if not weapon then return false end
         if weapon~="cigarette" then self:tickSmokerReload(dt,game)end
         if weapon=="axe" then return self:updateScoreAxeAttack(dt,game,heldOverride)end
         if weapon=="firework" then return self:updateFireworkAttack(dt,game,heldOverride)end
@@ -3140,11 +3143,8 @@ function ClearcutMode:graduationMonkeys()
     return result
 end
 function ClearcutMode:refreshCompanionInventory()
-    local used={}
-    for _,id in ipairs(self.scoreEquippedWeapons or{})do if id then used[id]=true end end
-    for _,monkey in ipairs(self:graduationMonkeys())do if monkey.prop then used[monkey.prop]=true end end
     self.inventoryBag={}
-    for index,def in ipairs(scoreWeaponDefinitions)do if self:scoreWeaponUnlocked(index)and not used[def.id]then self.inventoryBag[#self.inventoryBag+1]=def.id end end
+    for index,def in ipairs(scoreWeaponDefinitions)do if self:scoreWeaponUnlocked(index)then self.inventoryBag[index]=def.id end end
 end
 function ClearcutMode:saveCompanionInventory(game)
     if not game or not game.characterTraits or not game.characterTraits.saveEquipmentState then return end
@@ -3159,17 +3159,25 @@ function ClearcutMode:toggleCompanionInventory(game)
         return false
     end
     self.companionInventoryOpen=not self.companionInventoryOpen
-    if not self.companionInventoryOpen and self.inventoryHeld then
-        self.inventoryBag[#self.inventoryBag+1]=self.inventoryHeld;self.inventoryHeld=nil
-    end
+    if not self.companionInventoryOpen then self.inventoryHeld=nil;self:saveCompanionInventory(game)end
     self:refreshCompanionInventory();return true
 end
 function ClearcutMode:companionInventoryClick(x,y,game)
     local layout=self.companionInventoryLayout;if not layout then return false end
     local kind,index=ClearcutMode.CompanionInventory.hit(layout,x,y)
     if kind=="close"then self.companionInventoryOpen=false;self.inventoryHeld=nil;self:refreshCompanionInventory();return true end
-    local monkeys=self:graduationMonkeys();local list=kind=="bag"and self.inventoryBag or kind=="player"and self.scoreEquippedWeapons or nil
-    if kind=="monkey"then
+    local monkeys=self:graduationMonkeys();local list=kind=="player"and self.scoreEquippedWeapons or nil
+    if kind=="bag"then
+        local id=scoreWeaponDefinitions[index]and scoreWeaponDefinitions[index].id
+        if not id or not self:scoreWeaponUnlocked(index)then return false end
+        if self.inventoryHeld then
+            if self.inventoryHeld~=id then return false end
+            self.inventoryHeld=nil;self:saveCompanionInventory(game);return true
+        end
+        for i,value in ipairs(self.scoreEquippedWeapons or{})do if value==id then self.scoreEquippedWeapons[i]=nil;self.inventoryHeld=id;break end end
+        if not self.inventoryHeld then for _,monkey in ipairs(monkeys)do if monkey.prop==id then monkey.prop=nil;self.inventoryHeld=id;break end end end
+        if not self.inventoryHeld then self.inventoryHeld=id end
+    elseif kind=="monkey"then
         local monkey=monkeys[index];if not monkey then return false end
         monkey.prop,self.inventoryHeld=self.inventoryHeld,monkey.prop
     elseif list then list[index],self.inventoryHeld=self.inventoryHeld,list[index] else return false end
