@@ -333,6 +333,8 @@ function CharacterTraitBoard:nodeWorld(node)
         fire_score_edge={400,1100},
         fire_score_axe_area={400,1350},fire_score_axe_speed={750,1350},
         fire_score_axe_targets={400,1600},fire_score_axe_execute={750,1600},
+        fire_score_axe_shock={400,1850},fire_score_axe_chain={750,1850},
+        fire_score_axe_crew={575,2100},
         fire_score_alwayssmoke={1100,1600},fire_score_autothrow={1100,1850},
         fire_score_rocket_unlock={1100,2100},
         fire_score_rocket_radius={400,2350},fire_score_rocket_damage={750,2350},

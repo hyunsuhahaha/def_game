@@ -578,6 +578,7 @@ function ClearcutMode:setup(game)
     end
     if not self.scoreAttack then self:initForestZones(game)else self.forestZones={};self.treeSpawnAccumulator=0 end
     if self.scoreAttack and (self.permanentTraits.scoreMoleCompanion or 0)>0 then self:initMoleCompanion(game) end
+    if self.scoreAttack and (self.permanentTraits.scoreAxeCrew or 0)>0 then self:initLumberjackCompanion(game) end
     if self.scoreAttack and (self.permanentTraits.scoreOilDrum or 0)>0 then
         ClearcutMode.GrayOilCatArt.load()
         ClearcutMode.OilDrumSpillArt.load()
@@ -702,6 +703,33 @@ function ClearcutMode:initMoleCompanion(game)
     return true
 end
 
+-- 도끼 갈래의 졸업 보상. 마스터한 무기를 동료에게 넘기고 손은 다음 무기로 넘어간다.
+-- 탐색/이동/타격 루프는 두더지와 같고 목록도 공유한다 — 그래야 서로 다른 나무를 맡는다.
+-- 성능은 내 도끼의 절반이다. 손을 비워주는 게 보상이지 출력을 두 배로 만드는 게 아니다.
+function ClearcutMode:initLumberjackCompanion(game)
+    local sprite=game.clearcutSprites and game.clearcutSprites.physical
+    if not sprite or not sprite.image then return false end
+    local fw,fh=sprite.image:getWidth()/6,sprite.image:getHeight()/2
+    local frames={walk={},action={}}
+    for i=0,5 do
+        frames.walk[i+1]=love.graphics.newQuad(i*fw,0,fw,fh,sprite.image:getDimensions())
+        frames.action[i+1]=love.graphics.newQuad(i*fw,fh,fw,fh,sprite.image:getDimensions())
+    end
+    local traits=self.permanentTraits or{}
+    local axeDamage=4+math.max(0,traits.treeDamage or 0)
+    local x,y=require("src.clearcut_maps").constrain(game.world,game.player.x+96,game.player.y+48,42)
+    self.moleCompanions=self.moleCompanions or{}
+    self.moleCompanions[#self.moleCompanions+1]={
+        kind="lumberjack",x=x,y=y,sprite=sprite,frames=frames,fw=fw,fh=fh,state="seek",target=nil,
+        index=#self.moleCompanions+1,facing=-1,walkClock=.21,attackT=0,drawScale=.34,
+        attackDuration=.62/(1+math.max(0,traits.scoreAxeSpeed or 0)),struck=false,
+        speed=210*(1+math.max(0,traits.moveSpeed and traits.moveSpeed-1 or 0)),
+        damage=math.max(1,math.floor(axeDamage*.5+.5)),
+        attackReach=104+math.max(0,traits.scoreAxeArea or 0)*.5,treesFelled=0}
+    self.moleCompanion=self.moleCompanion or self.moleCompanions[1]
+    return true
+end
+
 function ClearcutMode:findMoleCompanionTree(companion,game)
     local claimed={}
     for _,other in ipairs(self.moleCompanions or{})do
@@ -731,7 +759,11 @@ function ClearcutMode:moleCompanionImpact(companion,game)
     local contactX,contactY=companion.x+nx*math.min(72,distance),companion.y+ny*math.min(72,distance)
     local angle=moleCompanionAngle(ny,nx)
     local curveFlip=(companion.facing or 1)>0 and -1 or 1
-    MoleClawArt.spawn(self,contactX,contactY,angle,companion.clawLevel or 1,curveFlip,nil,1,companion.dualClaw)
+    if companion.kind=="lumberjack"then
+        self.traitFx:emit("axe",contactX,contactY,{radius=58,power=1,particles=10})
+    else
+        MoleClawArt.spawn(self,contactX,contactY,angle,companion.clawLevel or 1,curveFlip,nil,1,companion.dualClaw)
+    end
     node.rushHp=(node.rushHp or node.rushMaxHp)-companion.damage
     game.world:impactNode(node,game,true)
     SupplementArt.impact(self,"axe",contactX,contactY,20)
@@ -797,8 +829,9 @@ function ClearcutMode:drawMoleCompanion(companion)
     local bob=not action and math.abs(math.sin(companion.walkClock*math.pi))*1.5 or 0
     love.graphics.setColor(0,0,0,.38);love.graphics.ellipse("fill",companion.x+2,companion.y+3,23,7)
     love.graphics.setColor(1,1,1,1)
+    local drawScale=companion.drawScale or .30
     love.graphics.draw(sprite.image,companion.frames[row][frame],companion.x,companion.y-bob,0,
-        .30*flip*poseScale,.30*poseScale,companion.fw/2,foot)
+        drawScale*flip*poseScale,drawScale*poseScale,companion.fw/2,foot)
 end
 
 local function clearcutDistance(ax,ay,bx,by)
@@ -3044,6 +3077,25 @@ function ClearcutMode:setScoreWeaponSlot(index,game)
     return true
 end
 
+-- 쓰러진 나무 자리에서 퍼지는 충격파. 연쇄로 또 충격파를 부르지는 않는다 —
+-- 한 번의 도끼질이 무한 연쇄가 되지 않게 여기서 끊는다.
+function ClearcutMode:axeShockwave(x,y,level,game)
+    local radius=70+level*34
+    local damage=level*2
+    local felled=0
+    for _,node in ipairs(game.world.nodes)do
+        if node.rushTree and node.active and not node.giantTree and not node.treeEmergence then
+            local dx,dy=node.x-x,node.y-y
+            if dx*dx+dy*dy<=radius*radius then
+                if self:damageTreeWithSmokerWeapon(node,damage,game)then felled=felled+1 end
+            end
+        end
+    end
+    self:damageEnemiesInRadius(x,y,radius,8+damage*2,game)
+    self.traitFx:emit("axe",x,y,{radius=radius,power=1,particles=16})
+    return felled
+end
+
 function ClearcutMode:resolveScoreAxeAction(action,game)
     if action.drum then
         if action.drum.state=="settled"then
@@ -3053,11 +3105,20 @@ function ClearcutMode:resolveScoreAxeAction(action,game)
         return false
     end
     local hit=0
+    local shockLevel=math.max(0,math.floor(self.permanentTraits.scoreAxeShock or 0))
+    local chainChance=self.permanentTraits.scoreAxeChain or 0
     for _,node in ipairs(action.targets or{})do if node.active and node.rushTree then
         if action.executeChance>0 and node.rushHp and love.math.random()<action.executeChance then node.rushHp=1 end
-        self:damageTreeWithSmokerWeapon(node,action.damage,game)
-        self:damageEnemiesInRadius(node.x,node.y,62+action.axeArea,14+action.damage*2,game)
-        self.traitFx:emit("axe",node.x,node.y,{radius=66,power=1,particles=12})
+        local x,y=node.x,node.y
+        local felled=self:damageTreeWithSmokerWeapon(node,action.damage,game)
+        self:damageEnemiesInRadius(x,y,62+action.axeArea,14+action.damage*2,game)
+        self.traitFx:emit("axe",x,y,{radius=66,power=1,particles=12})
+        if felled then
+            -- 도끼는 동시 타격 3그루가 하드캡이라 후반 공급량을 못 따라간다. 충격파는
+            -- 쓰러진 자리에서 주변으로 퍼져 그 천장을 숲 밀도에 비례하게 바꾼다.
+            if shockLevel>0 then self:axeShockwave(x,y,shockLevel,game) end
+            if chainChance>0 and love.math.random()<chainChance then self.axeCooldown=0 end
+        end
         hit=hit+1
     end end
     self.maxMulti=math.max(self.maxMulti or 0,hit)

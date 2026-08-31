@@ -12,7 +12,7 @@ package.path = "./?.lua;./?/init.lua;" .. package.path
 
 love = {
     math = {random = math.random}, filesystem = {},
-    graphics = {getDimensions = function() return 1600, 900 end},
+    graphics = {getDimensions = function() return 1600, 900 end, newQuad = function() return {} end},
     mouse = {getPosition = function() return 0, 0 end, isDown = function() return true end},
     keyboard = {isDown = function() return false end},
 }
@@ -83,7 +83,17 @@ local axe = ClearcutMode.new()
 axe.scoreAttack, axe.sandbox, axe.job, axe.mapId = true, true, "fire", "forest"
 axe.permanentTraits.scoreAxeArea, axe.permanentTraits.extraTargets = 45, 2
 axe.permanentTraits.treeDamage, axe.scoreWeaponSlot = 5, 2
-assert(axe:updateHeldAxe(1, axeGame(trees), true), "도끼 슬롯이 타격하지 않았다")
+-- 도끼 타격은 스윙 애니메이션의 접촉 프레임에서 해결된다(AGENTS.md의 타격 판정 규칙).
+-- 그래서 한 번 부르는 것으로는 피해가 들어가지 않고, 접촉 시점까지 굴려야 한다.
+local function swing(mode, world)
+    mode:updateHeldAxe(1, world, true)
+    for _ = 1, 240 do
+        if not mode.scoreAxeAction then break end
+        mode:updateScoreAxeAction(1 / 60, world)
+    end
+end
+local axeWorld = axeGame(trees)
+swing(axe, axeWorld)
 local hit = 0
 for _, node in ipairs(trees) do if node.rushHp < 500 then hit = hit + 1 end end
 assert(hit == 3, "동시 타격 나무 +2가 실제 타격으로 이어지지 않았다 (맞은 나무 " .. hit .. ")")
@@ -94,7 +104,7 @@ local narrow = ClearcutMode.new()
 narrow.scoreAttack, narrow.sandbox, narrow.job, narrow.mapId = true, true, "fire", "forest"
 narrow.permanentTraits.area, narrow.scoreWeaponSlot = 400, 2
 local far = {tree(0), tree(150)}
-narrow:updateHeldAxe(1, axeGame(far), true)
+swing(narrow, axeGame(far))
 assert(far[2].rushHp == 500, "담배용 착화 범위가 아직 도끼 타격 범위를 넓히고 있다")
 
 -- 6. 폭죽이 전용 반경·피해·비행 속도를 쓴다.
@@ -235,5 +245,43 @@ hud.permanentTraits.scoreRocketUnlock = 1
 hud:drawScoreWeaponSlots({}, 1280, 720)
 assert(seen[3] ~= true, "폭죽을 해금해도 핫바가 계속 잠금으로 표시한다")
 Hotbar.draw = realDraw
+
+-- 13. 도끼 상위 갈래는 기본 도끼의 하드캡(동시 타격 3그루)을 밀도에 비례하게 푼다.
+assert(nodeOf("fire_score_axe_shock").requires[1][1] == "fire_score_axe_targets",
+    "도끼 충격파가 기본 도끼 갈래 뒤에 있지 않다")
+assert(nodeOf("fire_score_axe_chain").requires[1][1] == "fire_score_axe_execute",
+    "연속 벌목이 기본 도끼 갈래 뒤에 있지 않다")
+
+local shockMode = ClearcutMode.new()
+shockMode.scoreAttack, shockMode.sandbox, shockMode.job, shockMode.mapId = true, true, "fire", "forest"
+shockMode.permanentTraits.scoreAxeShock = 3
+local ring = {tree(0), tree(60), tree(120)}
+for _, node in ipairs(ring) do node.rushHp, node.rushMaxHp = 40, 40 end
+local shockGame = axeGame(ring)
+shockMode:axeShockwave(0, 0, 3, shockGame)
+assert(ring[2].rushHp < 40 and ring[3].rushHp < 40,
+    "도끼 충격파가 쓰러진 자리 주변 나무를 때리지 않는다")
+
+-- 14. 나무꾼 고용은 도끼 상위 갈래를 다 찍어야 열리고, 실제 동료를 합류시킨다.
+local crew = nodeOf("fire_score_axe_crew")
+local crewReq = {}
+for _, r in ipairs(crew.requires) do crewReq[r[1]] = r[2] end
+assert(crewReq.fire_score_axe_shock == 3 and crewReq.fire_score_axe_chain == 3,
+    "나무꾼 고용이 도끼 상위 갈래 만렙을 요구하지 않는다")
+assert(crew.costs[1] > nodeOf("fire_score_axe_shock").costs[3],
+    "나무꾼 고용이 상위 강화보다 싸다 — 졸업 보상이 가장 비싸야 한다")
+
+local sprite = {image = {getWidth = function() return 576 end, getHeight = function() return 384 end,
+    getDimensions = function() return 576, 384 end}}
+local crewGame = axeGame({})
+crewGame.clearcutSprites = {physical = sprite}
+crewGame.world.width, crewGame.world.height = 3000, 3000
+local hire = ClearcutMode.new()
+hire.scoreAttack, hire.sandbox, hire.job, hire.mapId = true, true, "fire", "forest"
+hire.permanentTraits.treeDamage = 5
+assert(hire:initLumberjackCompanion(crewGame), "나무꾼 동료가 합류하지 않았다")
+local jack = hire.moleCompanions[1]
+assert(jack.kind == "lumberjack", "합류한 동료가 나무꾼이 아니다")
+assert(jack.damage == 5, "나무꾼 피해가 내 도끼(4+5=9)의 절반이 아니다 (" .. jack.damage .. ")")
 
 print("SCORE_WEAPON_TRAITS_OK shared=tree_damage axe=area+speed+targets+execute rocket=radius+damage+speed+ignite+cooldown")

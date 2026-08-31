@@ -37,8 +37,17 @@ local attackGame={
     camera={screenToWorld=function()return 100,0 end},
     world={nodes={tree},impactNode=function()end},tools={axe={speed=.8}},setNotice=function()end,
 }
+-- 도끼 타격은 스윙의 접촉 프레임에서 해결되므로 접촉 시점까지 굴려야 한다.
+local function swing(mode,world)
+    mode:updateHeldAxe(.7,world,true)
+    for _=1,240 do
+        if not mode.scoreAxeAction then break end
+        mode:updateScoreAxeAction(1/60,world)
+    end
+end
 actual.scoreWeaponSlot=2
-assert(actual:updateHeldAxe(.7,attackGame,true)and tree.rushHp==96 and actual.actionAudit.scoreAxe==1,
+swing(actual,attackGame)
+assert(tree.rushHp==96 and actual.actionAudit.scoreAxe==1,
     "axe slot did not apply its real direct tree hit")
 actual.scoreWeaponSlot=3;actual.smokerWeaponCooldown=0
 assert(actual:updateHeldAxe(1,attackGame,true)and actual.smokerWeaponProjectiles[1].kind=="firework",
