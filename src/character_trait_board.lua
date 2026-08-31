@@ -571,11 +571,12 @@ function CharacterTraitBoard:draw()
     local mx,my=love.mouse.getPosition()
     self.nodeBoxes={}
     local uiScale=textScale
-    -- Node bodies, labels and connection gaps now share the same zoom basis.
-    -- 64 world pixels of node radius at the reference .80 zoom reproduces the
-    -- approved spacing while keeping every branch step equal.
-    local nodeScale=clamp((self.zoom or .8)*2.0,.70,2.10)
-    local labelFont=self:crispFont(clamp(27*(self.zoom or .8),12,30),true)
+    -- Node bodies, labels and connection gaps share the same zoom basis. Node
+    -- size is deliberately smaller than the branch step so the spacing reads:
+    -- the gap between two nodes, not the nodes themselves, carries the layout.
+    -- 간격(nodeWorld x zoom)은 건드리지 않고 노드 크기만 줄인다.
+    local nodeScale=clamp((self.zoom or .8)*1.5,.55,1.60)
+    local labelFont=self:crispFont(clamp(24*(self.zoom or .8),11,26),true)
     for _,node in ipairs(nodes) do
         local cx,cy=self:nodePosition(graph,node)
         if cx>=graph.x-80 and cx<=graph.x+graph.w+80 and cy>=graph.y-80 and cy<=graph.y+graph.h+80 then
@@ -591,7 +592,7 @@ function CharacterTraitBoard:draw()
             box.cx=box.cx+shake
             self:drawNode(box,node,self.store:getLevel(node.id),ok,requirementsMet(self.store,node),hovered)
             local nodeR=(node.capstone and 38 or 32)*nodeScale
-            local labelW=clamp(205*(self.zoom or .8),112,205)
+            local labelW=clamp(178*(self.zoom or .8),96,178)
             local wx=self:nodeWorld(node)
             local vertical=math.abs(wx-1100)<8 and node.id~="fire_score_prewarm" and node.id~="universal_robot_start"
             local labelX=vertical and (box.cx+nodeR+9) or (box.cx-labelW/2)
