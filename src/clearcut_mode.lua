@@ -49,6 +49,7 @@ local WoodSettlementArt = require("src.wood_settlement_art")
 
 local ClearcutMode = {}
 ClearcutMode.__index = ClearcutMode
+ClearcutMode.SCORE_TIME_DOUBLING_SECONDS=30
 ClearcutMode.GrayOilCatArt = require("src.gray_oil_cat_art")
 ClearcutMode.OilDrumSpillArt = require("src.oil_drum_spill_art")
 ClearcutMode.OIL_BASE_RADIUS=140
@@ -637,12 +638,12 @@ end
 function ClearcutMode:scoreTimedTreeSpawnRate()return .14*1.75^math.max(0,(self.scoreRegenTier or 1)-1)end
 
 -- 숲을 0그루로 만들지 않고 현재 생산량만 맞추는 무한 유지 전략을 막는다.
--- 실제 플레이 시간 60초마다 공급량이 두 배가 되는 연속 곡선이라 임계점이
+-- 실제 플레이 시간 30초마다 공급량이 두 배가 되는 연속 곡선이라 임계점이
 -- 계단처럼 튀지 않고 매 프레임 가까워진다. 카드 선택/단계 연출로 멈춘 시간은
 -- stageElapsed가 흐르지 않으므로 플레이어에게 불리하게 누적되지 않는다.
 function ClearcutMode:scoreTimePressureMultiplier()
     if not self.scoreAttack then return 1 end
-    return 2^math.max(0,(self.stageElapsed or 0)/60)
+    return 2^math.max(0,(self.stageElapsed or 0)/ClearcutMode.SCORE_TIME_DOUBLING_SECONDS)
 end
 
 function ClearcutMode:scoreTreeSpawnRate()

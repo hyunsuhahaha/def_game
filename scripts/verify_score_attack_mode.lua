@@ -12,7 +12,7 @@ local World=require("src.world")
 local Player=require("src.player")
 local Camera=require("src.camera")
 local Traits=require("src.character_traits").new(true)
-local function expectedSpawn(tier,seconds)return .14*1.75^(tier-1)*2^(seconds/60)end
+local function expectedSpawn(tier,seconds)return .14*1.75^(tier-1)*2^(seconds/30)end
 
 local loader
 for i=1,30 do local name,value=debug.getupvalue(Game.new,i);if name=="loadClearcutSprites"then loader=value;break end end
@@ -105,7 +105,12 @@ for _=1,5 do mode.scoreFellTimes[#mode.scoreFellTimes+1]=90 end
 mode.scoreFellHead=1
 mode:scoreProductionRate()
 assert(mode.currentTreesPerSecond==5 and math.abs(mode:scoreTreeSpawnRate()-expectedSpawn(1,90))<.001,"elapsed-time pressure did not raise regeneration independently of recent logging output")
-assert(math.abs(mode:scoreTimePressureMultiplier()-2^1.5)<.001,"time pressure did not double every 60 seconds")
+assert(mode.SCORE_TIME_DOUBLING_SECONDS==30 and math.abs(mode:scoreTimePressureMultiplier()-8)<.001,
+    "time pressure did not double every 30 seconds")
+mode.stageElapsed=60
+assert(math.abs(mode:scoreTimePressureMultiplier()-4)<.001,
+    "new one-minute time pressure does not match the former two-minute multiplier")
+mode.stageElapsed=90
 
 local pending=mode.pending
 game.mode="test"
