@@ -705,7 +705,7 @@ const TRAITS = {
       {id:"universal_oil_radius",name:"기름 범위",short:"기름 범위 상승",desc:"단계마다 기름 웅덩이의 보이는 크기와 피해 범위가 18 증가합니다.",max:3,costs:[32,54,82],requires:[["universal_oil_interval",1]]},
       {id:"universal_oil_duration",name:"기름 지속시간",short:"지속시간 상승",desc:"단계마다 기름 웅덩이의 지속시간이 3초 증가합니다.",max:3,costs:[28,48,74],requires:[["universal_oil_drum",1]]},
       {id:"universal_oil_damage",name:"기름 피해",short:"기름 피해 상승",desc:"단계마다 불붙은 기름의 나무 및 적 피해가 1 증가합니다.",max:3,costs:[45,72,110],requires:[["universal_oil_radius",2],["universal_oil_duration",2]]},
-      {id:"universal_gray_cat",name:"회색 고양이 동료",short:"고양이 동료 해금",desc:"드럼통마다 기본 35% 확률로 회색 고양이가 2.2초 뒤 출동해 드럼통을 밀어 넘어뜨립니다.",max:1,costs:[92],requires:[["universal_oil_drum",1]]},
+      {id:"universal_gray_cat",name:"회색 고양이 동료",short:"고양이 동료 해금",desc:"드럼통마다 기본 35% 확률로 회색 고양이가 2.2초 뒤 출동해 드럼통을 밀어 넘어뜨립니다. 사용자가 먼저 부수면 출동을 취소합니다.",max:1,costs:[92],requires:[["universal_oil_drum",1]]},
       {id:"universal_gray_cat_chance",name:"고양이 출현 확률",short:"고양이 출현 확률",desc:"단계마다 고양이 출현 확률이 20% 증가합니다.",max:3,costs:[40,68,104],requires:[["universal_gray_cat",1]]},
       {id:"universal_gray_cat_delay",name:"고양이 출동 대기시간",short:"고양이 대기시간",desc:"단계마다 고양이 출동 대기시간이 0.45초 감소합니다.",max:3,costs:[34,58,88],requires:[["universal_gray_cat_chance",1]]},
       {id:"universal_gray_cat_speed",name:"고양이 이동속도",short:"고양이 이동속도",desc:"단계마다 고양이의 진입 및 퇴장 이동속도가 15% 증가합니다.",max:3,costs:[30,52,80],requires:[["universal_gray_cat",1]]},

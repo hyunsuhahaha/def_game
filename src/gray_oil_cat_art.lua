@@ -1,8 +1,10 @@
 local Art={}
 local cat,drum,quads,drumQuads
 local CELL,FRAMES=128,6
-local CAT_SCALE=.72
-local DRUM_SCALE=.78
+-- The source cat has a wider opaque silhouette than the drum. These scales
+-- make the metal prop clearly larger while keeping the cat compact beside it.
+local CAT_SCALE=.64
+local DRUM_SCALE=.94
 -- The approved sheet has a fixed authored facing per pose. Normalize each
 -- row before applying the runtime direction so the exact approved pixels are
 -- preserved without making push face backwards.
@@ -35,7 +37,7 @@ function Art.drawDrum(value)
     local damageFrame=value.state=="spilled"and 3 or(damageRatio<.75 and 2 or 1)
     local flashing=(value.hitFlash or 0)>0
     love.graphics.setColor(0,0,0,.30*shadow)
-    love.graphics.ellipse("fill",math.floor(value.x+.5),math.floor(value.y+5),34*shadow,10*shadow)
+    love.graphics.ellipse("fill",math.floor(value.x+.5),math.floor(value.y+5),41*shadow,12*shadow)
     love.graphics.setColor(1,flashing and .58 or 1,flashing and .38 or 1,alpha)
     love.graphics.draw(drum,drumQuads[damageFrame],math.floor(value.x+kick+.5),math.floor(value.y-z+.5),value.angle or 0,
         DRUM_SCALE*(2-squash),DRUM_SCALE*squash,64,109)
@@ -54,7 +56,7 @@ function Art.drawCat(value)
     local z=value.jumpZ or 0
     local shadow=math.max(.25,1-z/80)
     love.graphics.setColor(0,0,0,.26*shadow)
-    love.graphics.ellipse("fill",math.floor(value.x+.5),math.floor(value.y+3),23*shadow,6*shadow)
+    love.graphics.ellipse("fill",math.floor(value.x+.5),math.floor(value.y+3),20*shadow,5*shadow)
     love.graphics.setColor(1,1,1,value.alpha or 1)
     love.graphics.draw(cat,quads[row][frame],math.floor(value.x+.5),math.floor(value.y-z+.5),0,
         CAT_SCALE*facing*AUTHORED_FACING[row],CAT_SCALE,CELL/2,118)

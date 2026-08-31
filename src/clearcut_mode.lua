@@ -930,6 +930,11 @@ end
 
 function ClearcutMode:spillOilDrum(drum,source)
     if not drum or drum.state=="spilled"then return false end
+    -- If the player beats the cat to its target, cancel that dispatch outright.
+    -- Sending it through the exit animation still looks like it came to help.
+    if source=="axe"and self.grayOilCat and self.grayOilCat.target==drum then
+        self.grayOilCat=nil
+    end
     drum.state,drum.spillAge,drum.claimed="spilled",0,false
     drum.angle=(drum.spillFacing or 1)*math.pi*.5
     drum.hasSpillFx=false
@@ -968,7 +973,7 @@ function ClearcutMode:hitOilDrum(drum,damage,game)
     drum.hitKickTime=.13
     drum.angle=(drum.angle or 0)+drum.hitDirection*(drum.hp<=0 and .13 or .065)
     drum.spillFacing=drum.hitDirection
-    ScoreAxeArt.impact(self,drum.x,drum.y-48,drum.hitDirection)
+    ScoreAxeArt.impact(self,drum.x,drum.y-54,drum.hitDirection)
     if game.feedback then game.feedback:play("metal",drum.hp<=0)end
     if game.camera then
         game.camera:impulse(-drum.hitDirection*24,0,-drum.hitDirection*.008,.025)
@@ -1008,7 +1013,7 @@ function ClearcutMode:startGrayOilCat(drum,game)
     drum.claimed=true
     self.grayOilCat={
         x=startX,y=startY,state="enter",stateTime=0,animClock=0,target=drum,
-        facing=facing,approachX=drum.x-facing*56,approachY=drum.y+4,
+        facing=facing,approachX=drum.x-facing*62,approachY=drum.y+4,
         exitX=exitX,exitY=exitY,pushDuration=.78,jumpZ=0
     }
     return true

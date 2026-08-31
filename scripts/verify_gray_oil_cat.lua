@@ -53,6 +53,17 @@ catMode.oilDrums={catDrum}
 assert(catMode:startGrayOilCat(catDrum,game),"gray cat did not enter from offscreen")
 local startedX=catMode.grayOilCat.x
 assert(startedX<0 or startedX>1600,"gray cat did not start outside the screen")
+
+local cancelMode=ClearcutMode.new()
+cancelMode.scoreAttack=true
+cancelMode.permanentTraits.scoreOilDrum=1
+cancelMode.permanentTraits.scoreGrayCat=1
+local cancelDrum={id=3,x=560,y=350,state="settled",hp=8,maxHp=8,angle=0,claimed=false}
+cancelMode.oilDrums={cancelDrum}
+assert(cancelMode:startGrayOilCat(cancelDrum,game),"gray cat cancel fixture did not dispatch")
+assert(cancelMode:hitOilDrum(cancelDrum,8,game),"player axe did not break the cat-targeted drum")
+assert(cancelMode.grayOilCat==nil,"player-broken drum still left the gray cat flying through the field")
+
 for _=1,220 do catMode:updateGrayOilCat(.05,game)end
 assert(catDrum.state=="spilled","gray cat did not tip the target drum")
 assert(catMode.grayOilCat==nil,"gray cat did not jump out through the opposite screen edge")

@@ -24,7 +24,8 @@ for index,phase in ipairs(phases)do
     local drum={x=x+70,y=y,state="settled",hp=phase[2],maxHp=8,angle=phase[2]<8 and .065 or 0,squash=1,hitFlash=phase[1]>.5 and phase[1]<.7 and .1 or 0,
         hitKickTime=phase[1]>.5 and phase[1]<.7 and .09 or 0,hitDirection=1}
     DrumArt.drawDrum(drum)
-    if index==2 then AxeArt.drawImpact({x=drum.x,y=drum.y-48,facing=1,age=.055,life=.24})end
+    if index==2 then AxeArt.drawImpact({x=drum.x,y=drum.y-54,facing=1,age=.055,life=.24})end
+    DrumArt.drawCat({x=x+148,y=y,state="enter",facing=1,animClock=.12,alpha=1})
     love.graphics.setColor(1,.95,.75,1);love.graphics.print(phase[3],x-24,315)
 end
 fixture.save("docs/previews/score-axe-drum-v1-draws.json")
