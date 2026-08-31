@@ -216,11 +216,16 @@ local scoreFireNodes={
 
     -- 폭죽 갈래. 폭발 반경도 담배용 scoreArea를 ×0.3으로 나눠 쓰고 있었고,
     -- 비행 속도(820)와 착탄 점화 확률(0.38)은 상수로 박혀 성장 자체가 불가능했다.
-    {id="fire_score_rocket_radius",name="폭죽 폭발 반경 상승",short="폭발 반경",desc="폭죽 로켓의 폭발 반경 +16",effect="scoreRocketRadius",value=16,max=5,wx=1430,wy=1320,icon="blast",color={1,.52,.18},requires={{"fire_score_edge",1}}},
-    {id="fire_score_rocket_damage",name="폭죽 폭발 피해 상승",short="폭발 피해",desc="폭죽 폭발이 나무에 주는 피해 +2",effect="scoreRocketDamage",value=2,max=5,wx=1430,wy=1640,icon="ember",color={1,.38,.14},requires={{"fire_score_edge",1}}},
-    {id="fire_score_rocket_speed",name="폭죽 비행 속도 상승",short="비행 속도",desc="폭죽 로켓이 목표까지 날아가는 속도 +12%",effect="scoreRocketSpeed",value=.12,max=4,costs={22,38,58,82},wx=1790,wy=1180,icon="wind",color={.82,.74,.46},requires={{"fire_score_rocket_radius",2}}},
-    {id="fire_score_rocket_ignite",name="폭죽 착탄 점화 확률 상승",short="착탄 점화",desc="폭발로 쓰러지지 않은 나무에 불이 붙을 확률 +6%p (기본 38%)",effect="scoreRocketIgnite",value=.06,max=5,wx=1790,wy=1470,icon="ember",color={1,.62,.24},requires={{"fire_score_rocket_radius",3}}},
-    {id="fire_score_rocket_cooldown",name="폭죽 발사 속도 상승",short="발사 속도",desc="폭죽 로켓 재발사 대기시간 단계마다 9% 감소",effect="scoreRocketCooldown",value=.09,max=5,wx=1790,wy=1790,icon="clock",color={.94,.58,.22},requires={{"fire_score_rocket_damage",3}}},
+    -- 담배 갈래의 종착점. 여기서부터 손이 비고, 그 빈손이 폭죽 해금으로 이어진다.
+    -- 자동 투척 루프 자체는 updateFire에 이미 있고(캠페인의 molotov 레벨용), 이 노드가
+    -- 기록 모드에서 그 루프를 깨운다.
+    {id="fire_score_autothrow",name="담배 자동 투척",short="자동 투척",desc="어떤 무기를 들고 있든 2.6초마다 꽁초가 자동으로 날아갑니다. 담배를 직접 들면 수동 투척이 그 위에 더해집니다.",effect="scoreAutoThrow",value=1,max=1,costs={240},wx=2020,wy=900,icon="cigarette",color={1,.46,.14},requires={{"fire_score_stock",1}},capstone=true},
+    {id="fire_score_rocket_unlock",name="폭죽 로켓 해금",short="폭죽 해금",desc="3번 무기 슬롯에 폭죽 로켓이 열립니다. 담배가 알아서 날아가는 동안 손으로 쏘는 원거리 광역 무기입니다.",effect="scoreRocketUnlock",value=1,max=1,costs={260},wx=1150,wy=1250,icon="blast",color={1,.34,.10},requires={{"fire_score_autothrow",1}},capstone=true},
+    {id="fire_score_rocket_radius",name="폭죽 폭발 반경 상승",short="폭발 반경",desc="폭죽 로켓의 폭발 반경 +16",effect="scoreRocketRadius",value=16,max=5,wx=1700,wy=1300,icon="blast",color={1,.52,.18},requires={{"fire_score_rocket_unlock",1}}},
+    {id="fire_score_rocket_damage",name="폭죽 폭발 피해 상승",short="폭발 피해",desc="폭죽 폭발이 나무에 주는 피해 +2",effect="scoreRocketDamage",value=2,max=5,wx=2050,wy=1350,icon="ember",color={1,.38,.14},requires={{"fire_score_rocket_unlock",1}}},
+    {id="fire_score_rocket_speed",name="폭죽 비행 속도 상승",short="비행 속도",desc="폭죽 로켓이 목표까지 날아가는 속도 +12%",effect="scoreRocketSpeed",value=.12,max=4,costs={22,38,58,82},wx=1420,wy=1560,icon="wind",color={.82,.74,.46},requires={{"fire_score_rocket_radius",2}}},
+    {id="fire_score_rocket_ignite",name="폭죽 착탄 점화 확률 상승",short="착탄 점화",desc="폭발로 쓰러지지 않은 나무에 불이 붙을 확률 +6%p (기본 38%)",effect="scoreRocketIgnite",value=.06,max=5,wx=1790,wy=1660,icon="ember",color={1,.62,.24},requires={{"fire_score_rocket_radius",3}}},
+    {id="fire_score_rocket_cooldown",name="폭죽 발사 속도 상승",short="발사 속도",desc="폭죽 로켓 재발사 대기시간 단계마다 9% 감소",effect="scoreRocketCooldown",value=.09,max=5,wx=2130,wy=1400,icon="clock",color={.94,.58,.22},requires={{"fire_score_rocket_damage",3}}},
 }
 for _,node in ipairs(scoreFireNodes)do node.job="fire";node.scoreMode=true;node.max=node.max or 5;node.costs=node.costs or{18,32,50,74,104};jobs.fire.nodes[#jobs.fire.nodes+1]=node end
 
@@ -542,7 +547,8 @@ function CharacterTraits:scoreAttackEffects()
         -- 담배용 수치를 계수로 나눠 쓰던 것을 전용으로 분리한 값이다.
         scoreTreeDamage=0,
         scoreAxeArea=0,scoreAxeSpeed=0,scoreAxeTargets=0,scoreAxeExecute=0,
-        scoreRocketRadius=0,scoreRocketDamage=0,scoreRocketSpeed=0,scoreRocketIgnite=0,scoreRocketCooldown=0
+        scoreRocketRadius=0,scoreRocketDamage=0,scoreRocketSpeed=0,scoreRocketIgnite=0,scoreRocketCooldown=0,
+        scoreAutoThrow=0,scoreRocketUnlock=0
     }
     for _,job in ipairs({"fire","universal"})do
         for _,node in ipairs(self:getScoreAttackNodes(job))do

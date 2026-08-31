@@ -2445,9 +2445,12 @@ end
 
 function ClearcutMode:updateFire(dt, game)
     local molotovLevel = self:levelOf("molotov")
-    if molotovLevel > 0 then
+    -- 기록 모드의 담배 자동 투척은 이 루프를 그대로 쓴다. 간격 2.6초는 수동 투척
+    -- 주기(약 2.2초)보다 느려서, 손을 비우는 대가로 화력을 조금 내주는 교환이 된다.
+    local autoThrow = self.scoreAttack and (self.permanentTraits.scoreAutoThrow or 0) > 0
+    if molotovLevel > 0 or autoThrow then
         self.molotovTimer = self.molotovTimer + dt
-        local interval = math.max(2.6, 8 - self:power("molotov") * 1.6)
+        local interval = autoThrow and 2.6 or math.max(2.6, 8 - self:power("molotov") * 1.6)
         if self.molotovTimer >= interval then
             self.molotovTimer = 0
             self:throwMolotov(game)
@@ -2709,9 +2712,22 @@ function ClearcutMode:scoreWeaponId()
     return def and def.id or "cigarette"
 end
 
+-- 폭죽은 담배 자동 투척 다음 노드로 해금한다. 담배가 알아서 날아가기 시작해 손이
+-- 비는 시점에 손으로 쏘는 무기가 열리는 순서다.
+function ClearcutMode:scoreWeaponUnlocked(index)
+    if scoreWeaponDefinitions[index] and scoreWeaponDefinitions[index].id=="firework"then
+        return (self.permanentTraits.scoreRocketUnlock or 0)>0
+    end
+    return true
+end
+
 function ClearcutMode:setScoreWeaponSlot(index,game)
     index=tonumber(index)
     if not self.scoreAttack or not scoreWeaponDefinitions[index]then return false end
+    if not self:scoreWeaponUnlocked(index)then
+        if game and game.setNotice then game:setNotice("폭죽 로켓 — 영구 연구에서 해금해야 합니다","warn")end
+        return false
+    end
     self.scoreWeaponSlot=index
     self.aimX,self.aimY,self.aimRadius=nil,nil,nil
     self.vapeCharge=0
@@ -2752,7 +2768,10 @@ function ClearcutMode:updateScoreAxeAttack(dt,game,heldOverride)
     local primary=targets[1]
     game.player:cancelInteraction()
     game.player:playAutoAxeSwing(primary.x)
-    local damage=3+(self.permanentTraits.treeDamage or 0)
+    -- 도끼는 담배만 던지는 초반의 답답함을 없애려고 넣은 무기다. 기본 피해 3은 기본
+    -- 숲 나무(HP 7)를 세 번 때려야 해서 오히려 담배보다 느렸다. 기본 한 방으로 맞추고,
+    -- 재생 단계가 올라 나무 HP가 7→9로 커지면 나무 피해 특성이 그 한 방을 유지한다.
+    local damage=7+(self.permanentTraits.treeDamage or 0)
     local executeChance=self.permanentTraits.executeChance or 0
     for _,node in ipairs(targets)do
         -- 밑동 절단은 체력을 0으로 만들어 같은 타격 판정에서 쓰러지게 한다.

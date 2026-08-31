@@ -79,7 +79,7 @@ assert(axe:updateHeldAxe(1, axeGame(trees), true), "도끼 슬롯이 타격하�
 local hit = 0
 for _, node in ipairs(trees) do if node.rushHp < 500 then hit = hit + 1 end end
 assert(hit == 3, "동시 타격 나무 +2가 실제 타격으로 이어지지 않았다 (맞은 나무 " .. hit .. ")")
-assert(trees[1].rushHp == 492, "도끼 피해가 3+나무 피해 5로 계산되지 않았다")
+assert(trees[1].rushHp == 488, "도끼 피해가 기본 7+나무 피해 5로 계산되지 않았다")
 
 -- 담배용 착화 범위(area)만 올려도 도끼 범위는 넓어지지 않아야 한다.
 local narrow = ClearcutMode.new()
@@ -96,6 +96,7 @@ local rocket = ClearcutMode.new()
 rocket.scoreAttack, rocket.sandbox, rocket.job, rocket.mapId = true, true, "fire", "forest"
 rocket.permanentTraits.scoreRocketRadius, rocket.permanentTraits.scoreRocketDamage = 80, 10
 rocket.permanentTraits.scoreRocketSpeed, rocket.permanentTraits.treeDamage = 0.48, 5
+rocket.permanentTraits.scoreRocketUnlock = 1
 rocket.scoreWeaponSlot, rocket.smokerWeaponCooldown = 3, 0
 assert(rocket:updateHeldAxe(1, rocketGame, true), "폭죽 슬롯이 발사하지 않았다")
 local shot = rocket.smokerWeaponProjectiles[1]
@@ -104,8 +105,39 @@ assert(math.abs(shot.damage - (8 + 5 * 1.1 + 10)) < 1e-9, "폭죽 폭발 피해�
 
 local slowRocket = ClearcutMode.new()
 slowRocket.scoreAttack, slowRocket.sandbox, slowRocket.job, slowRocket.mapId = true, true, "fire", "forest"
+slowRocket.permanentTraits.scoreRocketUnlock = 1
 slowRocket.scoreWeaponSlot, slowRocket.smokerWeaponCooldown = 3, 0
 slowRocket:updateHeldAxe(1, rocketGame, true)
 assert(slowRocket.smokerWeaponProjectiles[1].dur > shot.dur, "폭죽 비행 속도 특성이 도달 시간을 줄이지 않는다")
+
+-- 7. 후반 해금 순서: 담배 자동 투척 → 그 다음 노드가 폭죽 해금.
+assert(nodeOf("fire_score_autothrow").requires[1][1] == "fire_score_stock",
+    "담배 자동 투척이 담배 갈래 끝에 붙어 있지 않다")
+assert(nodeOf("fire_score_rocket_unlock").requires[1][1] == "fire_score_autothrow",
+    "폭죽 해금이 담배 자동 투척 다음 노드가 아니다")
+for _, id in ipairs({"fire_score_rocket_radius", "fire_score_rocket_damage"}) do
+    assert(nodeOf(id).requires[1][1] == "fire_score_rocket_unlock", id .. "가 폭죽 해금 뒤에 있지 않다")
+end
+
+-- 8. 폭죽 슬롯은 해금 전에는 선택되지 않는다.
+local locked = ClearcutMode.new()
+locked.scoreAttack, locked.sandbox, locked.job, locked.mapId = true, true, "fire", "forest"
+assert(locked:setScoreWeaponSlot(2), "도끼 슬롯은 해금 없이 열려 있어야 한다")
+assert(not locked:setScoreWeaponSlot(3) and locked:scoreWeaponId() == "axe",
+    "폭죽이 영구 연구 없이 선택된다")
+locked.permanentTraits.scoreRocketUnlock = 1
+assert(locked:setScoreWeaponSlot(3) and locked:scoreWeaponId() == "firework",
+    "폭죽 해금을 사도 슬롯이 열리지 않는다")
+
+-- 9. 자동 투척은 특성을 사야 돌고, 어떤 무기를 들고 있든 꽁초가 나간다.
+local autoGame = axeGame({tree(120)})
+local auto = ClearcutMode.new()
+auto.scoreAttack, auto.sandbox, auto.job, auto.mapId = true, true, "fire", "forest"
+auto.scoreWeaponSlot = 2
+auto:updateFire(3, autoGame)
+assert(#auto.molotovs == 0, "자동 투척 특성 없이 꽁초가 날아갔다")
+auto.permanentTraits.scoreAutoThrow = 1
+auto:updateFire(3, autoGame)
+assert(#auto.molotovs > 0, "담배 자동 투척 특성이 자동 투척을 켜지 않는다")
 
 print("SCORE_WEAPON_TRAITS_OK shared=tree_damage axe=area+speed+targets+execute rocket=radius+damage+speed+ignite+cooldown")

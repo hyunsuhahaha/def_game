@@ -82,8 +82,8 @@ assert(activeScore.scoreStartingBabyRobot==1 and activeScore.scoreRobotSpeed==.5
 assert(activeScore.scoreMoleCompanion==1 and activeScore.scoreMoleDamage==3 and activeScore.scoreMoleExtraCompanions==2,
     "split score-mode mole companion upgrades are not active")
 assert(activeScore.scoreStartingWood==nil and activeScore.scoreAutomationDiscount==nil,"removed score automation traits still affect runtime")
--- 불 갈래 19 = 담배 9 + 무기 슬롯 10(공용 나무 피해 1, 도끼 4, 폭죽 5).
-assert(#store:getScoreAttackNodes("fire")==19 and #store:getScoreAttackNodes("universal")==10,"active research board did not expose the split mole graph and the weapon-slot branches")
+-- 불 갈래 21 = 담배 9 + 공용 나무 피해 1 + 도끼 4 + 후반 해금 2(자동 투척·폭죽) + 폭죽 5.
+assert(#store:getScoreAttackNodes("fire")==21 and #store:getScoreAttackNodes("universal")==10,"active research board did not expose the split mole graph and the weapon-slot branches")
 for _, job in ipairs({"physical","fire","toxic","developer"}) do
     assert(#store:getNodes(job) >= 30, job .. " character graph has too few trait nodes")
 end

@@ -9,6 +9,10 @@ love.keyboard={isDown=function()return false end}
 
 local Mode=require("src.clearcut_mode")
 local mode=Mode.new();mode.scoreAttack=true;mode.job="fire"
+-- 폭죽은 이제 영구 연구(담배 자동 투척 → 폭죽 해금)로 열린다. 이 검사는 슬롯 조작과
+-- 입력 경로를 다루므로 해금은 미리 부여하고, 해금 게이트 자체는
+-- scripts/verify_score_weapon_traits.lua가 검사한다.
+mode.permanentTraits.scoreRocketUnlock=1
 local notices={}
 local game={player={axeHolding=false,clearClearcutAction=function()end},setNotice=function(_,message)notices[#notices+1]=message end}
 assert(mode:scoreWeaponId()=="cigarette","score mode did not default to cigarette slot")
@@ -34,11 +38,11 @@ local attackGame={
     world={nodes={tree},impactNode=function()end},tools={axe={speed=.8}},setNotice=function()end,
 }
 actual.scoreWeaponSlot=2
-assert(actual:updateHeldAxe(.7,attackGame,true)and tree.rushHp==97 and actual.actionAudit.scoreAxe==1,
+assert(actual:updateHeldAxe(.7,attackGame,true)and tree.rushHp==93 and actual.actionAudit.scoreAxe==1,
     "axe slot did not apply its real direct tree hit")
 actual.scoreWeaponSlot=3;actual.smokerWeaponCooldown=0
 assert(actual:updateHeldAxe(1,attackGame,true)and actual.smokerWeaponProjectiles[1].kind=="firework",
     "firework slot did not launch its real projectile")
 actual:updateSmokerWeaponProjectiles(2,attackGame)
-assert(tree.rushHp<97,"firework projectile did not detonate against its displayed target area")
+assert(tree.rushHp<93,"firework projectile did not detonate against its displayed target area")
 print("SCORE_WEAPON_SLOTS_OK slots=3 input=keyboard+click attacks=cigarette+axe+firework")
