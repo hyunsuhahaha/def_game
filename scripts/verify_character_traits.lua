@@ -238,7 +238,9 @@ assert(flameTree.rushHp<afterFirstTick and not flameTree.burning,
 -- + 도끼 4 + 도끼 상위 3(충격파·연속 벌목·나무꾼 고용) + 후반 해금 3(상시 흡연·자동 투척·폭죽)
 -- + 자동 투척 주기 1 + 폭죽 5. 탄약 관리 갈래는 startSmoking의 세 상수(개비 재장전 하한,
 -- 보루 재장전 하한, 보루 크기 20)를 각각 여는 노드이며 폭죽 시각 특성 3개가 추가된다.
-assert(#store:getScoreAttackNodes("fire")==39 and #store:getScoreAttackNodes("universal")==24,"active research board did not expose the split companion graphs and the weapon-slot branches")
+-- universal 28 = 기존 24 + 이동속도 루트 1 + 재생 단계 게이트 후반 노드 3.
+-- fire 41 = 기존 39 + 도끼 상위 2(충격파 연쇄·거목 특화).
+assert(#store:getScoreAttackNodes("fire")==41 and #store:getScoreAttackNodes("universal")==28,"active research board did not expose the split companion graphs and the weapon-slot branches")
 for _, job in ipairs({"physical","fire","toxic","developer"}) do
     assert(#store:getNodes(job) >= 30, job .. " character graph has too few trait nodes")
 end

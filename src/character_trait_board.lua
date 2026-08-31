@@ -344,6 +344,7 @@ function CharacterTraitBoard:nodeWorld(node)
         fire_score_axe_area={400,1350},fire_score_axe_speed={750,1350},
         fire_score_axe_targets={400,1600},fire_score_axe_execute={750,1600},
         fire_score_axe_shock={400,1850},fire_score_axe_chain={750,1850},
+        fire_score_axe_pierce={100,2100},fire_score_axe_heavy={1050,1850},
         fire_score_axe_crew={575,2100},
         fire_score_rocket_radius={400,2350},fire_score_rocket_damage={750,2350},
         fire_score_rocket_speed={1100,2350},fire_score_rocket_ignite={1450,2350},
@@ -356,6 +357,8 @@ function CharacterTraitBoard:nodeWorld(node)
         -- 공용 연구는 흡연자 갈래와 같은 좌표를 쓰고 있었다(각자 다른 탭이었으므로).
         -- 한 판으로 합치면서 흡연자 오른쪽으로 통째로 옮긴다.
         universal_yard={2600,850},universal_robot_start={3000,850},universal_robot_motor={3400,850},
+        -- 이동속도는 선행 없는 루트라 공용 갈래 입구 옆에 둔다.
+        universal_stride={2600,550},
         -- 드럼통 강화는 설비/고양이 선을 가로지르지 않도록 우측 상단에 독립 배치한다.
         -- 두 줄의 동일 간격 구조라 범위 계열과 지속 계열이 한눈에 구분된다.
         universal_oil_drum={3800,425},

@@ -596,9 +596,15 @@ function ClearcutMode:setup(game)
         self.scoreActiveWeapon=self:scoreRangedWeaponId()
         -- 졸업한 무기는 순서대로 원숭이에게 넘어간다. 도끼를 졸업하면 도끼 원숭이가,
         -- 폭죽까지 졸업하면 폭죽 원숭이가 추가로 따라붙는다.
+        -- `숙련 작업반`은 졸업한 무기마다 원숭이를 한 마리씩 더 붙인다. 재생 단계로만
+        -- 열리는 노드라, 코인을 다 모아도 실제로 단계를 올려야 크루가 두 배가 된다.
+        local perWeapon=1+math.max(0,math.floor(self.permanentTraits.scoreGraduateExtra or 0))
         self.savedMonkeyWeapons={}
-        if (self.permanentTraits.scoreAxeCrew or 0)>0 then self.savedMonkeyWeapons[#self.savedMonkeyWeapons+1]="axe" end
-        if (self.permanentTraits.scoreRocketCrew or 0)>0 then self.savedMonkeyWeapons[#self.savedMonkeyWeapons+1]="firework" end
+        for _,spec in ipairs({{"scoreAxeCrew","axe"},{"scoreRocketCrew","firework"}})do
+            if (self.permanentTraits[spec[1]] or 0)>0 then
+                for _=1,perWeapon do self.savedMonkeyWeapons[#self.savedMonkeyWeapons+1]=spec[2] end
+            end
+        end
     end
     if self.scoreAttack and (self.permanentTraits.scoreMoleCompanion or 0)>0 then self:initMoleCompanion(game) end
     if self.scoreAttack then
@@ -3256,20 +3262,30 @@ function ClearcutMode:graduationMonkeys()
 end
 -- 쓰러진 나무 자리에서 퍼지는 충격파. 연쇄로 또 충격파를 부르지는 않는다 —
 -- 한 번의 도끼질이 무한 연쇄가 되지 않게 여기서 끊는다.
-function ClearcutMode:axeShockwave(x,y,level,game)
+-- depth: 남은 연쇄 횟수. 기본은 0이라 한 번으로 끝나고, `도끼 충격파 연쇄`가 그
+-- 깊이를 단계만큼 올린다. 깊이를 쓰지 않으면 무한 연쇄가 되므로 반드시 줄여서 넘긴다.
+function ClearcutMode:axeShockwave(x,y,level,game,depth)
     local radius=70+level*34
     local damage=level*2
-    local felled=0
+    local remaining=depth or math.floor(self.permanentTraits.scoreAxePierce or 0)
+    local felled,chain=0,{}
     for _,node in ipairs(game.world.nodes)do
         if node.rushTree and node.active and not node.giantTree and not node.treeEmergence then
             local dx,dy=node.x-x,node.y-y
             if dx*dx+dy*dy<=radius*radius then
-                if self:damageTreeWithSmokerWeapon(node,damage,game)then felled=felled+1 end
+                local nx,ny=node.x,node.y
+                if self:damageTreeWithSmokerWeapon(node,damage,game)then
+                    felled=felled+1
+                    if remaining>0 then chain[#chain+1]={nx,ny} end
+                end
             end
         end
     end
     self:damageEnemiesInRadius(x,y,radius,8+damage*2,game)
     self.traitFx:emit("axe",x,y,{radius=radius,power=1,particles=16})
+    for _,spot in ipairs(chain)do
+        felled=felled+self:axeShockwave(spot[1],spot[2],level,game,remaining-1)
+    end
     return felled
 end
 
@@ -3284,11 +3300,14 @@ function ClearcutMode:resolveScoreAxeAction(action,game)
     local hit=0
     local shockLevel=math.max(0,math.floor(self.permanentTraits.scoreAxeShock or 0))
     local chainChance=self.permanentTraits.scoreAxeChain or 0
+    local heavy=self.permanentTraits.scoreAxeHeavy or 0
     for _,node in ipairs(action.targets or{})do if node.active and node.rushTree then
         if action.executeChance>0 and node.rushHp and love.math.random()<action.executeChance then node.rushHp=1 end
         local x,y=node.x,node.y
-        local felled=self:damageTreeWithSmokerWeapon(node,action.damage,game)
-        self:damageEnemiesInRadius(x,y,62+action.axeArea,14+action.damage*2,game)
+        -- 거목 특화는 최대 체력에 비례하므로 굵은 수종에서만 크게 붙는다.
+        local blow=action.damage+(heavy>0 and math.floor((node.rushMaxHp or 0)*heavy)or 0)
+        local felled=self:damageTreeWithSmokerWeapon(node,blow,game)
+        self:damageEnemiesInRadius(x,y,62+action.axeArea,14+blow*2,game)
         self.traitFx:emit("axe",x,y,{radius=66,power=1,particles=12})
         if felled then
             -- 도끼는 동시 타격 3그루가 하드캡이라 후반 공급량을 못 따라간다. 충격파는

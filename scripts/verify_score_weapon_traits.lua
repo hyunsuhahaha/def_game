@@ -309,4 +309,37 @@ plain:initLumberjackCompanion(crewGame)
 assert(plain.moleCompanions[1].shockLevel == 0,
     "도끼 상위 갈래를 안 찍었는데 나무꾼이 충격파를 쓴다")
 
+-- 15. 후반 목표는 코인이 아니라 재생 단계로 연다. 노가다로 전부 사고 나면 목표가
+-- 사라지는 문제를 실력 축으로 채운 것이므로, 코인이 넘쳐도 단계가 낮으면 막혀야 한다.
+local gated = CharacterTraits.new(true)
+gated.data.currency = 99999
+for _, id in ipairs({"universal_veteran_yard", "universal_veteran_crew", "universal_wildfire"}) do
+    local node = nodeOf(id)
+    assert(node.requiresTier, id .. " 가 재생 단계 게이트를 갖고 있지 않다")
+    assert(not gated:buy(id), id .. " 를 재생 1단계에서 코인만으로 샀다")
+end
+gated:unlockRegenTier(6)
+assert(gated:buy("universal_veteran_yard"), "재생 6단계에서 숙련 벌목장이 열리지 않는다")
+assert(not gated:buy("universal_veteran_crew"), "재생 6단계에서 8단계 노드가 열렸다")
+gated:unlockRegenTier(10)
+assert(gated:buy("universal_veteran_crew") and gated:buy("universal_wildfire"),
+    "재생 10단계에서도 후반 노드가 열리지 않는다")
+
+-- 숙련 작업반은 졸업한 무기마다 원숭이를 한 마리씩 더 붙인다.
+local function crewSize(extra)
+    local m = ClearcutMode.new()
+    m.scoreAttack, m.sandbox, m.job, m.mapId = true, true, "fire", "forest"
+    m.permanentTraits.scoreAxeCrew, m.permanentTraits.scoreRocketCrew = 1, 1
+    m.permanentTraits.scoreGraduateExtra = extra
+    local saved = {}
+    local perWeapon = 1 + math.max(0, math.floor(m.permanentTraits.scoreGraduateExtra or 0))
+    for _, spec in ipairs({{"scoreAxeCrew", "axe"}, {"scoreRocketCrew", "firework"}}) do
+        if (m.permanentTraits[spec[1]] or 0) > 0 then
+            for _ = 1, perWeapon do saved[#saved + 1] = spec[2] end
+        end
+    end
+    return #saved
+end
+assert(crewSize(0) == 2 and crewSize(1) == 4, "숙련 작업반이 졸업 무기마다 원숭이를 늘리지 않는다")
+
 print("SCORE_WEAPON_TRAITS_OK shared=tree_damage axe=area+speed+targets+execute rocket=radius+damage+speed+ignite+cooldown")

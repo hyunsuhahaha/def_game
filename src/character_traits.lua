@@ -135,7 +135,9 @@ local function expand(job, definitions)
             effect=definition.effect,value=definition.value,requires=definition.requires,
             wx=definition.wx or position[1],wy=definition.wy or position[2],icon=definition.icon or "capstone",color=definition.color,
             max=max,costs=definition.costs or (max==1 and {135} or max==2 and {48,86} or {36,62,94}),
-            capstone=definition.capstone,scoreMode=definition.scoreMode
+            capstone=definition.capstone,scoreMode=definition.scoreMode,
+            -- 새 필드를 추가할 때 여기에 같이 넣지 않으면 조용히 사라진다.
+            requiresTier=definition.requiresTier
         }
     end
 end
@@ -220,7 +222,9 @@ local scoreFireNodes={
     -- 수치(도끼 범위, 폭죽 반경 등)는 그 무기 이름을 그대로 쓴다. 도끼는 3+treeDamage, 폭죽은
     -- 8+treeDamage*1.1로 피해를 계산하는데 기록 모드에는 treeDamage 노드가 하나도
     -- 없어서 두 무기의 주력 수치가 영구히 고정돼 있었다. 여기가 그 성장 경로다.
-    {id="fire_score_edge",name="나무 피해 상승",short="무기 피해",desc="무기가 나무에 주는 피해 +1 (불의 타격 피해에도 더해집니다)",effect="scoreTreeDamage",value=1,max=5,costs={26,46,72,104,142},wx=390,wy=1120,icon="fist",color={.86,.62,.34},requires={{"fire_score_prewarm",1}}},
+    -- 루트 노드. 도끼는 초반 무기인데 담배 갈래 뒤에 갇혀 있어서 첫 판부터 도끼로
+    -- 갈 수가 없었다. 어느 빌드로 가든 유효한 공용 수치라 첫 구매로도 적합하다.
+    {id="fire_score_edge",name="나무 피해 상승",short="무기 피해",desc="무기가 나무에 주는 피해 +1 (불의 타격 피해에도 더해집니다)",effect="scoreTreeDamage",value=1,max=5,costs={16,32,56,86,124},wx=390,wy=1120,icon="fist",color={.86,.62,.34}},
 
     -- 도끼 갈래. 이전에는 담배용 착화 범위(scoreArea)를 ×0.2로 얻어 쓰고 있어서
     -- 담배 특성을 사야 도끼가 자라는 기묘한 의존이 있었다. 전용 수치로 분리한다.
@@ -241,6 +245,10 @@ local scoreFireNodes={
     {id="fire_score_axe_shock",name="도끼 충격파",short="충격파",desc="나무를 쓰러뜨리면 주변 나무에 단계마다 2 피해를 줍니다. 범위는 단계마다 34 넓어집니다.",effect="scoreAxeShock",value=1,max=3,costs={90,150,230},wx=200,wy=1470,icon="blast",color={.86,.58,.30},requires={{"fire_score_axe_targets",2}}},
     {id="fire_score_axe_chain",name="연속 벌목",short="연속 벌목",desc="나무를 쓰러뜨리면 단계마다 18% 확률로 도끼 재사용 대기시간이 즉시 초기화됩니다.",effect="scoreAxeChain",value=.18,max=3,costs={90,150,230},wx=200,wy=1790,icon="clock",color={.78,.70,.42},requires={{"fire_score_axe_execute",3}}},
     -- 도끼 갈래의 졸업. 마스터한 빌드를 동료에게 전수해 자동 벌목을 추가한다.
+    -- 도끼 상위 갈래. 도끼는 7노드로 담배(17)의 절반도 안 돼서 만렙이 너무 빨리 왔다.
+    -- 두 노드 모두 "굵은 나무를 도끼로 넘긴다"는 같은 문제를 다른 방식으로 푼다.
+    {id="fire_score_axe_pierce",name="도끼 충격파 연쇄",short="충격파 연쇄",desc="충격파로 쓰러진 나무가 단계마다 한 번 더 충격파를 냅니다. 연쇄 깊이만 늘어나며 무한 연쇄는 되지 않습니다.",effect="scoreAxePierce",value=1,max=2,costs={180,300},wx=200,wy=1850,icon="split",color={.90,.60,.26},requires={{"fire_score_axe_shock",3}}},
+    {id="fire_score_axe_heavy",name="도끼 거목 특화",short="거목 특화",desc="나무의 최대 체력 단계마다 8%를 추가 피해로 더합니다. 체력이 굵은 수종일수록 크게 오릅니다.",effect="scoreAxeHeavy",value=.08,max=4,costs={120,190,280,390},wx=950,wy=1850,icon="fist",color={.82,.46,.24},requires={{"fire_score_edge",3}}},
     {id="fire_score_axe_crew",name="도끼 원숭이 해금",short="도끼 원숭이",desc="내 도끼 빌드의 절반 성능을 물려받은 졸업 원숭이 1마리가 자동 벌목합니다.",effect="scoreAxeCrew",value=1,max=1,costs={800},wx=200,wy=2100,icon="capstone",color={.94,.52,.20},requires={{"fire_score_axe_shock",3},{"fire_score_axe_chain",3}},capstone=true},
     {id="fire_score_autothrow",name="담배 자동 투척",short="자동 투척",desc="근접 도끼질이나 폭죽 공격 중에도 2.6초마다 꽁초가 자동으로 날아갑니다. 불붙지 않은 드럼통 기름이 있으면 그곳을 먼저 노립니다.",effect="scoreAutoThrow",value=1,max=1,costs={240},wx=2020,wy=900,icon="cigarette",color={1,.46,.14},requires={{"fire_score_alwayssmoke",1}},capstone=true},
     -- 자동 투척 간격은 updateFire에 2.6초 상수로 박혀 있어, 손이 도끼·폭죽으로 넘어간
@@ -389,6 +397,13 @@ expand("universal",{
     {id="universal_afforestation",name="스테이지 시작 나무 증가",short="시작 나무 증가",desc="스테이지 진행마다 나무 +6그루(스테이지 배수)",effect="forestRestock",value=6,requires={{"universal_shuttle",1}},icon="map",color={.42,.68,.40}},
     {id="universal_seedbank",name="다수 수종 생성",short="다수 수종",desc="벌목지에 더 값나가는 수종이 함께 자란다",effect="treeVariety",value=1,max=1,requires={{"universal_afforestation",1}},icon="leaf",color={.55,.72,.35}},
     {id="universal_yard",name="나무 허용량 증가",short="허용량 증가",desc="벌목 기록 모드의 나무 허용량 +4그루",effect="scoreTreeAllowance",value=4,max=7,costs={16,26,40,58,80,108,142},wx=520,wy=850,icon="map",color={.48,.72,.42},scoreMode=true},
+    -- 루트 노드. 어떤 빌드든 즉시 체감되고 값이 싸서 첫 판의 선택지를 늘린다.
+    -- 후반 목표. 코인을 다 모아도 재생 단계를 못 올리면 열리지 않는다. 19,637코인을
+    -- 전부 찍은 뒤가 비어 있던 문제를 실력 축으로 채운다.
+    {id="universal_veteran_yard",name="숙련 벌목장",short="허용량 대폭 증가",desc="나무 허용량이 단계마다 3그루 더 늘어납니다. 재생 6단계에 도달해야 열립니다.",effect="scoreTreeAllowance",value=3,max=4,costs={320,460,640,860},requiresTier=6,wx=3000,wy=550,icon="map",color={.42,.78,.52},scoreMode=true},
+    {id="universal_veteran_crew",name="숙련 작업반",short="원숭이 추가",desc="졸업한 무기마다 원숭이가 한 마리씩 더 합류합니다. 재생 8단계에 도달해야 열립니다.",effect="scoreGraduateExtra",value=1,max=1,costs={1400},requiresTier=8,wx=3400,wy=550,icon="capstone",color={.94,.66,.28},scoreMode=true,capstone=true},
+    {id="universal_wildfire",name="통제 불능 산불",short="확산량 대폭 증가",desc="불붙은 나무의 확산량이 단계마다 0.12 늘어납니다. 재생 10단계에 도달해야 열립니다.",effect="scoreSpreadChance",value=.0333,max=3,costs={900,1300,1800},requiresTier=10,wx=3800,wy=550,icon="ember",color={1,.42,.16},scoreMode=true,capstone=true},
+    {id="universal_stride",name="작업자 이동속도 상승",short="이동속도",desc="작업자 이동속도가 단계마다 6% 증가합니다.",effect="moveSpeed",value=.06,max=4,costs={14,24,38,56},wx=880,wy=1120,icon="road",color={.52,.74,.66},scoreMode=true},
     {id="universal_robot_start",name="아기 로봇 기본 지급",short="로봇 기본 지급",desc="벌목 기록 모드를 아기 운반 로봇 Lv.1로 시작",effect="scoreStartingBabyRobot",value=1,max=1,costs={42},wx=900,wy=680,icon="basket",color={.40,.86,1},scoreMode=true},
     {id="universal_robot_motor",name="아기 로봇 이동속도 상승",short="로봇 이동속도",desc="아기 운반 로봇 이동속도 +10%",effect="scoreRobotSpeed",value=.10,max=5,costs={22,38,58,82,112},wx=1260,wy=680,icon="clock",color={.55,.90,1},requires={{"universal_robot_start",1}},scoreMode=true},
     {id="universal_mole_companion",name="두더지 동료 해금",short="두더지 해금",desc="벌목 기록 모드에 두더지 동료 1마리가 합류합니다.",effect="scoreMoleCompanion",value=1,max=1,costs={78},wx=1100,wy=1100,icon="fist",color={.78,.62,.30},requires={{"universal_robot_start",1}},scoreMode=true},
@@ -543,6 +558,11 @@ function CharacterTraits:status(id)
     if not node then return false, "존재하지 않는 특성" end
     local level = self:getLevel(id)
     if level >= node.max then return false, "최고 단계" end
+    -- 코인만으로는 못 여는 문. 노가다로 전부 사고 나면 목표가 사라지므로, 후반 노드는
+    -- 실제로 재생 단계를 올려야 열리게 한다. 코인과 다른 축이라 종착점이 생기지 않는다.
+    if node.requiresTier and self:getRegenTier() < node.requiresTier then
+        return false, "재생 단계 " .. node.requiresTier .. " 도달 필요 (현재 " .. self:getRegenTier() .. ")"
+    end
     for _, requirement in ipairs(requirementsOf(node)) do
         if self:getLevel(requirement[1]) < requirement[2] then
             return false, byId[requirement[1]].name .. " " .. requirement[2] .. "단계 필요"
@@ -630,7 +650,8 @@ function CharacterTraits:scoreAttackEffects()
         -- 담배용 수치를 계수로 나눠 쓰던 것을 전용으로 분리한 값이다.
         scoreTreeDamage=0,
         scoreAxeArea=0,scoreAxeSpeed=0,scoreAxeTargets=0,scoreAxeExecute=0,
-        scoreAxeShock=0,scoreAxeChain=0,scoreAxeCrew=0,
+        scoreAxeShock=0,scoreAxeChain=0,scoreAxeCrew=0,scoreAxePierce=0,scoreAxeHeavy=0,
+        scoreGraduateExtra=0,
         scoreRocketRadius=0,scoreRocketDamage=0,scoreRocketSpeed=0,scoreRocketIgnite=0,scoreRocketCooldown=0,
         scoreRocketTwin=0,scoreRocketCluster=0,scoreRocketFinale=0,
         -- 폭죽 졸업과 화염방사기 갈래.
