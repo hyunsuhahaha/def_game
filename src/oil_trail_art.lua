@@ -32,6 +32,7 @@ local function drawFlameBase(spot,t,alpha)
 end
 
 function Art.drawGround(spot,t)
+    if (t or 0)<(spot.spawnedAt or 0)then return end
     local previous={love.graphics.getColor()}
     local age=math.max(0,(t or 0)-(spot.spawnedAt or 0))
     local fade=spot.ignited and 1 or math.min(1,math.max(0,(6-age)/.55))
@@ -66,6 +67,7 @@ local function bridge(from,to,draw)
 end
 
 function Art.drawGroundBridge(from,to,t)
+    if (t or 0)<math.max(from.spawnedAt or 0,to.spawnedAt or 0)then return end
     local previous={love.graphics.getColor()}
     bridge(from,to,function(spot) drawOilBase(spot,1) end)
     love.graphics.setColor(unpack(previous))
@@ -73,6 +75,7 @@ end
 
 function Art.drawFlame(spot,t)
     if not spot.ignited then return end
+    if (t or 0)<(spot.spawnedAt or 0)then return end
     local previous={love.graphics.getColor()}
     local age=math.max(0,(t or 0)-(spot.ignitedAt or t or 0))
     local fade=math.min(1,age/.12)*math.min(1,math.max(0,(5-age)/.55))
@@ -92,6 +95,7 @@ end
 
 function Art.drawFlameBridge(from,to,t)
     if not (from.ignited and to.ignited) then return end
+    if (t or 0)<math.max(from.spawnedAt or 0,to.spawnedAt or 0)then return end
     local previous={love.graphics.getColor()}
     bridge(from,to,function(spot)
         local age=math.max(0,(t or 0)-(spot.ignitedAt or t or 0))

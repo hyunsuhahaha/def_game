@@ -19,9 +19,12 @@ assert(mode:spillOilDrum(drum,"axe"),"settled drum did not spill")
 assert(drum.state=="spilled" and #mode.oilTrail==11,"drum spill did not create one continuous eleven-spot puddle")
 local group=mode.oilPuddleGroups.drum_1
 assert(group and group.radius==105,"drum oil puddle group was not registered")
+local earliest,latest=math.huge,-math.huge
 for _,spot in ipairs(mode.oilTrail)do
     assert(spot.group=="drum_1" and spot.lifetime==20,"drum oil spot lost its group or lifetime")
+    earliest,latest=math.min(earliest,spot.spawnedAt),math.max(latest,spot.spawnedAt)
 end
+assert(latest-earliest>=.30,"drum oil appeared at once instead of visibly spreading out from the barrel")
 
 local game={player={x=500,y=350},world={nodes={}},camera=nil}
 local catMode=ClearcutMode.new()

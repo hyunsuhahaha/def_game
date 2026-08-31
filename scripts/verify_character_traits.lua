@@ -125,6 +125,9 @@ for _,id in ipairs({"universal_mole_companion","universal_mole_damage","universa
     minMoleY,maxMoleY=math.min(minMoleY,my),math.max(maxMoleY,my)
 end
 assert(maxMoleY-minMoleY>=700,"mole research graph is still compressed into one non-scrollable node cluster")
+local oilX,oilY=board:nodeWorld(store:getNode("universal_oil_drum"))
+local catX,catY=board:nodeWorld(store:getNode("universal_gray_cat"))
+assert(math.sqrt((oilX-catX)^2+(oilY-catY)^2)<=260,"gray cat unlock is not placed next to the oil drum unlock")
 local root=store:getNode("fire_score_prewarm")
 local rx,ry=board:nodeWorld(root)
 local directions={left=false,right=false,up=false,down=false}

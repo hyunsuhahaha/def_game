@@ -848,9 +848,10 @@ function ClearcutMode:spillOilDrum(drum,source)
     for index=1,11 do
         local ring=index==1 and 0 or(index<=5 and 34 or 68)
         local angle=(index*2.399963)+((drum.id or 0)*.41)
+        local spreadDelay=(ring/68)*.30+((index-1)%3)*.025
         local spot={
             x=drum.x+math.cos(angle)*ring,y=drum.y+math.sin(angle)*ring*.48,
-            spawnedAt=self.smokerGroundTime,ignited=false,angle=angle,
+            spawnedAt=self.smokerGroundTime+spreadDelay,ignited=false,angle=angle,
             variant=(index-1)%3+1,sequence=self.oilTrailSequence+index,
             source="drum",group=group,lifetime=20
         }
@@ -2336,7 +2337,7 @@ function ClearcutMode:updateOilTrail(dt, game)
     if not self.rainSuppressFire then
         for _, butt in ipairs(self.cigaretteButts) do
             for _, spot in ipairs(self.oilTrail) do
-                if not spot.ignited then
+                if not spot.ignited and now>=(spot.spawnedAt or 0)then
                     local dx, dy = spot.x - butt.x, spot.y - butt.y
                     if dx * dx + dy * dy <= 70 * 70 then self:igniteOilTrail(spot, game) end
                 end
