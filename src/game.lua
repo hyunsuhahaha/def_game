@@ -42,7 +42,7 @@ end
 local function loadClearcutSprites()
     local specs = {
         physical = {file="logger-atlas-pixel-v2.png", walkFeet={190,190,190,190,190,190}, actionFeet={190,190,190,190,190,190}, scale=.61},
-        fire = {file="smoker-atlas-pixel-v2.png", walkFeet={190,190,190,190,190,190}, actionFeet={190,190,190,190,190,190}, scale=.61},
+        fire = {file="smoker-atlas-pixel-v3.png", walkFeet={190,190,190,190,190,190}, actionFeet={190,190,190,190,190,190}, scale=.61},
         toxic = {file="vegan-atlas-pixel-v3.png", walkFeet={190,190,190,190,190,190}, actionFeet={190,190,190,190,190,190}, scale=.75,nativeFacing=1},
         developer = {file="developer-atlas-pixel-v2.png", walkFeet={190,190,190,190,190,190}, actionFeet={190,190,190,190,190,190}, scale=.61},
         -- The authored philosopher source faces right.
@@ -66,6 +66,26 @@ local function loadClearcutSprites()
     specs.fire.scoreAxeImage:setFilter("nearest","nearest")
     specs.fire.scoreAxeFeet={190,190,190,190,190,190}
     specs.fire.cigarette = Cigarette.load()
+    local function smokerAvatar(id,name,file,axeFile,walkMouth,actionMouth)
+        local avatar={id=id,name=name,file=file,scale=.61,nativeFacing=1,
+            walkFeet={190,190,190,190,190,190},actionFeet={190,190,190,190,190,190},
+            walkMouth=walkMouth,actionMouth=actionMouth,cigarette=specs.fire.cigarette,
+            scoreAxeFeet={190,190,190,190,190,190}}
+        avatar.image=love.graphics.newImage("assets/characters/ingame/"..file)
+        avatar.scoreAxeImage=love.graphics.newImage("assets/characters/ingame/"..axeFile)
+        avatar.image:setFilter("nearest","nearest");avatar.scoreAxeImage:setFilter("nearest","nearest")
+        return avatar
+    end
+    specs.fire.avatarVariants={
+        scrapyard_welder=smokerAvatar("scrapyard_welder","폐철장 용접공",
+            "scrapyard-welder-atlas-pixel-v1.png","scrapyard-welder-score-axe-atlas-pixel-v1.png",
+            {{68,28},{78,27},{78,35},{78,27},{79,42},{76,27}},
+            {{68,31},{68,31},{63,34},{68,31},{61,27},{74,31}}),
+        night_shopkeeper=smokerAvatar("night_shopkeeper","야간 점주",
+            "night-shopkeeper-atlas-pixel-v1.png","night-shopkeeper-score-axe-atlas-pixel-v1.png",
+            {{72,29},{84,33},{78,35},{75,30},{82,31},{78,27}},
+            {{70,29},{70,29},{68,30},{72,31},{70,30},{76,29}}),
+    }
     specs.toxic.veganArt = VeganForkArt.load()
     return specs
 end
@@ -191,12 +211,23 @@ function Game:startClearcutScoreAttack()
     self.clearcut.scoreAttack=true
     self.selectedClearcutMap="forest"
     self.selectedClearcutStage=1
-    self.player:setClearcutSprite(self.clearcutSprites.fire or self.clearcutSprites.physical,"fire")
+    local fireSprite=self.clearcutSprites.fire or self.clearcutSprites.physical
+    local avatar=fireSprite.avatarVariants and fireSprite.avatarVariants[self.scoreAvatarId]
+    self.player:setClearcutSprite(avatar or fireSprite,"fire")
     self.clearcut:setup(self)
     self:consumeTestNextRunLevels()
     self:enableClearcutPerspective()
     self.mode="playing"
     if self.clearcut.pending>0 then self.clearcut:openUpgradeChoices(self) end
+end
+function Game:setScoreAvatar(id)
+    local fire=self.clearcutSprites and self.clearcutSprites.fire
+    if id~="original"and(not fire or not fire.avatarVariants or not fire.avatarVariants[id])then return false end
+    self.scoreAvatarId=id
+    if self.clearcut and self.clearcut.scoreAttack and self.player then
+        self.player:setClearcutSprite(id=="original"and fire or fire.avatarVariants[id],"fire")
+    end
+    return true
 end
 function Game:setNotice(text, kind) self.notice, self.noticeKind, self.noticeTime = text, kind or "core", 2.2 end
 
