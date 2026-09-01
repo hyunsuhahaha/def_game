@@ -9,7 +9,8 @@ NAMES = ("young", "adolescent", "precursor")
 
 signatures = []
 for name in NAMES:
-    path = ROOT / f"assets/enemies/arcade/score-worldtree-{name}-atlas-v1.png"
+    version = 2 if name == "young" else 1
+    path = ROOT / f"assets/enemies/arcade/score-worldtree-{name}-atlas-v{version}.png"
     image = Image.open(path).convert("RGBA")
     assert image.size == (CELL * 6, CELL * 2), f"{name}: wrong atlas size {image.size}"
     arr = np.asarray(image)

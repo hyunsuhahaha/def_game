@@ -157,7 +157,7 @@
 
 | 재생 단계 | 외형 | 실제 판정 반경 | 등장 방식 |
 |---|---|---:|---|
-| 1~3 | 어린 세계수 (`score-worldtree-young-atlas-v1`) | 76 → 104 | 0.82초 빠른 발아 |
+| 1~3 | 어린 세계수 (`score-worldtree-young-atlas-v2`) | 78 → 108 | 0.82초 빠른 발아 |
 | 4~6 | 중간 성장형 (`score-worldtree-adolescent-atlas-v1`) | 126 → 168 | 0.82초 빠른 발아 |
 | 7~9 | 거대형 직전 성목 (`score-worldtree-precursor-atlas-v1`) | 192 → 258 | 0.82초 빠른 발아 |
 | 10+ | 기존 공성 세계수 (`worldtree-siege-atlas-v1`) | 420 | 기존 6.75초 SKYVIEW → 상승 → 복귀 |

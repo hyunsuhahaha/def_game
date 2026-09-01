@@ -15,7 +15,7 @@
 -- 시간만큼 벌목을 쉰다. 그 손해를 확실히 이기도록 버프는 애매하지 않게 크다.
 local Oven={}
 local Maps=require("src.clearcut_maps")
-local body,slice,bake,aura,bodyQuads,sliceQuads,bakeQuads,bakeWispQuads,auraBackQuads,auraFrontQuads
+local body,slice,hearthFire,aura,bodyQuads,sliceQuads,hearthFireQuads,auraBackQuads,auraFrontQuads
 
 -- 기본 수치. 연구 노드가 전부 이 위에 더해진다.
 --
@@ -71,18 +71,16 @@ function Oven.stacks(mode)
     return (traits(mode).scoreOvenStack or 0)>0
 end
 
--- 굽는 피자는 불꽃 세기가 아니라 실제 조각 화력으로 익는다. 화면도 같은 값을 써야
--- 연구로 조각 비용이 낮아졌을 때 보이는 진행도와 실제 완성 시점이 어긋나지 않는다.
-function Oven.bakeVisualState(mode)
+-- 화덕 안에는 피자를 그리지 않는다. 지금 타는 나무에서 실제 화력이 들어올 때만
+-- 전용 화실 불꽃을 강하게 재생하고, 남은 열만 있으면 낮은 잔불로 보여 준다.
+function Oven.fireVisualState(mode)
     local oven=mode and mode.pizzaOven
-    if not oven then return false,0,1,false end
-    local full=(oven.slices or 0)>=Oven.maxSlices(mode)
+    if not oven then return false,0,false end
     local rate=math.max(0,oven.heatRate or 0)
-    local visible=not full and ((oven.heat or 0)>0 or rate>0)
-    local progress=math.max(0,math.min(.999,(oven.heat or 0)/Oven.sliceCost(mode)))
-    local stage=math.max(1,math.min(6,1+math.floor(progress*6)))
-    local active=visible and rate>0
-    return visible,progress,stage,active
+    local active=rate>0
+    local stored=math.max(0,math.min(1,(oven.heat or 0)/Oven.sliceCost(mode)))
+    local intensity=math.max(math.max(0,oven.fire or 0),active and math.min(1,.34+rate/8) or stored*.28)
+    return intensity>.025,intensity,active
 end
 
 function Oven.spawn(mode,game)
@@ -205,10 +203,12 @@ function Oven.update(mode,dt,game)
     oven.flare=math.max(0,(oven.flare or 0)-dt)
 
     local burning=Oven.burningNearby(mode,oven,game)
-    -- 불이 실제로 몇 그루 붙어 있는지를 그대로 화덕 아궁이의 세기로 쓴다.
-    oven.fire=oven.fire+(math.min(1,burning/4)-oven.fire)*math.min(1,dt*2.4)
     local rate=burning*Oven.heatPerTree(mode)
     if mode.rainSuppressFire then rate=rate*Oven.rainKeep(mode) end
+    -- 아궁이 그림도 비가 적용된 실제 유효 화력을 따른다. 주변 나무가 시각적으로
+    -- burning 상태여도 빗속에서 rate가 0이면 화덕만 활활 타는 모순이 생기면 안 된다.
+    local fireTarget=rate>0 and math.min(1,burning/4) or 0
+    oven.fire=oven.fire+(fireTarget-oven.fire)*math.min(1,dt*2.4)
     oven.heatRate=rate
     oven.heat=oven.heat+rate*dt
 
@@ -252,12 +252,11 @@ local function load()
         sliceQuads={}
         for i=0,3 do sliceQuads[i+1]=love.graphics.newQuad(i*96,0,96,96,slice:getDimensions()) end
     end
-    local bakeOk,bakeImage=pcall(love.graphics.newImage,"assets/automation/pizza-oven-baking-atlas-pixel-v1.png")
-    if bakeOk then
-        bake=bakeImage;bake:setFilter("nearest","nearest")
-        bakeQuads={};bakeWispQuads={}
-        for i=0,5 do bakeQuads[i+1]=love.graphics.newQuad(i*128,0,128,96,bake:getDimensions()) end
-        for i=0,2 do bakeWispQuads[i+1]=love.graphics.newQuad(i*128,96,128,96,bake:getDimensions()) end
+    local fireOk,fireImage=pcall(love.graphics.newImage,"assets/automation/pizza-oven-hearth-fire-atlas-pixel-v2.png")
+    if fireOk then
+        hearthFire=fireImage;hearthFire:setFilter("nearest","nearest")
+        hearthFireQuads={}
+        for i=0,7 do hearthFireQuads[i+1]=love.graphics.newQuad(i*128,0,128,96,hearthFire:getDimensions()) end
     end
     local auraOk,auraImage=pcall(love.graphics.newImage,"assets/fx/companion-feast-aura-atlas-pixel-v1.png")
     if auraOk then
@@ -309,18 +308,14 @@ function Oven.queue(mode,queue)
             local jitter=(oven.flare or 0)>0 and math.sin((oven.life or 0)*64)*1.5 or 0
             love.graphics.draw(body,bodyQuads[frame],oven.x+jitter,oven.y,0,.70,.70,128,176)
         end
-        if bake and bakeQuads then
-            local visible,_,stage,active=Oven.bakeVisualState(mode)
+        if hearthFire and hearthFireQuads then
+            local visible,intensity,active=Oven.fireVisualState(mode)
             if visible then
-                -- 아궁이 안에 실제 피자를 놓는다. 반죽→용융→갈변 여섯 단계는 실제
-                -- heat/sliceCost와 직결되고, 화력이 끊기면 피자는 남되 김만 멎는다.
-                love.graphics.setColor(1,1,1,active and 1 or .82)
-                love.graphics.draw(bake,bakeQuads[stage],oven.x,oven.y-35,0,.62,.62,64,64)
-                if active and bakeWispQuads then
-                    local phase=math.floor((oven.life or 0)*8)%3+1
-                    love.graphics.setColor(1,1,1,.96)
-                    love.graphics.draw(bake,bakeWispQuads[phase],oven.x,oven.y-35,0,.62,.62,64,64)
-                end
+                local frame=math.floor((oven.life or 0)*(active and 14 or 6))%8+1
+                local sx=.62+intensity*.08
+                local sy=.47+intensity*.24
+                love.graphics.setColor(1,1,1,active and .98 or .58)
+                love.graphics.draw(hearthFire,hearthFireQuads[frame],oven.x,oven.y-32,0,sx,sy,64,84)
                 love.graphics.setColor(1,1,1,1)
             end
         end

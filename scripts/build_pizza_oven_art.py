@@ -1,11 +1,10 @@
-"""Build the scrap-built brick pizza oven and its baked slice pickups.
+"""Build the scrap-built brick pizza oven, hearth fire and slice pickups.
 
 The oven reads as a wood-fired dome welded onto a low handcart: the same
 scavenged-industrial lineage as the oil drum and the puffed-rice cannon, not a
-clean Neapolitan storefront. Six frames ramp the fire from cold to roaring so the
-runtime can show how many trees are burning inside the collection radius. A
-separate fixed-grid overlay shows the pizza itself changing from pale dough to a
-bubbling, browned pie, so heat progress is readable independently of fire size.
+clean Neapolitan storefront. Six body frames ramp the stored glow, while a
+separate eight-frame fixed-grid hearth fire makes active combustion unmistakable.
+No pizza is drawn inside the mouth; completed slices alone communicate output.
 """
 from pathlib import Path
 from PIL import Image, ImageDraw
@@ -323,6 +322,58 @@ def baking_wisp_frame(index):
     return im
 
 
+def hearth_fire_frame(index):
+    """Eight coherent fire poses rooted to the oven-mouth floor at y=84."""
+    im = Image.new("RGBA", (128, 96))
+    d = ImageDraw.Draw(im)
+    phase = index * math.pi / 4
+    base = 84
+
+    # Charred split logs and a stepped ember bed remain locked across frames.
+    poly(d, ((25, 81), (49, 76), (67, 81), (92, 75), (105, 82), (101, 88), (28, 89)), SOOT[0])
+    d.line((30, 83, 61, 78), fill=(76, 40, 20, 255), width=6)
+    d.line((67, 82, 99, 77), fill=(84, 43, 20, 255), width=6)
+    for x in range(29, 102, 4):
+        tone = FIRE[2 + ((x // 4 + index) % 2)]
+        rect(d, (x, 84 + ((x + index) % 3), x + 2, 88), tone)
+
+    tongues = []
+    for tongue, center in enumerate((35, 49, 63, 77, 92)):
+        sway = int(math.sin(phase + tongue * 1.31) * 5)
+        height = (28, 46, 58, 42, 31)[tongue] + int(math.sin(phase * 1.7 + tongue) * 7)
+        half = (11, 14, 15, 13, 10)[tongue]
+        tongues.append((center + sway, max(17, base - height), half))
+
+    # Dark-red outer tongues overlap into one broad, readable furnace flame.
+    for center, top, half in tongues:
+        poly(d, ((center-half, base), (center-half+2, top+16), (center-5, top+9),
+                 (center, top), (center+5, top+10), (center+half-2, top+17),
+                 (center+half, base)), FIRE[0])
+    # Orange/yellow inner tongues animate independently rather than scaling the
+    # whole fire blob, which keeps the loop alive without a global pulse.
+    for tongue, (center, top, half) in enumerate(tongues):
+        inner_top = top + 9 + (tongue % 2) * 3
+        poly(d, ((center-half+4, base-2), (center-half+6, inner_top+10),
+                 (center, inner_top), (center+half-5, inner_top+12),
+                 (center+half-3, base-2)), FIRE[2 + (tongue + index) % 2])
+        if tongue in (1, 2, 3):
+            poly(d, ((center-5, base-3), (center-3, inner_top+16),
+                     (center, inner_top+10), (center+4, inner_top+18),
+                     (center+6, base-3)), FIRE[4])
+    # White-hot pressure core sits low in the firebox, not over the whole flame.
+    poly(d, ((47, 84), (53, 68 + index % 3), (61, 76), (68, 61 + (index+1) % 4),
+             (76, 73), (83, 84)), FIRE[5])
+
+    # Detached square embers rise on different paths each frame.
+    sparks = ((26, 45), (106, 52), (58, 19), (84, 31), (39, 27), (98, 38))
+    for spark in range(3):
+        sx, sy = sparks[(index + spark * 2) % len(sparks)]
+        sy -= (index * (spark + 2)) % 13
+        rect(d, (sx, sy, sx + 2 + spark % 2, sy + 3), FIRE[3 + spark % 2])
+        d.point((sx + 1, sy - 2), fill=FIRE[5])
+    return im
+
+
 def feast_aura_frame(index, front=False):
     """Restrained six-frame yellow power aura, split around the actor depth."""
     im = Image.new("RGBA", (192, 192))
@@ -389,12 +440,10 @@ def build():
         slices.alpha_composite(slice_frame(index), (index * 96, 0))
     slices.save(OUT / "pizza-slice-atlas-pixel-v1.png")
 
-    baking = Image.new("RGBA", (128 * 6, 96 * 2))
-    for stage in range(6):
-        baking.alpha_composite(baking_pizza_frame(stage), (stage * 128, 0))
-    for index in range(3):
-        baking.alpha_composite(baking_wisp_frame(index), (index * 128, 96))
-    baking.save(OUT / "pizza-oven-baking-atlas-pixel-v1.png")
+    hearth = Image.new("RGBA", (128 * 8, 96))
+    for index in range(8):
+        hearth.alpha_composite(hearth_fire_frame(index), (index * 128, 0))
+    hearth.save(OUT / "pizza-oven-hearth-fire-atlas-pixel-v2.png")
 
     aura = Image.new("RGBA", (192 * 6, 192 * 2))
     for index in range(6):
@@ -402,7 +451,7 @@ def build():
         aura.alpha_composite(feast_aura_frame(index, True), (index * 192, 192))
     aura.save(FX_OUT / "companion-feast-aura-atlas-pixel-v1.png")
     print("pizza-oven-atlas-pixel-v1.png 1536x192, pizza-slice-atlas-pixel-v1.png 384x96, "
-          "pizza-oven-baking-atlas-pixel-v1.png 768x192, "
+          "pizza-oven-hearth-fire-atlas-pixel-v2.png 1024x96, "
           "companion-feast-aura-atlas-pixel-v1.png 1152x384")
 
 

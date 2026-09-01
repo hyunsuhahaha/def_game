@@ -13,14 +13,15 @@ from PIL import Image, ImageDraw, ImageFilter
 
 ROOT = Path(__file__).resolve().parents[1]
 SOURCE = ROOT / "assets/enemies/concepts/score-worldtree-growth-concept-v1.png"
+YOUNG_SOURCE = ROOT / "assets/enemies/concepts/score-worldtree-young-concept-v2.png"
 OUT_DIR = ROOT / "assets/enemies/arcade"
-PREVIEW = ROOT / "docs/previews/score-worldtree-growth-v1-contact-sheet.png"
+PREVIEW = ROOT / "docs/previews/score-worldtree-growth-v2-contact-sheet.png"
 CELL, FOOT = 512, 492
 
 # Crops isolate the three authored identities in the concept board.  They are
 # deliberately not resized versions of one another.
 FORMS = (
-    {"id": "young", "crop": (36, 548, 330, 960), "max_w": 274, "max_h": 360},
+    {"id": "young", "version": 2, "source": "young", "bg_limit": 48, "crop": (105, 72, 1148, 1164), "max_w": 316, "max_h": 392},
     {"id": "adolescent", "crop": (366, 278, 800, 964), "max_w": 348, "max_h": 430},
     {"id": "precursor", "crop": (794, 30, 1490, 974), "max_w": 430, "max_h": 470},
 )
@@ -47,12 +48,16 @@ def approved_palette():
 PALETTE = None
 
 
-def remove_background(crop):
+def remove_background(crop, bg_limit=15):
     arr = np.asarray(crop.convert("RGBA")).copy()
     rgb = arr[:, :, :3]
     # The generated board uses a near-black empty field.  Grow that field from
     # the edges, so equally dark bark pixels enclosed by the silhouette survive.
-    bg_seed = np.max(rgb, axis=2) <= 15
+    high = np.max(rgb, axis=2)
+    chroma = high - np.min(rgb, axis=2)
+    # Generated concept boards use a neutral charcoal field.  Saturated dark
+    # leaf/bark outlines remain foreground even when their value is low.
+    bg_seed = (high <= bg_limit) if bg_limit <= 15 else ((high <= bg_limit) & (chroma <= 10))
     h, w = bg_seed.shape
     seen = np.zeros((h, w), dtype=bool)
     stack = []
@@ -111,7 +116,7 @@ def quantize(frame):
 
 
 def base_frame(src, spec):
-    art = remove_background(src.crop(spec["crop"]))
+    art = remove_background(src.crop(spec["crop"]), spec.get("bg_limit", 15))
     scale = min(spec["max_w"] / art.width, spec["max_h"] / art.height)
     size = (round(art.width * scale), round(art.height * scale))
     art = art.resize(size, Image.Resampling.NEAREST)
@@ -172,13 +177,14 @@ def leaf_motion(frame, phase):
 
 
 def main():
-    src = Image.open(SOURCE).convert("RGBA")
+    sources = {"growth": Image.open(SOURCE).convert("RGBA"),
+               "young": Image.open(YOUNG_SOURCE).convert("RGBA")}
     OUT_DIR.mkdir(parents=True, exist_ok=True)
     PREVIEW.parent.mkdir(parents=True, exist_ok=True)
     preview = Image.new("RGB", (1440, 620), (35, 43, 27))
     all_colors = set()
     for form_index, spec in enumerate(FORMS):
-        base = base_frame(src, spec)
+        base = base_frame(sources[spec.get("source", "growth")], spec)
         atlas = Image.new("RGBA", (CELL * 6, CELL * 2))
         frames = []
         for stage in range(4):
@@ -187,7 +193,7 @@ def main():
                 frames.append(leaf_motion(hurt, phase))
         for index, frame in enumerate(frames):
             atlas.alpha_composite(frame, ((index % 6) * CELL, (index // 6) * CELL))
-        out = OUT_DIR / f"score-worldtree-{spec['id']}-atlas-v1.png"
+        out = OUT_DIR / f"score-worldtree-{spec['id']}-atlas-v{spec.get('version', 1)}.png"
         atlas.save(out, optimize=True)
         opaque = np.asarray(atlas)[:, :, 3] > 0
         all_colors.update(map(tuple, np.asarray(atlas)[:, :, :3][opaque]))

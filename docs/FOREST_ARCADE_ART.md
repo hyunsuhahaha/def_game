@@ -28,9 +28,16 @@
 | 숲의 재생 성소 | `assets/enemies/arcade/planter-atlas-v2.png`, 256×256 | 너비 90, 고정 뿌리 기단·부유 수관·회전 목재 고리·중앙 씨앗 |
 | 엘더 트렌트 | 같은 폴더, 256×256 | 너비 108 |
 | 세계수 공성형 | `worldtree-siege-atlas-v1.png`, 1024×1024 | 너비 1050·판정 반경 420, HP별 4단 파괴, 전용 공격·낙하 FX 5종 |
-| 기록 모드 세계수 성장형 | `score-worldtree-{young,adolescent,precursor}-atlas-v1.png`, 512×512 | 1~9단계 세 실루엣, 단계별 너비·판정 성장, 각 HP 4단 파괴 × 수관 3프레임. 10단계부터 공성형으로 전환 |
+| 기록 모드 세계수 성장형 | `score-worldtree-young-atlas-v2.png` + adolescent/precursor v1, 512×512 | 1~3단계는 넓은 7덩이 수관과 살아 있는 상향 가지의 유목. 단계별 너비·판정 성장, 각 HP 4단 파괴 × 수관 3프레임. 10단계부터 공성형으로 전환 |
 
-기록 모드 성장형 검수는 [세 실루엣·4단 파괴 보드](previews/score-worldtree-growth-v1-contact-sheet.png), [1·4·7·9단계 실제 표시 크기](previews/score-worldtree-growth-v1-display-scale.png), [성목 4배 픽셀 확대](previews/score-worldtree-growth-v1-pixel-zoom.png)를 기준으로 한다.
+기록 모드 성장형 검수는 [세 실루엣·4단 파괴 보드](previews/score-worldtree-growth-v2-contact-sheet.png), [1·4·7·9단계 실제 표시 크기](previews/score-worldtree-growth-v2-display-scale.png), [성목 4배 픽셀 확대](previews/score-worldtree-growth-v2-pixel-zoom.png)를 기준으로 한다. v1 어린형의 한 덩이 수관·잘린 옆가지는 폐기하고 미연결로 보존한다.
+
+## 화덕 내부 화염 FX (v2)
+
+- 화덕 아궁이 안에는 굽는 피자를 그리지 않는다. 구형 `pizza-oven-baking-atlas-pixel-v1.png`는 미연결로 보존한다.
+- `pizza-oven-hearth-fire-atlas-pixel-v2.png`는 128×96 셀 8프레임의 전용 화실 불꽃이다. 장작 접점과 발선은 y=84에 고정하고, 화염 혀 5개·낮은 백황색 열핵·불티가 프레임마다 독립적으로 움직인다.
+- 실제 `heatRate`가 0보다 클 때 14fps의 큰 화염을, 공급이 끊기고 저장 열만 남았을 때 6fps의 낮은 잔불을 그린다. 비로 유효 화력이 0이 되면 주변 나무의 `burning` 표시만 보고 화덕이 계속 타지 않는다.
+- 완성된 피자 조각만 기존 위 선반에 쌓인다. 실제 크기 검수는 [화덕 화실 단계](previews/pizza-oven-hearth-fire-v2-display-scale.png), 확대 검수는 [3배 픽셀 보드](previews/pizza-oven-hearth-fire-v2-3x.png)를 사용한다.
 
 적 아틀라스는 모두 6열×2행. 발선은 셀 높이−8, 투명 여백을 제외한 몸체 너비로 스케일을 계산한다. `src/forest_arcade_catalog.lua`가 단일 메타데이터 기준이다. 정예는 다람쥐/멧돼지의 동일 모델에 따뜻한 하이라이트와 기존 경고 표시를 적용한다.
 

@@ -4,12 +4,12 @@ from PIL import Image, ImageDraw, ImageFont
 
 ROOT = Path(__file__).resolve().parents[1]
 BACKGROUND = ROOT / "assets/forest-ground-tile-v1.png"
-OUT = ROOT / "docs/previews/score-worldtree-growth-v1-display-scale.png"
-ZOOM = ROOT / "docs/previews/score-worldtree-growth-v1-pixel-zoom.png"
+OUT = ROOT / "docs/previews/score-worldtree-growth-v2-display-scale.png"
+ZOOM = ROOT / "docs/previews/score-worldtree-growth-v2-pixel-zoom.png"
 CELL, FOOT = 512, 492
 
 FORMS = (
-    ("TIER 1", "young", 156, 274, .85, 170),
+    ("TIER 1", "young", 176, 316, .82, 170),
     ("TIER 4", "adolescent", 258, 348, .87, 430),
     ("TIER 7", "precursor", 400, 430, .85, 760),
     ("TIER 9", "precursor", 400, 430, 1.18, 1080),
@@ -17,7 +17,8 @@ FORMS = (
 
 
 def frame(name):
-    atlas = Image.open(ROOT / f"assets/enemies/arcade/score-worldtree-{name}-atlas-v1.png").convert("RGBA")
+    version = 2 if name == "young" else 1
+    atlas = Image.open(ROOT / f"assets/enemies/arcade/score-worldtree-{name}-atlas-v{version}.png").convert("RGBA")
     return atlas.crop((CELL, 0, CELL * 2, CELL))  # undamaged, neutral leaf phase
 
 
@@ -41,7 +42,7 @@ def main():
         px = round(x - CELL * .5 * scale)
         py = round(ground - FOOT * scale)
         board.alpha_composite(sprite, (px, py))
-        radius = {"TIER 1": 76, "TIER 4": 126, "TIER 7": 192, "TIER 9": 258}[label]
+        radius = {"TIER 1": 78, "TIER 4": 126, "TIER 7": 192, "TIER 9": 258}[label]
         draw.ellipse((x-radius, ground-9, x+radius, ground+9), outline=(226, 183, 79, 190), width=2)
         draw.rectangle((x-34, 654, x+34, 675), fill=(15, 20, 11, 220), outline=(174, 143, 64, 220))
         draw.text((x-26, 660), label, fill=(246, 238, 195, 255), font=font)

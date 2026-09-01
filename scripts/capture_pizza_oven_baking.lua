@@ -8,16 +8,16 @@ love.graphics.setColor(.16,.24,.09,.58)
 for i=0,10 do love.graphics.ellipse("fill",35+i*70,282-(i%2)*5,48,10)end
 
 local states={
-    {label="0%",heat=0,fire=.42,slices=0},
-    {label="25%",heat=18.75,fire=.58,slices=0},
-    {label="55%",heat=41.25,fire=.72,slices=1},
-    {label="88%",heat=66,fire=.9,slices=2},
-    {label="FULL",heat=0,fire=.9,slices=6},
+    {label="COLD",heat=0,fire=0,rate=0,slices=0},
+    {label="EMBERS",heat=35,fire=0,rate=0,slices=0},
+    {label="ACTIVE",heat=18,fire=.52,rate=2,slices=0},
+    {label="ROARING",heat=48,fire=1,rate=8,slices=0},
+    {label="FULL + FIRE",heat=0,fire=1,rate=8,slices=6},
 }
 for index,state in ipairs(states)do
     local mode={permanentTraits={scoreOvenUnlock=1},pizzaOven={
         x=82+(index-1)*149,y=270,heat=state.heat,fire=state.fire,
-        heatRate=index<5 and 4 or 0,slices=state.slices,
+        heatRate=state.rate,slices=state.slices,
         life=1.18+index*.11,flare=index==4 and .2 or 0,
     }}
     local queue={};Oven.queue(mode,queue)
@@ -28,4 +28,4 @@ end
 
 local output=assert(os.getenv("PIZZA_OVEN_BAKING_CAPTURE"),"PIZZA_OVEN_BAKING_CAPTURE is required")
 fixture.save(output)
-print("PIZZA_OVEN_BAKING_CAPTURE_OK states=raw+melting+bubbling+browned+full")
+print("PIZZA_OVEN_HEARTH_CAPTURE_OK states=cold+embers+active+roaring+full_fire no_interior_pizza=true")
