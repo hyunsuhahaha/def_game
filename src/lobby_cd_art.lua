@@ -1,9 +1,9 @@
 -- 로비 오디오 바 뒤에서 솟는, 곡마다 다른 소형 반원 CD.
--- 3개 행은 숲/강/밤 곡의 서로 다른 라벨과 재질이고, 32개 열은 좁고 은은한
+-- 7개 행은 각 곡의 서로 다른 라벨과 재질이고, 32개 열은 좁고 은은한
 -- 반사광이다. 런타임 임의 회전은 픽셀 격자를 흐리므로 쓰지 않는다.
 local CdArt={}
 
-local FRAMES,TRACKS=32,3
+local FRAMES,TRACKS=32,7
 CdArt.FRAMES,CdArt.TRACKS=FRAMES,TRACKS
 
 local SIZES={

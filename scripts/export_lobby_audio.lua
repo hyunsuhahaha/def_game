@@ -32,7 +32,7 @@ end
 local names={"forest-day-loop-07","river-line-loop-03","owl-shift-loop-11"}
 for index,track in ipairs(LobbyAudio.TRACKS) do
     local buffer,count=LobbyAudio.render(index)
-    local path="docs/previews/lobby-"..names[index]..".wav"
+    local path="docs/previews/lobby-"..(track.slug or names[index])..".wav"
     writeWav(path,buffer,count)
     local peak,sum=0,0
     for i=0,count-1 do

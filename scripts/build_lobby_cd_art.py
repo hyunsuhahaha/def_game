@@ -1,7 +1,7 @@
 """Bake the compact, track-specific half CDs used by the lobby audio bar.
 
-Each size is authored at its final pixel grid. The three atlas rows are the
-forest, river, and night records; columns are a quiet moving reflection.
+Each size is authored at its final pixel grid. The seven atlas rows identify the
+music loops; columns are a quiet moving reflection.
 """
 import math
 from pathlib import Path
@@ -11,7 +11,7 @@ from PIL import Image
 
 ROOT = Path(__file__).resolve().parents[1]
 FRAMES = 32
-TRACKS = 3
+TRACKS = 7
 SIZES = (
     ("lobby-cd-tracks-half-pixel-v2.png", 76, 2),
     ("lobby-cd-tracks-half-small-pixel-v2.png", 52, 2),
@@ -40,6 +40,30 @@ PALETTES = (
         "hub_ring": (166, 167, 190),
         "sheen": ((128, 139, 184), (162, 145, 188), (185, 183, 204)),
     },
+    {  # SAWMILL RUN: iron grey, warning-orange label, saw teeth
+        "dark": (30, 32, 31), "mid": (48, 51, 47), "rim": (70, 73, 65),
+        "label": (119, 65, 31), "hub": (34, 35, 32),
+        "hub_ring": (194, 155, 93),
+        "sheen": ((207, 145, 71), (176, 178, 137), (126, 158, 137)),
+    },
+    {  # RAIN SHACK: slate blue, wet timber label, rain strokes
+        "dark": (20, 32, 40), "mid": (32, 48, 59), "rim": (48, 68, 76),
+        "label": (72, 59, 43), "hub": (23, 35, 42),
+        "hub_ring": (139, 174, 176),
+        "sheen": ((105, 156, 174), (141, 174, 179), (177, 184, 164)),
+    },
+    {  # LAST LIGHT: dusk burgundy, copper label, low sun
+        "dark": (43, 27, 34), "mid": (64, 38, 45), "rim": (87, 52, 52),
+        "label": (111, 60, 39), "hub": (47, 29, 35),
+        "hub_ring": (201, 157, 105),
+        "sheen": ((220, 139, 70), (190, 118, 96), (163, 143, 119)),
+    },
+    {  # DREAM PARADE: midnight teal, glass-lilac label, carousel stars
+        "dark": (21, 27, 45), "mid": (32, 39, 63), "rim": (49, 54, 80),
+        "label": (75, 60, 91), "hub": (24, 29, 48),
+        "hub_ring": (181, 165, 205),
+        "sheen": ((128, 183, 195), (170, 154, 211), (211, 181, 193)),
+    },
 )
 
 
@@ -65,7 +89,7 @@ def motif(track, dx, dy, radius, base):
             if abs(dy - yy) < scale and abs(dx + (index - 1) * 2 * scale) < span:
                 if not (-2 * scale < dx < 2 * scale):
                     return (104, 170, 178) if index != 1 else (73, 143, 160)
-    else:
+    elif track == 2:
         moon_x, moon_y = -7 * scale, -17 * scale
         moon = (dx - moon_x) ** 2 + (dy - moon_y) ** 2 <= (6 * scale) ** 2
         cut = (dx - moon_x - 3 * scale) ** 2 + (dy - moon_y + scale) ** 2 <= (5 * scale) ** 2
@@ -74,6 +98,30 @@ def motif(track, dx, dy, radius, base):
         if abs(dy + 8 * scale) < 2 * scale and any(
                 abs(dx - eye * 5 * scale) < 2 * scale for eye in (-1, 1)):
             return (205, 143, 56)
+    elif track == 3:
+        # Two staggered tooth rows read as a saw blade at actual size.
+        if -22 * scale <= dy <= -8 * scale and abs(dx) <= 13 * scale:
+            tooth = (round(dx / (4 * scale)) + round(dy / (4 * scale))) % 2
+            if tooth == 0 and abs((dy + 15 * scale) % (6 * scale) - 3 * scale) < 2 * scale:
+                return (210, 155, 72)
+    elif track == 4:
+        for ox, oy in ((-8, -20), (1, -16), (9, -11), (-3, -8)):
+            if abs(dx - ox * scale) <= scale and abs(dy - oy * scale) <= 4 * scale:
+                return (112, 167, 181)
+    elif track == 5:
+        sun_y = -13 * scale
+        if (dx + 5 * scale) ** 2 + (dy - sun_y) ** 2 <= (5 * scale) ** 2:
+            return (224, 157, 73)
+        if abs(dy + 7 * scale) <= scale and abs(dx) <= 13 * scale:
+            return (169, 92, 59)
+    else:
+        # 비대칭 별과 초승달 조각: 작은 크기에서도 야간 회전목마 라벨로 읽힌다.
+        for ox, oy in ((-8, -18), (7, -12), (1, -7)):
+            px, py = ox * scale, oy * scale
+            if abs(dx - px) <= 3 * scale and abs(dy - py) <= scale:
+                return (205, 181, 218)
+            if abs(dx - px) <= scale and abs(dy - py) <= 3 * scale:
+                return (205, 181, 218)
     return base
 
 

@@ -48,6 +48,19 @@ local function addNote(buffer,count,kind,t0,dur,freq,gain,rng)
         elseif kind=="hat" then
             amp=math.exp(-t*58)
             value=rng()*2-1
+        elseif kind=="bell" then
+            amp=(t<.004 and t/.004 or math.exp(-(t-.004)*2.8))
+            value=math.sin(freq*t*TAU)*.72+math.sin(freq*2.01*t*TAU)*.20+
+                math.sin(freq*3.98*t*TAU)*.08
+        elseif kind=="glass" then
+            -- 유리 오르골: 배음은 맑지만 아주 느린 비팅이 남아 꿈처럼 흔들린다.
+            amp=(t<.008 and t/.008 or math.exp(-(t-.008)*1.75))
+            value=math.sin(freq*t*TAU)*.58+math.sin(freq*2.005*t*TAU)*.24+
+                math.sin(freq*3.01*t*TAU)*.11+math.sin(freq*.502*t*TAU)*.07
+        elseif kind=="kick" then
+            amp=math.exp(-t*18)
+            local sweep=freq*(1+.9*math.exp(-t*28))
+            value=math.sin(sweep*t*TAU)
         else -- "air": 바람·물소리 바닥. 노이즈를 1차 저역통과로 눕힌다.
             local noise=rng()*2-1
             prev=prev+(noise-prev)*.06
@@ -84,6 +97,45 @@ local TRACKS={
         -- 부엉이 울음. 두 음이 떨어지는 짧은 동기를 한 루프에 두 번만 둔다.
         lead={{3,43,.5},{3.5,38,1.1},{11,46,.5},{11.5,43,1.3}},
         bassBeats={0}, hat=false, air=.075,
+    },
+    {
+        name="SAWMILL RUN / LOOP 16", slug="sawmill-run-loop-16", bpm=108, beats=16, gain=.32,
+        chords={{10,{22,26,29}},{8,{20,24,27}},{5,{17,21,24}},{10,{22,26,29}}},
+        -- 톱날이 물리는 듯한 짧은 당김음. 낮 곡보다 박을 앞으로 밀어 작업감을 낸다.
+        lead={{.5,34,.35},{1,38,.35},{1.5,41,.6},{3,38,.45},
+              {4.5,32,.35},{5,36,.35},{5.5,39,.6},{7,36,.45},
+              {8.5,29,.35},{9,33,.35},{9.5,36,.6},{11,33,.45},
+              {12.5,34,.35},{13,38,.35},{13.5,41,.6},{15,38,.8}},
+        bassBeats={0,1.5,3}, kickBeats={0,2}, hat=true, air=0,
+    },
+    {
+        name="RAIN SHACK / LOOP 05", slug="rain-shack-loop-05", bpm=72, beats=16, gain=.29,
+        chords={{5,{17,20,24,27}},{3,{15,19,22,26}},{0,{12,17,20,24}},{2,{14,18,21,24}}},
+        -- 처마 끝 물방울처럼 긴 쉼 뒤에 두세 음만 떨어진다.
+        lead={{1.5,41,.25},{2,36,1.2},{5.5,39,.25},{6,34,1.25},
+              {9,43,.25},{9.5,39,.8},{13,38,.25},{13.5,34,1.5}},
+        leadKind="bell", bassBeats={0,2.5}, hat=false, air=.095,
+    },
+    {
+        name="LAST LIGHT / LOOP 09", slug="last-light-loop-09", bpm=90, beats=16, gain=.31,
+        chords={{10,{22,26,29,33}},{5,{17,21,24,29}},{8,{20,24,27,31}},{3,{15,19,22,26}}},
+        -- 내려가는 해를 따라 두 마디 질문, 두 마디 대답으로 닫힌다.
+        lead={{0,41,.75},{1,38,.5},{2,36,1.2},{3.5,38,.4},
+              {4,41,.75},{5,43,.5},{6,38,1.4},
+              {8,45,.75},{9,43,.5},{10,41,1.2},{11.5,38,.4},
+              {12,36,.75},{13,38,.5},{14,34,1.7}},
+        leadKind="bell", bassBeats={0,2}, kickBeats={0}, hat=false, air=.035,
+    },
+    {
+        name="DREAM PARADE / LOOP 13", slug="dream-parade-loop-13", bpm=78, beats=12, gain=.29,
+        -- 4마디 3박 왈츠. 장조의 빛과 단조의 그늘이 번갈아 도는 야간 축제다.
+        chords={{3,{15,19,22,26}},{10,{22,26,29,33}},{8,{20,24,27,31}},{2,{14,18,21,25}}},
+        arp={0,2,1,3,2,1}, arpOctave=12, arpKind="glass", arpGain=.19,
+        lead={{.5,43,.65},{1.5,46,.4},{2,43,.9},
+              {3.5,41,.65},{4.5,46,.4},{5,41,.9},
+              {6.5,39,.65},{7.5,43,.4},{8,46,.9},
+              {9.5,45,.55},{10.25,41,.45},{11,38,1.25}},
+        leadKind="glass", bassBeats={0}, hat=false, air=.055,
     },
 }
 
@@ -125,8 +177,9 @@ function LobbyAudio.render(index)
             for step,slot in ipairs(track.arp) do
                 local tones=chord[2]
                 local semi=tones[slot%#tones+1]+(slot>=#tones and track.arpOctave or 0)
-                addNote(buffer,count,"pluck",barStart+(step-1)*beatsPerBar*beat/#track.arp,
-                    beat*.9,pitch(semi),.26,rng)
+                addNote(buffer,count,track.arpKind or "pluck",
+                    barStart+(step-1)*beatsPerBar*beat/#track.arp,
+                    beat*.9,pitch(semi),track.arpGain or .26,rng)
             end
         end
         if track.hat then
@@ -136,13 +189,19 @@ function LobbyAudio.render(index)
                 end
             end
         end
+        if track.kickBeats then
+            for _,offset in ipairs(track.kickBeats) do
+                addNote(buffer,count,"kick",barStart+offset*beat,beat*.42,pitch(chord[1]-12),.32,rng)
+            end
+        end
         if track.air>0 then
             addNote(buffer,count,"air",barStart,beatsPerBar*beat,0,track.air,rng)
         end
     end
     if track.lead then
         for _,entry in ipairs(track.lead) do
-            addNote(buffer,count,"pluck",entry[1]*beat,entry[3]*beat,pitch(entry[2]),.34,rng)
+            addNote(buffer,count,track.leadKind or "pluck",entry[1]*beat,entry[3]*beat,
+                pitch(entry[2]),.34,rng)
         end
     end
     -- 봉우리를 맞춘 뒤 트랙별 음량으로 낮춘다. 정규화만 하면 세 곡의 체감

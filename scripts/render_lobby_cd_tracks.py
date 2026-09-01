@@ -1,4 +1,4 @@
-"""Render the three production lobby CD variants without opening a game window."""
+"""Render all production lobby CD variants without opening a game window."""
 from pathlib import Path
 
 from PIL import Image, ImageDraw
@@ -9,12 +9,14 @@ from render_clearcut_synergy_ui import render_ui
 
 ROOT = Path(__file__).resolve().parents[1]
 OUT = ROOT / "docs/previews"
-LABELS = ("FOREST DAY / LOOP 07", "RIVER LINE / LOOP 03", "OWL SHIFT / LOOP 11")
+LABELS = ("FOREST DAY / LOOP 07", "RIVER LINE / LOOP 03", "OWL SHIFT / LOOP 11",
+          "SAWMILL RUN / LOOP 16", "RAIN SHACK / LOOP 05", "LAST LIGHT / LOOP 09",
+          "DREAM PARADE / LOOP 13")
 
 
 def render_set(width, height, suffix):
     frames = []
-    for track in range(1, 4):
+    for track in range(1, len(LABELS) + 1):
         run(ROOT / "scripts/capture_score_attack_lobby.lua",
             f"CAPTURE_W={width};CAPTURE_H={height};LOBBY_HOUR=12;"
             f"LOBBY_TRACK={track};LOBBY_CD_ANGLE=.19")
@@ -22,7 +24,7 @@ def render_set(width, height, suffix):
         draws = OUT / f"score-attack-lobby-draws{size_suffix}-h12-track{track}.json"
         frame = render_ui(draws, (width, height))
         frames.append(frame)
-    board = Image.new("RGB", (width, height * 3), (5, 18, 13))
+    board = Image.new("RGB", (width, height * len(LABELS)), (5, 18, 13))
     draw = ImageDraw.Draw(board)
     for index, frame in enumerate(frames):
         board.paste(frame, (0, index * height))
