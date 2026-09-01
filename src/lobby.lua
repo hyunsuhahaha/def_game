@@ -2,6 +2,7 @@ local F=require("src.frontend_ui")
 local LobbyAudio=require("src.lobby_audio")
 local CdArt=require("src.lobby_cd_art")
 local TimeOfDay=require("src.lobby_time_of_day")
+local LobbyCompanions=require("src.lobby_companions")
 local Lobby={};Lobby.__index=Lobby
 
 -- 현재 플레이테스트는 기록 모드 하나에 집중한다. 일반 작전 버튼과 진입 코드는
@@ -38,17 +39,20 @@ function Lobby.new(images,fonts)
  end
  local floor=love.graphics.newImage("assets/scenery/forest/forest-floor-decal-atlas-pixel-v1.png");floor:setFilter("nearest","nearest")
  local floorQuads={};for index=1,10 do local zero=index-1;floorQuads[index]=love.graphics.newQuad((zero%5)*128,math.floor(zero/5)*96,128,96,floor:getDimensions())end
- return setmetatable({images=images,fonts=fonts,time=0,activeDevelopmentMode=ACTIVE_DEVELOPMENT_MODE,menuFocus=1,audio=LobbyAudio.new(),audioCd=CdArt.newState(),audioTrack=1,audioPlaying=true,backgroundTrees=backgroundTrees,backgroundProps=backgroundProps,backgroundFloor=floor,backgroundFloorQuads=floorQuads,backgroundParallax=0,
+ return setmetatable({images=images,fonts=fonts,time=0,activeDevelopmentMode=ACTIVE_DEVELOPMENT_MODE,menuFocus=1,audio=LobbyAudio.new(),audioCd=CdArt.newState(),audioTrack=1,audioPlaying=true,lobbyCompanions=LobbyCompanions.new(),backgroundTrees=backgroundTrees,backgroundProps=backgroundProps,backgroundFloor=floor,backgroundFloorQuads=floorQuads,backgroundParallax=0,
   pixelTiny=love.graphics.newFont(pixel,13),pixelSmall=love.graphics.newFont(pixel,17),pixelMenu=love.graphics.newFont(pixel,26),pixelTitle=love.graphics.newFont(pixel,58)},Lobby)
 end
 
-function Lobby:update(dt)
+function Lobby:update(dt,game)
  self.time=self.time+dt
  local mx,my=love.mouse.getPosition()
  local target=mx>=0 and math.max(-1,math.min(1,(mx/love.graphics.getWidth()-.5)*2))or 0
  self.backgroundParallax=(self.backgroundParallax or 0)+(target-(self.backgroundParallax or 0))*math.min(1,dt*4)
  for i,box in ipairs(self.menuBoxes or {})do if inside(box,mx,my)then self.menuFocus=i end end
  CdArt.update(self.audioCd,dt,self.audioPlaying and true or false)
+ local w,h=love.graphics.getDimensions()
+ LobbyCompanions.sync(self.lobbyCompanions,game and game.characterTraits,w,h)
+ LobbyCompanions.update(self.lobbyCompanions,dt)
 end
 
 -- Game:update 이 모드와 무관하게 매 프레임 부른다. 로비를 떠나면 Lobby:update 가
@@ -92,7 +96,7 @@ function Lobby:mousepressed(x,y,button)
  elseif inside(self.settingsBox,x,y)then return "settings" end
 end
 
-function Lobby:drawBackground(w,h)
+function Lobby:drawBackground(w,h,showCompanions)
  local horizon=math.floor(h*.57);local unit=math.max(4,math.floor(h/120));local parallax=self.backgroundParallax or 0
  -- os.date("*t") reads the player's PC-local civil time. The optional override
  -- exists only for deterministic offscreen captures and regression tests.
@@ -172,7 +176,12 @@ function Lobby:drawBackground(w,h)
  drawFloor(4,w*.67,h*.62,.80,.38);drawFloor(1,w*.68,h*.72,1.18,.42,-1);drawFloor(4,w*.70,h*.84,1.72,.48)
  drawFloor(8,w*.27,h*.72,1.38,.24,-1);drawFloor(4,w*.42,h*.84,1.50,.27);drawFloor(3,w*.35,h*.91,.76,.58,-1)
  drawFloor(2,w*.55,h*.89,.78,.82);drawFloor(3,w*.46,h*.78,.68,.66,-1);drawFloor(6,w*.91,h*.86,.82,.78)
+ -- 동료는 뒤쪽 공터의 지면에 서고 전경 나무가 그 위를 덮는다. 그래서 나무
+ -- 앞에 붙인 스티커가 아니라 실제 숲 사이를 돌아다니는 깊이로 읽힌다.
+ local companionSplit=h*.82
+ if showCompanions then LobbyCompanions.draw(self.lobbyCompanions,light,"behind",companionSplit)end
  drawRow(h*.93,w*.55,5,h*.43,{.24+.76*light,.29+.71*light,.38+.62*light,1},1,1,-parallax*unit*7,2)
+ if showCompanions then LobbyCompanions.draw(self.lobbyCompanions,light,"front",companionSplit)end
  local props=self.backgroundProps or{}
  local function drawProp(name,x,ground,targetH,tint)
   local image=props[name];if not image then return end
@@ -278,7 +287,8 @@ function Lobby:draw(game)
  local w,h=love.graphics.getDimensions();local f=self.fonts
  local titleFont=self.pixelTitle or f.display or self.displayFont or f.heading
  local menuFont=self.pixelMenu or f.heading;local smallFont=self.pixelSmall or f.small;local tinyFont=self.pixelTiny or f.small
- self:drawBackground(w,h)
+ LobbyCompanions.sync(self.lobbyCompanions,game and game.characterTraits,w,h)
+ self:drawBackground(w,h,true)
  local compact=w<1080 or h<640;local x=math.max(24,math.floor(w*.07));local menuW=math.min(compact and 430 or 470,math.floor(w*.46))
  local titleY=math.floor(h*(compact and .09 or .11))
  love.graphics.setFont(titleFont);love.graphics.setColor(.035,.16,.11,1);love.graphics.print("LAST HAUL",x+4,titleY+5)

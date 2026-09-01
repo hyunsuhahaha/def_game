@@ -475,8 +475,8 @@ function Game:update(dt)
     -- Camera presentation modes keep lerping even while an intro, boss reveal,
     -- or skill cut-in temporarily freezes ordinary world/camera tracking.
     self.camera:updateMode(dt)
-    if self.mode == "lobby" then self.lobby:update(dt); return end
-    if self.mode == "settings" then self.lobby:update(dt); return end
+    if self.mode == "lobby" then self.lobby:update(dt,self); return end
+    if self.mode == "settings" then self.lobby:update(dt,self); return end
     if self.mode == "clearcut_map_select" then require("src.clearcut_map_select").update(self,dt);return end
     if self.mode == "clearcut_select" or self.mode == "clearcut_briefing" or self.mode == "character_story" or self.mode == "character_codex" or self.mode == "achievements" then return end
     if self.mode == "character_traits" then self.characterTraitBoard:update(dt); return end

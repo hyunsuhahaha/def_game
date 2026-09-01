@@ -1,0 +1,97 @@
+-- 해금 동물만 로비에 나타나고 걷기/휴식/수면 상태가 순환하는지 검사한다.
+package.path="./?.lua;./?/init.lua;"..package.path
+local fixture=require("scripts.forest_render_fixture")
+local Companions=require("src.lobby_companions")
+
+local function fakeTraits(levels)
+    return{getLevel=function(_,id)return levels[id]or 0 end}
+end
+
+local function read(path)
+    local file=assert(io.open(path,"rb"));local data=file:read("*a");file:close();return data
+end
+local function be32(png,offset)
+    local a,b,c,d=png:byte(offset,offset+3);return((a*256+b)*256+c)*256+d
+end
+
+local sizes={
+    ["assets/characters/companions/lobby-monkey-sleep-atlas-pixel-v1.png"]={768,128},
+    ["assets/characters/companions/lobby-mole-sleep-atlas-pixel-v1.png"]={1152,384},
+    ["assets/characters/companions/lobby-cat-sleep-atlas-pixel-v1.png"]={768,128},
+}
+read("assets/characters/companions/concepts/lobby-companion-sleep-concept-v1.png")
+for path,size in pairs(sizes)do
+    local png=read(path)
+    assert(png:sub(2,4)=="PNG"and be32(png,17)==size[1]and be32(png,21)==size[2],
+        path..": 수면 아틀라스 크기 오류")
+    assert(png:byte(26)==6,path..": 투명 RGBA가 아니다")
+end
+
+local state=Companions.new()
+assert(Companions.sync(state,fakeTraits({}),1280,720)==0,
+    "해금하지 않은 동료가 로비에 나타났다")
+
+local levels={
+    fire_score_axe_crew=1,fire_score_rocket_crew=1,fire_score_popper_unlock=1,
+    fire_score_popper_extra=1,universal_veteran_crew=1,
+    universal_mole_companion=1,universal_mole_extra=2,universal_gray_cat=1,
+}
+assert(Companions.sync(state,fakeTraits(levels),1280,720)==10,
+    "해금/추가 연구 수만큼 동료가 로비에 합류하지 않았다")
+local kinds={monkey=0,mole=0,cat=0}
+for _,actor in ipairs(state.animals)do kinds[actor.kind]=kinds[actor.kind]+1 end
+assert(kinds.monkey==6 and kinds.mole==3 and kinds.cat==1,
+    "원숭이·두더지·고양이 해금 수가 잘못 반영됐다")
+
+Companions.preparePreview(state)
+local states={}
+for _,actor in ipairs(state.animals)do states[actor.state]=true end
+assert(states.walk and states.idle and states.sleep,"생활 상태 세 종류가 준비되지 않았다")
+
+local walker
+for _,actor in ipairs(state.animals)do if actor.state=="walk"then walker=actor;break end end
+local oldX=walker.x;Companions.update(state,.25)
+assert(walker.x~=oldX,"걷는 동료가 목표를 향해 이동하지 않는다")
+local sleeper
+for _,actor in ipairs(state.animals)do if actor.state=="sleep"then sleeper=actor;break end end
+sleeper.timer=.01;Companions.update(state,.02)
+assert(sleeper.state=="walk","잠든 동료가 깨어나 다시 산책하지 않는다")
+for _,actor in ipairs(state.animals)do
+    assert(actor.x>=state.bounds.x1 and actor.x<=state.bounds.x2 and
+        actor.y>=state.bounds.y1 and actor.y<=state.bounds.y2,
+        "동료가 로비 산책 범위를 벗어났다")
+end
+
+Companions.preparePreview(state);fixture.reset();Companions.draw(state,.35)
+local sourceKinds,sleepDraws,zMarks={},0,0
+for _,op in ipairs(fixture.commands)do
+    if op.op=="draw"then
+        sourceKinds[op.file]=true
+        if op.file:find("sleep%-atlas")then sleepDraws=sleepDraws+1 end
+        assert(op.filter=="nearest","로비 동료가 nearest 필터를 사용하지 않는다")
+    elseif op.op=="rectangle"then zMarks=zMarks+1 end
+end
+assert(sourceKinds["assets/characters/companions/graduate-monkey-atlas-pixel-v3.png"]and
+    sourceKinds["assets/characters/ingame/coin-miner-mole-atlas-pixel-v3.png"]and
+    sourceKinds["assets/characters/companions/gray-oil-cat-atlas-pixel-v1.png"],
+    "승인된 원숭이·두더지·고양이 몸체가 걷기 경로에 연결되지 않았다")
+assert(sleepDraws>=3 and zMarks>=45,"이불 수면 자세 또는 세 단계 Z Z Z가 그려지지 않았다")
+local behind=Companions.draw(state,.35,"behind",state.bounds.y1+(state.bounds.y2-state.bounds.y1)*.62)
+local front=Companions.draw(state,.35,"front",state.bounds.y1+(state.bounds.y2-state.bounds.y1)*.62)
+assert(behind>0 and front>0 and behind+front==#state.animals,
+    "동료가 나무 앞뒤 두 깊이로 나뉘지 않는다")
+
+local lobby=read("src/lobby.lua")
+local game=read("src/game.lua")
+assert(lobby:find('require("src.lobby_companions")',1,true)and
+    lobby:find("LobbyCompanions.sync",1,true)and lobby:find("LobbyCompanions.draw",1,true),
+    "로비가 동료 생활 모듈을 사용하지 않는다")
+assert(game:find("self.lobby:update(dt,self)",1,true),
+    "실제 해금 저장값이 로비 업데이트에 전달되지 않는다")
+local baker=read("scripts/build_lobby_companion_sleep.py")
+assert(baker:find("lobby%-companion%-sleep%-concept%-v1%.png")and
+    baker:find("blanket=1",1,true)and baker:find("sleeping cap",1,true)and
+    not baker:find("rotate(",1,true),
+    "수면 자산이 실제 이불 원화 대신 회전 몸체를 사용한다")
+
+print("LOBBY_COMPANIONS_OK unlocked_only=true monkey=6 mole=3 cat=1 states=walk+idle+blanket_sleep zzz=3 cap=monkey depth=behind_foreground")
