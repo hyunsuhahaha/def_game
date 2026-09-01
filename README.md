@@ -12,6 +12,7 @@
 | 2 | [`docs/SYSTEM_MAP.md`](docs/SYSTEM_MAP.md) | 현재 게임의 시스템·수치 한 장 요약 |
 | 3 | [`docs/ACTIVE_DEVELOPMENT_MODE.md`](docs/ACTIVE_DEVELOPMENT_MODE.md) | 무엇이 활성이고 무엇이 의도적 비활성인지 |
 | 4 | [`docs/GRAPHICS_STYLE_GUIDE.md`](docs/GRAPHICS_STYLE_GUIDE.md) | **그래픽 작업이면 필수.** 기준 이미지를 실제로 열어 볼 것 |
+| 서사 | [`docs/NARRATIVE_DIRECTION.md`](docs/NARRATIVE_DIRECTION.md) | **스포일러.** 트라우마·꿈·자각몽 극후반 방향과 미정 범위 |
 
 수치와 시스템 세부는 이 README가 아니라 **`docs/SYSTEM_MAP.md`가 1차 소스**다. README는 자주 바뀌지 않는 것만 담는다.
 
@@ -21,7 +22,7 @@
 
 ```text
 나무 6그루로 시작 → 벌목 → 목재 점수와 수종별 정산 재고 누적
-활성 나무 0그루 달성 또는 60초 뒤 세계수 처치 → 재생 단계 영구 상승 · 단계 시간 초기화
+활성 나무 0그루 달성 또는 40초 뒤 세계수 처치 → 재생 단계 영구 상승 · 단계 시간 초기화
 활성 나무가 허용량에 닿으면 즉시 종료 → 정산 → 영구 연구 → 다시 시작
 ```
 
@@ -99,6 +100,8 @@ src/
   character_trait_board.lua  연구판 UI
   score_operations.lua  런 중 드래프트 카드
   game.lua / lobby.lua  상태 전환과 로비
+  settings.lua          음량·화면 설정 저장
+  lobby_companions.lua  해금 동물의 로비 생활 연출
   world.lua / player.lua / camera.lua
   *_art.lua             자산 로더와 그리기
 scripts/

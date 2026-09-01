@@ -20,12 +20,12 @@ assert(dossier:find('document.getElementById("score-mode-summary").hidden = fals
 assert(dossier:find("기존 조합 보너스의 계산·연계 파동·HUD·선택 카드 표시는 제거",1,true),
     "dossier system note does not record the removed combination system")
 assert(dossier:find('id="score-mode-summary"',1,true),"dossier is missing the visible score-mode rules summary")
-assert(dossier:find("0그루 달성 · 0.86초 잎/프리즘 단계 상승 연출 · 6그루 순차 발아 · 다음 단계 영구 해금",1,true),
+assert(dossier:find("활성 나무 0그루 달성 또는 40초 뒤 세계수 처치 · 0.86초 연출 · 6그루 순차 발아 · 다음 단계 영구 해금",1,true),
     "dossier score-mode opening pacing is stale")
 assert(dossier:find("인게임 XP·레벨업·강화 3택 없음 · 목재는 점수와 정산만",1,true),"dossier score-mode growth summary is stale")
 assert(dossier:find("중앙 루트의 기존 상·하·좌·우 분기 + 초반 즉시 타격 대각선 가지 · 방향별 동일 단계 간격 · 기준 간격의 85~115% 줌 · 화면 해상도별 한글 폰트 재래스터",1,true),
     "dossier research-board summary is stale")
-assert(dossier:find("수종별 목재 집계 → 1개씩 회전 코인으로 순차 변환 → 강화하기/재도전 (이동 시 잔여분 즉시 정산)",1,true),
+assert(dossier:find("소량은 1개씩·대량은 묶음 단위로 코인 변환",1,true)and dossier:find("약 4초 상한",1,true),
     "dossier result-screen summary is stale")
 assert(dossier:find("fire_score_prewarm",1,true)and dossier:find("fire_score_impact",1,true)and dossier:find("fire_score_stock",1,true),
     "dossier score-mode permanent traits are stale")

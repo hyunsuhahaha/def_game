@@ -59,8 +59,12 @@
 - GIF 검수: `docs/previews/smoker-firework-burst-v2.gif`
 - 전자담배 GIF 검수: `docs/previews/smoker-vape-pressure-v2.gif`
 
-## 연습장에서 확인
+## 보존된 과거 연습장에서 확인 (현재 로비 비활성)
 
 로비의 `연습`에서 흡연자를 고른다. 오른쪽 `꽁초 투척`의 `+`를 눌러 3레벨이 되면 화염 농축/줄꽁초 전체화면 2택이 즉시 열린다. 선택 후 6레벨까지 올리면 각각 전자담배/폭죽 발사기로 자동 진화한다. 마우스 왼쪽 버튼을 누르고 있으면 해당 기본 공격을 시험할 수 있다.
 
 실제 연습장 패널 오프스크린 검수본은 `docs/previews/skill-sandbox-v2.png`다.
+
+## 현재 무한 연습장
+
+로비 `P` 연습은 현재 벌목 기록 모드의 보유 영구 연구 또는 임시 전체 만렙 빌드를 시험한다. 예전 런 스킬 `+/-`·3레벨 분기 패널은 노출하지 않는다. 보존된 일반 작전용 전자담배·폭죽 진화는 `scripts/capture_smoker_weapon_evolutions.lua`와 `scripts/render_smoker_weapon_evolutions.py`로 창 없이 검수한다. 현재 패널 검수본은 `docs/previews/skill-sandbox-v2.png`다.
