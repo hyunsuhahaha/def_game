@@ -1900,15 +1900,60 @@ end
 -- 기록 모드의 비. 캠페인 재해 3종 중 비만 쓴다.
 --
 -- 후반이 흡연 빌드 단독으로 굳어서 손이 할 일이 없어진다. 비는 rainSuppressFire 로
--- 불을 끊어 도끼를 주기적으로 다시 손에 쥐게 하는 장치다. 짧아야 의미가 있다 —
--- 길면 벌목이 멈추고, 잦으면 불 빌드에 코인을 넣을 이유가 사라진다.
+-- 불을 끊어 도끼를 주기적으로 다시 손에 쥐게 하는 장치다.
 --
--- 세계수 주기(60초)와 맞물려 매번 같이 오면 두 이벤트가 서로를 가리므로 주기를
--- 어긋나게 잡는다. 첫 비는 첫 세계수(60초) 뒤에 온다.
+-- 주기를 고정하면 세어서 대비할 수 있고 그러면 긴장이 사라진다. 간격은 매번 다시
+-- 뽑고, 세기도 셋 중에서 뽑는다. 대신 경고 문구와 경고 길이가 세기를 그대로
+-- 알려주므로 정보는 항상 먼저 온다 — 예측 불가와 불공정은 다르다.
 ClearcutMode.SCORE_RAIN_FIRST=70
-ClearcutMode.SCORE_RAIN_INTERVAL=75
-ClearcutMode.SCORE_RAIN_WARN=2.2
-ClearcutMode.SCORE_RAIN_DURATION=5
+ClearcutMode.SCORE_RAIN_MIN_GAP=52
+ClearcutMode.SCORE_RAIN_MAX_GAP=112
+-- 장대비가 연달아 두 번 오면 그 구간이 통째로 죽는다. 뒤 간격에 바닥을 깐다.
+ClearcutMode.SCORE_RAIN_HEAVY_GAP=80
+
+-- 지속시간도 고정하지 않는다. 상한은 5초 — 그 이상은 벌목이 통째로 멈춘다.
+-- 세기마다 구간이 겹치지 않아서, 경고 문구를 보면 대략 몇 초짜리인지 읽힌다.
+--
+--   지나가는 비 1.6~2.8초 · 소나기 2.8~4.0초 · 장대비 4.0~5.0초
+--
+-- 기대값 = .45x2.2 + .40x3.4 + .15x4.5 = 3.02초. 경고가 길수록 센 비다.
+ClearcutMode.SCORE_RAIN_MAX_DURATION=5
+ClearcutMode.SCORE_RAIN_KINDS={
+    {id="drizzle", weight=45,warn=1.6,minDuration=1.6,maxDuration=2.8,heavy=false,
+     notice="지나가는 비 — 잠깐 불이 죽는다",warnNotice="가는 빗기가 몰려온다...",
+     banner="지나가는 비",warnBanner="빗기 접근",sub="곧 지나간다"},
+    {id="shower",  weight=40,warn=2.0,minDuration=2.8,maxDuration=4.0,heavy=false,
+     notice="소나기 — 불이 붙지 않는다",warnNotice="먹구름이 몰려온다...",
+     banner="소나기 — 방화 봉쇄",warnBanner="먹구름 접근",sub="불이 붙지 않는다"},
+    {id="downpour",weight=15,warn=2.6,minDuration=4.0,maxDuration=5.0,heavy=true,
+     notice="장대비 — 한동안 불이 죽는다",warnNotice="하늘이 새까맣게 내려앉는다...",
+     banner="장대비 — 방화 봉쇄",warnBanner="검은 하늘",sub="한동안 불이 죽는다"},
+}
+
+function ClearcutMode.rollScoreRainDuration(kind)
+    local low=math.min(kind.minDuration,ClearcutMode.SCORE_RAIN_MAX_DURATION)
+    local high=math.min(kind.maxDuration,ClearcutMode.SCORE_RAIN_MAX_DURATION)
+    return low+love.math.random()*math.max(0,high-low)
+end
+
+function ClearcutMode.rollScoreRainKind()
+    local kinds=ClearcutMode.SCORE_RAIN_KINDS
+    local total=0
+    for _,kind in ipairs(kinds) do total=total+kind.weight end
+    local roll=love.math.random()*total
+    for _,kind in ipairs(kinds) do
+        roll=roll-kind.weight
+        if roll<=0 then return kind end
+    end
+    return kinds[#kinds]
+end
+
+function ClearcutMode:rollScoreRainGap()
+    local floor=ClearcutMode.SCORE_RAIN_MIN_GAP
+    if self.scoreRainKind and self.scoreRainKind.heavy then floor=ClearcutMode.SCORE_RAIN_HEAVY_GAP end
+    local ceiling=math.max(floor+1,ClearcutMode.SCORE_RAIN_MAX_GAP)
+    return floor+love.math.random()*(ceiling-floor)
+end
 
 -- 지진과 낙하 가지는 플레이어 체력을 깎는 캠페인 장치라, "나무를 얼마나 없앴는가"
 -- 만 재고 죽음이 없는 이 모드에는 맞지 않는다. 비만 돌린다.
@@ -1920,14 +1965,17 @@ function ClearcutMode:updateScoreRain(dt,game)
     self.disasterTimer=self.disasterTimer-dt
     if self.disasterState=="idle" then
         if self.disasterTimer<=0 then
-            self.disasterState,self.disasterType,self.disasterTimer="warn","rain",ClearcutMode.SCORE_RAIN_WARN
-            game:setNotice("먹구름이 몰려온다...","ore")
+            local kind=ClearcutMode.rollScoreRainKind()
+            self.scoreRainKind=kind
+            self.disasterState,self.disasterType,self.disasterTimer="warn","rain",kind.warn
+            game:setNotice(kind.warnNotice,"ore")
         end
     elseif self.disasterState=="warn" then
         if self.disasterTimer<=0 then
-            self.disasterState,self.disasterTimer="active",ClearcutMode.SCORE_RAIN_DURATION
+            local kind=self.scoreRainKind or ClearcutMode.SCORE_RAIN_KINDS[2]
+            self.disasterState,self.disasterTimer="active",ClearcutMode.rollScoreRainDuration(kind)
             self.rainSuppressFire=true
-            self.lightningTimer=1.1
+            self.lightningTimer=kind.heavy and .6 or 1.1
             for _,node in ipairs(game.world.nodes) do
                 if node.burning then
                     node.burning,node.burnTimer,node.fireTickTimer=false,nil,nil
@@ -1937,15 +1985,16 @@ function ClearcutMode:updateScoreRain(dt,game)
             for _,enemy in ipairs(self.enemies) do
                 if enemy.burning then enemy.burning,enemy.burnTimer,enemy.fireTickTimer=false,nil,nil end
             end
-            game:setNotice("소나기 — "..ClearcutMode.SCORE_RAIN_DURATION.."초간 불이 붙지 않는다","food")
+            game:setNotice(kind.notice,"food")
         end
     elseif self.disasterState=="active" then
         self.lightningTimer=(self.lightningTimer or 2)-dt
         if self.lightningTimer<=0 then
-            self.lightningTimer=2.2+love.math.random()*1.6
+            local heavy=self.scoreRainKind and self.scoreRainKind.heavy
+            self.lightningTimer=(heavy and 1.4 or 2.2)+love.math.random()*1.6
             self.lightningFlashAt=love.timer.getTime()
             self.lightningBoltSeed=love.math.random()*1000
-            if game.camera then game.camera.trauma=math.min(1,game.camera.trauma+.12) end
+            if game.camera then game.camera.trauma=math.min(1,game.camera.trauma+(heavy and .18 or .12)) end
         end
         if self.disasterTimer<=0 then
             self.disasterState,self.disasterTimer="cooldown",2
@@ -1953,7 +2002,8 @@ function ClearcutMode:updateScoreRain(dt,game)
             game:setNotice("비가 그쳤다","food")
         end
     elseif self.disasterTimer<=0 then
-        self.disasterState,self.disasterType,self.disasterTimer="idle",nil,ClearcutMode.SCORE_RAIN_INTERVAL
+        self.disasterTimer=self:rollScoreRainGap()
+        self.disasterState,self.disasterType,self.scoreRainKind="idle",nil,nil
     end
 end
 
@@ -7839,9 +7889,16 @@ function ClearcutMode:drawHUD(game,fonts)
         love.graphics.setColor(accentColor[1], accentColor[2], accentColor[3], .95)
         love.graphics.rectangle("line", dbx + .5, dby + .5, dbw - 1, 53, 8, 8)
         love.graphics.setFont(fonts.body); love.graphics.setColor(1, .95, .9, 1)
-        love.graphics.printf(isRain and (active and "소나기 — 방화 봉쇄" or "먹구름 접근") or (active and "지진 발생 중" or "지진 임박"), dbx, dby + 7, dbw, "center")
+        -- 기록 모드는 비의 세기가 매번 다르다. 경고 단계에서 그 세기가 보여야
+        -- 담배를 지금 털지 아낄지 판단할 수 있다.
+        local rainKind = isRain and self.scoreRainKind or nil
+        local rainTitle = active and (rainKind and rainKind.banner or "소나기 — 방화 봉쇄")
+            or (rainKind and rainKind.warnBanner or "먹구름 접근")
+        love.graphics.printf(isRain and rainTitle or (active and "지진 발생 중" or "지진 임박"), dbx, dby + 7, dbw, "center")
         love.graphics.setFont(fonts.small); love.graphics.setColor(accentColor[1], accentColor[2], accentColor[3], .95)
-        local sub = isRain and (active and "불이 붙지 않는다" or "곧 비가 쏟아진다...") or (active and "낙석을 피해 움직여라" or "곧 땅이 흔들린다...")
+        local rainSub = active and (rainKind and rainKind.sub or "불이 붙지 않는다")
+            or (rainKind and ("곧 " .. rainKind.banner:match("^[^ —]+") .. "가 온다...") or "곧 비가 쏟아진다...")
+        local sub = isRain and rainSub or (active and "낙석을 피해 움직여라" or "곧 땅이 흔들린다...")
         love.graphics.printf(sub, dbx, dby + 31, dbw, "center")
     end
 
