@@ -435,7 +435,7 @@ function Game:update(dt)
     if self.mode == "build_select" then return end
     self.runXPVisual = self.runXPVisual + (self.runXP - self.runXPVisual) * (1 - math.exp(-dt * 9))
     self.runXPPulse = math.max(0, self.runXPPulse - dt * 1.35)
-    if self.mode == "upgrade" or self.mode == "rush_upgrade" or self.mode == "clearcut_upgrade" then return end
+    if self.mode == "upgrade" or self.mode == "rush_upgrade" or self.mode == "clearcut_upgrade" or self.mode == "score_reward" then return end
     if self.mode == "turret_upgrade" then return end
     if ClearcutIntro.update(self,dt) then return end
     if self.clearcut and self.clearcut:updateBossEntrance(dt,self) then
@@ -561,6 +561,10 @@ function Game:keypressed(key)
     if self.mode == "meta" then if self.traitTree:keypressed(key) == "back" then self.mode = "lobby" end; return end
     if self.mode == "upgrade" then if key == "1" or key == "2" or key == "3" then self:selectRunUpgrade(tonumber(key)) end; return end
     if self.mode == "rush_upgrade" then if key=="1" or key=="2" or key=="3" then self.rush:choose(tonumber(key),self) end; return end
+    if self.mode == "score_reward" then
+        if key=="1" or key=="2" or key=="3" then self.clearcut:chooseScoreReward(tonumber(key),self) end
+        return
+    end
     if self.mode == "clearcut_upgrade" then
         if self.clearcut:choicesLocked() then return end
         if self.clearcut.selectionKind=="fusion" and (key=="return" or key=="kpenter" or key=="space") then
@@ -756,6 +760,13 @@ function Game:mousepressed(x, y, button)
     if self.mode == "meta" then if self.traitTree:mousepressed(x, y, button) == "back" then self.mode = "lobby" end; return end
     if self.mode == "upgrade" then if button == 1 then local index = self.upgrades:choiceAt(x, y); if index then self:selectRunUpgrade(index) end end; return end
     if self.mode == "rush_upgrade" then if button==1 then local index=self.rush:choiceAt(x,y); if index then self.rush:choose(index,self) end end; return end
+    if self.mode == "score_reward" then
+        if button==1 then
+            local index=self.clearcut:scoreRewardAt(x,y)
+            if index then self.clearcut:chooseScoreReward(index,self) end
+        end
+        return
+    end
     if self.mode == "clearcut_upgrade" then
         if button==1 and not self.clearcut:choicesLocked() then
             local index=self.clearcut:choiceAt(x,y); if index then self.clearcut:choose(index,self) end
@@ -1566,6 +1577,7 @@ function Game:draw()
     if self.mode == "upgrade" then self.upgrades:drawSelection(self, self.fonts) end
     if self.mode == "rush_upgrade" then self.rush:drawSelection(self,self.fonts) end
     if self.mode == "clearcut_upgrade" then self.clearcut:drawSelection(self,self.fonts) end
+    if self.mode == "score_reward" then self.clearcut:drawScoreRewards(self,self.fonts) end
     if self.mode == "turret_upgrade" then self:drawTurretUpgrade() end
     if self.mode == "results" then self:drawResults() end
     if self.mode == "rush_results" then self.rush:drawResults(self,self.fonts) end

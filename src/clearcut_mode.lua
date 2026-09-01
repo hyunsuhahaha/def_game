@@ -49,6 +49,9 @@ local WoodSettlementArt = require("src.wood_settlement_art")
 
 local ClearcutMode = {}
 ClearcutMode.__index = ClearcutMode
+-- Lua 5.1 은 main chunk 의 local 을 200개로 제한한다. 파일 상단 로컬이 이미 한계라
+-- 새 모듈은 GrayOilCatArt 선례대로 모듈 테이블에 건다.
+ClearcutMode.ScoreWorldTree = require("src.score_world_tree")
 ClearcutMode.SCORE_TIME_DOUBLING_SECONDS=30
 ClearcutMode.GrayOilCatArt = require("src.gray_oil_cat_art")
 ClearcutMode.OilDrumSpillArt = require("src.oil_drum_spill_art")
@@ -528,6 +531,7 @@ function ClearcutMode:setup(game)
         self.scoreStartingRegenTier=self.scoreRegenTier
         self.scoreHighestRegenTier=self.scoreRegenTier
         self.scoreTierClearTimer,self.scoreTierClearLatch,self.scoreTierSpawned,self.scoreTierFx=0,false,0,nil
+        ClearcutMode.ScoreWorldTree.reset(self)
     end
     game.world.clearcutMapScale=self.scoreAttack and Maps.SCORE_MAP_SCALE or 1
     Maps.configure(game.world,self.mapId)
@@ -541,6 +545,7 @@ function ClearcutMode:setup(game)
         self.permanentTraits=self.scoreAttack and game.characterTraits.scoreAttackEffects and game.characterTraits:scoreAttackEffects()or game.characterTraits:effects(self.job)
     end
     self.scoreTreeAllowance=(self.scoreBaseTreeAllowance or 12)+(self.permanentTraits.scoreTreeAllowance or 0)
+    self.scoreBaseAllowance=self.scoreTreeAllowance
     if self.scoreAttack then
         self.permanentTraits.range=(self.permanentTraits.range or 0)+(self.permanentTraits.scoreRange or 0)
         self.permanentTraits.area=(self.permanentTraits.area or 0)+(self.permanentTraits.scoreArea or 0)
@@ -659,12 +664,15 @@ function ClearcutMode:scoreTreeSpawnRate()
     local base=math.max(0,self.treeSpawnRate or .55)
     if self.scoreAttack then
         base=self:scoreTimedTreeSpawnRate()*self:scoreTimePressureMultiplier()*density
+        -- 무허가 확장: 허용량을 크게 얻는 대신 숲이 더 빨리 차오른다.
+        if self:scoreReward("permit")then base=base*1.5 end
         if self.scoreCollapseActive then
             local age=math.max(0,(self.scoreDeficitTimer or 5)-5)
             return math.max(base*(1+math.min(5,age*1.2)),1.35+math.min(2.4,age*.40))
         end
     end
     return base
+    -- 무허가 확장: 허용량을 늘리는 대신 숲이 더 빨리 차오른다.
 end
 
 function ClearcutMode:scoreRecentProductionRate(window)
@@ -752,7 +760,7 @@ function ClearcutMode:initLumberjackCompanion(game,prop,slot)
         kind="lumberjack",prop=weapon,x=x,y=y,sprite=sprite,frames=frames,fw=fw,fh=fh,state="seek",target=nil,
         index=#self.moleCompanions+1,facing=-1,walkClock=.21,attackT=0,drawScale=.34,
         attackDuration=.62/(1+math.max(0,traits.scoreAxeSpeed or 0)),struck=false,
-        speed=210*(1+math.max(0,traits.moveSpeed and traits.moveSpeed-1 or 0)),
+        speed=210*(1+math.max(0,traits.moveSpeed and traits.moveSpeed-1 or 0))*(self:scoreReward("crew_rush") and 2 or 1),
         damage=math.max(1,math.floor(axeDamage*.5+.5)),
         attackReach=104+math.max(0,traits.scoreAxeArea or 0)*.5,treesFelled=0,
         -- 두더지는 자기 갈래로 따로 자라는 독립 유닛이고, 나무꾼은 내 도끼 빌드의
@@ -1409,6 +1417,7 @@ function ClearcutMode:update(dt, game)
     local tierTransition=self:updateScoreTierClear(dt,game)
     if tierTransition then return end
     if self:updateScoreTreeGrowth(dt,game)then return end
+    self:updateScoreWorldTree(dt,game)
     self:updateMoleCompanion(dt,game)
     self:updateOilDrums(dt,game)
     ScoreAxeArt.update(self,dt)
@@ -2055,6 +2064,49 @@ function ClearcutMode:restoreWorldTreeCamera(game)
     self.worldTreeCamera=nil
 end
 
+-- 1분마다 세계수를 세운다. 목재가 아니라 시간이 트리거라, 후반에 수입이 폭증해도
+-- 선택 창 빈도는 변하지 않는다. 세계수가 서 있는 동안에는 타이머가 멈춘다.
+function ClearcutMode:updateScoreWorldTree(dt,game)
+    if not self.scoreAttack then return end
+    if self.scoreWorldTree then
+        if self.scoreWorldTree.hp and self.scoreWorldTree.hp>0 then return end
+        self.scoreWorldTree=nil
+    end
+    self.scoreWorldTreeTimer=(self.scoreWorldTreeTimer or ClearcutMode.ScoreWorldTree.INTERVAL)-dt
+    if self.scoreWorldTreeTimer>0 then return end
+    self.scoreWorldTreeTimer=ClearcutMode.ScoreWorldTree.INTERVAL
+    self:spawnScoreWorldTree(game)
+end
+
+-- 캠페인의 spawnWorldTree 는 존 코어 비활성화·토템 소환·6.75초 등장 연출을 함께
+-- 한다. 1분 주기에는 그 연출이 런의 10%를 먹으므로 여기서는 쓰지 않는다.
+-- 공격도 하지 않는다. 기록 모드에는 플레이어 HP가 없어 공격이 의미가 없다.
+function ClearcutMode:spawnScoreWorldTree(game)
+    local bounds=game.world.playBounds or {x=0,y=0,w=game.world.width,h=game.world.height}
+    local px,py=game.player.x,game.player.y
+    local x,y
+    for _=1,32 do
+        local cx=bounds.x+love.math.random()*bounds.w
+        local cy=bounds.y+love.math.random()*bounds.h
+        local dx,dy=cx-px,cy-py
+        if dx*dx+dy*dy>=ClearcutMode.ScoreWorldTree.MIN_DISTANCE^2 then x,y=cx,cy;break end
+    end
+    x=x or (bounds.x+bounds.w*.5)
+    y=y or (bounds.y+bounds.h*.5)
+    local tree=self:spawnEnemy("worldtree",x,y,{})
+    if not tree then return false end
+    tree.hp=ClearcutMode.ScoreWorldTree.health(self)
+    tree.maxHp=tree.hp
+    tree.fixedX,tree.fixedY=tree.x,tree.y
+    tree.worldTreeDamageStage=0
+    -- 공격 관련 타이머를 전부 밀어 두어 어떤 패턴도 발동하지 않게 한다.
+    tree.slamTimer,tree.summonTimer,tree.rootSpikeTimer,tree.vineWhipTimer=math.huge,math.huge,math.huge,math.huge
+    tree.scoreWorldTree=true
+    self.scoreWorldTree=tree
+    game:setNotice("세계수가 솟아올랐다 — 쓰러뜨리면 보상을 고른다","food")
+    return true
+end
+
 function ClearcutMode:checkWorldTreeSpawn(game)
     if self.sandbox or self.scoreAttack or self.worldTreeSpawned or self.remainingTrees>0 then return false end
     self:spawnWorldTree(game)
@@ -2246,6 +2298,14 @@ function ClearcutMode:onEnemyDefeated(e, game)
         if zone then
             local text=zone.secured and (zone.name.." 제압 완료") or string.format("%s 재생 정지 — 남은 나무 %d",zone.name,zone.active)
             game:setNotice(text,"ore")
+        end
+    end
+    if e.scoreWorldTree then
+        self.scoreWorldTree=nil
+        local choices=ClearcutMode.ScoreWorldTree.roll(self,3)
+        if #choices>0 then
+            self.scoreRewardChoices=choices
+            game.mode="score_reward"
         end
     end
     if e == self.worldTree then
@@ -2623,11 +2683,26 @@ end
 
 -- 불붙은 나무 한 그루가 다 탈 때까지 옮겨붙일 나무의 기대 개수. 1.0을 넘으면 산불이
 -- 스스로 번지고(임계 돌파), 그 아래면 반드시 꺼진다. 연소속도와 무관하게 계산한다.
+-- 세계수 보상은 전부 이번 판 한정이며 규칙을 바꾼다. 영구 연구와 겹치는 +N 수치는
+-- 넣지 않는다 — 판당 두세 번뿐인 선택이 로비에서 사는 것과 같으면 멈춰 설 가치가 없다.
+-- 보상을 고른 순간 즉시 반영해야 하는 것들. 나머지는 매 프레임 scoreReward 를 읽는다.
+function ClearcutMode:applyScoreReward(id,game)
+    ClearcutMode.ScoreWorldTree.grant(self,id)
+    if id=="permit" then self.scoreTreeAllowance=(self.scoreTreeAllowance or 12)+10 end
+    local def=ClearcutMode.ScoreWorldTree.get(id)
+    if def and game and game.setNotice then game:setNotice(def.name.." — "..def.desc,"food") end
+    return true
+end
+
+function ClearcutMode:scoreReward(id)
+    return ClearcutMode.ScoreWorldTree.has(self,id)
+end
+
 function ClearcutMode:spreadFactor()
     local dryPower = self:power("dry_forest")
     local routeFire = self:skillBranch("molotov") == "flame_route" and 1.3 or 1
     return (.12 + dryPower * .14 + (self.permanentTraits.spreadChance or 0))
-        * routeFire * SPREAD_REFERENCE_BURN
+        * routeFire * SPREAD_REFERENCE_BURN * (self:scoreReward("dry_wind") and 2 or 1)
 end
 
 -- 기대값을 정수 전파 횟수로 바꾼다. 소수부는 확률로 처리해 평균이 정확히 factor가 된다.
@@ -2924,8 +2999,8 @@ function ClearcutMode:updateFire(dt, game)
         / self.permanentTraits.burnSpeed
     -- `무기 피해`는 공용 수치이므로 도끼·폭죽뿐 아니라 불에도 걸린다. 연소속도가
     -- "더 자주", 무기 피해가 "더 세게"를 맡아 두 갈래가 총 피해를 함께 올린다.
-    local burnTickDamage = BURN_TICK_DAMAGE + (self.permanentTraits.treeDamage or 0)
-        + ScoreOperations.weaponDamage(self)
+    local burnTickDamage = (BURN_TICK_DAMAGE + (self.permanentTraits.treeDamage or 0)
+        + ScoreOperations.weaponDamage(self)) * (self:scoreReward("tinder") and 2 or 1)
     self:updateStrawBales(dt, game)
     self:updateOilTrail(dt, game)
     self:updateSecondhandSmoke(dt, game)
@@ -3368,7 +3443,8 @@ function ClearcutMode:updateScoreAxeAttack(dt,game,heldOverride)
             end
         end end
         table.sort(candidates,function(a,b)return a.d<b.d end)
-        for i=1,math.min(#candidates,1+math.floor(self.permanentTraits.extraTargets or 0))do targets[i]=candidates[i].node end
+        local axeTargets=1+math.floor(self.permanentTraits.extraTargets or 0)+(self:scoreReward("cleave") and 2 or 0)
+    for i=1,math.min(#candidates,axeTargets)do targets[i]=candidates[i].node end
         if #targets==0 then targets[1]=self:closestTreeInAxeRange(game)end
         if not targets[1]then return false end
     end
@@ -5711,6 +5787,10 @@ end
 function ClearcutMode:fellTree(node, game)
     if not node.active then return false end
     local wasBeehive = node.beehive
+    -- 연쇄 발화: 쓰러지는 자리에서 주변으로 불이 옮겨붙는다. 좌표를 먼저 잡아 두는
+    -- 이유는 아래에서 node 가 비활성 처리되기 때문이다.
+    local chainX,chainY=node.x,node.y
+    local chainIgnite=self.scoreAttack and self:scoreReward("chain_ignition")
     node.active, node.respawn, node.rushHp = false, math.huge, 0
     -- 기본 수종보다 값나가는(=해금이 필요한) 수종은 더 많은 목재를 준다.
     local amount = (node.treeVariant and node.treeVariant > 1) and 6 or 4
@@ -5744,6 +5824,8 @@ function ClearcutMode:fellTree(node, game)
         game:setNotice("벌집을 건드렸다 — 벌떼가 쫓아온다!", "ore")
     end
     if not self.sandbox then self:checkMilestones(game) end
+    -- 연쇄 발화는 벌목이 확정된 뒤에 퍼진다. return 뒤에는 문장을 둘 수 없다.
+    if chainIgnite then self:igniteNear({x=chainX,y=chainY,spreadDepth=0},game,150,2,0) end
     return true
 end
 
@@ -5868,12 +5950,12 @@ function ClearcutMode:finish(game, victory)
     local traitReward = math.max(1, math.floor(baseReward * (self.permanentTraits.reward or 1) + .5))
     local lumberRows,lumberCoinTotal,tierMultiplier
     if self.scoreAttack then
-        lumberRows,lumberCoinTotal,tierMultiplier=WoodEconomy.settlement(self.mapId,self.lumberInventory,self.scoreStartingRegenTier,self.scoreHighestRegenTier)
+        lumberRows,lumberCoinTotal,tierMultiplier=WoodEconomy.settlement(self.mapId,self.lumberInventory,self.scoreStartingRegenTier,self.scoreHighestRegenTier,self:scoreReward("deep_roots") and .4 or 0)
         -- Results from older fixtures/runs still settle instead of opening an empty panel.
         if #lumberRows==0 and self.treesFelled>0 then
             local fallback=WoodEconomy.forTree(self.mapId,1)
             self.lumberInventory={[fallback.id]=self.treesFelled}
-            lumberRows,lumberCoinTotal,tierMultiplier=WoodEconomy.settlement(self.mapId,self.lumberInventory,self.scoreStartingRegenTier,self.scoreHighestRegenTier)
+            lumberRows,lumberCoinTotal,tierMultiplier=WoodEconomy.settlement(self.mapId,self.lumberInventory,self.scoreStartingRegenTier,self.scoreHighestRegenTier,self:scoreReward("deep_roots") and .4 or 0)
         end
         traitReward=0
     elseif game.characterTraits then game.characterTraits:addCurrency(traitReward) end
@@ -8080,6 +8162,55 @@ local selectionDescriptions={
 local function selectionDescription(def)return selectionDescriptions[def.id] or def.desc end
 local scoreOperationIconAliases={robot_scanner="chain_lightning",yard_management="straw_bale",forest_zoning="vine_whip",wood_sorter="seed_mine",safety_system="thorn_aura",
     score_attack_speed="cigarette",score_extra_butts="dry_forest",score_ignition_radius="oil_drum",score_burn_speed="dry_forest"}
+
+-- 세계수 처치 보상 3택. 기존 카드 UI(drawSelection)는 융합·아르카나·배니시 같은
+-- 일반 작전 상태를 함께 다루므로 재사용하지 않고 여기서 단순하게 그린다.
+function ClearcutMode:scoreRewardRect(index,w,h)
+    local cardW,cardH,gap=300,190,22
+    local total=cardW*3+gap*2
+    return math.floor((w-total)/2)+(index-1)*(cardW+gap),math.floor(h/2-cardH/2),cardW,cardH
+end
+
+function ClearcutMode:scoreRewardAt(x,y)
+    local w,h=love.graphics.getDimensions()
+    for index=1,#(self.scoreRewardChoices or{})do
+        local rx,ry,rw,rh=self:scoreRewardRect(index,w,h)
+        if x>=rx and x<=rx+rw and y>=ry and y<=ry+rh then return index end
+    end
+end
+
+function ClearcutMode:chooseScoreReward(index,game)
+    local def=(self.scoreRewardChoices or{})[index]
+    if not def then return false end
+    self:applyScoreReward(def.id,game)
+    self.scoreRewardChoices=nil
+    game.mode="playing"
+    return true
+end
+
+function ClearcutMode:drawScoreRewards(game,fonts)
+    local w,h=love.graphics.getDimensions()
+    love.graphics.setColor(.04,.06,.03,.82);love.graphics.rectangle("fill",0,0,w,h)
+    love.graphics.setFont(fonts.big or fonts.body)
+    love.graphics.setColor(.96,.92,.78,1)
+    love.graphics.printf("세계수를 쓰러뜨렸다 — 이번 작업에만 적용됩니다",0,h/2-170,w,"center")
+    for index,def in ipairs(self.scoreRewardChoices or{})do
+        local x,y,cw,ch=self:scoreRewardRect(index,w,h)
+        love.graphics.setColor(0,0,0,.55);love.graphics.rectangle("fill",x+4,y+5,cw,ch,4,4)
+        love.graphics.setColor(.12,.14,.11,.98);love.graphics.rectangle("fill",x,y,cw,ch,4,4)
+        local c=def.color or{1,1,1}
+        love.graphics.setColor(c[1],c[2],c[3],1);love.graphics.rectangle("fill",x,y,cw,5)
+        love.graphics.setLineWidth(2);love.graphics.rectangle("line",x+1,y+1,cw-2,ch-2,4,4);love.graphics.setLineWidth(1)
+        love.graphics.setFont(fonts.body)
+        love.graphics.setColor(c[1],c[2],c[3],1)
+        love.graphics.printf(tostring(index),x+14,y+18,40,"left")
+        love.graphics.setColor(.96,.95,.88,1)
+        love.graphics.printf(def.name,x+14,y+46,cw-28,"left")
+        love.graphics.setFont(fonts.small or fonts.body)
+        love.graphics.setColor(.78,.80,.74,1)
+        love.graphics.printf(def.desc,x+14,y+84,cw-28,"left")
+    end
+end
 
 function ClearcutMode:drawSelection(game,fonts)
     local w,h=love.graphics.getDimensions()

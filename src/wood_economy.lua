@@ -53,7 +53,7 @@ end
 -- 2.3 -> 2로 깎여 1단계와 수입이 같아진다. 그래서 수종 행은 기본 단가로 두고 배수는
 -- 별도 보너스 행으로 뺀다. 정산 연출에서 "재생 단계 보너스"가 직접 세어지므로
 -- 단계를 올릴 이유가 플레이어에게 그대로 보인다.
-function WoodEconomy.settlement(mapId,inventory,startTier,highestTier)
+function WoodEconomy.settlement(mapId,inventory,startTier,highestTier,runBonus)
     local rows,base={},0
     for _,def in ipairs(WoodEconomy.catalog(mapId))do
         local count=math.max(0,math.floor((inventory or{})[def.id]or 0))
@@ -63,7 +63,7 @@ function WoodEconomy.settlement(mapId,inventory,startTier,highestTier)
             base=base+count*coin
         end
     end
-    local multiplier=WoodEconomy.tierMultiplier(startTier,highestTier)
+    local multiplier=WoodEconomy.tierMultiplier(startTier,highestTier)+(runBonus or 0)
     local bonus=math.floor(base*(multiplier-1)+.5)
     if bonus>0 then
         rows[#rows+1]={id="tier_bonus",name="재생 단계 보너스",count=bonus,remaining=bonus,converted=0,coin=1,
