@@ -77,6 +77,7 @@ assert(#mode.enemies==0,"score mode spawned monsters during the 45-second openin
 mode.stageElapsed=45
 mode:updateTimeSpawner(1.1,game)
 assert(#mode.enemies==1,"score mode did not introduce exactly one sparse monster after the grace")
+assert(mode.enemies[1].kind=="boar","score mode spawned the removed squirrel roaming enemy")
 mode.scoreEnemyTimer=0
 mode:updateTimeSpawner(.1,game)
 assert(#mode.enemies==1,"score mode exceeded its opening one-monster cap")

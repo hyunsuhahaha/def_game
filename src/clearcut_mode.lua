@@ -1845,7 +1845,9 @@ function ClearcutMode:updateTimeSpawner(dt, game)
             return
         end
         self.scoreEnemyTimer=interval
-        local kind=(elapsed<180 or love.math.random()<.72)and"squirrel"or"boar"
+        -- The active score-attack mode intentionally uses boars as its only
+        -- roaming animal so the squirrel sprite never appears in-game.
+        local kind="boar"
         local a=love.math.random()*math.pi*2
         local r=560+love.math.random()*120
         self:spawnEnemy(kind,game.player.x+math.cos(a)*r,game.player.y+math.sin(a)*r)
