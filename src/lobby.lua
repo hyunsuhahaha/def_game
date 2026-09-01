@@ -3,6 +3,7 @@ local LobbyAudio=require("src.lobby_audio")
 local CdArt=require("src.lobby_cd_art")
 local TimeOfDay=require("src.lobby_time_of_day")
 local LobbyCompanions=require("src.lobby_companions")
+local CompanionShop=require("src.lobby_companion_shop")
 local Lobby={};Lobby.__index=Lobby
 local FOREGROUND_TREE_START=.86
 local FOREGROUND_TREE_COUNT=3
@@ -58,7 +59,7 @@ function Lobby.new(images,fonts)
  end
  local floor=love.graphics.newImage("assets/scenery/forest/forest-floor-decal-atlas-pixel-v1.png");floor:setFilter("nearest","nearest")
  local floorQuads={};for index=1,10 do local zero=index-1;floorQuads[index]=love.graphics.newQuad((zero%5)*128,math.floor(zero/5)*96,128,96,floor:getDimensions())end
- return setmetatable({images=images,fonts=fonts,time=0,activeDevelopmentMode=ACTIVE_DEVELOPMENT_MODE,menuFocus=1,audio=LobbyAudio.new(),audioCd=CdArt.newState(),audioTrack=1,audioPlaying=true,lobbyCompanions=LobbyCompanions.new(),backgroundTrees=backgroundTrees,backgroundProps=backgroundProps,backgroundFloor=floor,backgroundFloorQuads=floorQuads,backgroundParallax=0,
+ return setmetatable({images=images,fonts=fonts,time=0,activeDevelopmentMode=ACTIVE_DEVELOPMENT_MODE,menuFocus=1,audio=LobbyAudio.new(),audioCd=CdArt.newState(),audioTrack=1,audioPlaying=true,lobbyCompanions=LobbyCompanions.new(),companionShop=CompanionShop.new(),backgroundTrees=backgroundTrees,backgroundProps=backgroundProps,backgroundFloor=floor,backgroundFloorQuads=floorQuads,backgroundParallax=0,
   pixelTiny=love.graphics.newFont(pixel,13),pixelSmall=love.graphics.newFont(pixel,17),pixelMenu=love.graphics.newFont(pixel,26),pixelTitle=love.graphics.newFont(pixel,58)},Lobby)
 end
 
@@ -69,9 +70,12 @@ function Lobby:update(dt,game)
  self.backgroundParallax=(self.backgroundParallax or 0)+(target-(self.backgroundParallax or 0))*math.min(1,dt*4)
  for i,box in ipairs(self.menuBoxes or {})do if inside(box,mx,my)then self.menuFocus=i end end
  CdArt.update(self.audioCd,dt,self.audioPlaying and true or false)
+ CompanionShop.update(self.companionShop,dt)
  local w,h=love.graphics.getDimensions()
- LobbyCompanions.sync(self.lobbyCompanions,game and game.characterTraits,w,h)
+ local traits=game and game.characterTraits
+ LobbyCompanions.sync(self.lobbyCompanions,traits,w,h)
  LobbyCompanions.setScenery(self.lobbyCompanions,companionScenery(self.backgroundTrees,w,h,self.companionShop~=nil))
+ LobbyCompanions.setAmenities(self.lobbyCompanions,CompanionShop.amenities(self.companionShop,traits,w,h))
  LobbyCompanions.update(self.lobbyCompanions,dt)
 end
 
@@ -89,6 +93,10 @@ function Lobby:cycleTrack(direction)
 end
 
 function Lobby:keypressed(key)
+ if CompanionShop.isOpen(self.companionShop)then
+  if key=="escape"then CompanionShop.close(self.companionShop)end
+  return
+ end
  if key=="up" or key=="w" then self.menuFocus=((self.menuFocus or 1)-2)%#MENU+1
  elseif key=="down" then self.menuFocus=(self.menuFocus or 1)%#MENU+1
  elseif key=="return" or key=="kpenter" or key=="space" then return menuAction(self)
@@ -104,6 +112,11 @@ end
 
 function Lobby:mousepressed(x,y,button)
  if button~=1 then return end
+ if CompanionShop.isOpen(self.companionShop)then
+  CompanionShop.mousepressed(self.companionShop,x,y,button,self.shopTraits)
+  return
+ end
+ if CompanionShop.openAtBuilding(self.companionShop,x,y)then return end
  if inside(self.audioPrevBox,x,y)then self:cycleTrack(-1);return end
  if inside(self.audioPlayBox,x,y)then self.audioPlaying=not self.audioPlaying;return end
  if inside(self.audioNextBox,x,y)then self:cycleTrack(1);return end
@@ -200,9 +213,12 @@ function Lobby:drawBackground(w,h,showCompanions)
  -- 동료는 뒤쪽 공터의 지면에 서고 전경 나무가 그 위를 덮는다. 그래서 나무
  -- 앞에 붙인 스티커가 아니라 실제 숲 사이를 돌아다니는 깊이로 읽힌다.
  local companionSplit=h*.82
+ if showCompanions then CompanionShop.drawPlaygrounds(self.companionShop,self.shopTraits,w,h,light,groundOffset,self.lobbyCompanions,"behind",companionSplit)end
  if showCompanions then LobbyCompanions.draw(self.lobbyCompanions,light,"behind",companionSplit,groundOffset)end
  -- 동물 놀이터가 전경 나무 몸통에 붙지 않도록 중앙 공터를 남긴다.
  drawRow(h*.93,w*FOREGROUND_TREE_START,FOREGROUND_TREE_COUNT,h*.43,{.24+.76*light,.29+.71*light,.38+.62*light,1},1,1,groundOffset,2)
+ if showCompanions then CompanionShop.drawBuilding(self.companionShop,w,h,light,self.pixelTiny or self.fonts.small,groundOffset)end
+ if showCompanions then CompanionShop.drawPlaygrounds(self.companionShop,self.shopTraits,w,h,light,groundOffset,self.lobbyCompanions,"front",companionSplit)end
  if showCompanions then LobbyCompanions.draw(self.lobbyCompanions,light,"front",companionSplit,groundOffset)end
  local props=self.backgroundProps or{}
  local function drawProp(name,x,ground,targetH,tint)
@@ -309,8 +325,10 @@ function Lobby:draw(game)
  local w,h=love.graphics.getDimensions();local f=self.fonts
  local titleFont=self.pixelTitle or f.display or self.displayFont or f.heading
  local menuFont=self.pixelMenu or f.heading;local smallFont=self.pixelSmall or f.small;local tinyFont=self.pixelTiny or f.small
- LobbyCompanions.sync(self.lobbyCompanions,game and game.characterTraits,w,h)
+ self.shopTraits=game and game.characterTraits
+ LobbyCompanions.sync(self.lobbyCompanions,self.shopTraits,w,h)
  LobbyCompanions.setScenery(self.lobbyCompanions,companionScenery(self.backgroundTrees,w,h,self.companionShop~=nil))
+ LobbyCompanions.setAmenities(self.lobbyCompanions,CompanionShop.amenities(self.companionShop,self.shopTraits,w,h))
  self:drawBackground(w,h,true)
  local compact=w<1080 or h<640;local x=math.max(24,math.floor(w*.07));local menuW=math.min(compact and 430 or 470,math.floor(w*.46))
  local titleY=math.floor(h*(compact and .09 or .11))
@@ -322,5 +340,6 @@ function Lobby:draw(game)
  local audioW=math.min(compact and 530 or 590,w-x*2);self:drawAudio(x,h-(compact and 62 or 72),audioW,compact and 44 or 48,tinyFont)
  love.graphics.setFont(tinyFont);love.graphics.setColor(.48,.70,.55);love.graphics.printf("R 재생  ·  [ ] 트랙  ·  ESC 종료",0,h-22,w-x,"right")
 end
+ if CompanionShop.isOpen(self.companionShop)then CompanionShop.drawOverlay(self.companionShop,self.shopTraits,f)end
 
 return Lobby

@@ -497,7 +497,7 @@ local storyJobs = {"physical", "fire", "toxic", "developer", "miner", "philosoph
 
 local function defaults()
     local data = {currency=0, regenTier=1, levels={}, storySeen={},equipmentConfigured=false,
-        playerWeapons={1,2},monkeyWeapons={2}}
+        playerWeapons={1,2},monkeyWeapons={2},lobbyItems={}}
     for id in pairs(byId) do data.levels[id] = 0 end
     for _, job in ipairs(storyJobs) do data.storySeen[job] = false end
     return data
@@ -534,6 +534,7 @@ function CharacterTraits.decode(text)
         elseif key == "player_weapon_2" then data.playerWeapons[2]=math.min(3,number)
         elseif key:match("^monkey_weapon_") then
             local index=tonumber(key:match("(%d+)$"));if index then data.monkeyWeapons[index]=math.min(3,number)end
+        elseif key:match("^lobby_item_") then data.lobbyItems[key:sub(12)]=number>0
         elseif byId[key] then data.levels[key] = math.min(number, byId[key].max)
         elseif key:match("^story_") then
             local job = key:sub(7)
@@ -563,6 +564,8 @@ function CharacterTraits.decode(text)
             for index=1,math.min(#ids,rank)do data.levels[ids[index]]=1 end
         end
     end
+    -- 초기 시안의 통나무 정글짐 구매는 완성형 캣타워로 승계한다.
+    if data.lobbyItems.log_jungle then data.lobbyItems.log_jungle=nil;data.lobbyItems.cat_tower=true end
     return data
 end
 
@@ -581,6 +584,10 @@ function CharacterTraits.encode(data)
     for _, job in ipairs(storyJobs) do
         lines[#lines+1] = "story_" .. job .. "=" .. ((data.storySeen or {})[job] and 1 or 0)
     end
+    local lobbyIds={}
+    for id,has in pairs(data.lobbyItems or{})do if has then lobbyIds[#lobbyIds+1]=id end end
+    table.sort(lobbyIds)
+    for _,id in ipairs(lobbyIds)do lines[#lines+1]="lobby_item_"..id.."=1"end
     return table.concat(lines, "\n") .. "\n"
 end
 
@@ -712,6 +719,21 @@ function CharacterTraits:addCurrency(amount, deferSave)
     self.data.currency = self.data.currency + amount
     if not deferSave then self:save() end
     return amount
+end
+
+function CharacterTraits:hasLobbyItem(id)
+    return self.data.lobbyItems and self.data.lobbyItems[id]==true
+end
+
+function CharacterTraits:buyLobbyItem(id,cost)
+    self.data.lobbyItems=self.data.lobbyItems or{}
+    if self.data.lobbyItems[id]then return false,"이미 설치한 놀이터입니다"end
+    cost=math.max(0,math.floor(cost or 0))
+    if self.data.currency<cost then return false,"연구 코인 "..cost.." P 필요"end
+    self.data.currency=self.data.currency-cost
+    self.data.lobbyItems[id]=true
+    self:save()
+    return true,"구매 완료"
 end
 
 -- 개발자 도구 전용. 구매 루프를 억지로 돌리면 후반 가격 상승과 선행 조건 때문에
