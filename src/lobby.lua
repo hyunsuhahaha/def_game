@@ -1,18 +1,10 @@
 local F=require("src.frontend_ui")
-local LobbyAudio=require("src.lobby_audio")
 local Lobby={};Lobby.__index=Lobby
 
 -- 현재 플레이테스트는 기록 모드 하나에 집중한다. 일반 작전 버튼과 진입 코드는
 -- 삭제하지 않았으며 Game:startClearcut 이하에 보존되어 있다.
 local ACTIVE_DEVELOPMENT_MODE="score_attack"
--- 트랙 이름은 UI 문자열이 아니라 실제로 재생되는 곡 목록에서 읽는다. 예전에는
--- 여기 이름 셋만 있고 뒤에 소리가 없어서, 재생 버튼이 달린 가짜 플레이어였다.
-local TRACKS={}
-for _,track in ipairs(LobbyAudio.TRACKS)do TRACKS[#TRACKS+1]=track.name end
-
--- 배경음이 계속 흐르는 화면들. 로비 배경 위에 겹쳐 그리는 메뉴는 같은 곡을
--- 이어 듣는 편이 자연스럽고, 작전에 들어가면 멎어야 한다.
-local AUDIO_MODES={lobby=true,settings=true,achievements=true,character_traits=true}
+local TRACKS={"FOREST DAY / LOOP 07","RIVER LINE / LOOP 03","OWL SHIFT / LOOP 11"}
 local MENU={
  {label="게임 시작",key="ENT",action="score_attack"},
  {label="강화",key="T",action="character_traits"},
@@ -36,7 +28,7 @@ function Lobby.new(images,fonts)
  end
  local floor=love.graphics.newImage("assets/scenery/forest/forest-floor-decal-atlas-pixel-v1.png");floor:setFilter("nearest","nearest")
  local floorQuads={};for index=1,10 do local zero=index-1;floorQuads[index]=love.graphics.newQuad((zero%5)*128,math.floor(zero/5)*96,128,96,floor:getDimensions())end
- return setmetatable({images=images,fonts=fonts,time=0,activeDevelopmentMode=ACTIVE_DEVELOPMENT_MODE,menuFocus=1,audio=LobbyAudio.new(),audioTrack=1,audioPlaying=true,backgroundTrees=backgroundTrees,backgroundProps=backgroundProps,backgroundFloor=floor,backgroundFloorQuads=floorQuads,backgroundParallax=0,
+ return setmetatable({images=images,fonts=fonts,time=0,activeDevelopmentMode=ACTIVE_DEVELOPMENT_MODE,menuFocus=1,audioTrack=1,audioPlaying=true,backgroundTrees=backgroundTrees,backgroundProps=backgroundProps,backgroundFloor=floor,backgroundFloorQuads=floorQuads,backgroundParallax=0,
   pixelTiny=love.graphics.newFont(pixel,13),pixelSmall=love.graphics.newFont(pixel,17),pixelMenu=love.graphics.newFont(pixel,26),pixelTitle=love.graphics.newFont(pixel,58)},Lobby)
 end
 
@@ -46,13 +38,6 @@ function Lobby:update(dt)
  local target=mx>=0 and math.max(-1,math.min(1,(mx/love.graphics.getWidth()-.5)*2))or 0
  self.backgroundParallax=(self.backgroundParallax or 0)+(target-(self.backgroundParallax or 0))*math.min(1,dt*4)
  for i,box in ipairs(self.menuBoxes or {})do if inside(box,mx,my)then self.menuFocus=i end end
-end
-
--- Game:update 이 모드와 무관하게 매 프레임 부른다. 로비를 떠나면 Lobby:update 가
--- 멈추므로, 정지를 여기서 처리하지 않으면 작전 중에도 로비 음악이 계속 흐른다.
-function Lobby:syncAudio(mode)
- if not self.audio then return end
- self.audio:sync(self.audioTrack or 1,AUDIO_MODES[mode] and self.audioPlaying or false)
 end
 
 function Lobby:cycleTrack(direction)

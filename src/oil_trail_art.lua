@@ -4,7 +4,6 @@
 local Art={}
 local fireImage,fireQuads
 local CELL=128
-Art.LINK_MAX_DISTANCE=104
 
 local function noise(seed,index)
     local value=math.sin(seed*12.9898+index*78.233)*43758.5453
@@ -126,23 +125,19 @@ function Art.drawFlame(spot,t)
     love.graphics.setColor(1,1,1,1)
 end
 
--- Ignited oil patches use the same connector geometry for both the dark fuel
--- underneath and the separate upright flame objects. The gameplay graph in
--- clearcut_mode uses this exact maximum distance, so a visible bridge is never
--- decorative-only damage and fire never jump across an invisible gap.
+-- Only the player oil-road uses connectors. Drum spills stay as detached stains.
 local function bridge(from,to,draw)
+    if from.source=="drum"or to.source=="drum"then return end
     local dx,dy=to.x-from.x,to.y-from.y
     local distance=math.sqrt(dx*dx+dy*dy)
-    if distance<18 or distance>Art.LINK_MAX_DISTANCE then return end
-    local count=math.max(1,math.ceil(distance/18)-1)
+    if distance<18 or distance>85 then return end
+    local count=math.max(1,math.ceil(distance/20)-1)
     for index=1,count do
         local p=index/(count+1)
         draw({x=from.x+dx*p,y=from.y+dy*p,angle=math.atan2(dy,dx),pixelSeed=(from.sequence or 1)+index,
-            sequence=(from.sequence or 0)+index,spawnedAt=math.max(from.spawnedAt or 0,to.spawnedAt or 0),
-            visualScale=.54,stretchX=.72,stretchY=.62,
+            sequence=(from.sequence or 0)+index,spawnedAt=from.spawnedAt,visualScale=.54,stretchX=.72,stretchY=.62,
             lifetime=math.min(from.lifetime or 6,to.lifetime or 6),ignited=from.ignited and to.ignited,
-            ignitedAt=math.max(from.ignitedAt or 0,to.ignitedAt or 0),
-            burnDuration=math.min(from.burnDuration or 5,to.burnDuration or 5)})
+            ignitedAt=from.ignitedAt,burnDuration=from.burnDuration})
     end
 end
 
