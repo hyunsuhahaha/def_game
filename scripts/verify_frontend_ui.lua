@@ -9,16 +9,13 @@ local frontend=read("src/frontend_ui.lua")
 local doc=read("docs/FRONTEND_UI_REDESIGN.md")
 
 assert(not lobby:find("love%.graphics%.newImage"),"lobby returned to a fixed background image")
-assert(lobby:find("field radio",1,true)and lobby:find("radioSignalBox",1,true),"interactive field radio is missing")
+assert(lobby:find("FOREST DAY / LOOP 07",1,true)and lobby:find("audioPlayBox",1,true),"compact pixel audio player is missing")
+assert(not lobby:find("NETWORK ONLINE",1,true)and not lobby:find("diagnosticTab",1,true)and not lobby:find("작업 기록",1,true),"removed dashboard decoration returned")
 assert(not lobby:find("숲이 다시 자라기 전에",1,true),"removed lobby slogan returned")
 assert(lobby:find("게임 시작",1,true),"active score-mode start button missing")
-assert(lobby:find('ACTIVE_DEVELOPMENT_MODE="score_attack"',1,true)and lobby:find("활성 나무 6그루",1,true),"score mode is not clearly marked with the persistent regeneration opening")
-assert(lobby:find("강화하기",1,true)and lobby:find("영구 전투 · 재생 단계 · 허용량",1,true),"active score upgrade entry is missing from lobby")
--- 로비는 저장 데이터를 하나도 보여주지 않고 버튼만 있었다. 인크리멘탈에서 홈 화면이
--- 진행 상황판이 아니면 다시 켤 이유가 없다.
-assert(lobby:find("작업 기록",1,true)and lobby:find("최고 재생 단계",1,true)and lobby:find("다음 연구",1,true),
-    "로비 진행 상황판(기록·코인·다음 목표)이 사라졌다")
-assert(lobby:find("인게임 3택 없음 · 영구 연구",1,true)and not lobby:find("목재 경험치 · 운영 3택",1,true),"score growth rules are stale")
+assert(lobby:find('ACTIVE_DEVELOPMENT_MODE="score_attack"',1,true),"active score mode marker is missing")
+for _,label in ipairs({"게임 시작","강화","연습","업적","설정"})do assert(lobby:find(label,1,true),"minimal lobby menu item missing: "..label)end
+assert(not lobby:find("목재 경험치 · 운영 3택",1,true),"stale score growth rules returned")
 assert(not game:find("automationKeys",1,true)and not game:find("automationClick",1,true),"removed score automation input is still wired")
 assert(game:find("function Game:startClearcutScoreAttack",1,true),"score attack entry point missing")
 assert(game:find('self.mode="clearcut_briefing"',1,true),"map selection still skips briefing")
@@ -30,4 +27,4 @@ assert(game:find("function Game:mousemoved",1,true) and game:find("function Game
 assert(frontend:find("function Frontend.button",1,true) and frontend:find("hover and 3 or 0",1,true),"interactive button presentation missing")
 assert(doc:find("레벨업 3택 화면은 이 프로젝트의 품질 기준이 아니다",1,true),"commercial indie quality bar is undocumented")
 
-print("FRONTEND_UI_OK flow=briefing lobby=responsive-operations-desk radio=interactive copy=concrete responsive=960x540..1280x720")
+print("FRONTEND_UI_OK flow=briefing lobby=minimal-pixel-menu audio=interactive responsive=960x540..1280x720")

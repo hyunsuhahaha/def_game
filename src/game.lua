@@ -506,6 +506,8 @@ function Game:keypressed(key)
         elseif action=="skill_sandbox" then
             self.sandboxMode=true
             self:startClearcutSandbox("fire")
+        elseif action=="settings" then
+            self.mode="settings"
         end
         return
     end
