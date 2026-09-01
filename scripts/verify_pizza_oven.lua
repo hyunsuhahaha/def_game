@@ -53,11 +53,11 @@ do
     Oven.update(mode,.001,game)
     local oven=mode.pizzaOven
     assert(Oven.burningNearby(mode,oven,game)==2,"oven counted a burning tree outside its radius")
-    -- 그루당 초당 1, 조각당 45 이므로 두 그루면 22.5초에 한 조각이다.
-    for _=1,1000 do Oven.update(mode,.02,game)end
-    assert(oven.slices==0,"two burning trees baked a slice before reaching 45 heat")
-    for _=1,140 do Oven.update(mode,.02,game)end
-    assert(oven.slices==1,"two burning trees over 22.5s did not bake exactly one slice, got "..oven.slices)
+    -- 그루당 초당 1, 조각당 75 이므로 두 그루면 37.5초에 한 조각이다.
+    for _=1,1800 do Oven.update(mode,.02,game)end
+    assert(oven.slices==0,"two burning trees baked a slice before reaching 75 heat")
+    for _=1,80 do Oven.update(mode,.02,game)end
+    assert(oven.slices==1,"two burning trees over 37.5s did not bake exactly one slice, got "..oven.slices)
 end
 
 -- 4. 판이 다 차면 더 굽지 않고 화력이 무한히 고이지도 않는다.
@@ -176,16 +176,20 @@ do
     assert(diner.feastT==0 and diner.feastPower==nil,"feast buff did not expire cleanly")
 end
 
--- 11. 공급이 실제로 모자라야 한다. 조각이 남아돌면 "누구를 먹일까"도 왕복 손해도
---     사라지고 화덕은 그냥 켜두는 영구 스탯이 된다.
+-- 11. 공급이 실제로 모자라야 한다. 조각 배분은 전부 자동이므로 플레이어의 선택은
+--     걸려 있지 않다. 걸려 있는 것은 환산율이다 — 조각이 남아돌면 화덕은 늘 꽉 차
+--     있고, 그러면 연구 트리의 고정 수치와 구분되지 않는 영구 배수가 된다.
 do
     local mode=newMode({scoreOvenUnlock=1})
     -- 동료 N명 상시 유지에 필요한 공급은 초당 N/지속 조각이다.
     local perSecond=1/Oven.BASE_SLICE_COST                  -- 불 한 그루가 뽑는 조각
     local sustained=perSecond*Oven.BASE_DURATION            -- 그루당 몇 명분인가
-    assert(sustained<.5,"one burning tree alone sustains "..sustained.." companions; slices are not scarce")
+    assert(sustained<.5,"one burning tree alone sustains "..sustained.." companions; the oven is a flat permanent buff")
     local treesForThree=3*Oven.BASE_SLICE_COST/Oven.BASE_DURATION
     assert(treesForThree>=6,"three companions stay permanently fed on "..treesForThree.." burning trees")
+    -- 주기를 늘리려고 지속을 깎으면 안 된다. 짧은 버프는 화면에서 깜빡거려 누가
+    -- 먹었는지 읽히지 않는다. 희소하게 나오되 한 번 먹으면 오래 가야 한다.
+    assert(Oven.BASE_DURATION>=30,"feast duration was cut instead of slowing production")
     -- 반경 안에서 그만큼 태우는 것이 기본 화덕의 실제 목표치다.
     assert(Oven.radius(mode)==260,"base radius drifted from the scarcity assumption")
 end
@@ -208,22 +212,22 @@ do
     assert(cost==2866,"oven research cost total changed, got "..cost)
     assert(effects.scoreOvenRadius==200,"radius branch total changed")
     assert(math.abs(effects.scoreOvenHeat-1.0)<1e-6,"heat branch total changed")
-    assert(math.abs(effects.scoreOvenSliceCost-12)<1e-6,"dough branch total changed")
+    assert(math.abs(effects.scoreOvenSliceCost-21)<1e-6,"dough branch total changed")
     assert(effects.scoreOvenCall==540,"call branch total changed")
-    assert(effects.scoreOvenDuration==16,"duration branch total changed")
+    assert(effects.scoreOvenDuration==20,"duration branch total changed")
     assert(math.abs(effects.scoreOvenPower-1.4)<1e-6,"power branch total changed")
     assert(math.abs(effects.scoreOvenRain-.4)<1e-6,"rain branch total changed")
 
     -- 만렙 화덕의 실제 성능. 조각당 5.5 화력, 최대 9조각, 호출 1060.
-    local maxed={scoreOvenUnlock=1,scoreOvenRadius=200,scoreOvenHeat=1.0,scoreOvenSliceCost=12,
-        scoreOvenSlices=3,scoreOvenCall=540,scoreOvenDuration=16,scoreOvenPower=1.4,scoreOvenRain=.4,scoreOvenStack=1}
+    local maxed={scoreOvenUnlock=1,scoreOvenRadius=200,scoreOvenHeat=1.0,scoreOvenSliceCost=21,
+        scoreOvenSlices=3,scoreOvenCall=540,scoreOvenDuration=20,scoreOvenPower=1.4,scoreOvenRain=.4,scoreOvenStack=1}
     local mode=newMode(maxed)
     assert(Oven.radius(mode)==460,"maxed radius wrong")
     assert(math.abs(Oven.heatPerTree(mode)-2.0)<1e-6,"maxed heat wrong")
-    assert(math.abs(Oven.sliceCost(mode)-33)<1e-6,"maxed slice cost wrong")
+    assert(math.abs(Oven.sliceCost(mode)-54)<1e-6,"maxed slice cost wrong")
     assert(Oven.maxSlices(mode)==9,"maxed slice count wrong")
     assert(Oven.callRadius(mode)==1060,"maxed call radius wrong")
-    assert(Oven.feastDuration(mode)==34,"maxed duration wrong")
+    assert(Oven.feastDuration(mode)==50,"maxed duration wrong")
     assert(math.abs(Oven.feastPower(mode)-2.4)<1e-6,"maxed power wrong")
     assert(Oven.stacks(mode),"maxed oven lost its stacking capstone")
 end
@@ -231,5 +235,5 @@ end
 fixture.reset()
 Oven.queue({pizzaOven={x=0,y=0,slices=3,life=1,fire=.5,flare=0}},{})
 Oven.load()
-print("PIZZA_OVEN_OK fuel=burning_trees_only center_placed=true radius=260 slice_cost=45 tray=6 "..
-      "call=520 reservation=no_wasted_trips feast=18s_x2 rain_stops=true stacking_capstone=true nodes=10 ranks=29")
+print("PIZZA_OVEN_OK fuel=burning_trees_only center_placed=true radius=260 slice_cost=75 tray=6 "..
+      "call=520 reservation=no_wasted_trips feast=30s_x2 rain_stops=true stacking_capstone=true nodes=10 ranks=29")
