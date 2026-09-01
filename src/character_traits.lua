@@ -582,7 +582,7 @@ function CharacterTraits.new(memoryOnly)
     local self = setmetatable({memoryOnly=memoryOnly, file="character_traits.sav", data=defaults()}, CharacterTraits)
     if not memoryOnly and love.filesystem.getInfo(self.file) then
         local text = love.filesystem.read(self.file)
-        if text then self.data = CharacterTraits.decode(text) end
+        if text then self.data = CharacterTraits.decode(text); self._scoreRanks = nil end
     end
     return self
 end
@@ -648,9 +648,47 @@ function CharacterTraits:status(id)
             return false, byId[requirement[1]].name .. " " .. requirement[2] .. "단계 필요"
         end
     end
-    local cost = node.costs[level+1]
+    local cost = self:nodeCost(node, level)
     if self.data.currency < cost then return false, "연구 코인 " .. cost .. " 필요" end
     return true, "해금 가능", cost
+end
+
+-- 후반 연구가 순식간에 녹는 것을 막는 비용 상승률.
+--
+-- 판당 수입은 연구가 쌓일수록 지수로 늘어난다. 처리량이 오르면 그만큼 더 많은 나무가
+-- 공급 곡선 위로 올라오고(공급은 30초마다 두 배다) 재생 단계 수입 배수까지 겹친다.
+-- 반면 노드 가격은 손으로 적은 고정값이라 트리 전체에서 6배도 벌어지지 않았다. 그래서
+-- 진행 90% 지점의 노드가 시작 지점보다 "판 수" 기준으로 오히려 6배 싸지는 역전이
+-- 생겼고, 후반에는 한 판 수입으로 노드를 여러 개씩 살 수 있었다.
+--
+-- 이미 산 기록 모드 랭크 수를 지수로 써서 가격을 올린다. 어느 시점에서든 후보 전체에
+-- 같은 배율이 걸리므로 "가장 싼 것부터"라는 구매 순서는 그대로 유지되고, 손으로 적어
+-- 둔 노드별 상대 가격도 그대로 보존된다. 바뀌는 것은 곡선의 기울기뿐이다.
+--
+-- 1.008^288(전체 랭크 수) = 약 9.8배. 이 값에서 노드 하나를 사는 데 드는 판 수가
+-- 진행 내내 거의 평평해지고(0.031 -> 0.033) 마지막 노드만 0.6판짜리 목표로 남는다.
+CharacterTraits.RESEARCH_ESCALATION = 1.008
+
+-- 매 프레임 노드 전체의 status를 부르는 연구 보드가 있어서 캐시한다.
+function CharacterTraits:ownedScoreRanks()
+    if self._scoreRanks then return self._scoreRanks end
+    local owned = 0
+    for id, level in pairs(self.data.levels or {}) do
+        local node = byId[id]
+        if node and node.scoreMode then owned = owned + math.max(0, math.floor(level or 0)) end
+    end
+    self._scoreRanks = owned
+    return owned
+end
+
+-- 기록 모드 노드만 상승률을 받는다. 보존된 캐릭터 트리는 별도 경제라 건드리지 않는다.
+function CharacterTraits:nodeCost(node, level)
+    if type(node) == "string" then node = byId[node] end
+    if not node then return nil end
+    local base = node.costs[(level or 0) + 1]
+    if not base then return nil end
+    if not node.scoreMode then return base end
+    return math.max(1, math.floor(base * CharacterTraits.RESEARCH_ESCALATION ^ self:ownedScoreRanks() + .5))
 end
 
 function CharacterTraits:buy(id)
@@ -658,6 +696,7 @@ function CharacterTraits:buy(id)
     if not ok then return false, reason end
     self.data.currency = self.data.currency - cost
     self.data.levels[id] = self:getLevel(id) + 1
+    self._scoreRanks = nil
     self:save()
     return true, byId[id].name .. " " .. self:getLevel(id) .. "단계 해금"
 end
@@ -766,7 +805,7 @@ function CharacterTraits:nextGoal()
                     if self:getLevel(requirement[1])<requirement[2] then ready=false end
                 end
                 if ready then
-                    local cost=node.costs[level+1] or 0
+                    local cost=self:nodeCost(node,level) or 0
                     if not best or cost<best.cost then
                         best={id=node.id,name=node.name,cost=cost,level=level,max=node.max,
                             affordable=self.data.currency>=cost}
@@ -780,6 +819,7 @@ end
 
 function CharacterTraits:reset()
     self.data = defaults()
+    self._scoreRanks = nil
     self:save()
 end
 

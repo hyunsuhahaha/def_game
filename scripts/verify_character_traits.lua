@@ -34,8 +34,62 @@ assert(not lobby.audioPlaying,"lobby audio playback shortcut failed")
 
 local store = CharacterTraits.new(true)
 assert(store:getRegenTier()==1 and store:unlockRegenTier(3) and store:getRegenTier()==3 and not store:unlockRegenTier(2),"persistent regeneration tier did not advance monotonically")
+-- 연구 비용 상승률. 판당 수입이 지수로 커지는데 노드 가격이 고정값이라 후반 트리가
+-- 녹던 문제를 막는다. 이미 산 기록 모드 랭크 수만큼 배율이 붙는다.
+do
+    local esc=CharacterTraits.new(true)
+    local node=esc:getNode("universal_robot_start")
+    local base=node.costs[1]
+    assert(esc:ownedScoreRanks()==0,"a fresh store already counted owned score ranks")
+    assert(esc:nodeCost(node,0)==base,"the very first research node must cost its authored price")
+
+    -- 보존된 캐릭터 트리는 다른 경제라 상승률을 받지 않는다.
+    local archived=esc:getNode("physical_quota")
+    assert(not archived.scoreMode and esc:nodeCost(archived,0)==archived.costs[1],
+        "archived character research picked up the score-mode escalation")
+
+    esc.data.levels.universal_robot_start=1
+    esc.data.levels.universal_mole_companion=1
+    esc._scoreRanks=nil
+    assert(esc:ownedScoreRanks()==2,"owned score ranks were miscounted")
+    local k=CharacterTraits.RESEARCH_ESCALATION
+    local expected=math.max(1,math.floor(node.costs[1]*k^2+.5))
+    assert(esc:nodeCost(node,0)==expected,
+        "escalation did not apply owned-rank scaling, got "..esc:nodeCost(node,0).." want "..expected)
+    assert(k>1,"research escalation must actually escalate")
+
+    -- 어느 시점에서든 후보 전체에 같은 배율이 걸리므로 "가장 싼 것부터"의 순서는
+    -- 손으로 적어 둔 가격 순서와 항상 같아야 한다. 순서가 바뀌면 nextGoal 이 흔들린다.
+    local ordered=CharacterTraits.new(true)
+    ordered.data.levels.universal_robot_start=1
+    ordered.data.levels.universal_mole_companion=1
+    ordered.data.levels.universal_oil_drum=1
+    ordered._scoreRanks=nil
+    local previousAuthored,previousScaled
+    for _,id in ipairs({"universal_oil_duration","universal_oil_interval","universal_gray_cat"})do
+        local candidate=ordered:getNode(id)
+        local authored,scaled=candidate.costs[1],ordered:nodeCost(candidate,0)
+        if previousAuthored then
+            assert((authored>previousAuthored)==(scaled>previousScaled),
+                "escalation reordered which node is cheapest: "..id)
+        end
+        previousAuthored,previousScaled=authored,scaled
+    end
+
+    -- 트리 끝의 노드는 시작 노드보다 확실히 비싸야 한다. 이게 안 되면 녹는다.
+    local full=CharacterTraits.new(true)
+    local ranks=0
+    for _,job in ipairs({"fire","universal"})do
+        for _,scoreNode in ipairs(full:getScoreAttackNodes(job))do ranks=ranks+scoreNode.max end
+    end
+    full._scoreRanks=nil
+    local endMultiplier=k^ranks
+    assert(endMultiplier>=8,"the tree-wide escalation is too flat to stop late nodes melting: "..endMultiplier)
+    assert(endMultiplier<=20,"the tree-wide escalation turned the tail into a wall: "..endMultiplier)
+end
+
 local moleUpgradeStore=CharacterTraits.new(true)
-moleUpgradeStore.data.currency=5000
+moleUpgradeStore.data.currency=500000
 moleUpgradeStore.data.levels.universal_robot_start=1
 assert(moleUpgradeStore:buy("universal_mole_companion")and not moleUpgradeStore:buy("universal_mole_companion"),"mole hire root was not a one-rank node")
 assert(moleUpgradeStore:buy("universal_oil_drum")and moleUpgradeStore:buy("universal_gray_cat"),"gray oil-cat research chain was not purchasable")
@@ -130,7 +184,7 @@ assert(scoreSmoker.scoreRange==80 and scoreSmoker.scoreArea==60,"score-mode perm
 assert(math.abs(scoreSmoker.scoreIgnitionChance-.06)<1e-9 and math.abs(scoreSmoker.scoreSpreadChance-.235)<1e-9,"score-mode ignition traits were not separated")
 assert(math.abs(scoreSmoker.scoreAttackSpeed-.20)<1e-9 and math.abs(scoreSmoker.scoreProjectileSpeed-.35)<1e-9 and math.abs(scoreSmoker.scoreBurnSpeed-.30)<1e-9 and scoreSmoker.scoreExtraFires==1,"score-mode permanent smoker pacing was not subdivided correctly")
 local earlySmoking=CharacterTraits.new(true)
-earlySmoking.data.currency=500
+earlySmoking.data.currency=50000
 assert(earlySmoking:buy("fire_score_prewarm"),"smoker root purchase failed")
 assert(earlySmoking:buy("fire_score_impact"),"early cigarette-impact node is not purchasable directly after the root")
 assert(earlySmoking:scoreAttackEffects().scoreCigaretteImpact==1,"early impact purchase did not reach score runtime effects")
@@ -162,7 +216,7 @@ assert(activeScore.scoreStartingWood==nil and activeScore.scoreAutomationDiscoun
 -- 하한에도 배수를 걸지 않으면 2~3단계부터 노드가 아무 일도 하지 않으므로,
 -- 여기서는 "하한에 걸린 상태"를 일부러 만들어 그 하한이 실제로 내려가는지 본다.
 local ammoStore=CharacterTraits.new(true)
-ammoStore.data.currency=4000
+ammoStore.data.currency=400000
 assert(ammoStore:buy("fire_score_prewarm"),"smoker root purchase failed for the ammo branch")
 for _=1,5 do assert(ammoStore:buy("fire_score_reload"),"butt reload rank purchase failed") end
 for _=1,5 do assert(ammoStore:buy("fire_score_carton_size"),"carton size rank purchase failed") end
@@ -197,7 +251,7 @@ assert(ammoMode.smoking.newCarton and math.abs(ammoMode.smoking.dur-2.4/1.48)<1e
 
 -- 자동 투척 주기. 손이 도끼·폭죽으로 넘어간 뒤의 담배 화력은 오직 이 간격으로만 자란다.
 local throwStore=CharacterTraits.new(true)
-throwStore.data.currency=4000
+throwStore.data.currency=400000
 throwStore.data.levels.fire_score_prewarm=1
 throwStore.data.levels.fire_score_alwayssmoke=1
 throwStore.data.levels.fire_score_autothrow=1

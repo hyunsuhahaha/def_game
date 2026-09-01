@@ -406,6 +406,7 @@
     <div class="score-rule"><span class="score-rule-label">몬스터 투입</span><span class="score-rule-value">첫 45초 없음 · 이후 동시 1→2→3→4마리</span></div>
     <div class="score-rule"><span class="score-rule-label">런 성장</span><span class="score-rule-value">인게임 XP·레벨업·강화 3택 없음 · 목재는 점수와 정산만</span></div>
     <div class="score-rule"><span class="score-rule-label">강화하기 화면</span><span class="score-rule-value">중앙 루트의 기존 상·하·좌·우 분기 + 초반 즉시 타격 대각선 가지 · 방향별 동일 단계 간격 · 기준 간격의 85~115% 줌 · 화면 해상도별 한글 폰트 재래스터</span></div>
+    <div class="score-rule"><span class="score-rule-label">연구 비용</span><span class="score-rule-value">표의 값은 기준가 · 실제 가격 = 기준가 × 1.008^(이미 구매한 기록 모드 랭크 수)</span></div>
     <div class="score-rule"><span class="score-rule-label">결과 화면</span><span class="score-rule-value">수종별 목재 집계 → 1개씩 회전 코인으로 순차 변환 → 강화하기/재도전 (이동 시 잔여분 즉시 정산)</span></div>
   </section>
   <div class="toolbar">
@@ -865,7 +866,7 @@ function renderTraitsPanel(job, q) {
       <div class="table-scroll">
         <table style="--accent:${job.accent}">
           <colgroup><col class="col-name"><col class="col-effect"><col class="col-level"><col class="col-cost"><col class="col-req"></colgroup>
-          <thead><tr><th>특성</th><th>효과</th><th>최대</th><th>비용(P)</th><th>선행 조건</th></tr></thead>
+          <thead><tr><th>특성</th><th>효과</th><th>최대</th><th>기준 비용(P)</th><th>선행 조건</th></tr></thead>
           <tbody>${rows}</tbody>
         </table>
       </div>
