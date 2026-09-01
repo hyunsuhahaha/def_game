@@ -319,12 +319,12 @@ local delayX,delayY=board:nodeWorld(store:getNode("universal_gray_cat_delay"))
 local speedX,speedY=board:nodeWorld(store:getNode("universal_gray_cat_speed"))
 local exitX,exitY=board:nodeWorld(store:getNode("universal_gray_cat_exit_speed"))
 local function catDistance(ax,ay,bx,by)return math.sqrt((ax-bx)^2+(ay-by)^2)end
-assert(catDistance(catX,catY,chanceX,chanceY)>=400,
-    "gray cat chance branch is packed too close to the cat unlock")
-assert(catDistance(chanceX,chanceY,delayX,delayY)>=400,
-    "gray cat delay branch is packed too close to its parent")
-assert(catDistance(catX,catY,speedX,speedY)>=400,
-    "gray cat speed branch is packed too close to the cat unlock")
+assert(catDistance(catX,catY,chanceX,chanceY)<=320,
+    "gray cat chance upgrade is not attached to the cat unlock")
+assert(catDistance(chanceX,chanceY,delayX,delayY)<=320,
+    "gray cat delay upgrade is not the next node in the cat branch")
+assert(catDistance(catX,catY,speedX,speedY)<=430,
+    "gray cat speed upgrade is not visibly grouped with the cat unlock")
 local exitNode=store:getNode("universal_gray_cat_exit_speed")
 assert(exitNode.requires[1][1]=="universal_gray_cat_speed"and not(speedX==exitX and speedY==exitY),
     "gray cat exit-speed upgrade is not a distinct child of the entry-speed node")
@@ -347,25 +347,25 @@ local root=store:getNode("fire_score_prewarm")
 local rx,ry=board:nodeWorld(root)
 local impact=store:getNode("fire_score_impact")
 local ix,iy=board:nodeWorld(impact)
-assert(root.costs[1]+impact.costs[1]==50 and impact.requires[1][1]=="fire_score_prewarm" and ix>rx and iy<ry,
-    "cigarette impact unlock is not a 2-3 run early branch after the smoker root")
-local childRows={}
+assert(root.costs[1]+impact.costs[1]==50 and impact.requires[1][1]=="fire_score_prewarm" and ix<rx and iy<ry,
+    "cigarette impact unlock is not a 2-3 run early branch beside the smoker root")
+local directions={left=false,right=false,up=false,down=false}
 for _,id in ipairs({"fire_score_filter","fire_score_lighter","fire_score_launch","fire_score_alwayssmoke"})do
-    local nx,ny=board:nodeWorld(store:getNode(id))
-    assert(nx>rx and not childRows[ny],"smoker child branches are not separated into left-to-right rows")
-    childRows[ny]=true
+    local nx,ny=board:nodeWorld(store:getNode(id));local dx,dy=nx-rx,ny-ry
+    if math.abs(dx)>math.abs(dy)then directions[dx<0 and"left"or"right"]=true else directions[dy<0 and"up"or"down"]=true end
 end
+assert(directions.left and directions.right and directions.up and directions.down,"smoker root does not place always-smoking as its downward second node")
 for i=1,#board.nodeBoxes do for j=i+1,#board.nodeBoxes do
     local a,b=board.nodeBoxes[i],board.nodeBoxes[j]
     local separated=a.x+a.w<=b.x or b.x+b.w<=a.x or a.y+a.h<=b.y or b.y+b.h<=a.y
     assert(separated,"research nodes overlap at 1280x720: "..a.id.." / "..b.id)
 end end
 assert(board.viewInitialized and board.zoom==board.referenceZoom and board.referenceZoom>=.56 and board.referenceZoom<=.80,"research tree did not open at its authored reference spacing")
-for _,pair in ipairs({{"fire_score_filter","fire_score_spark"},{"fire_score_lighter","fire_score_ash"},
-    {"fire_score_launch","fire_score_drag"},{"fire_score_alwayssmoke","fire_score_autothrow"}})do
-    local ax,ay=board:nodeWorld(store:getNode(pair[1]));local bx,by=board:nodeWorld(store:getNode(pair[2]))
-    assert(bx-ax>=450 and ay==by,"research branch does not continue in a clear horizontal row: "..pair[1])
-end
+local function distance(a,b)local ax,ay=board:nodeWorld(store:getNode(a));local bx,by=board:nodeWorld(store:getNode(b));return math.sqrt((ax-bx)^2+(ay-by)^2)end
+assert(distance("fire_score_prewarm","fire_score_filter")==distance("fire_score_filter","fire_score_spark"),"left branch step lengths differ")
+assert(distance("fire_score_prewarm","fire_score_lighter")==distance("fire_score_lighter","fire_score_ash"),"right branch step lengths differ")
+assert(distance("fire_score_prewarm","fire_score_launch")==distance("fire_score_launch","fire_score_drag"),"upper branch step lengths differ")
+assert(distance("fire_score_prewarm","fire_score_alwayssmoke")==distance("fire_score_alwayssmoke","fire_score_autothrow"),"always-smoking branch step lengths differ")
 store.data.currency=1000
 local rootBox
 for _,box in ipairs(board.nodeBoxes)do
