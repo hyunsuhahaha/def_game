@@ -4,10 +4,12 @@ local CdArt=require("src.lobby_cd_art")
 local TimeOfDay=require("src.lobby_time_of_day")
 local LobbyCompanions=require("src.lobby_companions")
 local Lobby={};Lobby.__index=Lobby
+local FOREGROUND_TREE_START=.86
+local FOREGROUND_TREE_COUNT=3
 
-local function companionScenery(trees,w,h)
+local function companionScenery(trees,w,h,hasShop)
  local obstacles={};if not trees or #trees==0 then return obstacles end
- local startX=w*.86;local count=3;local span=w-startX
+ local startX=w*FOREGROUND_TREE_START;local count=FOREGROUND_TREE_COUNT;local span=w-startX
  local spacing=span/math.max(1,count-1);local targetH=h*.43;local ground=h*.93
  for i=1,count do
   local image=trees[(i-1)%#trees+1]
@@ -18,6 +20,7 @@ local function companionScenery(trees,w,h)
     rx=math.max(w*.024,iw*scale*.13),ry=h*.072}
   end
  end
+ if hasShop then obstacles[#obstacles+1]={kind="shop",x=w*.12,y=h*.90,rx=w*.075,ry=h*.105}end
  return obstacles
 end
 
@@ -68,7 +71,7 @@ function Lobby:update(dt,game)
  CdArt.update(self.audioCd,dt,self.audioPlaying and true or false)
  local w,h=love.graphics.getDimensions()
  LobbyCompanions.sync(self.lobbyCompanions,game and game.characterTraits,w,h)
- LobbyCompanions.setScenery(self.lobbyCompanions,companionScenery(self.backgroundTrees,w,h))
+ LobbyCompanions.setScenery(self.lobbyCompanions,companionScenery(self.backgroundTrees,w,h,self.companionShop~=nil))
  LobbyCompanions.update(self.lobbyCompanions,dt)
 end
 
@@ -198,7 +201,8 @@ function Lobby:drawBackground(w,h,showCompanions)
  -- 앞에 붙인 스티커가 아니라 실제 숲 사이를 돌아다니는 깊이로 읽힌다.
  local companionSplit=h*.82
  if showCompanions then LobbyCompanions.draw(self.lobbyCompanions,light,"behind",companionSplit,groundOffset)end
- drawRow(h*.93,w*.55,5,h*.43,{.24+.76*light,.29+.71*light,.38+.62*light,1},1,1,groundOffset,2)
+ -- 동물 놀이터가 전경 나무 몸통에 붙지 않도록 중앙 공터를 남긴다.
+ drawRow(h*.93,w*FOREGROUND_TREE_START,FOREGROUND_TREE_COUNT,h*.43,{.24+.76*light,.29+.71*light,.38+.62*light,1},1,1,groundOffset,2)
  if showCompanions then LobbyCompanions.draw(self.lobbyCompanions,light,"front",companionSplit,groundOffset)end
  local props=self.backgroundProps or{}
  local function drawProp(name,x,ground,targetH,tint)
@@ -306,7 +310,7 @@ function Lobby:draw(game)
  local titleFont=self.pixelTitle or f.display or self.displayFont or f.heading
  local menuFont=self.pixelMenu or f.heading;local smallFont=self.pixelSmall or f.small;local tinyFont=self.pixelTiny or f.small
  LobbyCompanions.sync(self.lobbyCompanions,game and game.characterTraits,w,h)
- LobbyCompanions.setScenery(self.lobbyCompanions,companionScenery(self.backgroundTrees,w,h))
+ LobbyCompanions.setScenery(self.lobbyCompanions,companionScenery(self.backgroundTrees,w,h,self.companionShop~=nil))
  self:drawBackground(w,h,true)
  local compact=w<1080 or h<640;local x=math.max(24,math.floor(w*.07));local menuW=math.min(compact and 430 or 470,math.floor(w*.46))
  local titleY=math.floor(h*(compact and .09 or .11))

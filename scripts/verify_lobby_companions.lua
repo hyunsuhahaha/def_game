@@ -39,6 +39,8 @@ local levels={
 }
 assert(Companions.sync(state,fakeTraits(levels),1280,720)==10,
     "해금/추가 연구 수만큼 동료가 로비에 합류하지 않았다")
+assert(state.bounds.x1<=1280*.15 and state.bounds.x2>=1280*.89,
+    "동료 산책 범위가 로비 왼쪽 공터까지 열리지 않았다")
 local kinds={monkey=0,mole=0,cat=0}
 for _,actor in ipairs(state.animals)do kinds[actor.kind]=kinds[actor.kind]+1 end
 assert(kinds.monkey==6 and kinds.mole==3 and kinds.cat==1,
@@ -61,8 +63,14 @@ assert(Companions.depthScaleForY(state.bounds.y1,state.bounds)<
 
 Companions.preparePreview(state)
 local states={}
-for _,actor in ipairs(state.animals)do states[actor.state]=true end
+local leftCount,rightCount=0,0
+for _,actor in ipairs(state.animals)do
+    states[actor.state]=true
+    if actor.x<state.bounds.width*.38 then leftCount=leftCount+1 end
+    if actor.x>state.bounds.width*.62 then rightCount=rightCount+1 end
+end
 assert(states.walk and states.idle and states.sleep,"생활 상태 세 종류가 준비되지 않았다")
+assert(leftCount>=2 and rightCount>=2,"동료 검수 배치가 좌우 공터에 고르게 퍼지지 않는다")
 local function radius(actor)
     if actor.state=="sleep"then return actor.kind=="monkey"and 35 or(actor.kind=="mole"and 47 or 48)end
     return actor.kind=="monkey"and 19 or(actor.kind=="mole"and 27 or 23)
@@ -174,4 +182,4 @@ assert(baker:find("lobby%-companion%-sleep%-concept%-v1%.png")and
     not baker:find("rotate(",1,true),
     "수면 자산이 실제 이불 원화 대신 회전 몸체를 사용한다")
 
-print("LOBBY_COMPANIONS_OK unlocked_only=true ground_anchor=foreground_parallax tree_collision=roots+paths perspective=scale+speed+shadow sleep_scale=physical_v2 interactions=cat_wand+banana_toss+mole_peek+chase_train depth=behind_foreground")
+print("LOBBY_COMPANIONS_OK unlocked_only=true roam=left+center+right ground_anchor=foreground_parallax tree_collision=roots+paths perspective=scale+speed+shadow sleep_scale=physical_v2 interactions=cat_wand+banana_toss+mole_peek+chase_train depth=behind_foreground")

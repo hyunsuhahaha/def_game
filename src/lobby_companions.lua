@@ -110,7 +110,7 @@ end
 
 local function boundsFor(width,height)
     return{
-        x1=math.floor(width*.39),x2=math.floor(width*.88),
+        x1=math.floor(width*.14),x2=math.floor(width*.90),
         y1=math.floor(height*.70),y2=math.floor(height*.895),
         width=width,height=height,
     }
