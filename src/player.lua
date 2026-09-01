@@ -123,7 +123,6 @@ function Player:update(dt, world, game)
     if love.keyboard.isDown("d", "right") then dx = dx + 1 end
     if love.keyboard.isDown("w", "up") then dy = dy - 1 end
     if love.keyboard.isDown("s", "down") then dy = dy + 1 end
-    if self.scoreAxeEquipped and self.autoAxeClock~=nil then dx,dy=0,0 end
     local len = math.sqrt(dx * dx + dy * dy)
     self.isMoving = len > 0
     if self.isMoving then

@@ -37,9 +37,9 @@ local attackX,attackY=game.player.x,game.player.y
 love.keyboard.isDown=function(key)return key=="d"end
 game.player:update(.01,game.world,game)
 love.keyboard.isDown=function()return false end
-assert(game.player.x==attackX and game.player.y==attackY and not game.player.isMoving,
-    "movement input displaced the player during the axe attack")
-game.player.autoAxeClock=0
+assert(game.player.x>attackX and game.player.y==attackY and game.player.isMoving,
+    "axe attack incorrectly blocked movement input")
+game.player.x,game.player.y,game.player.autoAxeClock=attackX,attackY,0
 local startDrawX=game.player:autoAxeRenderPosition()
 local contact=mode.scoreAxeAction.contactTime
 mode:updateScoreAxeAttack(contact-.001,game,true)
