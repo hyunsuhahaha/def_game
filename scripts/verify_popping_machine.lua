@@ -22,8 +22,15 @@ for _=1,150 do Popper.update(mode,.02,game)end
 for index=1,3 do assert(trees[index].rushHp==2,"upgraded puffed rice failed to revisit surviving tree "..index)end
 for index=4,5 do assert(trees[index].rushHp==6,"upgraded puffed rice failed to continue through new tree "..index)end
 
-local store=Traits.new(true);local count=0
-for _,node in ipairs(store:getScoreAttackNodes("fire"))do if node.id:match("^fire_score_popper")then count=count+1;assert(node.max==1,"popper node has stacked ranks: "..node.id)end end
-assert(count==9,"popper research branch is incomplete")
+local store=Traits.new(true);local count,ranks,cost,multi,damage,bounces,heat=0,0,0,0,0,0,0
+for _,node in ipairs(store:getScoreAttackNodes("fire"))do if node.id:match("^fire_score_popper")then
+    count=count+1;ranks=ranks+node.max;if node.max>1 then multi=multi+1 end
+    for _,value in ipairs(node.costs)do cost=cost+value end
+    if node.effect=="scorePopperDamage"then damage=damage+node.value*node.max end
+    if node.effect=="scorePopperBounces"then bounces=bounces+node.value*node.max end
+    if node.effect=="scorePopperHeat"then heat=heat+node.value*node.max end
+end end
+assert(count==9 and ranks==16 and cost==2320,"popper research branch totals changed")
+assert(multi==5 and damage==10 and bounces==2 and math.abs(heat-.7)<.001,"popper upgrades are not distributed multi-rank nodes")
 fixture.reset();Popper.queue(mode,{});Popper.load()
-print("POPPING_MACHINE_OK base_damage=4 base_contacts=3 upgraded_damage=14 upgraded_contacts=5 survivor_chain=true nodes=9")
+print("POPPING_MACHINE_OK base_damage=4 base_contacts=3 upgraded_damage=14 upgraded_contacts=5 survivor_chain=true nodes=9 ranks=16 distributed=true")
