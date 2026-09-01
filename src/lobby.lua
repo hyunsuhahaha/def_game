@@ -75,21 +75,25 @@ end
 
 function Lobby:drawBackground(w,h)
  local horizon=math.floor(h*.57);local unit=math.max(4,math.floor(h/120));local parallax=self.backgroundParallax or 0
- local sky={{.10,.27,.25},{.14,.34,.29},{.23,.43,.32},{.37,.53,.34},{.55,.62,.34},{.70,.66,.35}}
+ local sky={{.12,.29,.33},{.16,.36,.39},{.23,.43,.43},{.32,.49,.45},{.43,.56,.46},{.56,.62,.45},{.68,.65,.43},{.78,.64,.41},{.86,.62,.38}}
  for i,color in ipairs(sky)do
-  local y=math.floor((i-1)*horizon/#sky);love.graphics.setColor(color[1],color[2],color[3],1);love.graphics.rectangle("fill",0,y,w,math.ceil(horizon/#sky)+1)
+  local y=math.floor((i-1)*horizon/#sky);local bandH=math.ceil(horizon/#sky)+1
+  love.graphics.setColor(color[1],color[2],color[3],1);love.graphics.rectangle("fill",0,y,w,bandH)
+  local nextColor=sky[i+1];if nextColor then love.graphics.setColor(nextColor[1],nextColor[2],nextColor[3],.55);for x=(i%2)*unit,w,unit*2 do love.graphics.rectangle("fill",x,y+bandH-unit,unit,unit)end end
  end
- -- Block-built dawn sun and clouds keep the backdrop crisp at every resolution.
+ -- Stepped pixel silhouettes avoid the old rectangular glow and flat line-clouds.
  local sunX,sunY=math.floor((w*.79-parallax*unit*2)/unit)*unit,math.floor(h*.25/unit)*unit
- love.graphics.setColor(.95,.63,.22,.10)
- for i=5,1,-1 do love.graphics.rectangle("fill",sunX-i*unit*2,sunY-i*unit,unit*(i*4+1),unit*(i*2+1))end
- love.graphics.setColor(1,.80,.33,1)
- for row,width in ipairs({5,9,11,13,13,11,9,5})do love.graphics.rectangle("fill",sunX-math.floor(width/2)*unit,sunY+(row-5)*unit,width*unit,unit)end
- love.graphics.setColor(.82,.82,.55,.18)
- for _,cloud in ipairs({{.56,.17,12},{.88,.12,9},{.67,.35,7}})do
-  local x,y,cw=math.floor(w*cloud[1]/unit)*unit,math.floor(h*cloud[2]/unit)*unit,cloud[3]*unit
-  love.graphics.rectangle("fill",x,y,cw,unit);love.graphics.rectangle("fill",x+unit*2,y-unit,cw-unit*5,unit)
+ local function drawOrb(radius,color)
+  love.graphics.setColor(color);for row=-radius,radius do local half=math.floor(math.sqrt(radius*radius-row*row));love.graphics.rectangle("fill",sunX-half*unit,sunY+row*unit,(half*2+1)*unit,unit)end
  end
+ drawOrb(8,{1,.68,.35,.055});drawOrb(6,{1,.73,.39,.10});drawOrb(4,{1,.86,.52,1})
+ local function drawCloud(x,y,size,alpha)
+  x=math.floor((x-parallax*unit)/unit)*unit;y=math.floor(y/unit)*unit
+  love.graphics.setColor(.55,.49,.43,alpha*.42);love.graphics.rectangle("fill",x+size*2,y+size,size*14,size*2)
+  love.graphics.setColor(1,.86,.68,alpha);love.graphics.rectangle("fill",x,y,size*16,size*2);love.graphics.rectangle("fill",x+size*3,y-size,size*6,size*2);love.graphics.rectangle("fill",x+size*10,y-size,size*4,size*2)
+  love.graphics.setColor(1,.93,.77,alpha*.72);love.graphics.rectangle("fill",x+size*4,y-size,size*4,size)
+ end
+ drawCloud(w*.54,h*.17,unit,.34);drawCloud(w*.86,h*.11,unit,.28);drawCloud(w*.67,h*.37,math.max(3,unit-1),.22)
  local function ridge(base,height,step,color,phase,shift)
   local points={0,h,0,base}
   for x=0,w+step,step do
@@ -98,8 +102,8 @@ function Lobby:drawBackground(w,h)
   end
   points[#points+1]=w;points[#points+1]=h;love.graphics.setColor(color);love.graphics.polygon("fill",points)
  end
- ridge(horizon+unit*5,h*.20,unit*4,{.12,.31,.23,1},.8,parallax*unit*2)
- ridge(horizon+unit*9,h*.13,unit*3,{.10,.25,.17,1},2.1,parallax*unit*4)
+ ridge(horizon+unit*5,h*.20,unit*4,{.16,.33,.32,1},.8,parallax*unit*2)
+ ridge(horizon+unit*9,h*.13,unit*3,{.09,.25,.25,1},2.1,parallax*unit*4)
  local trees=self.backgroundTrees or{}
  local function drawRow(ground,startX,count,targetH,tint,offset,overlap,shift,sway)
   if #trees>0 then
@@ -111,9 +115,9 @@ function Lobby:drawBackground(w,h)
    end
   end
  end
- drawRow(horizon+unit*8,-unit*3,14,h*.24,{.38,.51,.28,.72},2,1,-parallax*unit*3,1)
- love.graphics.setColor(.28,.46,.20,1);love.graphics.rectangle("fill",0,horizon,w,h-horizon)
- love.graphics.setColor(.35,.53,.22,1);love.graphics.rectangle("fill",0,horizon,w,unit*5)
+ drawRow(horizon+unit*8,-unit*3,14,h*.24,{.58,.64,.49,.76},2,1,-parallax*unit*3,1)
+ love.graphics.setColor(.30,.43,.21,1);love.graphics.rectangle("fill",0,horizon,w,h-horizon)
+ love.graphics.setColor(.42,.54,.27,1);love.graphics.rectangle("fill",0,horizon,w,unit*5)
  local floor,floorQuads=self.backgroundFloor,self.backgroundFloorQuads or{}
  local function drawFloor(index,x,y,scale,alpha,flip)
   if not floor or not floorQuads[index]then return end
@@ -122,15 +126,15 @@ function Lobby:drawBackground(w,h)
  drawFloor(4,w*.67,h*.62,.80,.38);drawFloor(1,w*.68,h*.72,1.18,.42,-1);drawFloor(4,w*.70,h*.84,1.72,.48)
  drawFloor(8,w*.27,h*.72,1.38,.24,-1);drawFloor(4,w*.42,h*.84,1.50,.27);drawFloor(3,w*.35,h*.91,.76,.58,-1)
  drawFloor(2,w*.55,h*.89,.78,.82);drawFloor(3,w*.46,h*.78,.68,.66,-1);drawFloor(6,w*.91,h*.86,.82,.78)
- drawRow(h*.93,w*.55,5,h*.43,{.82,.88,.68,1},1,1,-parallax*unit*7,2)
+ drawRow(h*.93,w*.55,5,h*.43,{1,1,1,1},1,1,-parallax*unit*7,2)
  local props=self.backgroundProps or{}
  local function drawProp(name,x,ground,targetH,tint)
   local image=props[name];if not image then return end
   local iw,ih=image:getDimensions();local scale=targetH/ih;love.graphics.setColor(tint or{1,1,1,1});love.graphics.draw(image,math.floor(x-parallax*unit*8),math.floor(ground-targetH),0,scale,scale)
  end
- drawProp("rock",w*.50,h*.93,h*.10,{.76,.82,.61,1});drawProp("log",w*.73,h*.96,h*.11,{.88,.83,.61,1})
- drawProp("fern",w*.46,h*.91,h*.085,{.72,.88,.58,1});drawProp("fern",w*.88,h*.94,h*.10,{.72,.88,.58,1})
- love.graphics.setColor(.07,.20,.13,.66);love.graphics.rectangle("fill",0,h*.955,w,h*.045)
+ drawProp("rock",w*.50,h*.93,h*.10,{1,1,1,1});drawProp("log",w*.73,h*.96,h*.11,{1,1,1,1})
+ drawProp("fern",w*.46,h*.91,h*.085,{1,1,1,1});drawProp("fern",w*.88,h*.94,h*.10,{1,1,1,1})
+ love.graphics.setColor(.14,.28,.16,.72);love.graphics.rectangle("fill",0,h*.955,w,h*.045)
  for i=1,18 do
   local x=math.floor(w*(.43+((i*37)%57)/100));local y=math.floor(h*(.31+((i*23)%54)/100))
   love.graphics.setColor(1,.75,.24,.18+.18*math.abs(math.sin(self.time*1.4+i)));love.graphics.rectangle("fill",x,y,unit,unit)
