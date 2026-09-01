@@ -19,12 +19,20 @@ local Maps=require("src.clearcut_maps")
 local body,slice,bodyQuads,sliceQuads
 
 -- 기본 수치. 연구 노드가 전부 이 위에 더해진다.
+--
+-- 조각당 화력과 버프 지속은 함께 읽어야 한다. 동료 N명을 계속 먹이는 데 필요한
+-- 공급은 초당 N/지속 조각이고, 공급은 (타는 나무 x 그루당 화력)/조각당 화력이다.
+-- 즉 전원 상시 버프가 되는 지점은 `타는 나무 = N x 조각당화력 / (지속 x 그루당화력)`.
+-- 기본값(45, 18초, 그루당 1)에서 동료 3명이면 7.5그루가 필요하다. 반경 260은 맵의
+-- 3% 남짓이라 그만큼 동시에 타는 일은 드물고, 그래서 조각이 실제로 모자란다.
+-- 이 값을 낮추면 "누구를 먹일까"와 왕복 손해가 통째로 사라지고 화덕은 그냥 켜두는
+-- 영구 스탯이 된다.
 Oven.BASE_RADIUS=260        -- 열을 걷어오는 반경
 Oven.BASE_HEAT_PER_TREE=1.0 -- 타는 나무 한 그루가 초당 올리는 화력
-Oven.BASE_SLICE_COST=10     -- 조각 하나에 필요한 화력
+Oven.BASE_SLICE_COST=45     -- 조각 하나에 필요한 화력
 Oven.BASE_SLICES=6          -- 한 판
 Oven.BASE_CALL=520          -- 이 거리 안의 동료만 먹으러 온다
-Oven.BASE_DURATION=30       -- 버프 지속
+Oven.BASE_DURATION=18       -- 버프 지속
 Oven.EAT_TIME=.8            -- 앉아서 먹는 시간
 Oven.ARRIVE=64              -- 화덕 앞으로 인정하는 거리
 
