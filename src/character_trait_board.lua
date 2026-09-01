@@ -75,6 +75,7 @@ end
 
 local function drawGlyph(icon, cx, cy, size)
     local s = size
+    local corner=math.min(2,s*.16)
     love.graphics.setLineWidth(math.max(1.4,s*.12))
     if icon=="axe" or icon=="sharpen" or icon=="split" or icon=="stump" or icon=="fist" then
         love.graphics.line(cx-s*.46,cy+s*.42,cx+s*.32,cy-s*.38)
@@ -83,7 +84,7 @@ local function drawGlyph(icon, cx, cy, size)
         love.graphics.circle("line",cx,cy,s*.48)
         love.graphics.line(cx,cy,cx,cy-s*.28,cx+s*.24,cy+s*.10)
     elseif icon=="document" or icon=="report" or icon=="policy" or icon=="certificate" or icon=="coupon" then
-        love.graphics.rectangle("line",cx-s*.36,cy-s*.46,s*.72,s*.92,2,2)
+        love.graphics.rectangle("line",cx-s*.36,cy-s*.46,s*.72,s*.92,corner,corner)
         love.graphics.line(cx-s*.22,cy-s*.16,cx+s*.20,cy-s*.16,cx-s*.22,cy+s*.04,cx+s*.12,cy+s*.04,cx-s*.22,cy+s*.24,cx+s*.22,cy+s*.24)
     elseif icon=="cigarette" or icon=="filter" or icon=="pack" then
         love.graphics.push(); love.graphics.translate(cx,cy); love.graphics.rotate(-.42)
@@ -103,7 +104,7 @@ local function drawGlyph(icon, cx, cy, size)
     elseif icon=="tooth" or icon=="tongs" or icon=="fork" then
         love.graphics.line(cx-s*.34,cy-s*.42,cx-s*.14,cy+s*.38,cx,cy+s*.02,cx+s*.14,cy+s*.38,cx+s*.34,cy-s*.42)
     elseif icon=="stamp" or icon=="ruler" or icon=="machine" or icon=="map" or icon=="helmet" or icon=="tower" or icon=="road" then
-        love.graphics.rectangle("line",cx-s*.40,cy-s*.28,s*.80,s*.60,2,2)
+        love.graphics.rectangle("line",cx-s*.40,cy-s*.28,s*.80,s*.60,corner,corner)
         love.graphics.line(cx-s*.40,cy-s*.28,cx,cy-s*.48,cx+s*.40,cy-s*.28)
         love.graphics.line(cx-s*.18,cy+s*.30,cx-s*.18,cy,cx+s*.18,cy,cx+s*.18,cy+s*.30)
     elseif icon=="coins" or icon=="donation" or icon=="lunch" then
@@ -396,23 +397,24 @@ function CharacterTraitBoard:drawConnection(bounds, from, to, active, available,
     local rr,gg,bb=.28,.57,.36
     local locked=not active and not available
     local z=self.zoom or .8
-    love.graphics.setLineWidth(math.max(4,(active and 13 or 10)*z))
+    love.graphics.setLineWidth(math.max(1,(active and 13 or 10)*z))
     if locked then love.graphics.setColor(.34,.35,.34,.30) else love.graphics.setColor(rr,gg,bb,active and .18 or .10) end
     love.graphics.line(x1,y1,x2,y2)
-    love.graphics.setLineWidth(math.max(2,(active and 7 or 5)*z))
+    love.graphics.setLineWidth(math.max(1,(active and 7 or 5)*z))
     if locked then love.graphics.setColor(.31,.32,.31,.72) else love.graphics.setColor(rr,gg,bb,active and 1 or .72) end
     love.graphics.line(x1,y1,x2,y2)
     love.graphics.setLineWidth(1); love.graphics.setColor(.92,.96,.89,active and .42 or .08);love.graphics.line(x1,y1-1,x2,y2-1)
     if active then
         local travel=(self.time*.72 + (to.x or 0)*.7 + (to.y or 0)*.3)%1
         love.graphics.setColor(.78,1,1,.96)
-        love.graphics.circle("fill",x1+(x2-x1)*travel,y1+(y2-y1)*travel,math.max(3,5*z))
+        love.graphics.circle("fill",x1+(x2-x1)*travel,y1+(y2-y1)*travel,math.max(1,5*z))
     end
     love.graphics.setLineWidth(1)
 end
 
 function CharacterTraitBoard:drawNode(box, node, level, statusOk, requirementReady, hovered)
-    local cx,cy,r=box.cx,box.cy,(node.capstone and 38 or 32)*(box.scale or 1)
+    local s,d=box.scale or 1,box.detailScale or 1
+    local cx,cy,r=box.cx,box.cy,(node.capstone and 38 or 32)*s
     local unlocked=level>0
     local pulse=.5+math.sin(self.time*3+cx*.01)*.5
     local selected=node.id==self.selectedNodeId
@@ -421,51 +423,51 @@ function CharacterTraitBoard:drawNode(box, node, level, statusOk, requirementRea
         if root then drawHex(cx+(ox or 0),cy+(oy or 0),r+(extra or 0),mode)
         else love.graphics.rectangle(mode,cx-r-(extra or 0)+(ox or 0),cy-r-(extra or 0)+(oy or 0),(r+(extra or 0))*2,(r+(extra or 0))*2,2,2)end
     end
-    if requirementReady and level<node.max then love.graphics.setColor(.30,.62,.38,.12+pulse*.08);shape("fill",0,0,12+(hovered and 3 or 0))end
-    love.graphics.setColor(0,0,0,.18);shape("fill",3,5,6)
+    if requirementReady and level<node.max then love.graphics.setColor(.30,.62,.38,.12+pulse*.08);shape("fill",0,0,(12+(hovered and 3 or 0))*d)end
+    love.graphics.setColor(0,0,0,.18);shape("fill",3*d,5*d,6*d)
     if unlocked then love.graphics.setColor(.32,.61,.39,1)
     elseif requirementReady then love.graphics.setColor(.92,.93,.89,1)
     else love.graphics.setColor(.38,.39,.38,.96)end
-    shape("fill",0,0,4)
-    love.graphics.setLineWidth(selected and 5 or (hovered and 4 or 2))
-    love.graphics.setColor(selected and {.23,.58,.34,1} or (unlocked and {.20,.48,.29,1} or {.27,.28,.27,1}));shape("line",0,0,5)
+    shape("fill",0,0,4*d)
+    love.graphics.setLineWidth(math.max(1,(selected and 5 or (hovered and 4 or 2))*d))
+    love.graphics.setColor(selected and {.23,.58,.34,1} or (unlocked and {.20,.48,.29,1} or {.27,.28,.27,1}));shape("line",0,0,5*d)
     if selected then
-        love.graphics.setLineWidth(2);love.graphics.setColor(.22,.62,.34,.62+pulse*.28)
-        local q=r+14
-        love.graphics.line(cx-q,cy-8,cx-q,cy-q,cx-8,cy-q)
-        love.graphics.line(cx+q,cy-8,cx+q,cy-q,cx+8,cy-q)
-        love.graphics.line(cx-q,cy+8,cx-q,cy+q,cx-8,cy+q)
-        love.graphics.line(cx+q,cy+8,cx+q,cy+q,cx+8,cy+q)
+        love.graphics.setLineWidth(math.max(1,2*d));love.graphics.setColor(.22,.62,.34,.62+pulse*.28)
+        local q=r+14*d;local corner=8*d
+        love.graphics.line(cx-q,cy-corner,cx-q,cy-q,cx-corner,cy-q)
+        love.graphics.line(cx+q,cy-corner,cx+q,cy-q,cx+corner,cy-q)
+        love.graphics.line(cx-q,cy+corner,cx-q,cy+q,cx-corner,cy+q)
+        love.graphics.line(cx+q,cy+corner,cx+q,cy+q,cx+corner,cy+q)
     end
     -- 선행 조건을 충족했고 현재 연구 코인으로 다음 단계를 살 수 있는 노드만 표시한다.
     -- 선택 표시(녹색 모서리)와 완료 링에서 떨어진 금색 외곽선·코인 마름모를 함께 써서
     -- 현재 선택 여부나 단순 해금 상태로 오인되지 않게 한다.
     if statusOk then
         local affordPulse=1+math.floor(pulse*2)
-        love.graphics.setLineWidth(math.max(2,affordPulse))
+        love.graphics.setLineWidth(math.max(1,affordPulse*d))
         love.graphics.setColor(1,.72,.18,.72+pulse*.24)
-        shape("line",0,0,18+pulse*2)
-        local coinX,coinY=cx+r+17,cy-r-17
+        shape("line",0,0,(18+pulse*2)*d)
+        local coinX,coinY=cx+r+17*d,cy-r-17*d
         love.graphics.setColor(.42,.30,.08,.92)
-        love.graphics.polygon("fill",coinX,coinY-8,coinX+8,coinY,coinX,coinY+8,coinX-8,coinY)
+        love.graphics.polygon("fill",coinX,coinY-8*d,coinX+8*d,coinY,coinX,coinY+8*d,coinX-8*d,coinY)
         love.graphics.setColor(1,.78,.20,1)
-        love.graphics.polygon("fill",coinX,coinY-6,coinX+6,coinY,coinX,coinY+6,coinX-6,coinY)
+        love.graphics.polygon("fill",coinX,coinY-6*d,coinX+6*d,coinY,coinX,coinY+6*d,coinX-6*d,coinY)
         love.graphics.setColor(1,.94,.56,1)
-        love.graphics.rectangle("fill",coinX-1,coinY-3,2,6)
+        love.graphics.rectangle("fill",coinX-d,coinY-3*d,math.max(1,2*d),math.max(1,6*d))
     end
     if level>0 then
-        love.graphics.setLineWidth(3); love.graphics.setColor(.18,.45,.27,1)
-        drawRing(cx,cy,r+12,-math.pi/2,-math.pi/2+math.pi*2*(level/node.max),math.max(8,node.max*8))
+        love.graphics.setLineWidth(math.max(1,3*d)); love.graphics.setColor(.18,.45,.27,1)
+        drawRing(cx,cy,r+12*d,-math.pi/2,-math.pi/2+math.pi*2*(level/node.max),math.max(8,node.max*8))
     end
     local iconAlpha=unlocked and 1 or (requirementReady and .92 or .38)
     if not TraitNodeArt.draw(node.icon,cx,cy,r*1.28,iconAlpha)then
         love.graphics.setColor(unlocked and {1,1,.94,1} or {.12,.13,.12,iconAlpha});drawGlyph(node.icon,cx,cy,r*.82)
     end
-    local pipW=math.max(3,math.floor(r*.14));local gap=2
+    local pipW=math.max(1,math.floor(r*.14));local gap=math.max(1,2*d)
     local totalW=node.max*pipW+(node.max-1)*gap
     for i=1,node.max do
         love.graphics.setColor(i<=level and {.20,.52,.30,1} or {.43,.44,.42,.72})
-        love.graphics.rectangle("fill",cx-totalW/2+(i-1)*(pipW+gap),cy+r*.72,pipW,3)
+        love.graphics.rectangle("fill",cx-totalW/2+(i-1)*(pipW+gap),cy+r*.72,pipW,math.max(1,3*d))
     end
     love.graphics.setLineWidth(1)
 end
@@ -658,7 +660,8 @@ function CharacterTraitBoard:draw()
     -- 간격(nodeWorld x zoom)은 건드리지 않고 노드 크기만 줄인다.
     -- 하한 .55에서 멈추면 축소할수록 노드가 상대적으로 커져 간격을 잡아먹는다.
     -- 전체 조망 배율까지 비율을 유지하도록 하한을 낮춘다.
-    local nodeScale=clamp((self.zoom or .8)*1.5,.32,1.60)
+    local nodeScale=clamp((self.zoom or .8)*1.5,.06,1.60)
+    local detailScale=clamp((self.zoom or .8)/(self.referenceZoom or .8),.08,1.15)
     local labelFont=self:crispFont(clamp(24*(self.zoom or .8),11,26),true)
     -- 라벨 폭은 96px 아래로 줄지 않는다. 전체 조망까지 축소하면 노드 간격이 그보다
     -- 좁아져 라벨이 서로 겹쳐 글자 죽이 된다. 조망 구간에서는 라벨을 빼고 아이콘과
@@ -668,7 +671,7 @@ function CharacterTraitBoard:draw()
         local cx,cy=self:nodePosition(graph,node)
         if cx>=graph.x-80 and cx<=graph.x+graph.w+80 and cy>=graph.y-80 and cy<=graph.y+graph.h+80 then
             local radius=(node.capstone and 48 or 42)*nodeScale
-            local box={id=node.id,node=node,cx=cx,cy=cy,x=cx-radius,y=cy-radius,w=radius*2,h=radius*2,scale=nodeScale}
+            local box={id=node.id,node=node,cx=cx,cy=cy,x=cx-radius,y=cy-radius,w=radius*2,h=radius*2,scale=nodeScale,detailScale=detailScale}
             self.nodeBoxes[#self.nodeBoxes+1]=box
             local hovered=inside(box,mx,my) and not self.drag
             local target=hovered and 1 or 0
