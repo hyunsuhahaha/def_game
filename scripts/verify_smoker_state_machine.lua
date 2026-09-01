@@ -42,6 +42,19 @@ gatedReload:updateHeldAxe(4.5,game,true)
 assert(gatedReload.smoking.phase=="reload" and gatedReload.smoking.t==0 and gatedReload.cartonAmmo==0,
     "axe-held reload advanced without the always-smoking node")
 
+-- 꽁초가 손을 떠난 직후 도끼 사거리로 들어가도 후딜의 flick 상태에 갇히지 않고
+-- 다음 담배 재장전을 즉시 시작한다. 사용자가 보고한 실제 전환 순서를 그대로 고정한다.
+local postThrowReload=ClearcutMode.new();postThrowReload.job="fire";postThrowReload.scoreAttack=true
+postThrowReload.permanentTraits.scoreAlwaysSmoking=1
+postThrowReload.cartonSize=20;postThrowReload.cartonAmmo=19
+postThrowReload.smoking={phase="flick",t=.7,dur=1,loaded=false,fired=true}
+postThrowReload.scoreMeleeTargetAtAim=function()return true end
+postThrowReload.updateScoreAxeAttack=function()return false end
+postThrowReload:updateHeldAxe(.25,game,true)
+assert(postThrowReload.scoreActiveWeapon=="axe" and postThrowReload.smoking.phase=="reload"
+    and postThrowReload.smoking.t>.24,
+    "always-smoking did not start the next reload when an axe swing interrupted post-throw recovery")
+
 -- 재장전은 입력 없이 진행되고, 버튼을 놓은 동안 완료된 담배는 준비 상태를 유지해야 한다.
 mode:updateFireAttack(mode.smoking.dur+1,game,false)
 assert(mode.smoking and mode.smoking.phase=="loaded" and mode.smoking.loaded,"idle smoking did not stay loaded")

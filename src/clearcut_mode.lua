@@ -3838,7 +3838,18 @@ function ClearcutMode:tickSmokerReload(dt, game)
     -- 계속 재장전된다.
     if (self.permanentTraits.scoreAlwaysSmoking or 0)<=0 then return end
     local smoking=self.smoking
-    if not smoking or smoking.phase~="reload" then return end
+    if not smoking then
+        self:startSmoking(game)
+        smoking=self.smoking
+    elseif smoking.phase=="flick"and smoking.fired then
+        -- The cigarette has already left the hand.  An axe swing may take over
+        -- the remaining follow-through, but always-smoking must still begin the
+        -- next cigarette immediately instead of leaving the old flick state
+        -- stranded until the player moves out of melee range.
+        self:startSmoking(game)
+        smoking=self.smoking
+    end
+    if smoking.phase~="reload" then return end
     smoking.t=math.min(smoking.dur,smoking.t+dt)
     if smoking.t>=smoking.dur then
         smoking.phase,smoking.loaded="loaded",true
@@ -3853,7 +3864,7 @@ function ClearcutMode:updateHeldAxe(dt, game, heldOverride)
         -- Once the cigarette flick has begun it owns the hand until the motion
         -- finishes. Entering axe range mid-flick must not cancel the throw.
         local rangedWeapon=self:scoreRangedWeaponId()
-        local cigaretteThrowActive=rangedWeapon=="cigarette"and self.smoking and self.smoking.phase=="flick"
+        local cigaretteThrowActive=rangedWeapon=="cigarette"and self.smoking and self.smoking.phase=="flick"and not self.smoking.fired
         local weapon=cigaretteThrowActive and"cigarette"or((self.scoreAxeAction or(held and self:scoreMeleeTargetAtAim(game)))and"axe"or rangedWeapon)
         self.scoreActiveWeapon=weapon
         game.player.scoreAxeEquipped=weapon=="axe"
