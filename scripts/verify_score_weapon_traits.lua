@@ -212,7 +212,7 @@ local function axeCooldownWith(cardLevel)
     local m = ClearcutMode.new()
     m.scoreAttack, m.sandbox, m.job, m.mapId = true, true, "fire", "forest"
     m.levels.score_attack_speed = cardLevel
-    m:updateHeldAxe(1, axeGame({tree(0)}), true)
+    m:updateHeldAxe(1, axeGame({tree(42)}), true)
     return m.axeCooldown
 end
 assert(axeCooldownWith(3) < axeCooldownWith(0),
@@ -227,9 +227,9 @@ local farAxeGame = axeGame({tree(250)})
 farAxeGame.camera.screenToWorld = function() return 250, 0 end
 assert(not fixedRangeAxe:scoreMeleeTargetAtAim(farAxeGame),
     "도끼가 영구/런 사거리 증가를 받아 고정 문맥 거리 120 밖의 나무를 근접 대상으로 잡는다")
-local nearAxeGame = axeGame({tree(110)})
-nearAxeGame.camera.screenToWorld = function() return 110, 0 end
-assert(fixedRangeAxe:scoreMeleeTargetAtAim(nearAxeGame), "고정 도끼 사거리 안의 나무를 잡지 못한다")
+local nearAxeGame = axeGame({tree(42)})
+nearAxeGame.camera.screenToWorld = function() return 42, 0 end
+assert(fixedRangeAxe:scoreMeleeTargetAtAim(nearAxeGame), "고정된 도끼날 접촉점의 나무를 잡지 못한다")
 
 local contactTree=tree(0)
 local contactGame=axeGame({contactTree})

@@ -8,8 +8,8 @@ from PIL import Image
 
 ROOT = Path(__file__).resolve().parents[1]
 SOURCE = ROOT / "assets/source/characters/smoker-score-axe-keyposes-imagegen-v3.png"
-OUTPUT = ROOT / "assets/characters/ingame/smoker-score-axe-atlas-pixel-v3.png"
-FRAME_W, FRAME_H = 192, 192
+OUTPUT = ROOT / "assets/characters/ingame/smoker-score-axe-atlas-pixel-v4.png"
+FRAME_W, FRAME_H = 224, 224
 # The generated sixth recovery pose touches the source edge. Reuse the complete
 # first guard pose to close the swing loop without shipping a cropped blade.
 X_RANGES = ((0, 390), (390, 725), (700, 1160), (1030, 1500), (1430, 1800), (0, 390))
@@ -99,15 +99,15 @@ def extract(frame: Image.Image) -> Image.Image:
 
 def main() -> None:
     source = Image.open(SOURCE)
+    poses = [extract(source.crop((left, 0, right, source.height))) for left, right in X_RANGES]
+    scale = min(188 / poses[0].width, 188 / poses[0].height)
     atlas = Image.new("RGBA", (FRAME_W * len(X_RANGES), FRAME_H))
-    for index, (left, right) in enumerate(X_RANGES):
-        pose = extract(source.crop((left, 0, right, source.height)))
-        scale = min(188 / pose.width, 188 / pose.height)
+    for index, pose in enumerate(poses):
         size = (max(1, round(pose.width * scale)), max(1, round(pose.height * scale)))
         pose = pose.resize(size, Image.Resampling.LANCZOS)
         pose.putalpha(pose.getchannel("A").point(lambda alpha: 255 if alpha >= 128 else 0))
         x = index * FRAME_W + (FRAME_W - pose.width) // 2
-        y = 190 - pose.height
+        y = 222 - pose.height
         atlas.alpha_composite(pose, (x, y))
     OUTPUT.parent.mkdir(parents=True, exist_ok=True)
     atlas.save(OUTPUT, optimize=True)

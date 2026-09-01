@@ -62,11 +62,11 @@ local function loadClearcutSprites()
         spec.image = love.graphics.newImage("assets/characters/ingame/" .. spec.file)
         spec.image:setFilter("nearest", "nearest")
     end
-    specs.fire.scoreAxeImage=love.graphics.newImage("assets/characters/ingame/smoker-score-axe-atlas-pixel-v3.png")
+    specs.fire.scoreAxeImage=love.graphics.newImage("assets/characters/ingame/smoker-score-axe-atlas-pixel-v4.png")
     specs.fire.scoreAxeImage:setFilter("nearest","nearest")
-    specs.fire.scoreAxeFeet={190,190,190,190,190,190}
+    specs.fire.scoreAxeFeet={222,222,222,222,222,222}
     specs.fire.scoreAxeBladeX,specs.fire.scoreAxeBladeY=42,-65
-    specs.fire.scoreAxeMouth={{107,48},{123,47},{111,48},{109,49},{110,49},{111,48}}
+    specs.fire.scoreAxeMouth={{123,80},{142,61},{127,82},{124,83},{126,81},{127,80}}
     specs.fire.cigarette = Cigarette.load()
     local function smokerAvatar(id,name,file,axeFile,walkMouth,actionMouth)
         local avatar={id=id,name=name,file=file,scale=.61,nativeFacing=1,

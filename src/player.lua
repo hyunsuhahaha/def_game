@@ -58,21 +58,7 @@ function Player:playAutoAxeSwing(targetX,targetY,duration)
 end
 
 function Player:autoAxeRenderPosition()
-    if self.autoAxeClock==nil or not self.autoAxeTargetX then return self.x,self.y end
-    local progress=math.max(0,math.min(1,self.autoAxeClock/self.autoAxeDuration))
-    local step
-    if progress<=.18 then step=0
-    elseif progress<.52 then
-        local p=(progress-.18)/.34;step=p*p*(3-2*p)
-    elseif progress<=.64 then step=1
-    else
-        local p=(progress-.64)/.36;step=1-p*p*(3-2*p)
-    end
-    local sprite=self.clearcutSprite or{}
-    local bladeX,bladeY=sprite.scoreAxeBladeX or 42,sprite.scoreAxeBladeY or-65
-    local stanceX=self.autoAxeTargetX-(self.facing or 1)*bladeX
-    local stanceY=self.autoAxeTargetY-65-bladeY
-    return self.x+(stanceX-self.x)*step,self.y+(stanceY-self.y)*step
+    return self.x,self.y
 end
 
 function Player:scoreAxeBladePosition()
@@ -137,6 +123,7 @@ function Player:update(dt, world, game)
     if love.keyboard.isDown("d", "right") then dx = dx + 1 end
     if love.keyboard.isDown("w", "up") then dy = dy - 1 end
     if love.keyboard.isDown("s", "down") then dy = dy + 1 end
+    if self.scoreAxeEquipped and self.autoAxeClock~=nil then dx,dy=0,0 end
     local len = math.sqrt(dx * dx + dy * dy)
     self.isMoving = len > 0
     if self.isMoving then

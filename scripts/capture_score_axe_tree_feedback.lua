@@ -12,14 +12,14 @@ local Player=require("src.player")
 local ClearcutMode=require("src.clearcut_mode")
 local walk=love.graphics.newImage("assets/characters/ingame/smoker-atlas-pixel-v2.png")
 local dummy=love.graphics.newImage("assets/characters/ingame/smoker-atlas-pixel-v2.png")
-local axe=love.graphics.newImage("assets/characters/ingame/smoker-score-axe-atlas-pixel-v3.png")
+local axe=love.graphics.newImage("assets/characters/ingame/smoker-score-axe-atlas-pixel-v4.png")
 local cigarette=require("src.cigarette_sprite").load()
 local sprite={image=walk,scoreAxeImage=axe,cigarette=cigarette,scale=.61,nativeFacing=1,
     walkFeet={190,190,190,190,190,190},actionFeet={190,190,190,190,190,190},
     walkMouth={{68,29},{73,29},{68,42},{74,29},{75,36},{73,29}},
     actionMouth={{34,30},{34,30},{31,29},{35,32},{65,32},{66,31}},
-    scoreAxeFeet={190,190,190,190,190,190},scoreAxeBladeX=42,scoreAxeBladeY=-65,
-    scoreAxeMouth={{107,48},{123,47},{111,48},{109,49},{110,49},{111,48}}}
+    scoreAxeFeet={222,222,222,222,222,222},scoreAxeBladeX=42,scoreAxeBladeY=-65,
+    scoreAxeMouth={{123,80},{142,61},{127,82},{124,83},{126,81},{127,80}}}
 
 local labels={"일반 접촉","벌목 성공","상시 흡연"}
 for index=1,3 do
@@ -30,11 +30,11 @@ for index=1,3 do
     world.nodes={};world.buildings={};world.helpers={};world.drops={};world.enemies={}
     local player=Player.new(85,285,dummy,dummy,dummy);player:setClearcutSprite(sprite,"fire")
     player.facing=1;player.axeHolding=true;player.scoreAxeEquipped=true;player.hideAxeRange=true
-    player.autoAxeDuration=.45;player.autoAxeClock=.45*.53;player.autoAxeTargetX,player.autoAxeTargetY=185,285
-    local node={kind="tree",rushTree=true,active=true,x=185,y=285,rushHp=index==2 and 4 or 8,rushMaxHp=8,treeVariant=1}
+    player.autoAxeDuration=.45;player.autoAxeClock=.45*.53;player.autoAxeTargetX,player.autoAxeTargetY=127,285
+    local node={kind="tree",rushTree=true,active=true,x=127,y=285,rushHp=index==2 and 4 or 8,rushMaxHp=8,treeVariant=1}
     world.nodes={node}
     local game={player=player,camera={trauma=0},feedback={play=function()end}}
-    local impact={kind="axe",x=185,y=220,dir=1}
+    local impact={kind="axe",x=127,y=220,dir=1}
     world:impactNode(node,game,index==2,impact)
     if index==2 then node.active=false;world:harvestBurst(node,game,4,"목재",impact);node.fallT=node.fallDur*.34 end
     world:updateEffects(.045,game)

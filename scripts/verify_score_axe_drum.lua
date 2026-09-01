@@ -27,25 +27,32 @@ game.feedback={last=nil,play=function(self,kind,strong)self.last={kind=kind,stro
 game:startClearcutScoreAttack()
 local mode=game.clearcut
 game.world.nodes={}
-local drum={id=99,x=game.player.x+110,y=game.player.y,state="settled",hp=8,maxHp=8,angle=0,squash=1,hitFlash=0}
+local drum={id=99,x=game.player.x+42,y=game.player.y,state="settled",hp=8,maxHp=8,angle=0,squash=1,hitFlash=0}
 mode.oilDrums={drum}
 mode.aimPoint=function()return drum.x,drum.y end
 
 assert(not mode:updateScoreAxeAttack(0,game,true),"axe dealt damage on input instead of its contact frame")
 assert(mode.scoreAxeAction and drum.hp==8 and game.player.autoAxeClock~=nil,"axe wind-up/action was not started")
+local attackX,attackY=game.player.x,game.player.y
+love.keyboard.isDown=function(key)return key=="d"end
+game.player:update(.01,game.world,game)
+love.keyboard.isDown=function()return false end
+assert(game.player.x==attackX and game.player.y==attackY and not game.player.isMoving,
+    "movement input displaced the player during the axe attack")
+game.player.autoAxeClock=0
 local startDrawX=game.player:autoAxeRenderPosition()
 local contact=mode.scoreAxeAction.contactTime
 mode:updateScoreAxeAttack(contact-.001,game,true)
 assert(drum.hp==8 and #mode.scoreAxeImpacts==0,"drum was hit before the blade contact frame")
 local contactDrawX=game.player:autoAxeRenderPosition()
 local bladeX,bladeY=game.player:scoreAxeBladePosition()
-assert(contactDrawX>startDrawX and math.abs(drum.x-bladeX)<1 and math.abs(drum.y-65-bladeY)<1,
-    "axe body did not step into visible blade-contact distance")
+assert(contactDrawX==startDrawX and contactDrawX==game.player.x and math.abs(drum.x-bladeX)<1,
+    "axe attack moved the player instead of striking in place")
 assert(mode:updateScoreAxeAttack(.002,game,true),"contact frame did not report an impact")
 assert(drum.hp==4 and #mode.scoreAxeImpacts==1 and drum.hitKickTime>0,"first drum dent lacks damage/contact feedback")
 assert(mode.scoreAxeAction.hitStop>0 and game.feedback.last and game.feedback.last.kind=="metal","drum hit lacks contact hold or metal sound")
 local lockedFacing=game.player.facing
-mode.aimPoint=function()return game.player.x-110,game.player.y end
+mode.aimPoint=function()return game.player.x-42,game.player.y end
 mode:updateScoreAxeAttack(.01,game,true)
 assert(drum.hp==4 and #mode.scoreAxeImpacts==1 and game.player.facing==lockedFacing,
     "one swing applied damage twice or changed direction after locking its target")
@@ -55,11 +62,11 @@ mode.aimPoint=function()return drum.x,drum.y end
 for _=1,30 do mode:updateScoreAxeAttack(.03,game,false)end
 mode.axeCooldown=0;drum.hp,drum.state=8,"settled"
 mode:updateScoreAxeAttack(0,game,true)
-game.player.autoAxeTargetX=drum.x+90
+drum.x=drum.x+90
 mode:updateScoreAxeAttack(mode.scoreAxeAction.contactTime+.001,game,true)
 assert(drum.hp==8 and mode.scoreAxeAction.hitStop==0,
     "visible axe blade missed the drum but timer-only damage or hit-stop still landed")
-drum.hp=4
+drum.x,drum.hp=game.player.x+42,4
 
 -- Finish recovery, bypass only the cooldown wait, then verify the second
 -- authored contact tips the drum and starts its existing oil-spill system.
@@ -73,7 +80,7 @@ assert(game.feedback.last.strong==true,"breaking hit did not use the strong meta
 
 for _=1,30 do mode:updateScoreAxeAttack(.03,game,false)end
 mode.axeCooldown=0
-local leftDrum={id=100,x=game.player.x-110,y=game.player.y,state="settled",hp=8,maxHp=8,angle=0,squash=1,hitFlash=0}
+local leftDrum={id=100,x=game.player.x-42,y=game.player.y,state="settled",hp=8,maxHp=8,angle=0,squash=1,hitFlash=0}
 mode.oilDrums={leftDrum};mode.aimPoint=function()return leftDrum.x,leftDrum.y end
 mode:updateScoreAxeAttack(0,game,true)
 assert(game.player.facing==-1 and leftDrum.hp==8,"left-facing wind-up is reversed or damages immediately")
@@ -97,11 +104,11 @@ game.player.autoAxeTargetX,game.player.autoAxeTargetY=game.player.x+70,game.play
 local mouthStart=mode:smokerMouthPose(game)
 game.player.autoAxeClock=.45*.53
 local mouthContact=mode:smokerMouthPose(game)
-assert(mouthContact>mouthStart+15,"cigarette mouth anchor did not follow the axe step-in pose")
+assert(math.abs(mouthContact-mouthStart)<5,"axe mouth anchor moved with a removed body lunge")
 fixture.reset();mode:drawHeldSmoker(game,.5)
 local cigaretteDrawn=false
 for _,command in ipairs(fixture.commands)do
     if command.op=="draw"and command.file:find("smoker%-cigarette%-pixel%-v2%.png")then cigaretteDrawn=true end
 end
 assert(cigaretteDrawn,"always-smoking trait reloads during axe swings but draws no cigarette or smoke")
-print("SCORE_AXE_DRUM_OK full-body-swing step-in+target-lock contact-frame damage dent+kick+metal+hitstop second-hit=spill")
+print("SCORE_AXE_DRUM_OK stationary-full-body-swing target-lock contact-frame damage dent+kick+metal+hitstop second-hit=spill")
