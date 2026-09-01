@@ -12,6 +12,7 @@
 - 나무에서 얻은 목재는 벌목 점수와 수종별 연구 코인 정산에만 사용한다. 인게임 XP·레벨업·강화 3택은 없다.
 - 무기·동료·운영 성장은 로비 영구 연구에서만 구매한다. 일반 작전의 카드·융합 코드는 보존하지만 기록 모드 후보 풀에는 넣지 않는다.
 - 메타 진행은 `작업 → 정산 → 기록전 영구 연구 → 즉시 다음 작업`으로 연결한다. 상세 기준은 `docs/SCORE_ATTACK_META_LOOP.md`다.
+- 로비 `P` 연습장도 같은 `score_attack` 런타임을 쓴다. 단, 시간·과밀·개체 수 상한·0그루 승급·세계수를 끄고 나무를 계속 생성하는 무한 테스트장으로 변형한다. 보유 특성과 세이브를 건드리지 않는 임시 전체 만렙 사이를 선택할 수 있다.
 
 ## 의도적으로 비활성화한 범위
 
@@ -24,7 +25,7 @@
 - 러시, 방어, 기타 이전 모드
 - 다른 작업자의 영구 특성 데이터와 저장 기록
 
-관련 구현은 `src/game.lua`, `src/clearcut_mode.lua`, `src/clearcut_map_select.lua`, `src/rush_mode.lua`, `src/character_traits.lua`에 보존한다. 테스트나 연습장 내부 호출도 유지한다.
+관련 구현은 `src/game.lua`, `src/clearcut_mode.lua`, `src/clearcut_map_select.lua`, `src/rush_mode.lua`, `src/character_traits.lua`에 보존한다. 일반 작전의 예전 스킬 샌드박스 API도 회귀 검증을 위해 남겨 두지만, 로비 연습 진입은 현재 기록 모드만 사용한다.
 
 ## 다른 에이전트 작업 규칙
 

@@ -455,11 +455,12 @@ function ClearcutMode:scoreActiveTreeCount()
 end
 
 function ClearcutMode:scoreOccupancy()
+    if self.scorePractice then return 0 end
     return self:scoreActiveTreeCount()/math.max(1,self.scoreTreeAllowance or self.scoreBaseTreeAllowance or 12)
 end
 
 function ClearcutMode:checkScoreOvercrowding(game)
-    if not self.scoreAttack or game.result then return false end
+    if not self.scoreAttack or self.scorePractice or game.result then return false end
     if self:scoreActiveTreeCount()<(self.scoreTreeAllowance or 12)then self.scoreOvercrowdTimer=0;return false end
     local grace=ScoreOperations.overcrowdGrace(self)
     if grace>0 and(self.scoreOvercrowdTimer or 0)<grace then return false end
@@ -539,13 +540,16 @@ function ClearcutMode:setup(game)
         -- 기록 모드는 첫 수십 초 동안 직접 착화와 영구 연구 빌드로 버틴다.
         -- 일반 스테이지의 파괴율 웨이브와 별도로, 45초 뒤부터 소수만 투입한다.
         self.scoreEnemyTimer=45
-        self.scoreRegenTier=game.characterTraits and game.characterTraits.getRegenTier and game.characterTraits:getRegenTier()or 1
+        self.scoreRegenTier=self.scorePractice and 1
+            or(game.characterTraits and game.characterTraits.getRegenTier and game.characterTraits:getRegenTier()or 1)
         self.scoreStartingRegenTier=self.scoreRegenTier
         self.scoreHighestRegenTier=self.scoreRegenTier
         self.scoreTierClearTimer,self.scoreTierClearLatch,self.scoreTierSpawned,self.scoreTierFx=0,false,0,nil
         ClearcutMode.ScoreWorldTree.reset(self)
     end
-    if game.characterTraits then
+    if self.scorePractice and self.practicePermanentTraits then
+        self.permanentTraits=self.practicePermanentTraits
+    elseif game.characterTraits then
         self.permanentTraits=self.scoreAttack and game.characterTraits.scoreAttackEffects and game.characterTraits:scoreAttackEffects()or game.characterTraits:effects(self.job)
     end
     self.permanentTraits=self.permanentTraits or{}
@@ -637,7 +641,9 @@ function ClearcutMode:setup(game)
     end
     if self.scoreAttack and (self.permanentTraits.scorePopperUnlock or 0)>0 then ClearcutMode.PoppingMachine.load()end
     if self.scoreAttack and (self.permanentTraits.scoreOvenUnlock or 0)>0 then ClearcutMode.PizzaOven.load()end
-    local notice=self.scoreAttack and string.format("벌목 기록 — 활성 나무가 %d그루에 닿으면 종료",self.scoreTreeAllowance)or(Maps.get(self.mapId).name.." — 마우스를 누른 채 나무 근처로 이동하세요")
+    local notice=self.scorePractice and "현재 모드 연습 — 무제한 시간 · 과밀 종료 없음 · 나무 계속 생성"
+        or(self.scoreAttack and string.format("벌목 기록 — 활성 나무가 %d그루에 닿으면 종료",self.scoreTreeAllowance)
+        or(Maps.get(self.mapId).name.." — 마우스를 누른 채 나무 근처로 이동하세요"))
     if self.job=="miner" then notice=Maps.get(self.mapId).name.." — 좌클릭 할퀴기 · SPACE/우클릭 잠복" end
     game:setNotice(notice, "food")
     if self.job == "fire" then self:startSmoking(game) end
@@ -672,11 +678,12 @@ function ClearcutMode:scoreTimedTreeSpawnRate()return .14*1.75^math.max(0,(self.
 -- 계단처럼 튀지 않고 매 프레임 가까워진다. 카드 선택/단계 연출로 멈춘 시간은
 -- stageElapsed가 흐르지 않으므로 플레이어에게 불리하게 누적되지 않는다.
 function ClearcutMode:scoreTimePressureMultiplier()
-    if not self.scoreAttack then return 1 end
+    if not self.scoreAttack or self.scorePractice then return 1 end
     return 2^math.max(0,(self.stageElapsed or 0)/ClearcutMode.SCORE_TIME_DOUBLING_SECONDS)
 end
 
 function ClearcutMode:scoreTreeSpawnRate()
+    if self.scorePractice then return math.max(.25,self.scorePracticeSpawnRate or 3) end
     local density=self:scoreForestDensityMultiplier()
     local base=math.max(0,self.treeSpawnRate or .55)
     if self.scoreAttack then
@@ -706,7 +713,10 @@ function ClearcutMode:scoreRecentProductionRate(window)
 end
 
 function ClearcutMode:updateScoreCollapse(dt)
-    if not self.scoreAttack then return false end
+    if not self.scoreAttack or self.scorePractice then
+        self.scoreDeficitTimer,self.scoreCollapseActive=0,false
+        return false
+    end
     local occupancy=self:scoreActiveTreeCount()/math.max(1,self.scoreTreeAllowance or 12)
     local natural=self:scoreTimedTreeSpawnRate()*self:scoreTimePressureMultiplier()*self:scoreForestDensityMultiplier()
     local losing=occupancy>=.60 and self:scoreRecentProductionRate(5)+.001<natural
@@ -1401,12 +1411,13 @@ function ClearcutMode:updateOilDrums(dt,game)
 end
 
 function ClearcutMode:scoreDynamicTreeCap()
+    if self.scorePractice then return math.huge end
     if not self.scoreAttack then return self.scoreActiveTreeCap or 180 end
     return math.max((self.scoreTreeAllowance or 12)+32,self.scoreActiveTreeCap or 180,math.min(900,math.ceil(self:scoreTreeSpawnRate()*1.4)))
 end
 
 function ClearcutMode:spawnScoreTree(game)
-    if not self.scoreAttack or self.remainingTrees>=self:scoreDynamicTreeCap()then return false end
+    if not self.scoreAttack or(not self.scorePractice and self.remainingTrees>=self:scoreDynamicTreeCap())then return false end
     local Maps=require("src.clearcut_maps");local world=game.world;local w,h=world.width,world.height
     local variantCount=math.max(1,#(world.images.treeVariants or{}));local x,y,variant
     -- 세계수가 서 있는 동안에는 그 밑동 앞에 새 나무가 앉지 않는다. 정렬로 뒤로
@@ -1468,7 +1479,7 @@ function ClearcutMode:updateScoreTreeGrowth(dt,game)
 end
 
 function ClearcutMode:updateScoreTierClear(dt,game)
-    if not self.scoreAttack then return false end
+    if not self.scoreAttack or self.scorePractice then return false end
     local fx=self.scoreTierFx
     if fx then
         fx.t=math.min(fx.duration,fx.t+dt)
@@ -2500,7 +2511,7 @@ end
 -- 1분마다 세계수를 세운다. 목재가 아니라 시간이 트리거라, 후반에 수입이 폭증해도
 -- 선택 창 빈도는 변하지 않는다. 세계수가 서 있는 동안에는 타이머가 멈춘다.
 function ClearcutMode:updateScoreWorldTree(dt,game)
-    if not self.scoreAttack then return end
+    if not self.scoreAttack or self.scorePractice then return end
     if self.scoreWorldTree then
         local tree=self.scoreWorldTree
         if tree.hp and tree.hp>0 then
@@ -8532,17 +8543,17 @@ function ClearcutMode:drawHUD(game,fonts)
     local occupancy=overtime and self:scoreOccupancy()or 0
     drawBerserkOverlay(self.berserkState, w, h, t)
     drawDisasterOverlay(self, w, h, t)
-    if overtime then OvercrowdWarningArt.draw(occupancy,self.mapId,w,h,t)end
+    if overtime and not self.scorePractice then OvercrowdWarningArt.draw(occupancy,self.mapId,w,h,t)end
     drawOffscreenIndicators(self, game, fonts, w, h, t)
-    local urgent=overtime and occupancy>=.80 or remaining<=60
-    local timeText=overtime and formatTime(self.stageElapsed or 0)or formatTime(remaining)
+    local urgent=not self.scorePractice and(overtime and occupancy>=.80 or remaining<=60)
+    local timeText=self.scorePractice and"∞"or(overtime and formatTime(self.stageElapsed or 0)or formatTime(remaining))
     love.graphics.setFont(fonts.big);love.graphics.setColor(urgent and {1,.30,.18} or {1,.96,.82});love.graphics.print(timeText,18,16)
-    love.graphics.setFont(fonts.micro or fonts.small);love.graphics.setColor(urgent and {1,.55,.30} or {.82,.84,.76});love.graphics.print(self.scoreAttack and"벌목 기록"or("제한 시간 · "..Maps.stageCode(self.mapId,self.stage).." · "..(jobNames[self.job]or"벌목꾼")),20,51)
+    love.graphics.setFont(fonts.micro or fonts.small);love.graphics.setColor(urgent and {1,.55,.30} or {.82,.84,.76});love.graphics.print(self.scorePractice and"무한 스킬 연습"or(self.scoreAttack and"벌목 기록"or("제한 시간 · "..Maps.stageCode(self.mapId,self.stage).." · "..(jobNames[self.job]or"벌목꾼"))),20,51)
     love.graphics.setColor(.92,.90,.72);love.graphics.print(self.scoreAttack and string.format("목재 %d   벌목 %d   생성 %d",self.totalWood,self.treesFelled,self.totalTreesSpawned or 0)or string.format("목재 %d   벌목 %d/%d",self.totalWood,self.treesFelled,self.initialTrees),20,71)
     local statusColor = (self.rootedTimer > 0 or self.beeSlow) and {1,.6,.35} or {.6,.72,.66}
     love.graphics.setColor(statusColor)
     local secured,totalZones=ForestZones.status(self)
-    local status = self.rootedTimer > 0 and "발이 묶임!" or self.beeSlow and "벌떼에 쫓기는 중" or(self.scoreAttack and string.format("재생 %d단계 · 생성 %.2f그루/초",self.scoreRegenTier or 1,self:scoreTreeSpawnRate())or string.format("구역 %d/%d 확보 · 재생 %d회 · 숲 압력 x%.1f",secured,totalZones,self.regrowPulses,self:forestPressure()))
+    local status = self.rootedTimer > 0 and "발이 묶임!" or self.beeSlow and "벌떼에 쫓기는 중" or(self.scorePractice and string.format("생성 %.1f그루/초 · 종료 없음",self:scoreTreeSpawnRate())or(self.scoreAttack and string.format("재생 %d단계 · 생성 %.2f그루/초",self.scoreRegenTier or 1,self:scoreTreeSpawnRate())or string.format("구역 %d/%d 확보 · 재생 %d회 · 숲 압력 x%.1f",secured,totalZones,self.regrowPulses,self:forestPressure())))
     love.graphics.setFont(fonts.micro or fonts.small);love.graphics.setColor(statusColor);love.graphics.print(status,20,91)
     local evoNames=Fusions.activeNames(self)
     if #evoNames>0 then
@@ -8558,10 +8569,10 @@ function ClearcutMode:drawHUD(game,fonts)
     local pct = self:destructionPct()
     local barW = math.floor(330*uiScale)
     local flash = self.regrowFlash > 0
-    local forestX=math.floor(w/2-barW/2);love.graphics.setFont(fonts.micro or fonts.small);love.graphics.setColor(.90,.92,.78);love.graphics.print(self.scoreAttack and"숲 과밀도"or"남은 숲",forestX,17)
+    local forestX=math.floor(w/2-barW/2);love.graphics.setFont(fonts.micro or fonts.small);love.graphics.setColor(.90,.92,.78);love.graphics.print(self.scorePractice and"활성 나무"or(self.scoreAttack and"숲 과밀도"or"남은 숲"),forestX,17)
     local countColor=occupancy>=.90 and{1,.30,.16}or occupancy>=.80 and{1,.68,.20}or occupancy>=.70 and{1,.82,.28}or{.70,1,.55}
-    love.graphics.setColor(flash and {1,.47,.32}or countColor);love.graphics.printf(self.scoreAttack and string.format("%d / %d그루",self.remainingTrees,self.scoreTreeAllowance or 12)or string.format("%.0f%%",100-pct),forestX,17,barW,"right")
-    HUDArt.bar(forestX,38,barW,14,self.scoreAttack and occupancy or 1-pct/100,overtime and"health"or"forest",flash or(overtime and urgent))
+    love.graphics.setColor(flash and {1,.47,.32}or countColor);love.graphics.printf(self.scorePractice and string.format("%d그루",self.remainingTrees)or(self.scoreAttack and string.format("%d / %d그루",self.remainingTrees,self.scoreTreeAllowance or 12)or string.format("%.0f%%",100-pct)),forestX,17,barW,"right")
+    HUDArt.bar(forestX,38,barW,14,self.scorePractice and math.min(1,(self.remainingTrees or 0)/100)or(self.scoreAttack and occupancy or 1-pct/100),self.scorePractice and"forest"or(overtime and"health"or"forest"),flash or(overtime and urgent))
     if not self.scoreAttack then ForestZones.drawHUD(self,fonts,w,61)end
 
     if self.activeBoss then

@@ -1297,18 +1297,30 @@ function Game:chooseClearcutCharacter(index)
     end
 end
 
--- 스킬 연습장: 자동 위협/스폰이 전부 꺼진 채로(ClearcutMode.sandbox=true) 그냥 나무만
--- 있는 맵에 들어가서, 화면 우측 패널로 스킬 레벨을 직접 조절하고 "몹 소환" 버튼으로만
--- 적을 부를 수 있다. 스토리/맵 선택 같은 정상 진행 절차는 전부 건너뛴다.
+-- 현재 벌목 기록 모드와 같은 무기·영구 연구·동료를 쓰는 무한 연습장.
+-- sandbox는 시간/위협을 막고 scorePractice는 과밀 종료·0그루 승급·세계수·나무 상한을 막는다.
+-- '임시 전체 만렙'은 메모리 전용 특성 프로필이라 실제 세이브를 건드리지 않는다.
 function Game:startClearcutSandbox(characterId)
+    local spawnRate=self.scorePracticeSpawnRate or 3
+    local maxed=self.scorePracticeMaxed==true
     self:resetRun()
-    self.sandboxPanelScroll=0
     self.clearcut = ClearcutMode.new()
-    self.clearcut.job = characterId
+    self.clearcut.job = "fire"
     self.clearcut.sandbox = true
-    self.clearcut.mapId = require("src.clearcut_maps").get(self.selectedClearcutMap or "forest").id
-    self.selectedClearcutMap = self.clearcut.mapId
-    self.player:setClearcutSprite(self.clearcutSprites[characterId] or self.clearcutSprites.physical, characterId)
+    self.clearcut.scoreAttack = true
+    self.clearcut.scorePractice = true
+    self.clearcut.scorePracticeSpawnRate = spawnRate
+    self.clearcut.mapId = "forest"
+    self.clearcut.stage = 1
+    if maxed then
+        local practiceTraits=CharacterTraits.new(true)
+        practiceTraits:maxAll()
+        self.clearcut.practicePermanentTraits=practiceTraits:scoreAttackEffects()
+    end
+    self.selectedClearcutMap,self.selectedClearcutStage="forest",1
+    local fireSprite=self.clearcutSprites.fire or self.clearcutSprites.physical
+    local avatar=fireSprite.avatarVariants and fireSprite.avatarVariants[self.scoreAvatarId]
+    self.player:setClearcutSprite(avatar or fireSprite,"fire")
     self.clearcut:setup(self)
     self:enableClearcutPerspective()
     self.mode = "playing"
@@ -1321,111 +1333,45 @@ end
 
 function Game:drawSandboxPanel()
     local w, h, f = love.graphics.getWidth(), love.graphics.getHeight(), self.fonts
-    local skills = self.clearcut:sandboxSkillList()
-    local branches = self.clearcut:sandboxBranchList()
-    local fusions = self.clearcut:sandboxFusionList()
-    local jobSkills, sharedSkills = {}, {}
-    for _, def in ipairs(skills) do
-        if def.job then jobSkills[#jobSkills + 1] = def else sharedSkills[#sharedSkills + 1] = def end
-    end
-    local panelW, rowH, headerH = math.min(360,w-24), 26, 22
-    local panelH = h - 24
+    local panelW,panelH=math.min(360,w-24),math.min(454,h-24)
     local x, y = w - panelW - 12, 12
     self.sandboxPanelBox={x=x,y=y,w=panelW,h=panelH}
     UI.panel(x, y, panelW, panelH, {.3, .82, .5, 1}, .94)
-    love.graphics.setFont(f.small); love.graphics.setColor(1, .92, .55)
-    love.graphics.print("스킬 연습장", x + 14, y + 10)
-    love.graphics.setColor(.78, .87, .8)
-    love.graphics.print(self:sandboxCharacterName(self.clearcut.job), x + 14, y + 28)
+    love.graphics.setFont(f.heading);love.graphics.setColor(1,.92,.55)
+    love.graphics.print("현재 모드 연습",x+14,y+11)
+    love.graphics.setFont(f.micro or f.small);love.graphics.setColor(.70,.82,.74)
+    love.graphics.print("무제한 시간  ·  과밀 종료 없음",x+14,y+40)
     self.sandboxSkyviewBox={x=x+panelW-146,y=y+11,w=132,h=24}
     local skyOn=(self.camera.skyviewTarget or 0)>.5
     UI.button(self.sandboxSkyviewBox.x,self.sandboxSkyviewBox.y,self.sandboxSkyviewBox.w,self.sandboxSkyviewBox.h,
         skyOn and "SKYVIEW 끄기" or "SKYVIEW 보기",true,f.small)
 
-    self.sandboxMaxBox={x=x+14,y=y+49,w=(panelW-34)/2,h=25}
-    self.sandboxResetBox={x=self.sandboxMaxBox.x+self.sandboxMaxBox.w+6,y=y+49,w=(panelW-34)/2,h=25}
-    UI.button(self.sandboxMaxBox.x,self.sandboxMaxBox.y,self.sandboxMaxBox.w,self.sandboxMaxBox.h,"전부 만렙",true,f.small)
-    UI.button(self.sandboxResetBox.x,self.sandboxResetBox.y,self.sandboxResetBox.w,self.sandboxResetBox.h,"전체 초기화",true,f.small)
+    local sectionY=y+78
+    love.graphics.setFont(f.small);love.graphics.setColor(.54,.68,.59);love.graphics.print("영구 특성 프로필",x+14,sectionY)
+    self.sandboxTraitBox={x=x+14,y=sectionY+24,w=panelW-28,h=34}
+    local maxed=self.scorePracticeMaxed==true
+    UI.button(self.sandboxTraitBox.x,self.sandboxTraitBox.y,self.sandboxTraitBox.w,self.sandboxTraitBox.h,
+        maxed and "임시 전체 만렙  ·  보유 특성으로 복귀" or "보유 특성  ·  임시 전체 만렙",true,f.small)
+    love.graphics.setFont(f.micro or f.small);love.graphics.setColor(.55,.65,.58)
+    love.graphics.printf("전환 시 연습장만 재시작되며 세이브는 변경되지 않습니다.",x+14,sectionY+64,panelW-28,"left")
 
-    local contentTop,contentBottom=y+82,y+panelH-76
-    self.sandboxContentBox={x=x+6,y=contentTop,w=panelW-12,h=contentBottom-contentTop}
-    local contentHeight=(#jobSkills+#sharedSkills)*rowH+2*headerH
-    contentHeight=contentHeight+(#branches>0 and 24+#branches*48 or 0)
-    contentHeight=contentHeight+(#fusions>0 and 24+#fusions*rowH or 0)
-    self.sandboxScrollMax=math.max(0,contentHeight-self.sandboxContentBox.h)
-    self.sandboxPanelScroll=math.max(0,math.min(self.sandboxPanelScroll or 0,self.sandboxScrollMax))
-    love.graphics.setScissor(self.sandboxContentBox.x,self.sandboxContentBox.y,self.sandboxContentBox.w,self.sandboxContentBox.h)
-    self.sandboxSkillBoxes = {}
-    local rowY = contentTop-(self.sandboxPanelScroll or 0)
-    local function drawSkillGroup(label, list)
-        if #list == 0 then return end
-        love.graphics.setFont(f.small); love.graphics.setColor(1, .85, .5)
-        love.graphics.print(label, x + 14, rowY + 2)
-        rowY = rowY + headerH
-        for _, def in ipairs(list) do
-            local level = self.clearcut:levelOf(def.id)
-            local minusBox={x=x+14,y=rowY,w=24,h=22}
-            local plusBox={x=x+panelW-38,y=rowY,w=24,h=22}
-            local infoBox={x=minusBox.x+28,y=rowY,w=panelW-84,h=22}
-            UI.button(minusBox.x,minusBox.y,minusBox.w,minusBox.h,"−",level>0,f.small)
-            love.graphics.setColor(.025,.045,.038,.96);love.graphics.rectangle("fill",infoBox.x,infoBox.y,infoBox.w,infoBox.h,3,3)
-            love.graphics.setColor(def.color[1],def.color[2],def.color[3],.22);love.graphics.rectangle("fill",infoBox.x,infoBox.y,infoBox.w*(level/def.max),infoBox.h,3,3)
-            love.graphics.setColor(def.color[1],def.color[2],def.color[3],level>0 and .75 or .28);love.graphics.rectangle("line",infoBox.x+.5,infoBox.y+.5,infoBox.w-1,infoBox.h-1,3,3)
-            love.graphics.setFont(f.small);love.graphics.setColor(1,1,1,.92);love.graphics.print(def.name,infoBox.x+7,rowY+3)
-            love.graphics.setColor(level==def.max and {1,.88,.42} or {.72,.82,.76});love.graphics.printf("Lv."..level.." / "..def.max,infoBox.x,rowY+3,infoBox.w-7,"right")
-            UI.button(plusBox.x,plusBox.y,plusBox.w,plusBox.h,"+",level<def.max,f.small)
-            self.sandboxSkillBoxes[#self.sandboxSkillBoxes + 1] = {id = def.id, minus = minusBox, plus = plusBox}
-            rowY = rowY + rowH
-        end
+    sectionY=sectionY+102
+    love.graphics.setFont(f.small);love.graphics.setColor(.54,.68,.59);love.graphics.print("나무 자동 생성",x+14,sectionY)
+    local rates={{1,"느림  1/초"},{3,"보통  3/초"},{8,"빠름  8/초"}}
+    self.sandboxRateBoxes={}
+    local gap=6;local bw=(panelW-28-gap*2)/3
+    for index,spec in ipairs(rates)do
+        local box={x=x+14+(index-1)*(bw+gap),y=sectionY+24,w=bw,h=30,rate=spec[1]}
+        UI.button(box.x,box.y,box.w,box.h,spec[2],(self.clearcut.scorePracticeSpawnRate or 3)~=spec[1],f.micro or f.small)
+        self.sandboxRateBoxes[#self.sandboxRateBoxes+1]=box
     end
-    drawSkillGroup("직업 전용", jobSkills)
-    drawSkillGroup("공용", sharedSkills)
+    self.sandboxTreeBox={x=x+14,y=sectionY+62,w=panelW-28,h=31}
+    UI.button(self.sandboxTreeBox.x,self.sandboxTreeBox.y,self.sandboxTreeBox.w,self.sandboxTreeBox.h,"나무 25그루 즉시 생성",true,f.small)
+    love.graphics.setFont(f.micro or f.small);love.graphics.setColor(.62,.75,.65)
+    love.graphics.print(string.format("현재 %d그루  ·  누적 생성 %d그루",self.clearcut.remainingTrees or 0,self.clearcut.totalTreesSpawned or 0),x+14,sectionY+99)
 
-    self.sandboxBranchBoxes={}
-    if #branches>0 then
-        love.graphics.setFont(f.small);love.graphics.setColor(1,.85,.5);love.graphics.print("무기 진화 / 전문화 · 조건 달성 후 택1",x+14,rowY+2);rowY=rowY+24
-        for _,group in ipairs(branches)do
-            local unlocked=self.clearcut:levelOf(group.skill)>=group.trigger
-            love.graphics.setFont(f.micro or f.small);love.graphics.setColor(unlocked and {.88,.92,.82} or {.48,.54,.50})
-            love.graphics.print((group.definition and group.definition.name or group.skill).."  Lv."..group.trigger,x+14,rowY+1)
-            rowY=rowY+18
-            local gap=4;local bw=(panelW-28-gap*(#group.choices-1))/#group.choices
-            for i,branch in ipairs(group.choices)do
-                local box={x=x+14+(i-1)*(bw+gap),y=rowY,w=bw,h=25}
-                local selected=self.clearcut:skillBranch(group.skill)==branch.id
-                love.graphics.setColor(selected and branch.color or (unlocked and {.10,.15,.13,.98} or {.055,.07,.065,.94}));love.graphics.rectangle("fill",box.x,box.y,box.w,box.h,3,3)
-                love.graphics.setColor(branch.color[1],branch.color[2],branch.color[3],selected and 1 or (unlocked and .55 or .18));love.graphics.rectangle("line",box.x+.5,box.y+.5,box.w-1,box.h-1,3,3)
-                love.graphics.setFont(f.micro or f.small);love.graphics.setColor(1,1,1,unlocked and 1 or .34);love.graphics.printf(branch.name,box.x,box.y+5,box.w,"center")
-                self.sandboxBranchBoxes[#self.sandboxBranchBoxes+1]={skill=group.skill,id=branch.id,box=box,enabled=unlocked}
-            end
-            rowY=rowY+30
-        end
-    end
-
-    self.sandboxFusionBoxes = {}
-    if #fusions > 0 then
-        love.graphics.setFont(f.small); love.graphics.setColor(1, .85, .5)
-        love.graphics.print("융합 스킬 · 재료 무시하고 켜고 끄기", x + 14, rowY + 2)
-        rowY = rowY + 20
-        for _, def in ipairs(fusions) do
-            local learned = self.clearcut.evolutions[def.id] == true
-            local toggleBox = {x = x + 14, y = rowY, w = panelW - 28, h = 22}
-            UI.button(toggleBox.x, toggleBox.y, toggleBox.w, toggleBox.h, def.name .. "  ·  " .. (learned and "배움" or "미보유"), true, f.small)
-            self.sandboxFusionBoxes[#self.sandboxFusionBoxes + 1] = {id = def.id, box = toggleBox}
-            rowY = rowY + rowH
-        end
-    end
-    love.graphics.setScissor()
-
-    if self.sandboxScrollMax>0 then
-        local trackH=self.sandboxContentBox.h-8;local thumbH=math.max(28,trackH*self.sandboxContentBox.h/contentHeight)
-        local thumbY=contentTop+4+(trackH-thumbH)*(self.sandboxPanelScroll/self.sandboxScrollMax)
-        love.graphics.setColor(.24,.34,.29,.8);love.graphics.rectangle("fill",x+panelW-6,contentTop+4,2,trackH)
-        love.graphics.setColor(.72,.84,.66,.9);love.graphics.rectangle("fill",x+panelW-7,thumbY,4,thumbH)
-    end
-
-    self.sandboxMobBox = {x = x + 14, y = y + panelH - 68, w = panelW - 28, h = 30}
-    UI.button(self.sandboxMobBox.x, self.sandboxMobBox.y, self.sandboxMobBox.w, self.sandboxMobBox.h, "몹 소환", true, f.body)
+    self.sandboxMobBox = {x = x + 14, y = y + panelH - 76, w = panelW - 28, h = 32}
+    UI.button(self.sandboxMobBox.x, self.sandboxMobBox.y, self.sandboxMobBox.w, self.sandboxMobBox.h, "타격 테스트 몹 소환", true, f.small)
     self.sandboxExitBox = {x = x + 14, y = y + panelH - 32, w = panelW - 28, h = 24}
     UI.button(self.sandboxExitBox.x, self.sandboxExitBox.y, self.sandboxExitBox.w, self.sandboxExitBox.h, "← 로비로 나가기", true, f.small)
 end
@@ -1442,22 +1388,21 @@ function Game:sandboxPanelClick(x, y)
     if self.sandboxExitBox and x>=self.sandboxExitBox.x and x<=self.sandboxExitBox.x+self.sandboxExitBox.w and y>=self.sandboxExitBox.y and y<=self.sandboxExitBox.y+self.sandboxExitBox.h then
         self:resetRun(); self.mode = "lobby"; return true
     end
-    if inside(self.sandboxMaxBox)then self.clearcut:sandboxSetAllSkills(true);return true end
-    if inside(self.sandboxResetBox)then self.clearcut:sandboxSetAllSkills(false);return true end
-    if not inside(self.sandboxContentBox)then return inside(self.sandboxPanelBox) end
-    for _, box in ipairs(self.sandboxSkillBoxes or {}) do
-        local mb, pb = box.minus, box.plus
-        if x>=mb.x and x<=mb.x+mb.w and y>=mb.y and y<=mb.y+mb.h then self.clearcut:sandboxSetLevel(box.id,-1,self);return true end
-        if x>=pb.x and x<=pb.x+pb.w and y>=pb.y and y<=pb.y+pb.h then self.clearcut:sandboxSetLevel(box.id,1,self);return true end
+    if inside(self.sandboxTraitBox)then
+        self.scorePracticeMaxed=not self.scorePracticeMaxed
+        self:startClearcutSandbox("fire")
+        return true
     end
-    for _,entry in ipairs(self.sandboxBranchBoxes or {})do if entry.enabled and inside(entry.box)then
-        self.clearcut:sandboxSetBranch(entry.skill,entry.id,self);return true
+    for _,box in ipairs(self.sandboxRateBoxes or{})do if inside(box)then
+        self.scorePracticeSpawnRate=box.rate
+        self.clearcut.scorePracticeSpawnRate=box.rate
+        return true
     end end
-    for _, box in ipairs(self.sandboxFusionBoxes or {}) do
-        local b = box.box
-        if x>=b.x and x<=b.x+b.w and y>=b.y and y<=b.y+b.h then self.clearcut:sandboxToggleFusion(box.id); return true end
+    if inside(self.sandboxTreeBox)then
+        for _=1,25 do if not self.clearcut:spawnScoreTree(self)then break end end
+        return true
     end
-    return false
+    return inside(self.sandboxPanelBox)
 end
 
 -- forced=true: 캐릭터를 처음 고른 직후 강제로 띄우는 도입부(끝까지 봐야 진행되고, 이때만

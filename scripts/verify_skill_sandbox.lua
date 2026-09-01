@@ -1,47 +1,89 @@
 package.path="./?.lua;./?/init.lua;"..package.path
-local Mode=require("src.clearcut_mode")
+local fixture=require("scripts.forest_render_fixture")
+love.graphics.rotate=love.graphics.rotate or function()end
+love.graphics.getDimensions=function()return 1280,720 end
+love.graphics.getWidth=function()return 1280 end
+love.graphics.getHeight=function()return 720 end
+love.mouse={getPosition=function()return -100,-100 end,isDown=function()return false end}
+love.keyboard={isDown=function()return false end}
 
-local mode=Mode.new();mode.job="fire";mode.sandbox=true
-local seen={}
-for _,def in ipairs(mode:sandboxSkillList())do seen[def.id]=true end
-assert(seen.molotov and seen.seed_mine and not seen.berserker,"practice skill catalog is not job + shared")
+local Game=require("src.game")
+local World=require("src.world")
+local Player=require("src.player")
+local Camera=require("src.camera")
+local Traits=require("src.character_traits").new(true)
 
-local branches=mode:sandboxBranchList();local foundRoute=false
-for _,group in ipairs(branches)do if group.skill=="molotov"then
-    assert(group.trigger==3 and #group.choices==2,"smoker rank-three route choices are incomplete")
-    foundRoute=true
-end end
-assert(foundRoute,"locked smoker route is not discoverable in practice")
-assert(not mode:sandboxSetBranch("molotov","flame_route"),"smoker route was selectable below level three")
-mode:sandboxSetLevel("molotov",99)
-assert(mode:sandboxSetBranch("molotov","flame_route") and mode:skillBranch("molotov")=="flame_route","practice did not equip the flame route")
-assert(mode:smokerEvolutionId()=="vape","max-rank flame route did not auto-evolve into vape")
-mode:sandboxSetLevel("molotov",-1)
-assert(mode:skillBranch("molotov")=="flame_route"and not mode:smokerEvolutionId(),"vape remained active below level six or route was lost")
-mode:sandboxSetLevel("molotov",-99)
-assert(not mode:skillBranch("molotov"),"smoker route remained below its rank-three trigger")
+local loader
+for index=1,30 do
+    local name,value=debug.getupvalue(Game.new,index)
+    if name=="loadClearcutSprites"then loader=value;break end
+end
+local sprites=assert(loader)()
+local function font(path,size)return{path=path,size=size,getHeight=function()return size end,getWidth=function(_,text)return #tostring(text)*size*.52 end}end
+local regular,bold="assets/font-korean-regular.ttf","assets/font-korean-bold.ttf"
+local game=setmetatable({characterTraits=Traits,clearcutSprites=sprites,tools={axe={speed=.8}},wood=0,
+    fonts={micro=font(regular,12),small=font(regular,14),body=font(regular,17),heading=font(bold,21)}},Game)
+function game:resetRun()
+    self.clearcut=nil;self.result=nil;self.world=World.new()
+    self.player=Player.new(1600,1000,self.world.images.workerWalk,self.world.images.workerActions,self.world.images.workerRepair)
+    self.camera=Camera.new(1600,1000)
+end
+function game:setNotice(message)self.notice=message end
 
-mode:sandboxSetAllSkills(true)
-assert(mode:levelOf("molotov")==6 and mode:levelOf("chain_lightning")==6,"max-all did not fill practice skills")
-mode:sandboxSetAllSkills(false)
-assert(mode:levelOf("molotov")==0 and mode:levelOf("chain_lightning")==0,"practice reset did not clear skills")
+game:startClearcutSandbox("fire")
+local mode=assert(game.clearcut)
+assert(game.mode=="playing"and mode.scoreAttack and mode.scorePractice and mode.sandbox,
+    "practice does not run on the current score-mode ruleset")
+assert(mode.job=="fire"and mode.mapId=="forest"and mode.stage==1,
+    "practice did not use the active smoker forest loadout")
+assert(mode.stageTimeLimit==math.huge and mode:stageTimeRemaining()==math.huge,
+    "practice retained a time limit")
+assert(mode.scoreRegenTier==1 and mode:scoreTreeSpawnRate()==3,
+    "practice spawn rate still depends on the saved regeneration tier")
+assert(mode:scoreDynamicTreeCap()==math.huge,"practice retained the active-tree hard cap")
+assert(mode.xp==0 and mode.xpNext==0 and mode.pending==0 and #mode:upgradePool()==0,
+    "practice reopened the removed in-run level-up system")
+assert(mode.scoreActiveWeapon==mode:scoreRangedWeaponId(),"practice did not initialize the current weapon progression")
 
-local gameSource=assert(io.open("src/game.lua","rb")):read("*a")
-local _,directSandboxEntries=gameSource:gsub('self:startClearcutSandbox%("fire"%)','')
-local multilineDirect=gameSource:find('elseif action=="skill_sandbox" then',1,true)
-    and gameSource:find('self:startClearcutSandbox("fire")',gameSource:find('elseif action=="skill_sandbox" then',1,true),true)
-assert(directSandboxEntries==2 and multilineDirect,"practice still routes through character selection")
-assert(gameSource:find("function Game:startClearcut(characterId, mapId, stage)",1,true)
-    and gameSource:find("function Game:drawClearcutSelect()",1,true),
-    "archived character/campaign code was deleted instead of merely bypassed")
-assert(gameSource:find("sandboxBranchBoxes",1,true) and gameSource:find("sandboxMaxBox",1,true) and gameSource:find("sandboxPanelScroll",1,true),"practice controls are not wired to the panel")
-assert(gameSource:find('UI.button(plusBox.x,plusBox.y,plusBox.w,plusBox.h,"+",level<def.max',1,true),"practice skill plus control is not explicit/enabled")
-assert(gameSource:find("sandboxSetLevel(box.id,1,self)",1,true),"practice plus button does not open the real rank-three branch flow")
-local sandboxGuard=assert(gameSource:find("if self.clearcut and self.clearcut.sandbox and button==1 and self:sandboxPanelClick(x, y) then return end",1,true))
-local endedGuard=assert(gameSource:find("if self.ended then return end",sandboxGuard,true))
-assert(sandboxGuard<endedGuard,"practice panel input is blocked by gameplay end/emergence guards")
-local dossier=assert(io.open("docs/character_dossier.html","rb")):read("*a")
-assert(not dossier:find("시스템 연동",1,true) and not dossier:find("system%-note"),"internal system note is still visible in the dossier")
-assert(not dossier:find("화염 농축 %[인게임 구현%]")and not dossier:find("연습장에서 꽁초 투척",1,true),
-    "removed legacy skill/practice catalog remains in the dossier")
-print("SKILL_SANDBOX_OK rows=click-to-level smoker=rank3-route+rank6-auto-evolution shared=rank3 scroll=wheel dossier=traits-only")
+local opening=mode:scoreActiveTreeCount()
+mode:updateScoreTreeGrowth(2,game)
+assert(mode:scoreActiveTreeCount()>opening and mode.totalTreesSpawned>opening,
+    "practice did not continuously generate trees")
+mode.scoreTreeAllowance=1
+assert(not mode:checkScoreOvercrowding(game)and not game.result,
+    "practice still ended from tree overcrowding")
+local tier=mode.scoreRegenTier
+for _,node in ipairs(game.world.nodes)do if node.rushTree then node.active=false end end
+mode.remainingTrees=0
+assert(not mode:updateScoreTierClear(10,game)and mode.scoreRegenTier==tier,
+    "empty practice field still advanced the regeneration tier")
+mode.scoreWorldTreeTimer=0
+mode:updateScoreWorldTree(100,game)
+assert(not mode.scoreWorldTree,"practice still spawned the timed world tree")
+mode.elapsed,mode.stageElapsed=9999,9999
+assert(not mode:updateStageClock(10,game)and not game.result,
+    "practice still ended from elapsed time or the score hard cap")
+
+game:drawSandboxPanel()
+assert(game.sandboxTraitBox and #game.sandboxRateBoxes==3 and game.sandboxTreeBox and game.sandboxMobBox,
+    "current practice controls were not drawn")
+local fast=game.sandboxRateBoxes[3]
+assert(game:sandboxPanelClick(fast.x+2,fast.y+2)and mode:scoreTreeSpawnRate()==8,
+    "practice tree-rate control did not update the live generator")
+
+local savedMole=Traits:getLevel("universal_mole_companion")
+game.scorePracticeMaxed=true
+game:startClearcutSandbox("fire")
+mode=game.clearcut
+assert((mode.permanentTraits.scoreMoleCompanion or 0)>0 and(mode.permanentTraits.scoreFlameUnlock or 0)>0,
+    "temporary max profile did not activate current permanent traits")
+assert(Traits:getLevel("universal_mole_companion")==savedMole,
+    "temporary max profile modified the real saved traits")
+assert(mode:scoreTreeSpawnRate()==8,"practice restart lost the selected tree generation rate")
+
+local source=assert(io.open("src/game.lua","rb")):read("*a")
+assert(source:find("scorePractice = true",1,true)and source:find("practicePermanentTraits",1,true),
+    "lobby practice entry is not wired to the current score practice mode")
+assert(source:find("임시 전체 만렙",1,true)and source:find("나무 25그루 즉시 생성",1,true),
+    "practice panel is missing current-mode test controls")
+print("SKILL_SANDBOX_OK mode=current-score trees=infinite timer=none overcrowding=none worldtree=none traits=owned-or-temp-max")
