@@ -8501,13 +8501,12 @@ function ClearcutMode:drawScoreRewards(game,fonts)
         love.graphics.setFont(fonts.small or fonts.body)
         love.graphics.setColor(.78,.80,.74,1)
         love.graphics.printf(def.desc,x+14,y+84,cw-28,"left")
-        -- 배타 축은 카드에 적어 준다. 고르면 그 판에서 나머지가 잠기는 것을 모르면
-        -- 선택의 무게가 전달되지 않는다.
+        -- 축 이름만 적는다. 설명을 붙이지 않는다.
         local groupName=ClearcutMode.ScoreWorldTree.groupName(def)
         if groupName then
             love.graphics.setFont(fonts.micro or fonts.small)
             love.graphics.setColor(c[1],c[2],c[3],.62)
-            love.graphics.printf(groupName.." · 하나만 고를 수 있습니다",x+14,y+ch-30,cw-28,"left")
+            love.graphics.printf(groupName,x+14,y+ch-30,cw-28,"left")
         end
     end
 end
