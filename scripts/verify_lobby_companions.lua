@@ -18,6 +18,7 @@ local sizes={
     ["assets/characters/companions/lobby-monkey-sleep-atlas-pixel-v1.png"]={768,128},
     ["assets/characters/companions/lobby-mole-sleep-atlas-pixel-v1.png"]={1152,384},
     ["assets/characters/companions/lobby-cat-sleep-atlas-pixel-v1.png"]={768,128},
+    ["assets/characters/companions/lobby-interaction-props-atlas-pixel-v1.png"]={384,320},
 }
 read("assets/characters/companions/concepts/lobby-companion-sleep-concept-v1.png")
 for path,size in pairs(sizes)do
@@ -81,6 +82,34 @@ local front=Companions.draw(state,.35,"front",state.bounds.y1+(state.bounds.y2-s
 assert(behind>0 and front>0 and behind+front==#state.animals,
     "동료가 나무 앞뒤 두 깊이로 나뉘지 않는다")
 
+for _,kind in ipairs(Companions.INTERACTION_KINDS)do
+    local scene=Companions.new();Companions.sync(scene,fakeTraits(levels),1280,720)
+    assert(Companions.prepareInteractionPreview(scene,kind),kind.." 상호작용을 구성하지 못했다")
+    assert(scene.interaction and scene.interaction.kind==kind and scene.interaction.phase=="play",
+        kind.." 상호작용 참여자가 함께 예약되지 않았다")
+    fixture.reset();Companions.draw(scene,.7)
+    local propDraws,lines=0,0
+    for _,op in ipairs(fixture.commands)do
+        if op.op=="draw"and op.file:find("lobby%-interaction%-props")then propDraws=propDraws+1 end
+        if op.op=="line"then lines=lines+1 end
+    end
+    assert(propDraws>0,kind.." 전용 장난감/반응 픽셀이 그려지지 않았다")
+    if kind=="cat_wand"then assert(lines>=2,"낚싯대와 줄이 고양이 장난감에 연결되지 않았다")end
+    Companions.update(scene,9)
+    assert(not scene.interaction,"끝난 상호작용이 참여자를 계속 붙잡는다: "..kind)
+end
+
+local scheduled=Companions.new();Companions.sync(scheduled,fakeTraits(levels),1280,720)
+scheduled.nextInteraction=.01;Companions.update(scheduled,.02)
+assert(scheduled.interaction and scheduled.interaction.kind=="cat_wand",
+    "일상 상태에서 첫 상호작용이 자동 예약되지 않았다")
+local chase=Companions.new();Companions.sync(chase,fakeTraits(levels),1280,720)
+Companions.prepareInteractionPreview(chase,"chase_train")
+local chaseKinds={}
+for _,actor in ipairs(chase.interaction.actors)do chaseKinds[actor.kind]=true end
+assert(chaseKinds.monkey and chaseKinds.mole and chaseKinds.cat,
+    "최대 해금 술래잡기가 세 동물 종을 섞지 않는다")
+
 local lobby=read("src/lobby.lua")
 local game=read("src/game.lua")
 assert(lobby:find('require("src.lobby_companions")',1,true)and
@@ -94,4 +123,4 @@ assert(baker:find("lobby%-companion%-sleep%-concept%-v1%.png")and
     not baker:find("rotate(",1,true),
     "수면 자산이 실제 이불 원화 대신 회전 몸체를 사용한다")
 
-print("LOBBY_COMPANIONS_OK unlocked_only=true monkey=6 mole=3 cat=1 states=walk+idle+blanket_sleep zzz=3 cap=monkey depth=behind_foreground")
+print("LOBBY_COMPANIONS_OK unlocked_only=true monkey=6 mole=3 cat=1 states=walk+idle+blanket_sleep interactions=cat_wand+banana_toss+mole_peek+chase_train zzz=3 cap=monkey depth=behind_foreground")

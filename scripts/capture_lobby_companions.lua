@@ -25,7 +25,10 @@ local game={characterTraits=traits}
 local lobby=Lobby.new({},fonts)
 lobby.time=2.2;lobby.timeOfDayOverride=LOBBY_HOUR or 12
 lobby:update(.01,game)
-Companions.preparePreview(lobby.lobbyCompanions)
+if LOBBY_INTERACTION_KIND then
+    assert(Companions.prepareInteractionPreview(lobby.lobbyCompanions,LOBBY_INTERACTION_KIND),
+        "interaction preview unavailable: "..tostring(LOBBY_INTERACTION_KIND))
+else Companions.preparePreview(lobby.lobbyCompanions)end
 local previewTime=math.max(0,LOBBY_PREVIEW_TIME or 0)
 local elapsed=0
 while elapsed<previewTime do
@@ -35,6 +38,7 @@ end
 fixture.reset();lobby:draw(game)
 local hour=math.floor(LOBBY_HOUR or 12)
 local frameSuffix=LOBBY_PREVIEW_FRAME~=nil and string.format("-f%02d",LOBBY_PREVIEW_FRAME)or""
-fixture.save(string.format("docs/previews/lobby-companions-draws-%d-h%02d%s.json",width,hour,frameSuffix))
+local interactionSuffix=LOBBY_INTERACTION_KIND and("-"..LOBBY_INTERACTION_KIND)or""
+fixture.save(string.format("docs/previews/lobby-companions-draws-%d-h%02d%s%s.json",width,hour,interactionSuffix,frameSuffix))
 print(string.format("LOBBY_COMPANIONS_CAPTURE_OK %dx%d hour=%02d animals=%d window=none",
     width,height,hour,#lobby.lobbyCompanions.animals))

@@ -1,4 +1,4 @@
-"""Render unlocked lobby animal life at production scale and 3x sleep detail."""
+"""Render unlocked lobby animal life, interaction stories, and sleep detail."""
 from pathlib import Path
 
 from PIL import Image, ImageDraw
@@ -64,13 +64,58 @@ def life_gif():
     return target
 
 
+def interaction_frame(kind, preview_time, frame_index=None):
+    suffix = f";LOBBY_PREVIEW_FRAME={frame_index}" if frame_index is not None else ""
+    run(ROOT / "scripts/capture_lobby_companions.lua",
+        f'CAPTURE_W=1280;CAPTURE_H=720;LOBBY_HOUR=17;LOBBY_INTERACTION_KIND="{kind}";'
+        f"LOBBY_PREVIEW_TIME={preview_time}{suffix}")
+    frame_suffix = f"-f{frame_index:02d}" if frame_index is not None else ""
+    source = OUT / f"lobby-companions-draws-1280-h17-{kind}{frame_suffix}.json"
+    return render_ui(source, (1280, 720))
+
+
+def interaction_board():
+    scenes = (
+        ("CAT WAND CHASE", "cat_wand", .65),
+        ("BANANA TOSS", "banana_toss", .55),
+        ("MOLE PEEKABOO", "mole_peek", 0),
+        ("CHASE TRAIN", "chase_train", .85),
+    )
+    board = Image.new("RGB", (1560, 570), (6, 18, 13))
+    draw = ImageDraw.Draw(board)
+    for index, (label, kind, moment) in enumerate(scenes):
+        full = interaction_frame(kind, moment)
+        crop = full.crop((420, 410, 1200, 665))
+        x = (index % 2) * 780
+        y = (index // 2) * 285
+        board.paste(crop, (x, y + 24))
+        draw.text((x + 14, y + 6), label, fill=(190, 218, 170))
+    target = OUT / "lobby-companions-v2-interactions.png"
+    board.save(target)
+    return target
+
+
+def cat_wand_gif():
+    frames = []
+    for index in range(32):
+        full = interaction_frame("cat_wand", index / 8, index)
+        frames.append(full.crop((420, 405, 1200, 670)))
+    target = OUT / "lobby-companions-v2-cat-wand.gif"
+    frames[0].save(target, save_all=True, append_images=frames[1:], duration=125,
+                   loop=0, disposal=2, optimize=False)
+    return target
+
+
 def main():
     day = render_lobby(1280, 720, 12, "lobby-companions-v1-production-day.png")
     night = render_lobby(960, 540, 23, "lobby-companions-v1-production-night-compact.png")
     zoom = sleep_board()
     motion = life_gif()
+    interactions = interaction_board()
+    wand = cat_wand_gif()
     print(f"LOBBY_COMPANIONS_PREVIEW_OK {day.relative_to(ROOT)} {night.relative_to(ROOT)} "
-          f"{zoom.relative_to(ROOT)} {motion.relative_to(ROOT)} window=none")
+          f"{zoom.relative_to(ROOT)} {motion.relative_to(ROOT)} "
+          f"{interactions.relative_to(ROOT)} {wand.relative_to(ROOT)} window=none")
 
 
 if __name__ == "__main__":

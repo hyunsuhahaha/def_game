@@ -3,6 +3,8 @@
 local Companions={}
 
 local FRAMES=6
+local INTERACTION_KINDS={"cat_wand","banana_toss","mole_peek","chase_train"}
+local PROP_ROWS={feather=0,banana=1,sparkle=2,dirt=3,puff=4}
 local ART={
     monkey={
         walk="assets/characters/companions/graduate-monkey-atlas-pixel-v3.png",
@@ -23,6 +25,7 @@ local ART={
 Companions.ART=ART
 
 local loaded={}
+local loadedProps
 local function load(kind)
     if loaded[kind]~=nil then return loaded[kind]or nil end
     local spec=ART[kind]
@@ -42,6 +45,25 @@ local function load(kind)
     end)
     loaded[kind]=(ok and result)or false
     return loaded[kind]or nil
+end
+
+local function loadProps()
+    if loadedProps~=nil then return loadedProps or nil end
+    local result
+    local ok=pcall(function()
+        local image=love.graphics.newImage("assets/characters/companions/lobby-interaction-props-atlas-pixel-v1.png")
+        image:setFilter("nearest","nearest")
+        local quads={}
+        for row=0,4 do
+            quads[row]={}
+            for frame=0,FRAMES-1 do
+                quads[row][frame+1]=love.graphics.newQuad(frame*64,row*64,64,64,image:getDimensions())
+            end
+        end
+        result={image=image,quads=quads}
+    end)
+    loadedProps=(ok and result)or false
+    return loadedProps or nil
 end
 
 local function level(traits,id)
@@ -78,6 +100,11 @@ local function random(actor)
     return actor.seed/2147483648
 end
 
+local function stateRandom(state)
+    state.seed=((state.seed or 9173)*1103515245+12345)%2147483648
+    return state.seed/2147483648
+end
+
 local function boundsFor(width,height)
     return{
         x1=math.floor(width*.39),x2=math.floor(width*.88),
@@ -95,6 +122,17 @@ local function beginWalk(actor,bounds)
     actor.state,actor.timer="walk",0
 end
 
+local function moveTo(actor,x,y,speed,dt)
+    local dx,dy=x-actor.x,y-actor.y
+    local distance=math.sqrt(dx*dx+dy*dy)
+    actor.interactionMoving=distance>1
+    if distance<=1 then actor.x,actor.y=x,y;return true end
+    if math.abs(dx)>1 then actor.facing=dx<0 and -1 or 1 end
+    local step=math.min(distance,(speed or ART[actor.kind].speed)*dt)
+    actor.x,actor.y=actor.x+dx/distance*step,actor.y+dy/distance*step
+    return distance-step<=1
+end
+
 local function makeActor(item,index,bounds)
     local actor={id=item.id,kind=item.kind,seed=hash(item.id),clock=index*.43,
         facing=index%2==0 and -1 or 1,stops=index}
@@ -107,9 +145,11 @@ local function makeActor(item,index,bounds)
 end
 
 function Companions.new()
-    return{animals={},byId={},bounds=boundsFor(1280,720),time=0}
+    return{animals={},byId={},bounds=boundsFor(1280,720),time=0,seed=73129,
+        nextInteraction=7,interactionCursor=0,interactionHistory={}}
 end
 
+local clearActorInteraction
 function Companions.sync(state,traits,width,height)
     if not state then return 0 end
     local bounds=boundsFor(width or 1280,height or 720)
@@ -130,16 +170,172 @@ function Companions.sync(state,traits,width,height)
     for id in pairs(state.byId)do if not keep[id]then state.byId[id]=nil end end
     state.animals={}
     for _,item in ipairs(wanted)do state.animals[#state.animals+1]=state.byId[item.id]end
+    if state.interaction then
+        for _,actor in ipairs(state.interaction.actors)do
+            if not keep[actor.id]then
+                for _,participant in ipairs(state.interaction.actors)do
+                    if keep[participant.id]then clearActorInteraction(participant,bounds)end
+                end
+                state.interaction=nil;state.nextInteraction=4;break
+            end
+        end
+    end
     return #state.animals
+end
+
+local function available(state,kind,count,excluded)
+    local found={};excluded=excluded or{}
+    for _,actor in ipairs(state.animals or{})do
+        if(not kind or actor.kind==kind)and not excluded[actor]then
+            found[#found+1]=actor
+            if #found==count then return found end
+        end
+    end
+end
+
+local function interactionActors(state,kind)
+    if kind=="cat_wand"then
+        local monkey=available(state,"monkey",1);local cat=available(state,"cat",1)
+        return monkey and cat and{monkey[1],cat[1]}or nil
+    elseif kind=="banana_toss"then return available(state,"monkey",2)
+    elseif kind=="mole_peek"then
+        local mole=available(state,"mole",1);if not mole then return nil end
+        local watcher
+        for _,actor in ipairs(state.animals)do if actor~=mole[1]and actor.kind~="mole"then watcher=actor;break end end
+        return watcher and{mole[1],watcher}or nil
+    elseif kind=="chase_train"then
+        local picked,used={},{}
+        for _,wantedKind in ipairs({"monkey","mole","cat"})do
+            local found=available(state,wantedKind,1,used)
+            if found then picked[#picked+1]=found[1];used[found[1]]=true end
+        end
+        if #picked<3 then
+            for _,actor in ipairs(state.animals)do if not used[actor]then
+                picked[#picked+1]=actor;used[actor]=true;if #picked==3 then break end
+            end end
+        end
+        return #picked==3 and picked or nil
+    end
+end
+
+clearActorInteraction=function(actor,bounds)
+    actor.interactionRole=nil;actor.interactionMoving=nil;actor.interactionLift=nil
+    actor.renderOffsetY=nil
+    beginWalk(actor,bounds)
+end
+
+local function finishInteraction(state)
+    local interaction=state.interaction;if not interaction then return end
+    for _,actor in ipairs(interaction.actors)do clearActorInteraction(actor,state.bounds)end
+    state.interactionHistory[#state.interactionHistory+1]=interaction.kind
+    if #state.interactionHistory>8 then table.remove(state.interactionHistory,1)end
+    state.interaction=nil
+    state.nextInteraction=9+stateRandom(state)*8
+end
+
+local function targetFormation(interaction,index)
+    local kind=interaction.kind
+    if kind=="cat_wand"then return interaction.x+(index==1 and -42 or 48),interaction.y
+    elseif kind=="banana_toss"then return interaction.x+(index==1 and -48 or 48),interaction.y
+    elseif kind=="mole_peek"then return interaction.x+(index==1 and 0 or 48),interaction.y
+    else return interaction.x-(index-1)*34,interaction.y+(index-1)*3 end
+end
+
+local function startInteraction(state,forcedKind,preview)
+    if state.interaction then finishInteraction(state)end
+    local chosen,actors
+    for offset=1,#INTERACTION_KINDS do
+        local index=forcedKind and offset or((state.interactionCursor+offset-1)%#INTERACTION_KINDS+1)
+        local kind=forcedKind or INTERACTION_KINDS[index]
+        actors=interactionActors(state,kind)
+        if actors then chosen=kind;state.interactionCursor=index;break end
+        if forcedKind then break end
+    end
+    if not chosen then state.nextInteraction=5;return false end
+    local bounds=state.bounds
+    local margin=chosen=="banana_toss"and 92 or 76
+    local width=math.max(1,bounds.x2-bounds.x1-margin*2)
+    local interaction={kind=chosen,actors=actors,phase=preview and"play"or"gather",clock=preview and 2.2 or 0,
+        duration=chosen=="chase_train"and 8 or 7,
+        x=bounds.x1+margin+width*stateRandom(state),
+        y=bounds.y1+(bounds.y2-bounds.y1)*(.30+.48*stateRandom(state))}
+    interaction.runX=interaction.x
+    for index,actor in ipairs(actors)do
+        actor.state="interaction";actor.timer=0;actor.interactionRole=index
+        if preview then actor.x,actor.y=targetFormation(interaction,index)end
+    end
+    state.interaction=interaction;state.nextInteraction=math.huge
+    return true
+end
+
+local function updateInteraction(state,dt)
+    local interaction=state.interaction;if not interaction then return end
+    if interaction.phase=="gather"then
+        local ready=true
+        for index,actor in ipairs(interaction.actors)do
+            local x,y=targetFormation(interaction,index)
+            ready=moveTo(actor,x,y,(ART[actor.kind].speed or 20)*1.35,dt)and ready
+        end
+        interaction.clock=interaction.clock+dt
+        if ready or interaction.clock>4 then interaction.phase="play";interaction.clock=0 end
+        return
+    end
+
+    interaction.clock=interaction.clock+dt
+    local t=interaction.clock
+    if interaction.kind=="cat_wand"then
+        local monkey,cat=interaction.actors[1],interaction.actors[2]
+        monkey.facing=1;monkey.interactionMoving=false
+        interaction.lureX=interaction.x+18+math.sin(t*2.05)*42
+        interaction.lureY=interaction.y-22-math.abs(math.sin(t*2.05))*18
+        moveTo(cat,interaction.lureX,interaction.y,58,dt)
+        cat.facing=interaction.lureX<cat.x and -1 or 1
+        local leap=math.max(0,math.sin(t*4.1))
+        cat.interactionLift=math.floor(leap*10)
+    elseif interaction.kind=="banana_toss"then
+        local left,right=interaction.actors[1],interaction.actors[2]
+        left.facing=1;right.facing=-1;left.interactionMoving=false;right.interactionMoving=false
+        local throw=(t%1.6)/1.6
+        local catcher=math.floor(t/1.6)%2==0 and right or left
+        catcher.interactionLift=throw>.72 and math.floor(math.sin((throw-.72)/.28*math.pi)*7)or 0
+    elseif interaction.kind=="mole_peek"then
+        local mole,watcher=interaction.actors[1],interaction.actors[2]
+        mole.facing=1;watcher.facing=-1;mole.interactionMoving=false;watcher.interactionMoving=false
+        local cycle=t%3.2
+        if cycle<1.05 then mole.renderOffsetY=math.floor(cycle/1.05*30)
+        elseif cycle<1.9 then mole.renderOffsetY=30
+        elseif cycle<2.25 then mole.renderOffsetY=math.floor((2.25-cycle)/.35*30)
+        else mole.renderOffsetY=0 end
+        watcher.interactionLift=cycle>1.82 and cycle<2.38 and math.floor(math.sin((cycle-1.82)/.56*math.pi)*9)or 0
+    elseif interaction.kind=="chase_train"then
+        local bounds=state.bounds
+        interaction.runDirection=interaction.runDirection or 1
+        interaction.runX=interaction.runX+interaction.runDirection*42*dt
+        if interaction.runX>bounds.x2-20 then interaction.runDirection=-1
+        elseif interaction.runX<bounds.x1+75 then interaction.runDirection=1 end
+        for index,actor in ipairs(interaction.actors)do
+            local x=interaction.runX-interaction.runDirection*(index-1)*34
+            moveTo(actor,x,interaction.y+(index-1)*3,55-index*4,dt)
+            actor.facing=interaction.runDirection
+        end
+    end
+    if interaction.clock>=interaction.duration then finishInteraction(state)end
 end
 
 function Companions.update(state,dt)
     if not state then return end
     state.time=(state.time or 0)+dt
     local bounds=state.bounds or boundsFor(1280,720)
+    if state.interaction then updateInteraction(state,dt)
+    else
+        state.nextInteraction=(state.nextInteraction or 7)-dt
+        if state.nextInteraction<=0 then startInteraction(state)end
+    end
     for _,actor in ipairs(state.animals or{})do
         actor.clock=(actor.clock or 0)+dt
-        if actor.state=="walk"then
+        if actor.state=="interaction"then
+            -- Pair/group movement is controlled by updateInteraction.
+        elseif actor.state=="walk"then
             local dx,dy=(actor.targetX or actor.x)-actor.x,(actor.targetY or actor.y)-actor.y
             local distance=math.sqrt(dx*dx+dy*dy)
             if distance<1 then
@@ -195,10 +391,12 @@ local function drawActor(actor,light,time)
     local row=asleep and"sleep"or"walk"
     local frame
     if asleep then frame=math.floor((actor.clock or 0)*2.2)%FRAMES+1
-    elseif actor.state=="walk"then frame=math.floor((actor.clock or 0)*7)%FRAMES+1
+    elseif actor.state=="walk"or(actor.state=="interaction"and actor.interactionMoving)then
+        frame=math.floor((actor.clock or 0)*7)%FRAMES+1
     else frame=1 end
     local spec=entry.spec
-    local bob=actor.state=="walk"and math.floor(math.abs(math.sin((actor.clock or 0)*math.pi*3))*2)or 0
+    local moving=actor.state=="walk"or(actor.state=="interaction"and actor.interactionMoving)
+    local bob=moving and math.floor(math.abs(math.sin((actor.clock or 0)*math.pi*3))*2)or 0
     local scale=spec.scale
     local flip=(actor.facing or 1)*spec.nativeFacing
     local brightness=.57+.43*(light or 1)
@@ -206,10 +404,70 @@ local function drawActor(actor,light,time)
     love.graphics.ellipse("fill",math.floor(actor.x),math.floor(actor.y+2),spec.shadowX,spec.shadowY)
     love.graphics.setColor(brightness,brightness,brightness,1)
     local image=asleep and entry.sleep or entry.walk
-    love.graphics.draw(image,entry.quads[row][frame],math.floor(actor.x),math.floor(actor.y-bob),0,
+    local drawY=actor.y-bob+(actor.renderOffsetY or 0)-(actor.interactionLift or 0)
+    love.graphics.draw(image,entry.quads[row][frame],math.floor(actor.x),math.floor(drawY),0,
         scale*flip,scale,spec.cellW/2,spec.foot)
     if asleep then drawSleepMark(actor,scale,light,time)end
     love.graphics.setColor(1,1,1,1)
+end
+
+local function drawProp(props,name,frame,x,y,scale,originY,flip)
+    local row=PROP_ROWS[name]
+    love.graphics.draw(props.image,props.quads[row][frame%FRAMES+1],math.floor(x),math.floor(y),0,
+        (flip or 1)*scale,scale,32,originY or 32)
+end
+
+local function drawInteraction(state,light,pass,splitY)
+    local interaction=state.interaction;if not interaction or interaction.phase~="play"then return end
+    local selected=not pass or(pass=="behind"and interaction.y<(splitY or math.huge))or
+        (pass=="front"and interaction.y>=(splitY or-math.huge))
+    if not selected then return end
+    local props=loadProps();if not props then return end
+    local frame=math.floor(interaction.clock*8)%FRAMES
+    local brightness=.62+.38*(light or 1)
+    love.graphics.setColor(brightness,brightness,brightness,1)
+    if interaction.kind=="cat_wand"then
+        local monkey,cat=interaction.actors[1],interaction.actors[2]
+        local handX,handY=monkey.x+9,monkey.y-25
+        local tipX,tipY=monkey.x+34,monkey.y-42
+        local lureX=interaction.lureX or interaction.x+24
+        local lureY=interaction.lureY or interaction.y-28
+        love.graphics.setLineWidth(4);love.graphics.setColor(.07*brightness,.11*brightness,.08*brightness,1)
+        love.graphics.line(math.floor(handX),math.floor(handY),math.floor(tipX),math.floor(tipY))
+        love.graphics.setLineWidth(2);love.graphics.setColor(.67*brightness,.48*brightness,.25*brightness,1)
+        love.graphics.line(math.floor(handX),math.floor(handY-1),math.floor(tipX),math.floor(tipY-1))
+        love.graphics.setLineWidth(1);love.graphics.setColor(.88*brightness,.77*brightness,.48*brightness,1)
+        love.graphics.line(math.floor(tipX),math.floor(tipY),math.floor(lureX),math.floor(lureY+7))
+        love.graphics.setColor(brightness,brightness,brightness,1)
+        drawProp(props,"feather",frame,lureX,lureY+8,.46,52,cat.facing)
+        if cat.interactionLift and cat.interactionLift>6 then
+            drawProp(props,"sparkle",frame,cat.x,cat.y-22,.23,32,1)
+        end
+    elseif interaction.kind=="banana_toss"then
+        local left,right=interaction.actors[1],interaction.actors[2]
+        local cycle=math.floor(interaction.clock/1.6)%2
+        local t=(interaction.clock%1.6)/1.6
+        local fromX,toX=left.x,right.x;if cycle==1 then fromX,toX=toX,fromX end
+        local x=fromX+(toX-fromX)*t
+        local y=interaction.y-28-math.sin(t*math.pi)*38
+        drawProp(props,"banana",frame,x,y,.45,32,cycle==0 and 1 or -1)
+        if t>.88 then drawProp(props,"sparkle",frame,toX,interaction.y-25,.28,32,1)end
+    elseif interaction.kind=="mole_peek"then
+        local mole=interaction.actors[1]
+        drawProp(props,"dirt",frame,mole.x,mole.y+5,.58,48,1)
+        local cycle=interaction.clock%3.2
+        if cycle>1.86 and cycle<2.38 then
+            drawProp(props,"puff",frame,mole.x,mole.y-18,.38,32,1)
+            drawProp(props,"sparkle",frame,interaction.actors[2].x,interaction.y-39,.22,32,1)
+        end
+    elseif interaction.kind=="chase_train"then
+        for index,actor in ipairs(interaction.actors)do
+            if(math.floor(interaction.clock*7)+index)%3==0 then
+                drawProp(props,"puff",frame,actor.x-actor.facing*15,actor.y+1,.28,32,1)
+            end
+        end
+    end
+    love.graphics.setLineWidth(1);love.graphics.setColor(1,1,1,1)
 end
 
 function Companions.draw(state,light,pass,splitY)
@@ -224,6 +482,7 @@ function Companions.draw(state,light,pass,splitY)
             (pass=="front"and actor.y>=(splitY or-math.huge))
         if selected then drawActor(actor,light,state.time);drawn=drawn+1 end
     end
+    drawInteraction(state,light,pass,splitY)
     return drawn
 end
 
@@ -249,5 +508,15 @@ function Companions.preparePreview(state)
         actor.targetX=actor.x+36;actor.targetY=actor.y
     end end
 end
+
+-- 네 상호작용을 같은 조건에서 오프스크린 캡처하기 위한 결정적 진입점.
+function Companions.prepareInteractionPreview(state,kind)
+    if not state or not interactionActors(state,kind)then return false end
+    if not startInteraction(state,kind,true)then return false end
+    updateInteraction(state,0)
+    return true
+end
+
+Companions.INTERACTION_KINDS=INTERACTION_KINDS
 
 return Companions
