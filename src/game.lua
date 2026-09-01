@@ -1497,7 +1497,7 @@ end
 
 function Game:draw()
     if self.mode=="test_options" then self:drawTestOptions(); return end
-    if self.mode == "lobby" then self.lobby:draw(); return end
+    if self.mode == "lobby" then self.lobby:draw(self); return end
     if self.mode == "achievements" then local w,h=love.graphics.getDimensions();self.lobby:drawBackground(w,h);self.achievementBoard:draw();return end
     if self.mode == "clearcut_select" then self:drawClearcutSelect(); return end
     if self.mode == "character_codex" then self:drawCharacterCodex(); return end

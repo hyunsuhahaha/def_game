@@ -99,7 +99,51 @@ function Lobby:drawScoreAttackButton(box,f)
  love.graphics.setColor(.05,.13,.10,.88);love.graphics.rectangle("fill",x+w-50,y+h/2-13,36,26,3,3)
  love.graphics.setColor(.72,.90,.73,1);love.graphics.printf("M",x+w-50,y+h/2-(self.microFont or f.small):getHeight()/2,36,"center")
 end
-function Lobby:draw()
+-- 로비는 저장 데이터를 하나도 보여주지 않고 버튼만 있었다. 인크리멘탈에서 홈 화면은
+-- 진행 상황판이고, 특히 "다음에 살 것"이 안 보이면 다시 켤 이유가 사라진다.
+function Lobby:drawProgress(game,w,h,left,micro,f)
+ local traits=game and game.characterTraits
+ local achievements=game and game.achievements
+ if not traits and not achievements then return end
+ local stats=achievements and achievements.data and achievements.data.stats or {}
+ local rows={}
+ if traits then
+  rows[#rows+1]={"최고 재생 단계",tostring(stats.best_regen_tier or traits:getRegenTier() or 1).."단계"}
+  rows[#rows+1]={"보유 연구 코인",string.format("%d P",traits.data.currency or 0)}
+ end
+ rows[#rows+1]={"누적 벌목",string.format("%d 그루",stats.total_trees or 0)}
+ rows[#rows+1]={"작업 횟수",string.format("%d 회",stats.runs or 0)}
+
+ -- 기존 ACTIVE BUILD 안내판(높이 132)과 같은 열이므로 그 아래에 붙인다.
+ local pw=350
+ local px=math.max(left+math.min(370,w*.34)+28,w-390)
+ local py=math.max(205,h*.39)+132+14
+ local lineH=22
+ local goal=traits and traits:nextGoal()
+ local ph=30+lineH*#rows+(goal and 46 or 8)
+ love.graphics.setColor(.96,.92,.70,.76);love.graphics.rectangle("fill",px,py,pw,ph,6,6)
+ love.graphics.setColor(.08,.27,.20,.58);love.graphics.rectangle("line",px+.5,py+.5,pw-1,ph-1,6,6)
+ love.graphics.setFont(micro);love.graphics.setColor(.08,.19,.12,.95)
+ love.graphics.print("작업 기록",px+14,py+10)
+ love.graphics.setFont(f.small or micro)
+ local y=py+30
+ for _,row in ipairs(rows)do
+  love.graphics.setColor(.16,.30,.20,.82);love.graphics.print(row[1],px+14,y)
+  love.graphics.setColor(.07,.20,.13,1);love.graphics.printf(row[2],px+14,y,pw-28,"right")
+  y=y+lineH
+ end
+ if goal then
+  love.graphics.setColor(.08,.36,.31,.55);love.graphics.rectangle("fill",px+14,y+4,pw-28,1)
+  love.graphics.setFont(micro);love.graphics.setColor(.08,.19,.12,.75)
+  love.graphics.print("다음 연구",px+14,y+12)
+  love.graphics.setFont(f.small or micro)
+  love.graphics.setColor(goal.affordable and {.14,.42,.22,1} or {.34,.28,.16,.92})
+  love.graphics.print(goal.name,px+14,y+26)
+  love.graphics.printf(string.format("%d P",goal.cost),px+14,y+26,pw-28,"right")
+ end
+end
+
+function Lobby:draw(game)
  local w,h=love.graphics.getDimensions(); local f=self.fonts; local micro=self.microFont or self.labelFont or f.small; self:drawBackground(w,h)
  local left=math.max(34,w*.045); local compact=w<1080
  love.graphics.setColor(.96,.92,.70,.76); love.graphics.rectangle("fill",left-14,18,math.min(410,w*.37),166,6,6)
@@ -118,6 +162,7 @@ function Lobby:draw()
  self.traitsBox={x=left,y=self.scoreAttackBox.y+bh+14,w=bw,h=62}
  self:drawResearchButton(self.traitsBox,f)
  self:drawActiveRules(math.max(left+bw+28,w-390),math.max(205,h*.39),350,f)
+ self:drawProgress(game,w,h,left,micro,f)
  local py=h-74; love.graphics.setColor(.008,.018,.025,.88); love.graphics.rectangle("fill",left,py,math.min(420,w*.40),48,5,5)
  love.graphics.setColor(.28,.70,.66,.7); love.graphics.rectangle("line",left+.5,py+.5,math.min(420,w*.40)-1,47,5,5)
  love.graphics.setFont(f.heading); love.graphics.setColor(.91,.91,.80); love.graphics.print("◀",left+18,py+10); love.graphics.print("Ⅱ",left+64,py+9); love.graphics.print("▶",left+108,py+10)

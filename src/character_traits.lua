@@ -668,6 +668,32 @@ function CharacterTraits:scoreAttackEffects()
     return effects
 end
 
+-- 로비에 띄울 "다음 목표". 요구 조건을 이미 만족했지만 아직 못 산 노드 중 가장 싼 것.
+-- 인크리멘탈에서 다음에 살 것이 안 보이면 다시 켤 이유가 사라진다.
+function CharacterTraits:nextGoal()
+    local best
+    for _,job in ipairs({"fire","universal"})do
+        for _,node in ipairs(self:getScoreAttackNodes(job))do
+            local level=self:getLevel(node.id)
+            if level<node.max then
+                local ready=true
+                if node.requiresTier and self:getRegenTier()<node.requiresTier then ready=false end
+                for _,requirement in ipairs(self:getRequirements(node))do
+                    if self:getLevel(requirement[1])<requirement[2] then ready=false end
+                end
+                if ready then
+                    local cost=node.costs[level+1] or 0
+                    if not best or cost<best.cost then
+                        best={id=node.id,name=node.name,cost=cost,level=level,max=node.max,
+                            affordable=self.data.currency>=cost}
+                    end
+                end
+            end
+        end
+    end
+    return best
+end
+
 function CharacterTraits:reset()
     self.data = defaults()
     self:save()

@@ -13,6 +13,10 @@ assert(not lobby:find("숲이 다시 자라기 전에",1,true),"removed lobby sl
 assert(lobby:find("게임 시작",1,true),"active score-mode start button missing")
 assert(lobby:find('ACTIVE_DEVELOPMENT_MODE="score_attack"',1,true)and lobby:find("시작 6그루 · 영구 재생 단계",1,true),"score mode is not clearly marked with the persistent regeneration opening")
 assert(lobby:find("강화하기",1,true)and lobby:find("영구 전투 · 재생 단계 · 허용량",1,true),"active score upgrade entry is missing from lobby")
+-- 로비는 저장 데이터를 하나도 보여주지 않고 버튼만 있었다. 인크리멘탈에서 홈 화면이
+-- 진행 상황판이 아니면 다시 켤 이유가 없다.
+assert(lobby:find("작업 기록",1,true)and lobby:find("최고 재생 단계",1,true)and lobby:find("다음 연구",1,true),
+    "로비 진행 상황판(기록·코인·다음 목표)이 사라졌다")
 assert(lobby:find("인게임 3택 없음 · 영구 연구",1,true)and not lobby:find("목재 경험치 · 운영 3택",1,true),"score growth rules are stale")
 assert(not game:find("automationKeys",1,true)and not game:find("automationClick",1,true),"removed score automation input is still wired")
 assert(game:find("function Game:startClearcutScoreAttack",1,true),"score attack entry point missing")

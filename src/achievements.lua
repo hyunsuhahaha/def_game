@@ -23,6 +23,18 @@ local definitions={
  {id="all_maps",name="전국 출장",desc="서로 다른 벌목 구역 4곳에서 작업한다.",stat="maps_seen",goal=4,points=6,category="collection",icon="map"},
  {id="first_operation",name="철수로 확보",desc="지역 최종 작전을 처음 완료한다.",stat="operations_cleared",goal=1,points=5,category="challenge",icon="crown"},
  {id="all_operations",name="전국 강제집행",desc="서로 다른 지역 최종 작전 4개를 완료한다.",stat="unique_operations",goal=4,points=15,category="collection",icon="map"},
+ -- 벌목 기록 모드 전용. 기존 업적은 대부분 캠페인 작전 기반이라 기록 모드에서는
+ -- 달성할 수 없었다. 재생 단계·세계수·반복 플레이를 목표로 세운다.
+ {id="tier_3",name="두 번째 숲",desc="재생 3단계에 도달한다.",stat="best_regen_tier",goal=3,points=2,category="challenge",icon="rings"},
+ {id="tier_5",name="숲이 되받아친다",desc="재생 5단계에 도달한다.",stat="best_regen_tier",goal=5,points=4,category="challenge",icon="rings"},
+ {id="tier_8",name="통제선 붕괴",desc="재생 8단계에 도달한다.",stat="best_regen_tier",goal=8,points=8,category="challenge",icon="crown"},
+ {id="tier_12",name="숲이 이긴 적 없다",desc="재생 12단계에 도달한다.",stat="best_regen_tier",goal=12,points=20,category="challenge",icon="crown"},
+ {id="world_tree_1",name="첫 세계수",desc="세계수를 처음 쓰러뜨린다.",stat="world_trees",goal=1,points=2,category="field",icon="tree"},
+ {id="world_tree_25",name="세계수 벌목반",desc="세계수를 누적 25그루 쓰러뜨린다.",stat="world_trees",goal=25,points=6,category="field",icon="tree"},
+ {id="runs_25",name="출근 도장 25개",desc="벌목 기록 모드를 25번 마친다.",stat="runs",goal=25,points=3,category="field",icon="clock"},
+ {id="runs_100",name="이 일이 천직이다",desc="벌목 기록 모드를 100번 마친다.",stat="runs",goal=100,points=8,category="field",icon="clock"},
+ {id="run_600",name="하루에 다 밀었다",desc="한 번의 작업에서 600그루를 쓰러뜨린다.",stat="best_run_trees",goal=600,points=8,category="challenge",icon="crown"},
+ {id="coins_10000",name="목재 재벌",desc="누적 연구 코인 10,000을 번다.",stat="total_coins",goal=10000,points=10,category="collection",icon="rings"},
 }
 for _,s in ipairs(species) do definitions[#definitions+1]={id="species_"..s.key,name=s.name.." 전문반",desc=s.name.."를 누적 100그루 쓰러뜨린다.",stat="species_"..s.key,goal=100,points=3,category="species",icon="tree"} end
 
@@ -77,7 +89,18 @@ function Achievements:recordTree(mapId,variant,job)
  if validMaps[mapId] and not self.data.maps[mapId] then self.data.maps[mapId]=true;local n=0 for _ in pairs(self.data.maps)do n=n+1 end self.data.stats.maps_seen=n end
  local g=self:check();if (self.data.stats.total_trees or 0)%10==0 then self:save() end;return g
 end
-function Achievements:recordRun(r)self:setBest("best_run_trees",r.trees or 0);self:setBest("best_chain",r.maxChain or 0);self:setBest("best_stage",r.stage or 0)end
+-- best_stage 는 캠페인 스테이지라 기록 모드에서는 항상 1이다. 이 게임의 진척 축인
+-- 재생 단계가 기록되지 않아 "최고 기록 갱신"이라는 재도전 동력이 없었다.
+function Achievements:recordRun(r)
+ self:setBest("best_run_trees",r.trees or 0);self:setBest("best_chain",r.maxChain or 0);self:setBest("best_stage",r.stage or 0)
+ if r.scoreAttack then
+  self:setBest("best_regen_tier",r.highestRegenTier or r.regenTier or 1)
+  self:setBest("best_run_coins",r.lumberCoinTotal or 0)
+  self.data.stats.runs=clampInt((self.data.stats.runs or 0)+1)
+  self.data.stats.total_coins=clampInt((self.data.stats.total_coins or 0)+(r.lumberCoinTotal or 0))
+  self:check();self:save()
+ end
+end
 function Achievements:recordMapClear(mapId)
  if not validMaps[mapId] then return {} end
  self.data.stats.operations_cleared=(self.data.stats.operations_cleared or 0)+1

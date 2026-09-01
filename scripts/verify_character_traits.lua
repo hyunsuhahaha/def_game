@@ -264,6 +264,24 @@ assert(store.data.currency == after, "character trait currency was awarded twice
 local fonts={small=font,body=font,heading=font,big=font,title=font}
 local visualLobby=setmetatable({fonts=fonts,labelFont=font,displayFont=font,background={getDimensions=function() return 1600,900 end},time=0,scoreAttackHover=0,traitsHover=0},Lobby)
 assert(pcall(visualLobby.draw,visualLobby), "clearcut-only lobby draw contract failed")
+-- 진행 상황판은 저장 데이터를 읽는다. 데이터가 없어도 그려져야 하고, 있으면 표시돼야 한다.
+local Achievements = require("src.achievements")
+local progressTraits = CharacterTraits.new(true); progressTraits.data.currency = 1240
+progressTraits:unlockRegenTier(8)
+local progressAchievements = Achievements.new(true)
+progressAchievements:recordRun({scoreAttack=true,trees=412,maxChain=9,stage=1,highestRegenTier=8,lumberCoinTotal=980})
+local goal = progressTraits:nextGoal()
+assert(goal and goal.name and goal.cost, "다음 연구 목표를 계산하지 못한다")
+assert(goal.affordable, "1240 코인으로 살 수 있는 노드가 있는데 못 산다고 나온다")
+local broke = CharacterTraits.new(true); broke.data.currency = 0
+local brokeGoal = broke:nextGoal()
+assert(brokeGoal and not brokeGoal.affordable, "코인이 0인데 구매 가능으로 표시된다")
+for _, id in ipairs({"universal_veteran_yard","universal_veteran_crew","universal_wildfire"}) do
+    assert(brokeGoal.id ~= id, "재생 단계 게이트 노드가 1단계에서 다음 목표로 제시된다")
+end
+local okDraw, drawErr = pcall(visualLobby.draw, visualLobby,
+    {characterTraits=progressTraits, achievements=progressAchievements})
+assert(okDraw, "진행 상황판이 있는 로비 그리기가 실패한다: " .. tostring(drawErr))
 local sprites={physical={image=image},fire={image=image},toxic={image=image},developer={image=image}}
 store.data.levels.fire_score_prewarm=0
 local board=CharacterTraitBoard.new(store,fonts,sprites)

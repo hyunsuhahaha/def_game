@@ -2302,6 +2302,7 @@ function ClearcutMode:onEnemyDefeated(e, game)
     end
     if e.scoreWorldTree then
         self.scoreWorldTree=nil
+        if game.achievements then game.achievements:add("world_trees",1) end
         local choices=ClearcutMode.ScoreWorldTree.roll(self,3)
         if #choices>0 then
             self.scoreRewardChoices=choices
