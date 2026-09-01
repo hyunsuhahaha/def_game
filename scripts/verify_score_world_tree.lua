@@ -46,6 +46,36 @@ assert(not m.scoreWorldTree, "40초 전에 세계수가 등장했다")
 m:updateScoreWorldTree(1.5, g)
 assert(m.scoreWorldTree, "40초가 지나도 세계수가 등장하지 않았다")
 
+-- 1-4. 솟는 자리에 이미 서 있던 나무는 뿌리째 들려 바깥으로 날아간다. 자리를
+-- 실제로 비워야 중앙 고정 배치에서도 첫 프레임부터 세계수가 통째로 보인다.
+do
+    local center = {x = 1120, y = 700}
+    local function tree(x, y)
+        return {kind = "tree", rushTree = true, active = true, x = x, y = y,
+            rushHp = 12, rushMaxHp = 12, treeVariant = 1}
+    end
+    local inside, behind, outside = tree(center.x + 40, center.y + 20),
+        tree(center.x - 30, center.y - 25), tree(center.x + 900, center.y)
+    local em, eg = mode(), world({inside, behind, outside})
+    eg.world.harvestBurst = function() end
+    eg.world.spawnDrop = function() end
+    em.remainingTrees = 3
+    em:updateScoreWorldTree(41, eg)
+    assert(em.scoreWorldTree, "세계수가 등장하지 않아 분출을 확인할 수 없다")
+    assert(not inside.active, "세계수 밑동에 서 있던 나무가 그대로 남았다")
+    assert(not behind.active, "세계수 뒤쪽 나무가 남아 수관을 끊는다")
+    assert(outside.active, "밑동과 상관없는 먼 나무까지 날려버렸다")
+    assert(#em.thrownTrees == 2, "치운 나무가 날아가는 물체로 넘어가지 않았다")
+    assert(em.treesFelled == 2, "분출로 치운 나무가 벌목 기록에 남지 않았다")
+    for _, thrown in ipairs(em.thrownTrees) do
+        -- 쓰러지는 연출이 같이 재생되면 한 나무가 두 번 죽는다.
+        assert(thrown.vx ~= 0 or thrown.vy ~= 0, "날아가는 나무가 제자리에 멈춰 있다")
+        assert(thrown.vz > 0, "날아가는 나무가 위로 뜨지 않는다")
+    end
+    assert(inside.uprooted and inside.fallT == nil,
+        "날아간 나무에 쓰러지는 연출이 남아 두 번 죽는다")
+end
+
 -- 2. 세계수가 서 있는 동안에는 타이머가 멈춰 두 그루가 겹치지 않는다.
 local standing = m.scoreWorldTree
 

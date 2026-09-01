@@ -2455,6 +2455,53 @@ function ClearcutMode.worldTreeGuardHits(guard,x,y)
     return dx*dx+dy*dy<=1
 end
 
+-- 세계수가 솟는 자리에 이미 서 있던 나무는 뿌리째 들려 바깥으로 날아간다.
+-- 정렬로 뒤에 숨기는 것과 달리 자리를 실제로 비우므로, 중앙 고정 배치에서도
+-- 세계수가 첫 프레임부터 통째로 보인다. 두더지 우직 강탈과 같은 thrownTrees
+-- 물리를 재사용하고 정식 벌목으로 처리해 목재·기록·업적이 정상으로 남는다.
+--
+-- 밑동 타원은 세계수 발선 기준의 가림 구역(worldTreeGuard)이 아니라 몸통 기준의
+-- 전방위 타원이다. 가림 구역은 앞쪽 절반만 보지만, 여기서는 뒤에 선 나무도
+-- 치워야 수관이 끊기지 않는다. 세로 0.62 는 토템 배치와 같은 부감 압축이다.
+function ClearcutMode:eruptScoreWorldTreeTrees(tree,game)
+    local radius=(tree.def and tree.def.radius) or 100
+    local rx,ry=radius*1.05,radius*.62*1.05
+    local launched=0
+    for _,node in ipairs(game.world.nodes) do
+        if node.rushTree and node.active then
+            local dx,dy=node.x-tree.x,node.y-tree.y
+            if (dx/rx)^2+(dy/ry)^2<=1 then
+                local length=math.sqrt(dx*dx+dy*dy)
+                local nx,ny
+                if length<.01 then
+                    local a=love.math.random()*math.pi*2
+                    nx,ny=math.cos(a),math.sin(a)
+                else nx,ny=dx/length,dy/length end
+                local x,y,variant=node.x,node.y,node.treeVariant or 1
+                if self:fellTree(node,game) then
+                    -- 쓰러지는 연출 대신 날아가는 물체로 넘긴다. fallT 를 남기면
+                    -- 그루터기 자리에서 눕는 그림이 같이 재생돼 두 번 죽는다.
+                    node.fallT=nil
+                    node.uprooted=true
+                    local speed=520+love.math.random()*180
+                    self.thrownTrees[#self.thrownTrees+1]={
+                        x=x,y=y,z=10,vx=nx*speed,vy=ny*speed*.62,
+                        vz=430+love.math.random()*140,gravity=820,angle=0,
+                        spin=(love.math.random()<.5 and -1 or 1)*(3.2+love.math.random()*2.6),
+                        variant=variant,damage=4,penetration=1,hit={}
+                    }
+                    launched=launched+1
+                end
+            end
+        end
+    end
+    if launched>0 then
+        self.traitFx:emit("construction_blast",tree.x,tree.y,{radius=radius*.9,particles=30,power=1.2,color={.42,.3,.14}})
+        if game.camera then game.camera.trauma=math.min(1,(game.camera.trauma or 0)+.28) end
+    end
+    return launched
+end
+
 function ClearcutMode:spawnScoreWorldTree(game)
     local bounds=game.world.playBounds or {x=0,y=0,w=game.world.width,h=game.world.height}
     local profile=ClearcutMode.ScoreWorldTree.profile(self)
@@ -2483,6 +2530,9 @@ function ClearcutMode:spawnScoreWorldTree(game)
     tree.artKey=profile.artKey
     self.scoreWorldTree=tree
     self.scoreWorldTreeHp=tree.hp
+    -- 자리를 먼저 비운 뒤에 등장 연출을 시작한다. 순서가 반대면 첫 프레임이
+    -- 나무에 가린 채로 잡힌다.
+    self:eruptScoreWorldTreeTrees(tree,game)
     if profile.giant then
         WorldTreeSiege.startEmergence(self,tree,game)
         local camera=game.camera
