@@ -802,18 +802,25 @@ function ClearcutMode:findMoleCompanionTree(companion,game)
     for _,other in ipairs(self.moleCompanions or{})do
         if other~=companion and other.target and other.target.active and not other.target.treeEmergence then claimed[other.target]=true end
     end
+    -- 방금 경계에 막힌 나무는 잠시 후보에서 뺀다. 그렇지 않으면 타깃을
+    -- 포기한 바로 다음 프레임에 같은 나무를 다시 골라 무한 보행한다.
+    local blocked=(companion.blockedTargetT or 0)>0 and companion.blockedTarget or nil
     local best,bestDistance,fallback,fallbackDistance
     for _,node in ipairs(game.world.nodes)do
         -- giantTree는 큰 수관을 고르는 시각 표식일 뿐 살아 있는 벌목 대상이다. 이를
         -- 제외하면 큰 나무만 남은 순간 동료가 화면의 나무 옆에서 영원히 대기한다.
-        if node.rushTree and node.active and not node.treeEmergence then
+        if node.rushTree and node.active and not node.treeEmergence and node~=blocked then
             local dx,dy=node.x-companion.x,node.y-companion.y
             local distance=dx*dx+dy*dy
             if not fallbackDistance or distance<fallbackDistance then fallback,fallbackDistance=node,distance end
             if not claimed[node]and(not bestDistance or distance<bestDistance)then best,bestDistance=node,distance end
         end
     end
-    companion.target=best or fallback
+    local target=best or fallback
+    if companion.target~=target then
+        companion.approachNoProgress=0
+    end
+    companion.target=target
     return companion.target
 end
 
@@ -913,6 +920,10 @@ function ClearcutMode:updateOneMoleCompanion(companion,dt,game)
     if companion.kind=="lumberjack"and not companion.prop then companion.state="idle";companion.target=nil;return false end
     -- 화덕에 다녀오는 중이면 이 프레임의 벌목 루프는 통째로 건너뛴다.
     if ClearcutMode.PizzaOven.updateDiner(self,companion,dt,game)then return true end
+    companion.blockedTargetT=math.max(0,(companion.blockedTargetT or 0)-dt)
+    if companion.blockedTargetT<=0 or not companion.blockedTarget or not companion.blockedTarget.active then
+        companion.blockedTarget=nil
+    end
     companion.walkClock=companion.walkClock+dt*7.5
     local attackDuration=self:companionAttackDuration(companion)
     if companion.state=="attack"then
@@ -929,7 +940,7 @@ function ClearcutMode:updateOneMoleCompanion(companion,dt,game)
     end
     local target=companion.target
     if not target or not target.active or target.treeEmergence then target=self:findMoleCompanionTree(companion,game)end
-    if not target then companion.state="seek";companion.stuckTime=0;return false end
+    if not target then companion.state="seek";companion.stuckTime=0;companion.approachNoProgress=0;return false end
     local dx,dy=target.x-companion.x,target.y-companion.y
     local distance=math.sqrt(dx*dx+dy*dy)
     if math.abs(dx)>2 then companion.facing=dx<0 and -1 or 1 end
@@ -940,16 +951,24 @@ function ClearcutMode:updateOneMoleCompanion(companion,dt,game)
         local oldX,oldY=companion.x,companion.y
         companion.x,companion.y=require("src.clearcut_maps").constrain(game.world,x,y,42)
         local moved=(companion.x-oldX)^2+(companion.y-oldY)^2
-        companion.stuckTime=moved<.01 and(companion.stuckTime or 0)+dt or 0
-        if companion.stuckTime>=.35 then
-            -- 축소 맵 가장자리나 섬 해안 제약에 막힌 타깃을 계속 바라보며 서 있지
-            -- 않도록 즉시 포기하고 다음 프레임에 다른 살아 있는 나무를 고른다.
-            companion.target=nil;companion.state="seek";companion.stuckTime=0
+        local nextDx,nextDy=target.x-companion.x,target.y-companion.y
+        local distanceProgress=distance-math.sqrt(nextDx*nextDx+nextDy*nextDy)
+        -- 경계면을 따라 조금씩 미끄러지는 것도 정지로 본다. 기존 moved 검사만으로는
+        -- 좌표가 변한다는 이유로 stuckTime이 매 프레임 초기화되어 영원히 걸었다.
+        local minimumProgress=math.max(.08,step*.08)
+        local approaching=moved>=.01 and distanceProgress>=minimumProgress
+        companion.approachNoProgress=approaching and 0 or(companion.approachNoProgress or 0)+dt
+        companion.stuckTime=companion.approachNoProgress
+        if companion.approachNoProgress>=.45 then
+            -- 실패한 나무를 1.2초간 재선택하지 않고 다른 살아 있는 나무를 찾는다.
+            companion.blockedTarget,companion.blockedTargetT=target,1.2
+            companion.target=nil;companion.state="seek";companion.stuckTime=0;companion.approachNoProgress=0
             return false
         end
         companion.state="walk"
     else
         companion.state,companion.attackT,companion.struck,companion.stuckTime="attack",0,false,0
+        companion.approachNoProgress=0
     end
     return true
 end

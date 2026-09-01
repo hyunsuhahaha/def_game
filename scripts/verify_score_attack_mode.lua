@@ -277,7 +277,25 @@ assert(game.clearcut:findMoleCompanionTree(mole,game)==landmark,"mole ignored a 
 game.clearcut:updateOneMoleCompanion(mole,.01,game)
 game.clearcut:updateOneMoleCompanion(mole,.25,game)
 assert(landmark.rushHp<50,"mole stood beside a giant-canopy tree without chopping it")
+-- 맵 경계에서 좌표가 아주 조금씩 움직이지만 목표 거리는 줄지 않는 경우를 재현한다.
+-- 예전 moved 기반 감시는 매 프레임 타이머가 초기화되어 같은 나무로 영원히 걸었다.
+local maps=require("src.clearcut_maps")
+local originalConstrain=maps.constrain
+local unreachable={kind="tree",rushTree=true,active=true,x=mole.x+500,y=mole.y,
+    rushHp=50,rushMaxHp=50,treeVariant=1,respawn=math.huge}
+local reachable={kind="tree",rushTree=true,active=true,x=mole.x-96,y=mole.y,
+    rushHp=50,rushMaxHp=50,treeVariant=1,respawn=math.huge}
+game.world.nodes={unreachable,reachable};mole.state,mole.target="walk",unreachable
+mole.blockedTarget,mole.blockedTargetT,mole.approachNoProgress=nil,0,0
+maps.constrain=function(_,_,_,_)return mole.x,mole.y+.2 end
+for _=1,10 do game.clearcut:updateOneMoleCompanion(mole,.05,game)end
+maps.constrain=originalConstrain
+assert(mole.blockedTarget==unreachable and mole.target==nil,
+    "mole did not abandon a target while sliding along the map boundary")
+game.clearcut:updateOneMoleCompanion(mole,.01,game)
+assert(mole.target==reachable,"mole immediately reselected the same unreachable tree")
 game.world.nodes=ordinaryNodes;mole.state,mole.target="seek",nil
+mole.blockedTarget,mole.blockedTargetT=nil,0
 assert(game.clearcut.totalWood==0 and game.clearcut.level==1 and game.clearcut.xpNext==0 and game.clearcut.pending==0,
     "score run did not start with its in-run progression disabled")
 assert(game.clearcut.smoking and game.clearcut.smoking.dur<.75,"first ignition preparation trait did not shorten the opening load")
