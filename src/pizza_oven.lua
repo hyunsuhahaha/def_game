@@ -15,7 +15,7 @@
 -- 시간만큼 벌목을 쉰다. 그 손해를 확실히 이기도록 버프는 애매하지 않게 크다.
 local Oven={}
 local Maps=require("src.clearcut_maps")
-local body,slice,aura,bodyQuads,sliceQuads,auraBackQuads,auraFrontQuads
+local body,slice,bake,aura,bodyQuads,sliceQuads,bakeQuads,bakeWispQuads,auraBackQuads,auraFrontQuads
 
 -- 기본 수치. 연구 노드가 전부 이 위에 더해진다.
 --
@@ -71,13 +71,27 @@ function Oven.stacks(mode)
     return (traits(mode).scoreOvenStack or 0)>0
 end
 
+-- 굽는 피자는 불꽃 세기가 아니라 실제 조각 화력으로 익는다. 화면도 같은 값을 써야
+-- 연구로 조각 비용이 낮아졌을 때 보이는 진행도와 실제 완성 시점이 어긋나지 않는다.
+function Oven.bakeVisualState(mode)
+    local oven=mode and mode.pizzaOven
+    if not oven then return false,0,1,false end
+    local full=(oven.slices or 0)>=Oven.maxSlices(mode)
+    local rate=math.max(0,oven.heatRate or 0)
+    local visible=not full and ((oven.heat or 0)>0 or rate>0)
+    local progress=math.max(0,math.min(.999,(oven.heat or 0)/Oven.sliceCost(mode)))
+    local stage=math.max(1,math.min(6,1+math.floor(progress*6)))
+    local active=visible and rate>0
+    return visible,progress,stage,active
+end
+
 function Oven.spawn(mode,game)
     if (traits(mode).scoreOvenUnlock or 0)<=0 then return nil end
     if mode.pizzaOven then return mode.pizzaOven end
     -- 화덕은 돌아다니지 않는다. 맵 한가운데에 서서, 어디까지 벨지의 기준점이 된다.
     local world=game.world
     local x,y=Maps.constrain(world,(world.width or 3200)*.5,(world.height or 2000)*.5,90)
-    mode.pizzaOven={x=x,y=y,heat=0,slices=0,life=0,fire=0,flare=0,bakedTotal=0,servedTotal=0}
+    mode.pizzaOven={x=x,y=y,heat=0,heatRate=0,slices=0,life=0,fire=0,flare=0,bakedTotal=0,servedTotal=0}
     return mode.pizzaOven
 end
 
@@ -195,6 +209,7 @@ function Oven.update(mode,dt,game)
     oven.fire=oven.fire+(math.min(1,burning/4)-oven.fire)*math.min(1,dt*2.4)
     local rate=burning*Oven.heatPerTree(mode)
     if mode.rainSuppressFire then rate=rate*Oven.rainKeep(mode) end
+    oven.heatRate=rate
     oven.heat=oven.heat+rate*dt
 
     local cost,cap=Oven.sliceCost(mode),Oven.maxSlices(mode)
@@ -236,6 +251,13 @@ local function load()
         slice=sliceImage;slice:setFilter("nearest","nearest")
         sliceQuads={}
         for i=0,3 do sliceQuads[i+1]=love.graphics.newQuad(i*96,0,96,96,slice:getDimensions()) end
+    end
+    local bakeOk,bakeImage=pcall(love.graphics.newImage,"assets/automation/pizza-oven-baking-atlas-pixel-v1.png")
+    if bakeOk then
+        bake=bakeImage;bake:setFilter("nearest","nearest")
+        bakeQuads={};bakeWispQuads={}
+        for i=0,5 do bakeQuads[i+1]=love.graphics.newQuad(i*128,0,128,96,bake:getDimensions()) end
+        for i=0,2 do bakeWispQuads[i+1]=love.graphics.newQuad(i*128,96,128,96,bake:getDimensions()) end
     end
     local auraOk,auraImage=pcall(love.graphics.newImage,"assets/fx/companion-feast-aura-atlas-pixel-v1.png")
     if auraOk then
@@ -286,6 +308,21 @@ function Oven.queue(mode,queue)
             local frame=math.max(1,math.min(6,1+math.floor((oven.fire or 0)*4.99)))
             local jitter=(oven.flare or 0)>0 and math.sin((oven.life or 0)*64)*1.5 or 0
             love.graphics.draw(body,bodyQuads[frame],oven.x+jitter,oven.y,0,.70,.70,128,176)
+        end
+        if bake and bakeQuads then
+            local visible,_,stage,active=Oven.bakeVisualState(mode)
+            if visible then
+                -- 아궁이 안에 실제 피자를 놓는다. 반죽→용융→갈변 여섯 단계는 실제
+                -- heat/sliceCost와 직결되고, 화력이 끊기면 피자는 남되 김만 멎는다.
+                love.graphics.setColor(1,1,1,active and 1 or .82)
+                love.graphics.draw(bake,bakeQuads[stage],oven.x,oven.y-35,0,.62,.62,64,64)
+                if active and bakeWispQuads then
+                    local phase=math.floor((oven.life or 0)*8)%3+1
+                    love.graphics.setColor(1,1,1,.96)
+                    love.graphics.draw(bake,bakeWispQuads[phase],oven.x,oven.y-35,0,.62,.62,64,64)
+                end
+                love.graphics.setColor(1,1,1,1)
+            end
         end
         if slice and sliceQuads then
             -- 구워진 조각은 화덕 위 선반에 실제로 쌓여 보인다. 몇 조각 남았는지가

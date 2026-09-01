@@ -80,6 +80,8 @@ do
     dry.rainSuppressFire=true
     for _=1,200 do Oven.update(dry,.02,game)end
     assert(dry.pizzaOven.heat==0 and dry.pizzaOven.slices==0,"rain did not stop the unupgraded oven")
+    local visible,_,_,active=Oven.bakeVisualState(dry)
+    assert(not visible and not active,"rain-stopped oven still showed a pizza actively baking")
     local wet=newMode({scoreOvenUnlock=1,scoreOvenRain=.4})
     wet.rainSuppressFire=true
     for _=1,200 do Oven.update(wet,.02,game)end
@@ -240,9 +242,31 @@ do
     assert(Oven.stacks(mode),"maxed oven lost its stacking capstone")
 end
 
+-- 13. 화덕 입구의 피자는 장식용 타이머가 아니라 실제 heat/sliceCost를 그대로 읽는다.
+--     화력이 끊기면 피자는 남아도 김은 멎고, 판이 가득 차면 새 피자를 보여주지 않는다.
+do
+    local mode=newMode({scoreOvenUnlock=1})
+    mode.pizzaOven={heat=Oven.BASE_SLICE_COST*.5,heatRate=4,fire=.7,slices=0,life=1}
+    local visible,progress,stage,active=Oven.bakeVisualState(mode)
+    assert(visible and active,"actively baking pizza was not visible")
+    assert(math.abs(progress-.5)<1e-6 and stage==4,"baking visual drifted from real heat progress")
+    mode.pizzaOven.fire,mode.pizzaOven.heatRate=0,0
+    visible,_,_,active=Oven.bakeVisualState(mode)
+    assert(visible and not active,"paused pizza should remain visible without emitting active heat wisps")
+    mode.pizzaOven.slices=Oven.BASE_SLICES
+    visible=Oven.bakeVisualState(mode)
+    assert(not visible,"a full tray still showed a phantom pizza baking")
+
+    local thin=newMode({scoreOvenUnlock=1,scoreOvenSliceCost=21})
+    thin.pizzaOven={heat=27,heatRate=4,fire=.7,slices=0,life=1}
+    _,progress,stage=Oven.bakeVisualState(thin)
+    assert(math.abs(progress-.5)<1e-6 and stage==4,
+        "thin-dough research changed completion timing without changing the visual")
+end
+
 fixture.reset()
 Oven.queue({pizzaOven={x=0,y=0,slices=3,life=1,fire=.5,flare=0}},{})
 Oven.load()
 print("PIZZA_OVEN_OK fuel=burning_trees_only center_placed=true radius=260 slice_cost=75 tray=6 "..
       "call=520 reservation=no_wasted_trips feast=30s_x2 feast_visual=persistent_yellow_aura+scale "..
-      "rain_stops=true stacking_capstone=true nodes=10 ranks=29")
+      "baking_visual=heat_synced_pizza+active_wisps rain_stops=true stacking_capstone=true nodes=10 ranks=29")
