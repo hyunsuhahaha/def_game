@@ -974,15 +974,17 @@ function ClearcutMode:drawMoleCompanion(companion)
     local poseScale=(sprite[row.."Scale"]and sprite[row.."Scale"][frame])or 1
     local foot=(sprite[row.."Feet"]or{})[frame]or 380
     local bob=not action and math.abs(math.sin(companion.walkClock*math.pi))*1.5 or 0
-    love.graphics.setColor(0,0,0,.38);love.graphics.ellipse("fill",companion.x+2,companion.y+3,23,7)
+    local feastScale=ClearcutMode.PizzaOven.feastScale(companion)
+    ClearcutMode.PizzaOven.drawFeastAura(companion,false)
+    love.graphics.setColor(0,0,0,.38);love.graphics.ellipse("fill",companion.x+2,companion.y+3,23*feastScale,7*feastScale)
     love.graphics.setColor(1,1,1,1)
-    local drawScale=companion.drawScale or .30
+    local drawScale=(companion.drawScale or .30)*feastScale
     love.graphics.draw(sprite.image,companion.frames[row][frame],companion.x,companion.y-bob,0,
         drawScale*flip*poseScale,drawScale*poseScale,companion.fw/2,foot)
     if sprite.graduateMonkey then
         GraduateMonkeyArt.drawProp(companion,row,frame,flip,foot,bob,drawScale*poseScale)
     end
-    ClearcutMode.PizzaOven.drawFeastAura(companion)
+    ClearcutMode.PizzaOven.drawFeastAura(companion,true)
 end
 
 local function clearcutDistance(ax,ay,bx,by)

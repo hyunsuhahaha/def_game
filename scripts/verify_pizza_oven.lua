@@ -137,6 +137,11 @@ do
     assert(diner.ovenState==nil,"companion never finished its trip to the oven")
     assert(math.abs(diner.feastT-Oven.BASE_DURATION)<1e-6,"feast duration was not applied")
     assert(diner.feastPower==1,"base feast power should be 1")
+    assert(diner.feastFxClock==0,"persistent feast visual did not start with the buff")
+    Oven.update(mode,.2,game)
+    assert(diner.feastFxClock>=.2,"feast visual clock did not persist through the buff")
+    assert(Oven.feastScale(diner)>1.13 and Oven.feastScale(diner)<=1.18,
+        "fed companion did not stay visibly larger during the buff")
     assert(oven.servedTotal==1,"oven did not record the serving")
 end
 
@@ -155,13 +160,14 @@ do
     local stacked=newMode({scoreOvenUnlock=1,scoreOvenStack=1})
     Oven.update(stacked,.001,game)
     local greedy=companion(CENTER_X+150,CENTER_Y)
-    greedy.feastT,greedy.feastPower=10,1
+    greedy.feastT,greedy.feastPower,greedy.feastFxClock=10,1,4
     stacked.moleCompanions={greedy}
     stacked.pizzaOven.slices=3
     Oven.reserve(stacked,stacked.pizzaOven,game)
     assert(greedy.ovenState=="walk","stacking capstone did not call the fed companion back")
     for _=1,400 do if not Oven.updateDiner(stacked,greedy,.02,game)then break end end
     assert(greedy.feastPower==2,"stacked serving did not add a second helping, got "..tostring(greedy.feastPower))
+    assert(greedy.feastFxClock==4,"stacked serving blinked the persistent feast aura")
 end
 
 -- 10. 버프는 시간이 지나면 정확히 풀린다.
@@ -170,10 +176,12 @@ do
     local game={world=newWorld({}),player={x=0,y=0}}
     Oven.update(mode,.001,game)
     local diner=companion(CENTER_X,CENTER_Y)
-    diner.feastT,diner.feastPower=1.0,1
+    diner.feastT,diner.feastPower,diner.feastFxClock=1.0,1,0
     mode.moleCompanions={diner}
     for _=1,80 do Oven.update(mode,.02,game)end
     assert(diner.feastT==0 and diner.feastPower==nil,"feast buff did not expire cleanly")
+    assert(diner.feastFxClock==nil and Oven.feastScale(diner)==1,
+        "feast size/aura state survived after the combat buff ended")
 end
 
 -- 11. 공급이 실제로 모자라야 한다. 조각 배분은 전부 자동이므로 플레이어의 선택은
@@ -236,4 +244,5 @@ fixture.reset()
 Oven.queue({pizzaOven={x=0,y=0,slices=3,life=1,fire=.5,flare=0}},{})
 Oven.load()
 print("PIZZA_OVEN_OK fuel=burning_trees_only center_placed=true radius=260 slice_cost=75 tray=6 "..
-      "call=520 reservation=no_wasted_trips feast=30s_x2 rain_stops=true stacking_capstone=true nodes=10 ranks=29")
+      "call=520 reservation=no_wasted_trips feast=30s_x2 feast_visual=persistent_yellow_aura+scale "..
+      "rain_stops=true stacking_capstone=true nodes=10 ranks=29")

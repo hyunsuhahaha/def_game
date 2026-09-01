@@ -12,6 +12,8 @@ import math
 ROOT = Path(__file__).resolve().parents[1]
 OUT = ROOT / "assets" / "automation"
 OUT.mkdir(parents=True, exist_ok=True)
+FX_OUT = ROOT / "assets" / "fx"
+FX_OUT.mkdir(parents=True, exist_ok=True)
 
 INK = (22, 18, 16, 255)
 BRICK = [(58, 26, 18, 255), (82, 36, 23, 255), (108, 47, 28, 255), (134, 60, 34, 255),
@@ -28,6 +30,8 @@ CRUST = [(96, 60, 24, 255), (140, 90, 36, 255), (183, 126, 54, 255), (216, 163, 
 CHEESE = [(176, 122, 34, 255), (214, 163, 52, 255), (240, 200, 88, 255), (253, 231, 150, 255)]
 SAUCE = [(96, 22, 18, 255), (146, 34, 24, 255), (192, 50, 32, 255), (224, 78, 48, 255)]
 BASIL = [(28, 62, 26, 255), (46, 96, 38, 255), (72, 134, 54, 255)]
+AURA = [(198, 125, 0, 125), (245, 171, 8, 170), (255, 205, 30, 210),
+        (255, 231, 72, 235), (255, 250, 177, 245)]
 
 
 def rect(d, b, c):
@@ -229,6 +233,61 @@ def slice_frame(index):
     return im
 
 
+def feast_aura_frame(index, front=False):
+    """Restrained six-frame yellow power aura, split around the actor depth."""
+    im = Image.new("RGBA", (192, 192))
+    d = ImageDraw.Draw(im)
+    sway = (-3, 1, 3, 0, -2, 2)[index]
+    lift = (0, -2, 1, -1, 2, 0)[index]
+
+    if not front:
+        # A broken, asymmetric flame silhouette leaves the character readable.
+        outer = ((47, 159), (44+sway, 134), (52, 117), (48-sway, 96),
+                 (64, 106), (61+sway, 72), (75, 87), (84-sway, 43+lift),
+                 (97, 70), (109+sway, 36-lift), (116, 78), (133-sway, 58),
+                 (130, 98), (148+sway, 87), (140, 122), (150, 140), (145, 159))
+        poly(d, outer, AURA[0])
+        mid = ((56, 159), (54, 132), (66+sway, 116), (63, 91),
+               (80-sway, 105), (87, 64+lift), (98, 91), (111+sway, 57),
+               (116, 103), (135-sway, 88), (128, 122), (140, 139), (136, 159))
+        poly(d, mid, AURA[1])
+        inner = ((68, 159), (65+sway, 137), (78, 120), (78-sway, 97),
+                 (92, 113), (100+sway, 77+lift), (108, 117), (125-sway, 105),
+                 (119, 133), (130, 145), (126, 159))
+        poly(d, inner, AURA[2])
+        # Pixel cuts keep the contour crisp instead of reading as one flat blob.
+        for x, y, w, h in ((46+sway, 111, 9, 12), (62-sway, 79, 8, 14),
+                           (132+sway, 95, 10, 15), (137-sway, 128, 9, 10)):
+            rect(d, (x, y, x+w, y+h), (0, 0, 0, 0))
+        # Sparse energy dashes rise at different speeds in each real frame.
+        motes = (
+            ((38, 125), (153, 111), (72, 51)), ((42, 101), (149, 137), (121, 48)),
+            ((37, 143), (155, 88), (69, 67)), ((43, 116), (151, 103), (126, 53)),
+            ((39, 91), (154, 128), (74, 45)), ((44, 137), (148, 96), (120, 61)),
+        )[index]
+        for j, (x, y) in enumerate(motes):
+            color = AURA[3+j % 2]
+            rect(d, (x, y, x+3+(j % 2)*2, y+8-(j % 2)*2), color)
+            if j == 2:
+                rect(d, (x+2, y-4, x+4, y-2), AURA[4])
+    else:
+        # A low front rim grounds the aura without washing over the face or prop.
+        left = 57 + sway
+        right = 137 + sway
+        poly(d, ((left, 158), (left+7, 145), (left+14, 153), (left+22, 139),
+                 (left+31, 154), (96, 147+lift), (right-30, 155), (right-21, 140),
+                 (right-13, 152), (right-6, 144), (right, 158)), AURA[2])
+        poly(d, ((left+9, 159), (left+18, 151), (left+26, 158), (96, 153+lift),
+                 (right-25, 158), (right-17, 150), (right-8, 159)), AURA[4])
+        sparks = (
+            ((62, 131), (130, 120)), ((67, 119), (137, 137)), ((58, 140), (128, 126)),
+            ((66, 128), (140, 111)), ((55, 122), (132, 142)), ((64, 138), (138, 125)),
+        )[index]
+        for j, (x, y) in enumerate(sparks):
+            rect(d, (x+sway, y, x+sway+3, y+6), AURA[3+j])
+    return im
+
+
 def build():
     oven = Image.new("RGBA", (256 * 6, 192))
     for state in range(6):
@@ -239,7 +298,14 @@ def build():
     for index in range(4):
         slices.alpha_composite(slice_frame(index), (index * 96, 0))
     slices.save(OUT / "pizza-slice-atlas-pixel-v1.png")
-    print("pizza-oven-atlas-pixel-v1.png 1536x192, pizza-slice-atlas-pixel-v1.png 384x96")
+
+    aura = Image.new("RGBA", (192 * 6, 192 * 2))
+    for index in range(6):
+        aura.alpha_composite(feast_aura_frame(index, False), (index * 192, 0))
+        aura.alpha_composite(feast_aura_frame(index, True), (index * 192, 192))
+    aura.save(FX_OUT / "companion-feast-aura-atlas-pixel-v1.png")
+    print("pizza-oven-atlas-pixel-v1.png 1536x192, pizza-slice-atlas-pixel-v1.png 384x96, "
+          "companion-feast-aura-atlas-pixel-v1.png 1152x384")
 
 
 if __name__ == "__main__":

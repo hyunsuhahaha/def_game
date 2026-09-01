@@ -15,7 +15,7 @@
 -- 시간만큼 벌목을 쉰다. 그 손해를 확실히 이기도록 버프는 애매하지 않게 크다.
 local Oven={}
 local Maps=require("src.clearcut_maps")
-local body,slice,bodyQuads,sliceQuads
+local body,slice,aura,bodyQuads,sliceQuads,auraBackQuads,auraFrontQuads
 
 -- 기본 수치. 연구 노드가 전부 이 위에 더해진다.
 --
@@ -143,8 +143,11 @@ function Oven.updateDiner(mode,companion,dt,game)
         if companion.ovenEatT>=Oven.EAT_TIME then
             local power=Oven.feastPower(mode)
             -- 곱빼기는 남은 조각을 한 놈이 몰아 먹는 것이므로 배율이 겹쳐 쌓인다.
-            companion.feastPower=(companion.feastT or 0)>0 and (companion.feastPower or 0)+power or power
+            local wasFed=(companion.feastT or 0)>0
+            companion.feastPower=wasFed and(companion.feastPower or 0)+power or power
             companion.feastT=Oven.feastDuration(mode)
+            -- 곱빼기로 시간을 갱신해도 이미 켜진 오라는 꺼졌다 다시 켜지지 않는다.
+            companion.feastFxClock=wasFed and(companion.feastFxClock or 0)or 0
             companion.ovenState,companion.ovenEatT=nil,0
             oven.servedTotal=(oven.servedTotal or 0)+1
             oven.flare=.55
@@ -210,7 +213,10 @@ function Oven.update(mode,dt,game)
     for _,companion in ipairs(companions(mode))do
         if (companion.feastT or 0)>0 then
             companion.feastT=companion.feastT-dt
-            if companion.feastT<=0 then companion.feastT,companion.feastPower=0,nil end
+            companion.feastFxClock=(companion.feastFxClock or 0)+dt
+            if companion.feastT<=0 then
+                companion.feastT,companion.feastPower,companion.feastFxClock=0,nil,nil
+            end
         end
     end
     return true
@@ -231,21 +237,42 @@ local function load()
         sliceQuads={}
         for i=0,3 do sliceQuads[i+1]=love.graphics.newQuad(i*96,0,96,96,slice:getDimensions()) end
     end
+    local auraOk,auraImage=pcall(love.graphics.newImage,"assets/fx/companion-feast-aura-atlas-pixel-v1.png")
+    if auraOk then
+        aura=auraImage;aura:setFilter("nearest","nearest")
+        auraBackQuads={};auraFrontQuads={}
+        for i=0,5 do
+            auraBackQuads[i+1]=love.graphics.newQuad(i*192,0,192,192,aura:getDimensions())
+            auraFrontQuads[i+1]=love.graphics.newQuad(i*192,192,192,192,aura:getDimensions())
+        end
+    end
 end
 
--- 먹은 동료는 멀리서도 구분돼야 한다. 지속 내내 몸에서 김이 오른다.
-function Oven.drawFeastAura(companion)
-    if (companion.feastT or 0)<=0 then return end
-    local t=companion.feastT
-    local power=math.min(3,companion.feastPower or 1)
-    for i=1,3+math.floor(power) do
-        local phase=t*3.1+i*2.09
-        local x=companion.x+math.sin(phase)*7+(i-2)*5
-        local y=companion.y-46-((t*26+i*13)%30)
-        local alpha=.30*(1-((t*26+i*13)%30)/30)
-        love.graphics.setColor(1,.92,.74,alpha)
-        love.graphics.rectangle("fill",math.floor(x),math.floor(y),3,3)
-    end
+-- 피자를 먹은 동안 몸과 장비가 함께 커진다. 중첩은 전투 수치만 크게 만들고
+-- 실루엣은 최대 18%에서 멈춰 화면을 가리지 않는다.
+function Oven.feastScale(companion)
+    if not companion or(companion.feastT or 0)<=0 then return 1 end
+    local power=math.max(1,companion.feastPower or 1)
+    local target=math.min(1.18,1.14+(power-1)*.025)
+    local fade=math.min(1,(companion.feastFxClock or 0)/.18,companion.feastT/.25)
+    return 1+(target-1)*math.max(0,fade)
+end
+
+-- 드래곤볼식 불꽃 실루엣만 빌리되 광량과 입자는 눌렀다. 뒤 레이어가 몸을
+-- 감싸고 앞 레이어는 발밑만 지나가므로 얼굴과 들고 있는 장비를 가리지 않는다.
+function Oven.drawFeastAura(companion,front)
+    if not companion or(companion.feastT or 0)<=0 then return end
+    load()
+    local quads=front and auraFrontQuads or auraBackQuads
+    if not aura or not quads then return end
+    local clock=companion.feastFxClock or 0
+    local frame=math.floor(clock*10)%6+1
+    local fade=math.min(1,clock/.18,companion.feastT/.25)
+    local power=math.min(3,math.max(1,companion.feastPower or 1))
+    local scale=.52*(1+(power-1)*.025)
+    love.graphics.setColor(1,1,1,math.max(0,fade)*.92)
+    love.graphics.draw(aura,quads[frame],companion.x,companion.y,0,scale,scale,96,160)
+    love.graphics.setColor(1,1,1,1)
 end
 
 function Oven.queue(mode,queue)
