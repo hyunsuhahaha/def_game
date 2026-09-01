@@ -1,4 +1,4 @@
--- 1분 주기 세계수와 처치 보상 회귀 검사.
+-- 40초 주기 세계수와 처치 보상 회귀 검사.
 --
 -- 인게임 3택은 원래 목재 경험치로 열렸는데 요구량이 선형(5+레벨*3)인 반면 수입은
 -- 지수(재생 단계 1.75^n x 시간 압력 2^(초/30))라, 후반에 선택 창이 연달아 떠서
@@ -19,7 +19,7 @@ love = {
 local ClearcutMode = require("src.clearcut_mode")
 local ScoreWorldTree = require("src.score_world_tree")
 
-assert(ScoreWorldTree.INTERVAL == 60, "세계수 주기가 60초가 아니다")
+assert(ScoreWorldTree.INTERVAL == 40, "세계수 주기가 40초가 아니다")
 
 local function mode()
     local m = ClearcutMode.new()
@@ -41,10 +41,10 @@ end
 -- 1. 트리거는 시간이다. 목재를 아무리 벌어도 세계수가 앞당겨지지 않는다.
 local m, g = mode(), world()
 m.scoreWoodEarned = 999999
-m:updateScoreWorldTree(59, g)
-assert(not m.scoreWorldTree, "60초 전에 세계수가 등장했다")
+m:updateScoreWorldTree(39, g)
+assert(not m.scoreWorldTree, "40초 전에 세계수가 등장했다")
 m:updateScoreWorldTree(1.5, g)
-assert(m.scoreWorldTree, "60초가 지나도 세계수가 등장하지 않았다")
+assert(m.scoreWorldTree, "40초가 지나도 세계수가 등장하지 않았다")
 
 -- 2. 세계수가 서 있는 동안에는 타이머가 멈춰 두 그루가 겹치지 않는다.
 local standing = m.scoreWorldTree
@@ -108,7 +108,7 @@ assert(ScoreWorldTree.health(high) > ScoreWorldTree.health(low) * 2,
 -- 5. 처치하면 보상 3택이 열리고 게임이 멈춘다.
 local dead = mode()
 local dg = world()
-dead.stageElapsed=60
+dead.stageElapsed=40
 local survivingTree={rushTree=true,active=true,x=100,y=100}
 dg.world.nodes={survivingTree}
 dead.mapWorld=dg.world
@@ -117,7 +117,7 @@ dead:onEnemyDefeated(dead.scoreWorldTree, dg)
 assert(dg.mode == "score_reward" and #dead.scoreRewardChoices == 3,
     "세계수를 쓰러뜨려도 보상 3택이 열리지 않는다")
 assert(dead.scoreRegenTier==2 and dead.stageElapsed==0 and dead.scoreTierFx and not dead.scoreTierFx.reseed,
-    "60초 세계수 처치가 현재 숲을 유지하는 재생 단계 상승을 시작하지 않았다")
+    "40초 세계수 처치가 현재 숲을 유지하는 재생 단계 상승을 시작하지 않았다")
 assert(dg.world.nodes[1]==survivingTree and survivingTree.active,
     "세계수 승급이 살아 있는 숲을 공짜로 지웠다")
 
@@ -296,4 +296,4 @@ do
     assert(permit.scoreTreeAllowance == 22, "무허가 확장의 허용량이 늘지 않았다")
 end
 
-print("SCORE_WORLD_TREE_OK interval=60s tier=empty_or_kill reward=3pick run_only")
+print("SCORE_WORLD_TREE_OK interval=40s tier=empty_or_kill reward=3pick run_only")

@@ -1319,7 +1319,7 @@ end
 
 -- 재생 단계 상승의 두 입구를 한곳에 모은다.
 -- 1) 보통 나무 0그루: 쉬운 단계를 즉시 넘기고 여섯 그루를 다시 심는다.
--- 2) 60초 뒤 세계수 처치: 현재 숲은 유지하고 다음 단계 압력만 새로 시작한다.
+-- 2) 40초 뒤 세계수 처치: 현재 숲은 유지하고 다음 단계 압력만 새로 시작한다.
 function ClearcutMode:advanceScoreRegenTier(game,reseed,reason)
     if not self.scoreAttack or self.scoreTierFx then return false end
     -- 세계수를 치는 중 보통 나무를 먼저 전부 비웠다면 0그루 경로가 승리한다.
@@ -2682,7 +2682,7 @@ function ClearcutMode:onEnemyDefeated(e, game)
     if e.scoreWorldTree then
         self.scoreWorldTree=nil
         if game.achievements then game.achievements:add("world_trees",1) end
-        -- 세계수는 이 단계에서 60초를 버텼다는 증명이다. 처치 순간 다음 단계로
+        -- 세계수는 이 단계에서 40초를 버텼다는 증명이다. 처치 순간 다음 단계로
         -- 넘어가되, 0그루 클리어와 달리 현재 숲은 지우거나 여섯 그루를 더하지 않는다.
         -- 단, 마지막 보통 나무와 세계수가 같은 프레임에 쓰러졌다면 두 조건을 한 번만
         -- 소비하고 여섯 그루를 심어 빈 다음 단계가 즉시 또 승급하지 않게 한다.
