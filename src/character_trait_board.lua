@@ -371,6 +371,10 @@ function CharacterTraitBoard:nodeWorld(node)
         fire_score_flame_range_4={1150,4100},fire_score_flame_width_4={1500,4100},
         fire_score_flame_damage_5={650,4350},fire_score_flame_range_5={1000,4350},fire_score_flame_ignite_4={1350,4350},
         fire_score_stride_4={100,4100},fire_score_yard_7={1850,4100},
+        fire_score_popper_unlock={1000,4650},
+        fire_score_popper_damage_1={650,4900},fire_score_popper_bounce_1={1000,4900},fire_score_popper_heat_1={1350,4900},
+        fire_score_popper_damage_2={500,5150},fire_score_popper_bounce_2={850,5150},
+        fire_score_popper_damage_3={1150,5150},fire_score_popper_heat_2={1500,5150},fire_score_popper_extra={1000,5400},
         -- 공용 연구는 흡연자 갈래와 같은 좌표를 쓰고 있었다(각자 다른 탭이었으므로).
         -- 한 판으로 합치면서 흡연자 오른쪽으로 통째로 옮긴다.
         universal_yard={2600,850},universal_robot_start={3000,850},universal_robot_motor={3400,850},

@@ -298,6 +298,15 @@ local scoreFireNodes={
     {id="fire_score_flame_ignite_4",name="화염 착화 확률 상승",short="착화 +8%p",desc="화염에 닿아 있는 나무가 초당 불붙을 확률 +8%p",effect="scoreFlameIgnite",value=.08,max=1,costs={140},wx=1350,wy=4350,icon="ember",color={1,.36,.10},requires={{"fire_score_flame_ignite_3",1}}},
     {id="fire_score_stride_4",name="작업자 이동속도 상승",short="이동속도 +6%",desc="작업자 이동속도 +6%",effect="moveSpeed",value=.06,max=1,costs={260},wx=100,wy=4100,icon="road",color={.52,.74,.66},requires={{"fire_score_flame_range_3",1}}},
     {id="fire_score_yard_7",name="작업 구역 확장",short="맵 +2.5%p",desc="이동 가능한 맵 크기가 2.5% 넓어지고 나무 허용량이 4그루 증가합니다.",effect="scoreYardExpansion",value=1,max=1,costs={310},wx=1850,wy=4100,icon="map",color={.48,.72,.42},requires={{"fire_score_flame_width_3",1}}},
+    {id="fire_score_popper_unlock",name="뻥튀기 기계 해금",short="뻥튀기 기계",desc="불이 닿으면 압력을 채운 뒤 거대한 뻥튀기를 발사합니다. 뻥튀기는 나무를 때리고 생존 여부와 무관하게 다음 나무로 직행합니다.",effect="scorePopperUnlock",value=1,max=1,costs={650},wx=1000,wy=4650,icon="popping_machine",color={.88,.62,.30},requires={{"fire_score_flame_damage_5",1},{"fire_score_flame_range_5",1},{"fire_score_flame_width_4",1},{"fire_score_flame_ignite_4",1}},capstone=true},
+    {id="fire_score_popper_damage_1",name="뻥튀기 충돌 피해 상승",short="충돌 피해 +3",desc="나무에 부딪힐 때 주는 피해 +3",effect="scorePopperDamage",value=3,max=1,costs={110},wx=650,wy=4900,icon="fist",color={.90,.72,.46},requires={{"fire_score_popper_unlock",1}}},
+    {id="fire_score_popper_bounce_1",name="뻥튀기 튕김 횟수 증가",short="접촉 +1",desc="한 발이 연속으로 접촉하는 나무 +1 (기본 3그루)",effect="scorePopperBounces",value=1,max=1,costs={130},wx=1000,wy=4900,icon="split",color={.96,.82,.58},requires={{"fire_score_popper_unlock",1}}},
+    {id="fire_score_popper_heat_1",name="뻥튀기 가열시간 감소",short="가열 -0.35초",desc="점화 후 발사까지 걸리는 시간 -0.35초 (기본 2.8초)",effect="scorePopperHeat",value=.35,max=1,costs={90},wx=1350,wy=4900,icon="clock",color={1,.50,.18},requires={{"fire_score_popper_unlock",1}}},
+    {id="fire_score_popper_damage_2",name="뻥튀기 충돌 피해 상승",short="충돌 피해 +3",desc="나무에 부딪힐 때 주는 피해 +3",effect="scorePopperDamage",value=3,max=1,costs={180},wx=500,wy=5150,icon="fist",color={.90,.72,.46},requires={{"fire_score_popper_damage_1",1}}},
+    {id="fire_score_popper_bounce_2",name="뻥튀기 튕김 횟수 증가",short="접촉 +1",desc="한 발이 연속으로 접촉하는 나무 +1",effect="scorePopperBounces",value=1,max=1,costs={210},wx=850,wy=5150,icon="split",color={.96,.82,.58},requires={{"fire_score_popper_bounce_1",1}}},
+    {id="fire_score_popper_damage_3",name="뻥튀기 충돌 피해 상승",short="충돌 피해 +4",desc="나무에 부딪힐 때 주는 피해 +4",effect="scorePopperDamage",value=4,max=1,costs={270},wx=1150,wy=5150,icon="fist",color={.90,.72,.46},requires={{"fire_score_popper_damage_2",1},{"fire_score_popper_bounce_1",1}}},
+    {id="fire_score_popper_heat_2",name="뻥튀기 가열시간 감소",short="가열 -0.35초",desc="점화 후 발사까지 걸리는 시간 -0.35초",effect="scorePopperHeat",value=.35,max=1,costs={160},wx=1500,wy=5150,icon="clock",color={1,.50,.18},requires={{"fire_score_popper_heat_1",1}}},
+    {id="fire_score_popper_extra",name="뻥튀기 기계 추가 설치",short="기계 +1",desc="동시에 유지되는 뻥튀기 기계가 1대 증가합니다.",effect="scorePopperExtra",value=1,max=1,costs={520},wx=1000,wy=5400,icon="capstone",color={1,.68,.24},requires={{"fire_score_popper_bounce_2",1},{"fire_score_popper_damage_3",1},{"fire_score_popper_heat_2",1}},capstone=true},
 }
 for _,node in ipairs(scoreFireNodes)do node.job="fire";node.scoreMode=true;node.max=node.max or 5;node.costs=node.costs or{18,32,50,74,104};jobs.fire.nodes[#jobs.fire.nodes+1]=node end
 
@@ -718,6 +727,7 @@ function CharacterTraits:scoreAttackEffects()
         -- 폭죽 졸업과 화염방사기 갈래.
         scoreRocketCrew=0,scoreFlameUnlock=0,scoreFlameDamage=0,scoreFlameRange=0,scoreFlameWidth=0,scoreFlameIgnite=0,
         scoreAutoThrow=0,scoreRocketUnlock=0,scoreAlwaysSmoking=0,
+        scorePopperUnlock=0,scorePopperDamage=0,scorePopperBounces=0,scorePopperHeat=0,scorePopperExtra=0,
         -- 담배 탄약 관리 갈래.
         scoreReloadSpeed=0,scoreCartonSize=0,scoreCartonReload=0,scoreAutoThrowRate=0
     }

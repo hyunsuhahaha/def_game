@@ -56,6 +56,7 @@ ClearcutMode.ScoreWorldTree = require("src.score_world_tree")
 ClearcutMode.SCORE_TIME_DOUBLING_SECONDS=30
 ClearcutMode.GrayOilCatArt = require("src.gray_oil_cat_art")
 ClearcutMode.OilDrumSpillArt = require("src.oil_drum_spill_art")
+ClearcutMode.PoppingMachine = require("src.popping_machine")
 ClearcutMode.OIL_BASE_RADIUS=180
 
 ClearcutMode.scoreWeaponDefinitions = {
@@ -212,6 +213,7 @@ function ClearcutMode.new()
         treeSparks={}, treeSparkArrivals={}, strawTimer=0, strawBales={}, strawBaleSequence=0,
         oilTrail={}, oilTrailTimer=0, oilTrailLastX=nil, oilTrailLastY=nil, oilTrailSequence=0,
         oilDrums={},oilDrumSpills={},oilDrumTimer=0,oilDrumSequence=0,oilPuddleGroups={},grayOilCat=nil,
+        poppingMachines={},puffedRiceShots={},puffedRiceImpacts={},poppingMachineTimer=2.5,poppingMachineSequence=0,
         worldTreeLumber={},
         job=nil, attackCooldown=0, dashing=nil, dashTrail={}, smoking=nil,
         minerClawAction=nil, minerClawFx={}, minerClawMarks={}, minerBurrow=nil, minerBurrowCooldown=0, thrownTrees={}, burrowTracks={}, burrowTrackSequence=0,moleCompanion=nil,moleCompanions={},
@@ -627,6 +629,7 @@ function ClearcutMode:setup(game)
         ClearcutMode.OilDrumSpillArt.load()
         self.oilDrumTimer=3.5
     end
+    if self.scoreAttack and (self.permanentTraits.scorePopperUnlock or 0)>0 then ClearcutMode.PoppingMachine.load()end
     local notice=self.scoreAttack and string.format("벌목 기록 — 활성 나무가 %d그루에 닿으면 종료",self.scoreTreeAllowance)or(Maps.get(self.mapId).name.." — 마우스를 누른 채 나무 근처로 이동하세요")
     if self.job=="miner" then notice=Maps.get(self.mapId).name.." — 좌클릭 할퀴기 · SPACE/우클릭 잠복" end
     game:setNotice(notice, "food")
@@ -1432,6 +1435,7 @@ function ClearcutMode:update(dt, game)
     self:updateWorldTreeLumber(dt)
     self:updateMoleCompanion(dt,game)
     self:updateOilDrums(dt,game)
+    ClearcutMode.PoppingMachine.update(self,dt,game)
     ScoreAxeArt.update(self,dt)
     self:updateHeldAxe(dt, game)
     self:updateThrownTrees(dt, game)
@@ -7228,6 +7232,7 @@ function ClearcutMode:queueWorldActors(queue,t)
         queue[#queue+1]={x=drum.x,y=drum.y,anchorY=drum.y,sortBias=.001,
             draw=function()ClearcutMode.GrayOilCatArt.drawDrum(drum)end}
     end
+    ClearcutMode.PoppingMachine.queue(self,queue)
     for _,value in ipairs(self.scoreAxeImpacts or{})do local impact=value
         queue[#queue+1]={x=impact.x,y=impact.y+48,anchorY=impact.y+48,sortBias=.004,
             draw=function()ScoreAxeArt.drawImpact(impact)end}

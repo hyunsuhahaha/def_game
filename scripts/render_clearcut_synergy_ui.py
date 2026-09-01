@@ -13,9 +13,11 @@ def render_ui(path,size,background=(0,0,0,255)):
  for op in json.loads(Path(path).read_text(encoding='utf-8')):
   kind,args,color=op['op'],op['args'],rgba(op['color'])
   if kind=='rectangle':
-   x,y,w,h=args;box=(x,y,x+w,y+h);radius=op.get('radius') or 0
-   if op.get('mode')=='line': composite_primitive(lambda d:d.rounded_rectangle(box,radius=radius,outline=color,width=max(1,round(op.get('lineWidth',1)))))
-   else: composite_primitive(lambda d:d.rounded_rectangle(box,radius=radius,fill=color))
+   x,y,w,h=args;x2,y2=x+w,y+h;box=(min(x,x2),min(y,y2),max(x,x2),max(y,y2));radius=op.get('radius') or 0
+   radius=min(radius,(box[2]-box[0])/2,(box[3]-box[1])/2)
+   if op.get('mode')=='line':
+    composite_primitive(lambda d:d.rounded_rectangle(box,radius=radius,outline=color,width=max(1,round(op.get('lineWidth',1)))) if radius>=1 else d.rectangle(box,outline=color,width=max(1,round(op.get('lineWidth',1)))))
+   else: composite_primitive(lambda d:d.rounded_rectangle(box,radius=radius,fill=color) if radius>=1 else d.rectangle(box,fill=color))
   elif kind=='ellipse':
    x,y,rx,ry=args;box=(x-rx,y-ry,x+rx,y+ry)
    if op.get('mode')=='line':composite_primitive(lambda d:d.ellipse(box,outline=color,width=max(1,round(op.get('lineWidth',1)))))
