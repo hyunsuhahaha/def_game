@@ -57,7 +57,8 @@ mode.axeCooldown=0;drum.hp,drum.state=8,"settled"
 mode:updateScoreAxeAttack(0,game,true)
 game.player.autoAxeTargetX=drum.x+90
 mode:updateScoreAxeAttack(mode.scoreAxeAction.contactTime+.001,game,true)
-assert(drum.hp==8,"visible axe blade missed the drum but timer-only damage still landed")
+assert(drum.hp==8 and mode.scoreAxeAction.hitStop==0,
+    "visible axe blade missed the drum but timer-only damage or hit-stop still landed")
 drum.hp=4
 
 -- Finish recovery, bypass only the cooldown wait, then verify the second
@@ -88,4 +89,19 @@ local playerSource=assert(io.open("src/player.lua","rb")):read("*a")
 assert(playerSource:find("scoreAxeFrames")and playerSource:find("scoreAxeEquipped"),
     "the authored full-body axe action atlas is not selected by the player renderer")
 assert(sprites.fire.scoreAxeImage and #game.player.scoreAxeFrames==6,"six-frame full-body axe atlas was not loaded")
+
+mode.permanentTraits.scoreAlwaysSmoking=1
+mode.scoreActiveWeapon="axe";mode.smoking={phase="reload",t=.4,dur=2,loaded=false}
+game.player.scoreAxeEquipped=true;game.player.autoAxeClock=0;game.player.autoAxeDuration=.45
+game.player.autoAxeTargetX,game.player.autoAxeTargetY=game.player.x+70,game.player.y
+local mouthStart=mode:smokerMouthPose(game)
+game.player.autoAxeClock=.45*.53
+local mouthContact=mode:smokerMouthPose(game)
+assert(mouthContact>mouthStart+15,"cigarette mouth anchor did not follow the axe step-in pose")
+fixture.reset();mode:drawHeldSmoker(game,.5)
+local cigaretteDrawn=false
+for _,command in ipairs(fixture.commands)do
+    if command.op=="draw"and command.file:find("smoker%-cigarette%-pixel%-v2%.png")then cigaretteDrawn=true end
+end
+assert(cigaretteDrawn,"always-smoking trait reloads during axe swings but draws no cigarette or smoke")
 print("SCORE_AXE_DRUM_OK full-body-swing step-in+target-lock contact-frame damage dent+kick+metal+hitstop second-hit=spill")

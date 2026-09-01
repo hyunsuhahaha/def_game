@@ -10,9 +10,9 @@ CAPTURE=OUT/"score-axe-contact-v2-draws.json"
 
 def rgba(values):return tuple(max(0,min(255,round(value*255)))for value in values)
 
-def replay():
+def replay(capture=CAPTURE):
     canvas=Image.new("RGBA",(960,360),(0,0,0,255));draw=ImageDraw.Draw(canvas,"RGBA")
-    for op in json.loads(CAPTURE.read_text(encoding="utf-8")):
+    for op in json.loads(capture.read_text(encoding="utf-8")):
         kind,args,color=op["op"],op["args"],rgba(op["color"])
         if kind=="rectangle":
             x,y,w,h=args;draw.rectangle((x,y,x+w,y+h),fill=color)
@@ -36,7 +36,8 @@ def replay():
             canvas.alpha_composite(layer)
     return canvas
 
-run(ROOT/"scripts"/"capture_score_axe_drum.lua")
-image=replay();image.save(OUT/"score-axe-contact-v2-display-scale.png")
-image.crop((0,100,960,350)).resize((1920,500),Image.Resampling.NEAREST).save(OUT/"score-axe-contact-v2-2x.png")
-print("SCORE_AXE_DRUM_RENDER_OK display=960x360 enlarged=1920x500 window=none")
+if __name__=="__main__":
+    run(ROOT/"scripts"/"capture_score_axe_drum.lua")
+    image=replay();image.save(OUT/"score-axe-contact-v2-display-scale.png")
+    image.crop((0,100,960,350)).resize((1920,500),Image.Resampling.NEAREST).save(OUT/"score-axe-contact-v2-2x.png")
+    print("SCORE_AXE_DRUM_RENDER_OK display=960x360 enlarged=1920x500 window=none")

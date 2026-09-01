@@ -124,6 +124,16 @@ function World:addParticle(x, y, color, strong, pickup)
     }
 end
 
+function World:addAxeChip(x,y,dir,strong)
+    local life=.34+love.math.random()*(strong and .30 or .18)
+    self.particles[#self.particles+1]={
+        x=x,y=y,vx=dir*(70+love.math.random()*(strong and 150 or 90))+(love.math.random()*2-1)*38,
+        vy=-45-love.math.random()*(strong and 155 or 105),life=life,maxLife=life,
+        size=2+love.math.random()*(strong and 4 or 3),color={.72,.43,.18},woodChip=true,
+        angle=love.math.random()*math.pi,spin=(love.math.random()*2-1)*11
+    }
+end
+
 function World:addLeafParticle(x, y)
     local angle = -math.pi * (.2 + love.math.random() * .6)
     local speed = 55 + love.math.random() * 85
@@ -203,25 +213,31 @@ function World:toxicPulseFx(x, y, radius)
     end
 end
 
-function World:impactNode(node, game, strong)
+function World:impactNode(node, game, strong, impact)
     if not node or node.kind == "plot" or (not node.active and not strong) then return end
-    local x, y = effectOrigin(node)
+    local axe=impact and impact.kind=="axe"
+    local x, y = axe and impact.x or effectOrigin(node)
+    if axe then y=impact.y end
     local color = effectColors[node.kind]
-    node.hitFlash, node.hitShake = strong and .2 or .12, strong and .24 or .14
+    node.hitFlash, node.hitShake = axe and 0 or (strong and .2 or .12), strong and .24 or .14
     if node.rushTree and node.rushMaxHp and node.rushMaxHp>0 then
         node.damageStage=TreeDestruction.damageStage(node.rushHp,node.rushMaxHp)
         ForestUnderstory.cutRadius(self,node.x,node.y,strong and 92 or 64,game)
         BiomeVines.cutRadius(self,node.x,node.y,strong and 92 or 64,game)
     end
-    for _ = 1, strong and 15 or 6 do self:addParticle(x, y, color, strong, false) end
-    self.particles[#self.particles + 1] = {x = x, y = y, life = .2, maxLife = .2, size = 12, color = color, ring = true}
+    if axe then
+        for _=1,strong and 15 or 8 do self:addAxeChip(x,y,impact.dir or 1,strong)end
+    else
+        for _ = 1, strong and 15 or 6 do self:addParticle(x, y, color, strong, false) end
+        self.particles[#self.particles + 1] = {x = x, y = y, life = .2, maxLife = .2, size = 12, color = color, ring = true}
+    end
     if node.kind == "tree" and game.player then
-        local dir = (node.x - game.player.x) >= 0 and 1 or -1
-        node.swayVel = (node.swayVel or 0) + dir * (strong and 3.4 or 1.7)
+        local dir = axe and (impact.dir or 1) or ((node.x - game.player.x) >= 0 and 1 or -1)
+        node.swayVel = (node.swayVel or 0) + dir * (strong and 4.4 or 2.4)
         for _ = 1, strong and 10 or 4 do self:addLeafParticle(x, y) end
     end
-    if game.camera then game.camera.trauma = math.min(1, game.camera.trauma + (strong and .36 or .12)) end
-    if game.feedback then game.feedback:play(node.kind, strong) end
+    if game.camera then game.camera.trauma = math.min(1, game.camera.trauma + (axe and (strong and .30 or .09) or (strong and .36 or .12))) end
+    if game.feedback then game.feedback:play(axe and "axe_wood" or node.kind, strong) end
 end
 
 -- Electronic-cigarette pressure bends the billboard around its rooted base
@@ -236,10 +252,10 @@ function World:windImpactNode(node,dirX,dirY,power)
     node.swayVel=(node.swayVel or 0)+visualDir*(2.6+7.4*power)
 end
 
-function World:harvestBurst(node, game, amount, label)
+function World:harvestBurst(node, game, amount, label, axeImpact)
     local x, y = effectOrigin(node)
     local color = effectColors[node.kind] or effectColors.plot
-    self:impactNode(node, game, true)
+    if not axeImpact then self:impactNode(node, game, true) end
     if node.kind == "plot" then
         node.hitFlash, node.hitShake = .2, .2
         for _ = 1, 15 do self:addParticle(x, y, color, true, false) end
@@ -254,7 +270,7 @@ function World:harvestBurst(node, game, amount, label)
         local sway = node.swayAngle or 0
         local profile=TreeDestruction.fallProfile(node.rushMaxHp,node.giantTree)
         node.fallT, node.fallDur, node.fallReach = 0, profile.duration, profile.reach
-        node.fallDir = sway > 0 and 1 or sway < 0 and -1 or (love.math.random() < .5 and 1 or -1)
+        node.fallDir = axeImpact and axeImpact.dir or (sway > 0 and 1 or sway < 0 and -1 or (love.math.random() < .5 and 1 or -1))
         for _ = 1, 10 do self:addLeafParticle(x, y) end
         if node.giantTree and game.feedback then game.feedback:play("creak",true) end
     end
@@ -295,6 +311,8 @@ function World:updateEffects(dt, game)
         elseif p.leaf then
             p.vy = p.vy + 70 * dt
             p.vx = p.vx * math.exp(-dt * 1.2)
+        elseif p.woodChip then
+            p.vy=p.vy+420*dt;p.vx=p.vx*math.exp(-dt*.9);p.angle=p.angle+p.spin*dt
         elseif p.dust then
             p.vx, p.vy = p.vx * math.exp(-dt * 2.4), p.vy * math.exp(-dt * 2.4) - 4 * dt
         elseif not p.ring then p.vy = p.vy + 390 * dt end
@@ -1737,6 +1755,12 @@ function World:draw(player, actorSource)
             love.graphics.rectangle("fill", -p.size, -p.size, p.size * 2, p.size * 2, 2, 2)
             love.graphics.setColor(p.color[1] * .5, p.color[2] * .5, p.color[3] * .5, alpha); love.graphics.setLineWidth(1)
             love.graphics.rectangle("line", -p.size, -p.size, p.size * 2, p.size * 2, 2, 2)
+            love.graphics.pop()
+        elseif p.woodChip then
+            love.graphics.push();love.graphics.translate(math.floor(p.x+.5),math.floor(p.y+.5));love.graphics.rotate(p.angle or 0)
+            love.graphics.setColor(.34,.18,.07,alpha);love.graphics.rectangle("fill",-p.size-1,-2,p.size*2+2,4)
+            love.graphics.setColor(p.color[1],p.color[2],p.color[3],alpha);love.graphics.rectangle("fill",-p.size,-1,p.size*2,2)
+            love.graphics.setColor(.91,.64,.31,alpha*.9);love.graphics.rectangle("fill",-p.size+1,-1,math.max(1,p.size*.7),1)
             love.graphics.pop()
         elseif p.leaf then
             love.graphics.push(); love.graphics.translate(p.x, p.y); love.graphics.rotate(love.timer.getTime() * p.wobbleFreq + p.wobbleSeed)

@@ -3643,11 +3643,11 @@ function ClearcutMode:resolveScoreAxeAction(action,game)
         local dx,dy=action.drum.x-bladeX,action.drum.y-54-bladeY
         if action.drum.state=="settled"and dx*dx+dy*dy<=bladeRadius*bladeRadius then
             self:hitOilDrum(action.drum,action.damage,game)
-            return true
+            return true,action.drum.hp<=0
         end
         return false
     end
-    local hit=0
+    local hit,felledAny=0,false
     local shockLevel=math.max(0,math.floor(self.permanentTraits.scoreAxeShock or 0))
     local chainChance=self.permanentTraits.scoreAxeChain or 0
     local heavy=self.permanentTraits.scoreAxeHeavy or 0
@@ -3658,10 +3658,12 @@ function ClearcutMode:resolveScoreAxeAction(action,game)
         local x,y=node.x,node.y
         -- 거목 특화는 최대 체력에 비례하므로 굵은 수종에서만 크게 붙는다.
         local blow=action.damage+(heavy>0 and math.floor((node.rushMaxHp or 0)*heavy)or 0)
-        local felled=self:damageTreeWithSmokerWeapon(node,blow,game)
+        local impact={kind="axe",x=bladeX,y=bladeY,dir=action.facing}
+        local felled=self:damageTreeWithSmokerWeapon(node,blow,game,impact)
         self:damageEnemiesInRadius(x,y,62+action.axeArea,14+blow*2,game)
         self.traitFx:emit("axe",x,y,{radius=66,power=1,particles=12})
         if felled then
+            felledAny=true
             -- 도끼는 동시 타격 3그루가 하드캡이라 후반 공급량을 못 따라간다. 충격파는
             -- 쓰러진 자리에서 주변으로 퍼져 그 천장을 숲 밀도에 비례하게 바꾼다.
             if shockLevel>0 then self:axeShockwave(x,y,shockLevel,game) end
@@ -3671,7 +3673,7 @@ function ClearcutMode:resolveScoreAxeAction(action,game)
         end
     end end
     self.maxMulti=math.max(self.maxMulti or 0,hit)
-    return hit>0
+    return hit>0,felledAny
 end
 
 function ClearcutMode:updateScoreAxeAction(dt,game)
@@ -3682,8 +3684,10 @@ function ClearcutMode:updateScoreAxeAction(dt,game)
     if game.player.autoAxeClock~=nil then game.player.autoAxeClock=action.elapsed end
     local impacted=false
     if not action.impacted and action.elapsed>=action.contactTime then
-        action.impacted=true;action.hitStop=.045
-        impacted=self:resolveScoreAxeAction(action,game)
+        action.impacted=true
+        local felled
+        impacted,felled=self:resolveScoreAxeAction(action,game)
+        action.hitStop=impacted and(felled and .07 or .045)or 0
         self.actionAudit.scoreAxe=(self.actionAudit.scoreAxe or 0)+1
     end
     if action.elapsed>=action.duration then
@@ -3777,11 +3781,13 @@ local function smokerAim(mode,game,maxRange)
     return tx,ty,dx/distance,dy/distance
 end
 
-function ClearcutMode:damageTreeWithSmokerWeapon(node,damage,game)
+function ClearcutMode:damageTreeWithSmokerWeapon(node,damage,game,impact)
     if not node.active then return false end
     node.rushHp=(node.rushHp or node.rushMaxHp)-damage
-    game.world:impactNode(node,game,true)
-    if node.rushHp<=0 then return self:fellTree(node,game) end
+    local felled=node.rushHp<=0
+    local strong=impact==nil or felled
+    game.world:impactNode(node,game,strong,impact)
+    if felled then return self:fellTree(node,game,impact) end
     return false
 end
 
@@ -4134,6 +4140,19 @@ function ClearcutMode:smokerMouthPose(game)
     local facing = player.facing or 1
     local progress = player.clearcutActionProgress
     local sprite = player.clearcutSprite
+
+    if sprite and sprite.scoreAxeMouth and player.scoreAxeEquipped and player.scoreAxeFrameWidth then
+        local axeProgress=player.autoAxeClock and player.autoAxeClock/player.autoAxeDuration or 0
+        local frame=math.max(1,math.min(6,math.floor(math.min(.999,axeProgress)*6)+1))
+        local anchor=sprite.scoreAxeMouth[frame]
+        local scale=sprite.scale or .61
+        local foot=(sprite.scoreAxeFeet or{})[frame]or 190
+        local drawX,drawY=player:autoAxeRenderPosition()
+        local mouthX=drawX+(anchor[1]-player.scoreAxeFrameWidth/2)*scale*facing
+        local mouthY=drawY+(anchor[2]-foot)*scale
+        local length=sprite.cigarette and sprite.cigarette.length or 16
+        return mouthX,mouthY,facing,mouthX+length*facing
+    end
 
     if sprite and sprite.walkMouth and sprite.actionMouth and player.clearcutPose then
         local row, frame, flip, foot, bob = player:clearcutPose()
@@ -6073,7 +6092,7 @@ function ClearcutMode:choose(index, game)
     return true
 end
 
-function ClearcutMode:fellTree(node, game)
+function ClearcutMode:fellTree(node, game, axeImpact)
     if not node.active then return false end
     local wasBeehive = node.beehive
     -- 연쇄 발화: 쓰러지는 자리에서 주변으로 불이 옮겨붙는다. 좌표를 먼저 잡아 두는
@@ -6084,7 +6103,7 @@ function ClearcutMode:fellTree(node, game)
     -- 기본 수종보다 값나가는(=해금이 필요한) 수종은 더 많은 목재를 준다.
     local amount = (node.treeVariant and node.treeVariant > 1) and 6 or 4
     amount = math.floor(amount * (self.permanentTraits.woodYield or 1) + .5)
-    game.world:harvestBurst(node, game, amount, "목재")
+    game.world:harvestBurst(node, game, amount, "목재", axeImpact)
     game.world:spawnDrop("wood", amount, node.x, node.y - 10, 42, 30, 1.5)
     self.treesFelled = self.treesFelled + 1
     local lumber=WoodEconomy.forTree(self.mapId,node.treeVariant or 1)
@@ -7332,7 +7351,7 @@ end
 
 function ClearcutMode:drawHeldSmoker(game,t)
     SmokeRingArt.drawCharge(self,game,t)
-    if self.scoreAttack and self:scoreWeaponId()=="axe"then
+    if self.scoreAttack and self:scoreWeaponId()=="axe"and(self.permanentTraits.scoreAlwaysSmoking or 0)<=0 then
         return
     end
     -- 화염방사기는 담배를 입에 물지 않는다. 재장전 바와 꽁초 그리기로 떨어지면
