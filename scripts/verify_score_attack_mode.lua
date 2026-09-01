@@ -167,9 +167,15 @@ game.mode="playing"
 -- the authored transition before six trees rise in a staggered sequence.
 for _,node in ipairs(nodes)do if node.rushTree and node.active and not node.giantTree then node.active=false end end
 mode.remainingTrees=0
+local abandonedWorldTree={scoreWorldTree=true,hp=50};mode.scoreWorldTree=abandonedWorldTree
+mode.enemies[#mode.enemies+1]=abandonedWorldTree
 local pendingBeforeTier=mode.pending
 assert(mode:updateScoreTierClear(.31,game),"empty forest did not trigger a regeneration transition")
 assert(mode.scoreRegenTier==2 and Traits:getRegenTier()==2 and mode.pending==pendingBeforeTier,"tier clear was not persisted or incorrectly granted a card")
+assert(mode.stageElapsed==0 and mode.scoreWorldTreeTimer==mode.ScoreWorldTree.INTERVAL,
+    "empty-forest tier up did not reset stage time and world-tree survival timer")
+assert(not mode.scoreWorldTree and mode.enemies[#mode.enemies]~=abandonedWorldTree,
+    "empty-forest tier up left a world tree that could grant a duplicate tier")
 assert(mode.scoreTierFx and not mode.scoreTierFx.spawned and mode:scoreActiveTreeCount()==0,"tier effect did not hold the empty field before regrowth")
 mode:updateScoreTierClear(.37,game)
 assert(mode:scoreActiveTreeCount()==0,"tier trees appeared before the visual impact beat")
@@ -182,7 +188,8 @@ for _,node in ipairs(nodes)do if node.rushTree and node.active and not node.gian
     assert(math.abs(node.treeEmergence.t+(emergenceIndex-1)*.065)<.001,"tier trees do not use staggered emergence timing")
 end end
 mode:updateScoreTierClear(.47,game)
-assert(not mode.scoreTierFx and math.abs(mode:scoreTreeSpawnRate()-expectedSpawn(2,90))<.001,"tier transition did not preserve elapsed-time pressure at the new rate")
+assert(not mode.scoreTierFx and math.abs(mode:scoreTreeSpawnRate()-expectedSpawn(2,0))<.001,
+    "tier transition did not restart elapsed-time pressure at the new tier")
 assert(mode:scoreTreeHealth(7)==7,"tier 2 tree HP rose before the regeneration pressure became visible")
 
 ordinary=mode:scoreActiveTreeCount()

@@ -64,10 +64,18 @@ assert(ScoreWorldTree.health(high) > ScoreWorldTree.health(low) * 2,
 -- 5. 처치하면 보상 3택이 열리고 게임이 멈춘다.
 local dead = mode()
 local dg = world()
+dead.stageElapsed=60
+local survivingTree={rushTree=true,active=true,x=100,y=100}
+dg.world.nodes={survivingTree}
+dead.mapWorld=dg.world
 dead.scoreWorldTree = {scoreWorldTree = true, hp = 0, def = {}, x = 0, y = 0}
 dead:onEnemyDefeated(dead.scoreWorldTree, dg)
 assert(dg.mode == "score_reward" and #dead.scoreRewardChoices == 3,
     "세계수를 쓰러뜨려도 보상 3택이 열리지 않는다")
+assert(dead.scoreRegenTier==2 and dead.stageElapsed==0 and dead.scoreTierFx and not dead.scoreTierFx.reseed,
+    "60초 세계수 처치가 현재 숲을 유지하는 재생 단계 상승을 시작하지 않았다")
+assert(dg.world.nodes[1]==survivingTree and survivingTree.active,
+    "세계수 승급이 살아 있는 숲을 공짜로 지웠다")
 
 -- 6. 고른 보상은 이번 판에만 남고 후보에서 빠진다.
 local pickId = dead.scoreRewardChoices[1].id
@@ -244,4 +252,4 @@ do
     assert(permit.scoreTreeAllowance == 22, "무허가 확장의 허용량이 늘지 않았다")
 end
 
-print("SCORE_WORLD_TREE_OK interval=60s trigger=time no_attack reward=3pick run_only")
+print("SCORE_WORLD_TREE_OK interval=60s tier=empty_or_kill reward=3pick run_only")

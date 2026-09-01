@@ -487,12 +487,15 @@ end
 
 function ClearcutMode:updateStageClock(dt,game)
     if self.sandbox or self.dead then return false end
+    -- 재생 단계 전환 연출은 다음 단계의 생존 시간에 포함하지 않는다.
+    if self.scoreAttack and self.scoreTierFx then return false end
     self.stageElapsed=(self.stageElapsed or 0)+dt
     if self.scoreAttack then
         self:scoreProductionRate()
         if self:scoreActiveTreeCount()>=(self.scoreTreeAllowance or 12)then self.scoreOvercrowdTimer=(self.scoreOvercrowdTimer or 0)+dt end
         if self:checkScoreOvercrowding(game)then return true end
-        if self.stageElapsed>=(self.scoreHardCap or 720) then
+        -- stageElapsed는 단계마다 초기화되므로 전체 판 제한은 elapsed로 잰다.
+        if (self.elapsed or 0)>=(self.scoreHardCap or 720) then
             self.failureReason="score_hardcap"
             self:finish(game,true)
             return true
@@ -1288,13 +1291,15 @@ function ClearcutMode:updateScoreTierClear(dt,game)
         fx.t=math.min(fx.duration,fx.t+dt)
         if not fx.spawned and fx.t>=fx.spawnAt then
             fx.spawned=true
-            self.scoreTierSpawned,self.treeSpawnAccumulator=0,0
-            for i=1,(self.scoreStartingTrees or 6)do
-                local ok,node=self:spawnScoreTree(game)
-                if not ok then break end
-                if node and node.treeEmergence then
-                    node.treeEmergence.t=-(i-1)*.065
-                    node.treeEmergence.source="tier_up"
+            if fx.reseed then
+                self.scoreTierSpawned,self.treeSpawnAccumulator=0,0
+                for i=1,(self.scoreStartingTrees or 6)do
+                    local ok,node=self:spawnScoreTree(game)
+                    if not ok then break end
+                    if node and node.treeEmergence then
+                        node.treeEmergence.t=-(i-1)*.065
+                        node.treeEmergence.source="tier_up"
+                    end
                 end
             end
         end
@@ -1308,11 +1313,38 @@ function ClearcutMode:updateScoreTierClear(dt,game)
     if self.scoreTierClearLatch then return true end
     self.scoreTierClearTimer=(self.scoreTierClearTimer or 0)+dt
     if self.scoreTierClearTimer<.3 then return true end
+    self:advanceScoreRegenTier(game,true,"empty")
+    return true
+end
+
+-- 재생 단계 상승의 두 입구를 한곳에 모은다.
+-- 1) 보통 나무 0그루: 쉬운 단계를 즉시 넘기고 여섯 그루를 다시 심는다.
+-- 2) 60초 뒤 세계수 처치: 현재 숲은 유지하고 다음 단계 압력만 새로 시작한다.
+function ClearcutMode:advanceScoreRegenTier(game,reseed,reason)
+    if not self.scoreAttack or self.scoreTierFx then return false end
+    -- 세계수를 치는 중 보통 나무를 먼저 전부 비웠다면 0그루 경로가 승리한다.
+    -- 남은 세계수를 그대로 두면 처치 시 같은 단계에서 두 번 승급하므로 조용히 거둔다.
+    if reason=="empty"and self.scoreWorldTree then
+        local challenge=self.scoreWorldTree
+        for index=#(self.enemies or{}),1,-1 do
+            if self.enemies[index]==challenge or self.enemies[index].scoreWorldTree then
+                table.remove(self.enemies,index)
+            end
+        end
+        self.scoreWorldTree,self.scoreWorldTreeHp=nil,nil
+    end
     self.scoreTierClearLatch=true
     self.scoreRegenTier=(self.scoreRegenTier or 1)+1
     self.scoreHighestRegenTier=math.max(self.scoreHighestRegenTier or 1,self.scoreRegenTier)
     if game.characterTraits and game.characterTraits.unlockRegenTier then game.characterTraits:unlockRegenTier(self.scoreRegenTier)end
-    self.scoreTierFx={t=0,duration=.86,spawnAt=.38,fromTier=self.scoreRegenTier-1,toTier=self.scoreRegenTier,spawned=false}
+    -- 시간 압력과 1초 벌목률 표본은 같은 시간축을 쓰므로 함께 초기화한다.
+    self.stageElapsed=0
+    self.scoreFellTimes,self.scoreFellHead={},1
+    self.currentTreesPerSecond=0
+    self.scoreWorldTreeTimer=ClearcutMode.ScoreWorldTree.INTERVAL
+        *(self:scoreReward("second_tree")and .6 or 1)
+    self.scoreTierFx={t=0,duration=.86,spawnAt=.38,fromTier=self.scoreRegenTier-1,
+        toTier=self.scoreRegenTier,spawned=false,reseed=reseed==true,reason=reason}
     if game.feedback and game.feedback.play then game.feedback:play("tier_up",true)end
     return true
 end
@@ -2589,6 +2621,12 @@ function ClearcutMode:onEnemyDefeated(e, game)
     if e.scoreWorldTree then
         self.scoreWorldTree=nil
         if game.achievements then game.achievements:add("world_trees",1) end
+        -- 세계수는 이 단계에서 60초를 버텼다는 증명이다. 처치 순간 다음 단계로
+        -- 넘어가되, 0그루 클리어와 달리 현재 숲은 지우거나 여섯 그루를 더하지 않는다.
+        -- 단, 마지막 보통 나무와 세계수가 같은 프레임에 쓰러졌다면 두 조건을 한 번만
+        -- 소비하고 여섯 그루를 심어 빈 다음 단계가 즉시 또 승급하지 않게 한다.
+        local empty=self:scoreActiveTreeCount()==0
+        self:advanceScoreRegenTier(game,empty,empty and"empty_world_tree"or"world_tree")
         local choices=ClearcutMode.ScoreWorldTree.roll(self,3)
         if #choices>0 then
             self.scoreRewardChoices=choices
