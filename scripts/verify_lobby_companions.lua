@@ -44,6 +44,21 @@ for _,actor in ipairs(state.animals)do kinds[actor.kind]=kinds[actor.kind]+1 end
 assert(kinds.monkey==6 and kinds.mole==3 and kinds.cat==1,
     "원숭이·두더지·고양이 해금 수가 잘못 반영됐다")
 
+local tree={kind="tree",x=790,y=670,rx=38,ry=52}
+Companions.setScenery(state,{tree})
+assert(Companions.isSceneryBlocked(state,state.animals[1],tree.x,tree.y,true),
+    "전경 나무 밑동 점유 영역이 동료 충돌에 등록되지 않았다")
+for _=1,120 do Companions.update(state,1/30)end
+for _,actor in ipairs(state.animals)do
+    assert(not Companions.isSceneryBlocked(state,actor,actor.x,actor.y,actor.state=="sleep"),
+        "동료가 전경 나무 밑동 위에 배치됐다: "..actor.id)
+    assert(not Companions.isSceneryBlocked(state,actor,actor.targetX,actor.targetY,true),
+        "동료의 이동/수면 목표가 전경 나무 밑동과 겹친다: "..actor.id)
+end
+assert(Companions.depthScaleForY(state.bounds.y1,state.bounds)<
+    Companions.depthScaleForY(state.bounds.y2,state.bounds),
+    "동료 크기에 전경/후경 원근 배율이 없다")
+
 Companions.preparePreview(state)
 local states={}
 for _,actor in ipairs(state.animals)do states[actor.state]=true end
@@ -148,7 +163,8 @@ local lobby=read("src/lobby.lua")
 local game=read("src/game.lua")
 assert(lobby:find('require("src.lobby_companions")',1,true)and
     lobby:find("LobbyCompanions.sync",1,true)and lobby:find("groundOffset=-parallax*unit*7",1,true)and
-    lobby:find("companionSplit,groundOffset",1,true)and lobby:find("x+groundOffset",1,true),
+    lobby:find("companionSplit,groundOffset",1,true)and lobby:find("x+groundOffset",1,true)and
+    lobby:find("LobbyCompanions.setScenery",1,true)and lobby:find('kind="tree"',1,true),
     "로비가 동료 생활 모듈을 사용하지 않는다")
 assert(game:find("self.lobby:update(dt,self)",1,true),
     "실제 해금 저장값이 로비 업데이트에 전달되지 않는다")
@@ -158,4 +174,4 @@ assert(baker:find("lobby%-companion%-sleep%-concept%-v1%.png")and
     not baker:find("rotate(",1,true),
     "수면 자산이 실제 이불 원화 대신 회전 몸체를 사용한다")
 
-print("LOBBY_COMPANIONS_OK unlocked_only=true ground_anchor=foreground_parallax sleep_scale=physical_v2 interactions=cat_wand+banana_toss+mole_peek+chase_train depth=behind_foreground")
+print("LOBBY_COMPANIONS_OK unlocked_only=true ground_anchor=foreground_parallax tree_collision=roots+paths perspective=scale+speed+shadow sleep_scale=physical_v2 interactions=cat_wand+banana_toss+mole_peek+chase_train depth=behind_foreground")

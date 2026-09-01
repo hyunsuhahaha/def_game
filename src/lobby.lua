@@ -5,6 +5,22 @@ local TimeOfDay=require("src.lobby_time_of_day")
 local LobbyCompanions=require("src.lobby_companions")
 local Lobby={};Lobby.__index=Lobby
 
+local function companionScenery(trees,w,h)
+ local obstacles={};if not trees or #trees==0 then return obstacles end
+ local startX=w*.86;local count=3;local span=w-startX
+ local spacing=span/math.max(1,count-1);local targetH=h*.43;local ground=h*.93
+ for i=1,count do
+  local image=trees[(i-1)%#trees+1]
+  if image then
+   local iw,ih=image:getDimensions();local scale=targetH/ih
+   local left=startX+(i-1)*spacing+(i%2)*spacing*.10
+   obstacles[#obstacles+1]={kind="tree",x=left+iw*scale*.5,y=ground,
+    rx=math.max(w*.024,iw*scale*.13),ry=h*.072}
+  end
+ end
+ return obstacles
+end
+
 -- 현재 플레이테스트는 기록 모드 하나에 집중한다. 일반 작전 버튼과 진입 코드는
 -- 삭제하지 않았으며 Game:startClearcut 이하에 보존되어 있다.
 local ACTIVE_DEVELOPMENT_MODE="score_attack"
@@ -52,6 +68,7 @@ function Lobby:update(dt,game)
  CdArt.update(self.audioCd,dt,self.audioPlaying and true or false)
  local w,h=love.graphics.getDimensions()
  LobbyCompanions.sync(self.lobbyCompanions,game and game.characterTraits,w,h)
+ LobbyCompanions.setScenery(self.lobbyCompanions,companionScenery(self.backgroundTrees,w,h))
  LobbyCompanions.update(self.lobbyCompanions,dt)
 end
 
@@ -289,6 +306,7 @@ function Lobby:draw(game)
  local titleFont=self.pixelTitle or f.display or self.displayFont or f.heading
  local menuFont=self.pixelMenu or f.heading;local smallFont=self.pixelSmall or f.small;local tinyFont=self.pixelTiny or f.small
  LobbyCompanions.sync(self.lobbyCompanions,game and game.characterTraits,w,h)
+ LobbyCompanions.setScenery(self.lobbyCompanions,companionScenery(self.backgroundTrees,w,h))
  self:drawBackground(w,h,true)
  local compact=w<1080 or h<640;local x=math.max(24,math.floor(w*.07));local menuW=math.min(compact and 430 or 470,math.floor(w*.46))
  local titleY=math.floor(h*(compact and .09 or .11))

@@ -15,7 +15,9 @@ for name,size in pairs({micro=12,small=14,body=17,heading=21,big=28,title=36,dis
     fonts[name]=love.graphics.newFont("assets/font-korean-regular.ttf",size)
 end
 local traits=Traits.new(true)
-local previewLevels=LOBBY_SCALE_MODE and{
+local previewLevels=LOBBY_DEPTH_PREVIEW and{
+    fire_score_axe_crew=1,fire_score_rocket_crew=1,fire_score_popper_unlock=1,
+}or LOBBY_SCALE_MODE and{
     fire_score_axe_crew=1,universal_mole_companion=1,universal_gray_cat=1,
 }or{
     fire_score_axe_crew=1,fire_score_rocket_crew=1,fire_score_popper_unlock=1,
@@ -28,7 +30,9 @@ local game={characterTraits=traits}
 local lobby=Lobby.new({},fonts)
 lobby.time=2.2;lobby.timeOfDayOverride=LOBBY_HOUR or 12
 lobby:update(.01,game)
-if LOBBY_SCALE_MODE then
+if LOBBY_DEPTH_PREVIEW then
+    assert(Companions.prepareDepthPreview(lobby.lobbyCompanions))
+elseif LOBBY_SCALE_MODE then
     assert(Companions.prepareScalePreview(lobby.lobbyCompanions,LOBBY_SCALE_MODE=="sleep"))
 elseif LOBBY_INTERACTION_KIND then
     assert(Companions.prepareInteractionPreview(lobby.lobbyCompanions,LOBBY_INTERACTION_KIND),
@@ -46,9 +50,10 @@ local hour=math.floor(LOBBY_HOUR or 12)
 local frameSuffix=LOBBY_PREVIEW_FRAME~=nil and string.format("-f%02d",LOBBY_PREVIEW_FRAME)or""
 local interactionSuffix=LOBBY_INTERACTION_KIND and("-"..LOBBY_INTERACTION_KIND)or""
 local scaleSuffix=LOBBY_SCALE_MODE and("-scale_"..LOBBY_SCALE_MODE)or""
+local depthSuffix=LOBBY_DEPTH_PREVIEW and"-depth"or""
 local parallax=math.floor((LOBBY_PARALLAX or 0)*100)
 local parallaxSuffix=LOBBY_PARALLAX and string.format("-p%+04d",parallax)or""
-fixture.save(string.format("docs/previews/lobby-companions-draws-%d-h%02d%s%s%s%s.json",
-    width,hour,interactionSuffix,scaleSuffix,parallaxSuffix,frameSuffix))
+fixture.save(string.format("docs/previews/lobby-companions-draws-%d-h%02d%s%s%s%s%s.json",
+    width,hour,interactionSuffix,scaleSuffix,depthSuffix,parallaxSuffix,frameSuffix))
 print(string.format("LOBBY_COMPANIONS_CAPTURE_OK %dx%d hour=%02d animals=%d window=none",
     width,height,hour,#lobby.lobbyCompanions.animals))

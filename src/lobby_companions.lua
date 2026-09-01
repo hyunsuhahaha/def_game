@@ -116,24 +116,112 @@ local function boundsFor(width,height)
     }
 end
 
-local function blockedByGroundProp(x,y,bounds)
-    if y<bounds.height*.80 then return false end
-    local nx=x/bounds.width
-    return(nx>.455 and nx<.59)or(nx>.69 and nx<.865)
+local function bodyRadius(kind,asleep)
+    if asleep then return kind=="monkey"and 35 or(kind=="mole"and 47 or 48)end
+    return kind=="monkey"and 19 or(kind=="mole"and 27 or 23)
 end
 
-local function point(actor,bounds)
+local function depthScaleForY(y,bounds)
+    local span=math.max(1,bounds.y2-bounds.y1)
+    local depth=math.max(0,math.min(1,((y or bounds.y1)-bounds.y1)/span))
+    return .78+depth*.30
+end
+Companions.depthScaleForY=depthScaleForY
+
+local function blockedByGroundProp(x,y,bounds,clearance)
+    clearance=clearance or 0
+    local function insideEllipse(cx,cy,rx,ry)
+        local dx=(x-cx)/math.max(1,rx+clearance)
+        local dy=(y-cy)/math.max(1,ry+clearance*.42)
+        return dx*dx+dy*dy<1
+    end
+    if insideEllipse(bounds.width*.525,bounds.height*.93,bounds.width*.055,bounds.height*.045)or
+        insideEllipse(bounds.width*.785,bounds.height*.945,bounds.width*.078,bounds.height*.034)then return true end
+    for _,obstacle in ipairs(bounds.scenery or{})do
+        if insideEllipse(obstacle.x,obstacle.y,obstacle.rx,obstacle.ry)then return true end
+    end
+    return false
+end
+
+local function clearPath(actor,fromX,fromY,toX,toY,bounds)
+    if not fromX or not fromY then return true end
+    local clearance=bodyRadius(actor.kind,false)
+    for step=1,12 do
+        local t=step/12
+        if blockedByGroundProp(fromX+(toX-fromX)*t,fromY+(toY-fromY)*t,bounds,clearance)then
+            return false
+        end
+    end
+    return true
+end
+
+local function blockedByAmenity(x,y,bounds,clearance)
+    for _,amenity in ipairs(bounds.amenities or{})do
+        local rx=amenity.kind=="swing"and 82 or amenity.kind=="cat_tower"and 70 or 62
+        local dx=(x-amenity.x)/math.max(1,rx+(clearance or 0))
+        local dy=(y-amenity.y)/math.max(1,38+(clearance or 0)*.35)
+        if dx*dx+dy*dy<1 then return true end
+    end
+    return false
+end
+
+local function pushOffAmenities(actor,bounds,clearance)
+    for _,amenity in ipairs(bounds.amenities or{})do
+        local rx=(amenity.kind=="swing"and 82 or amenity.kind=="cat_tower"and 70 or 62)+(clearance or 0)
+        local ry=38+(clearance or 0)*.35
+        local dx,dy=(actor.x-amenity.x)/math.max(1,rx),(actor.y-amenity.y)/math.max(1,ry)
+        local length=math.sqrt(dx*dx+dy*dy)
+        if length<1 then
+            if length<.001 then dx,dy,length=0,-1,1 end
+            actor.x=amenity.x+dx/length*(rx+2);actor.y=amenity.y+dy/length*(ry+2)
+        end
+    end
+    actor.x=math.max(bounds.x1,math.min(bounds.x2,actor.x));actor.y=math.max(bounds.y1,math.min(bounds.y2,actor.y))
+end
+
+local function point(actor,bounds,fromX,fromY)
     local x,y
-    for _=1,8 do
+    local clearance=bodyRadius(actor.kind,true)
+    for _=1,24 do
         x=bounds.x1+(bounds.x2-bounds.x1)*random(actor)
         y=bounds.y1+(bounds.y2-bounds.y1)*random(actor)
-        if not blockedByGroundProp(x,y,bounds)then return x,y end
+        if not blockedByGroundProp(x,y,bounds,clearance)and not blockedByAmenity(x,y,bounds,clearance)and
+            clearPath(actor,fromX,fromY,x,y,bounds)then
+            return x,y
+        end
     end
-    return x,math.min(y,bounds.height*.79)
+    return bounds.x1+(bounds.x2-bounds.x1)*.18,bounds.y1+(bounds.y2-bounds.y1)*.25
 end
 
-local function beginWalk(actor,bounds)
-    actor.targetX,actor.targetY=point(actor,bounds)
+local function amenityFits(actor,amenity)
+    return amenity.kind=="ball"or(amenity.kind=="sand"and actor.kind=="mole")or
+        (amenity.kind=="cat_tower"and actor.kind=="cat")or
+        (amenity.kind=="swing"and(actor.kind=="monkey"or actor.kind=="cat"))
+end
+
+local function clearAmenity(actor)
+    if actor.playAmenityRef and actor.playAmenityRef.reservedBy==actor.id then
+        actor.playAmenityRef.reservedBy=nil
+    end
+    actor.playAmenity=nil;actor.playAmenityRef=nil;actor.playClock=nil
+    actor.renderOffsetX=nil;actor.renderOffsetY=nil;actor.interactionLift=nil
+    actor.shadowOffsetX=nil;actor.shadowAlpha=nil;actor.swingFrame=nil
+end
+
+local function beginWalk(actor,bounds,amenities)
+    clearAmenity(actor)
+    local usable={}
+    for _,amenity in ipairs(amenities or{})do
+        if amenityFits(actor,amenity)and not amenity.reservedBy and
+            not blockedByGroundProp(amenity.x,amenity.y,bounds,bodyRadius(actor.kind,false))and
+            clearPath(actor,actor.x,actor.y,amenity.x,amenity.y,bounds)then usable[#usable+1]=amenity end
+    end
+    if #usable>0 and random(actor)<.55 then
+        local amenity=usable[math.floor(random(actor)*#usable)+1]
+        actor.playAmenity=amenity.kind;actor.playAmenityRef=amenity;amenity.reservedBy=actor.id
+        actor.targetX=amenity.x+(amenity.kind=="cat_tower"and-30 or 0)
+        actor.targetY=amenity.y
+    else actor.targetX,actor.targetY=point(actor,bounds,actor.x,actor.y)end
     actor.state,actor.timer="walk",0
 end
 
@@ -152,7 +240,7 @@ local function makeActor(item,index,bounds)
     local actor={id=item.id,kind=item.kind,seed=hash(item.id),clock=index*.43,
         facing=index%2==0 and -1 or 1,stops=index}
     actor.x,actor.y=point(actor,bounds)
-    actor.targetX,actor.targetY=point(actor,bounds)
+    actor.targetX,actor.targetY=point(actor,bounds,actor.x,actor.y)
     if index%3==0 then actor.state,actor.timer="sleep",6+random(actor)*4
     elseif index%3==1 then actor.state,actor.timer="walk",0
     else actor.state,actor.timer="idle",1.5+random(actor)*2 end
@@ -164,10 +252,61 @@ function Companions.new()
         nextInteraction=7,interactionCursor=0,interactionHistory={}}
 end
 
+function Companions.setAmenities(state,amenities)
+    if not state then return end
+    local oldById={};for _,old in ipairs(state.amenities or{})do oldById[old.id]=old end
+    local newById={}
+    for _,amenity in ipairs(amenities or{})do
+        local old=oldById[amenity.id]
+        if old then amenity.reservedBy=old.reservedBy end
+        newById[amenity.id]=amenity
+    end
+    state.amenities=amenities or{}
+    state.bounds.amenities=state.amenities
+    for _,actor in ipairs(state.animals or{})do if actor.playAmenityRef then
+        actor.playAmenityRef=newById[actor.playAmenityRef.id]
+        if not actor.playAmenityRef then clearAmenity(actor)end
+    end end
+    local alive={};for _,actor in ipairs(state.animals or{})do alive[actor.id]=true end
+    for _,amenity in ipairs(state.amenities)do
+        if amenity.reservedBy and not alive[amenity.reservedBy]then amenity.reservedBy=nil end
+    end
+    for _,actor in ipairs(state.animals or{})do if not actor.playAmenity then
+        local clearance=bodyRadius(actor.kind,actor.state=="sleep")
+        if blockedByAmenity(actor.x,actor.y,state.bounds,clearance)then pushOffAmenities(actor,state.bounds,clearance)end
+        if blockedByAmenity(actor.targetX or actor.x,actor.targetY or actor.y,state.bounds,clearance)then
+            actor.targetX,actor.targetY=point(actor,state.bounds,actor.x,actor.y)
+        end
+    end end
+end
+
+function Companions.setScenery(state,obstacles)
+    if not state then return end
+    state.scenery=obstacles or{}
+    state.bounds.scenery=obstacles or{}
+    for _,actor in ipairs(state.animals or{})do
+        local clearance=bodyRadius(actor.kind,actor.state=="sleep")
+        if actor.state~="interaction"and not actor.playAmenity and
+            blockedByGroundProp(actor.x,actor.y,state.bounds,clearance)then
+            actor.x,actor.y=point(actor,state.bounds)
+        end
+        if blockedByGroundProp(actor.targetX or actor.x,actor.targetY or actor.y,state.bounds,clearance)or
+            not clearPath(actor,actor.x,actor.y,actor.targetX or actor.x,actor.targetY or actor.y,state.bounds)then
+            actor.targetX,actor.targetY=point(actor,state.bounds,actor.x,actor.y)
+        end
+    end
+end
+
+function Companions.isSceneryBlocked(state,actor,x,y,asleep)
+    if not state or not actor then return false end
+    return blockedByGroundProp(x,y,state.bounds,bodyRadius(actor.kind,asleep==true))
+end
+
 local clearActorInteraction
 function Companions.sync(state,traits,width,height)
     if not state then return 0 end
     local bounds=boundsFor(width or 1280,height or 720)
+    bounds.scenery=state.bounds and state.bounds.scenery or{}
     state.bounds=bounds
     local wanted,keep=desiredAnimals(traits),{}
     for index,item in ipairs(wanted)do
@@ -202,7 +341,7 @@ local function available(state,kind,count,excluded)
     local found={};excluded=excluded or{}
     for _,actor in ipairs(state.animals or{})do
         if(not kind or actor.kind==kind)and not excluded[actor]and
-            actor.state~="sleep"and actor.state~="interaction"then
+            actor.state~="sleep"and actor.state~="interaction"and actor.state~="play"then
             found[#found+1]=actor
             if #found==count then return found end
         end
@@ -339,18 +478,18 @@ local function updateInteraction(state,dt)
 end
 
 local function footprint(actor)
-    if actor.state=="sleep"then
-        return actor.kind=="monkey"and 35 or(actor.kind=="mole"and 47 or 48)
-    end
-    return actor.kind=="monkey"and 19 or(actor.kind=="mole"and 27 or 23)
+    return bodyRadius(actor.kind,actor.state=="sleep")*depthScaleForY(actor.y,actor._bounds)
 end
 
 local function separateActors(state)
     local animals,bounds=state.animals or{},state.bounds
+    for _,actor in ipairs(animals)do actor._bounds=bounds end
     for _=1,2 do
         for left=1,#animals-1 do for right=left+1,#animals do
             local a,b=animals[left],animals[right]
-            if not(a.state=="interaction"and b.state=="interaction")then
+            local lockA=a.state=="interaction"or a.state=="play"
+            local lockB=b.state=="interaction"or b.state=="play"
+            if not(lockA and lockB)then
                 local dx,dy=b.x-a.x,b.y-a.y
                 local distance=math.sqrt(dx*dx+dy*dy)
                 local minimum=footprint(a)+footprint(b)+3
@@ -359,7 +498,6 @@ local function separateActors(state)
                         dx=((a.seed+b.seed)%2==0)and 1 or-1;dy=.25;distance=math.sqrt(1.0625)
                     end
                     local overlap=minimum-distance
-                    local lockA=a.state=="interaction";local lockB=b.state=="interaction"
                     local shareA,shareB=.5,.5
                     if lockA then shareA,shareB=0,1 elseif lockB then shareA,shareB=1,0 end
                     a.x=a.x-dx/distance*overlap*shareA;a.y=a.y-dy/distance*overlap*shareA*.35
@@ -370,6 +508,102 @@ local function separateActors(state)
             end
         end end
     end
+    for _,actor in ipairs(animals)do actor._bounds=nil end
+end
+
+local function keepActorsOffScenery(state)
+    local bounds=state.bounds
+    local ellipses={
+        {x=bounds.width*.525,y=bounds.height*.93,rx=bounds.width*.055,ry=bounds.height*.045},
+        {x=bounds.width*.785,y=bounds.height*.945,rx=bounds.width*.078,ry=bounds.height*.034},
+    }
+    for _,obstacle in ipairs(bounds.scenery or{})do ellipses[#ellipses+1]=obstacle end
+    for _,actor in ipairs(state.animals or{})do
+        if actor.state~="interaction"and not actor.playAmenity then
+            local clearance=bodyRadius(actor.kind,actor.state=="sleep")
+            for _,obstacle in ipairs(ellipses)do
+                local rx=obstacle.rx+clearance;local ry=obstacle.ry+clearance*.42
+                local dx=(actor.x-obstacle.x)/math.max(1,rx)
+                local dy=(actor.y-obstacle.y)/math.max(1,ry)
+                local length=math.sqrt(dx*dx+dy*dy)
+                if length<1 then
+                    if length<.001 then dx,dy,length=0,-1,1 end
+                    actor.x=obstacle.x+dx/length*(rx+2)
+                    actor.y=obstacle.y+dy/length*(ry+2)
+                end
+            end
+            actor.x=math.max(bounds.x1,math.min(bounds.x2,actor.x))
+            actor.y=math.max(bounds.y1,math.min(bounds.y2,actor.y))
+        end
+    end
+end
+
+local SWING_ANGLES={-.36,-.24,0,.24,.36,.24,0,-.24}
+local function startAmenityPlay(actor)
+    actor.state="play";actor.playClock=0
+    local duration={ball=6.2,sand=6.4,cat_tower=5.4,swing=7.2}
+    actor.timer=duration[actor.playAmenity]or 5
+    actor.interactionMoving=false
+end
+
+local function updateAmenityPlay(actor,dt)
+    actor.timer=(actor.timer or 0)-dt;actor.playClock=(actor.playClock or 0)+dt
+    local t,kind=actor.playClock,actor.playAmenity
+    actor.renderOffsetX=0;actor.renderOffsetY=0;actor.interactionLift=0
+    actor.shadowOffsetX=0;actor.shadowAlpha=1
+    if kind=="ball"then
+        local phase=t*2.3
+        actor.renderOffsetX=math.floor(math.sin(phase)*22)
+        actor.shadowOffsetX=actor.renderOffsetX
+        actor.interactionLift=math.floor(math.max(0,math.sin(phase*2))*8)
+        actor.facing=math.cos(phase)>=0 and 1 or-1
+        actor.interactionMoving=true
+    elseif kind=="sand"then
+        local cycle=t%3.2
+        if cycle<.75 then actor.renderOffsetY=math.floor(cycle/.75*23)
+        elseif cycle<1.65 then actor.renderOffsetY=23
+        elseif cycle<2.15 then actor.renderOffsetY=math.floor((2.15-cycle)/.5*23)
+        else actor.renderOffsetY=0 end
+        actor.shadowAlpha=cycle<2.15 and .35 or 1
+    elseif kind=="cat_tower"then
+        if t<1.6 then
+            local u=t/1.6;actor.renderOffsetX=math.floor(u*30);actor.renderOffsetY=math.floor(-u*76)
+            actor.facing=1;actor.interactionMoving=true;actor.shadowAlpha=1-u*.65
+        elseif t<2.75 then
+            actor.renderOffsetX=30;actor.renderOffsetY=-76;actor.facing=-1;actor.shadowAlpha=.3
+        elseif t<4.15 then
+            local u=(t-2.75)/1.4
+            actor.renderOffsetX=math.floor(30+58*u)
+            actor.renderOffsetY=math.floor(-76*(1-u)-math.sin(u*math.pi)*22)
+            actor.facing=1;actor.interactionMoving=true;actor.shadowOffsetX=math.floor(actor.renderOffsetX*u)
+            actor.shadowAlpha=.3+.7*u
+        else
+            local settle=math.max(0,math.sin((t-4.15)*8)*(1-(t-4.15)/1.25))
+            actor.renderOffsetX=88;actor.shadowOffsetX=88;actor.interactionLift=math.floor(settle*6)
+        end
+    elseif kind=="swing"then
+        if t<5.6 then
+            local frame=math.floor(t*5)%8+1;local angle=SWING_ANGLES[frame]
+            actor.swingFrame=frame
+            actor.renderOffsetX=math.floor(math.sin(angle)*58)
+            actor.renderOffsetY=math.floor(-82+math.cos(angle)*58)
+            actor.facing=(frame<=4 or frame==8)and 1 or-1
+            actor.shadowAlpha=.42;actor.shadowOffsetX=math.floor(actor.renderOffsetX*.35)
+        else
+            local u=math.min(1,(t-5.6)/1.2);local angle=SWING_ANGLES[5]
+            local startX,startY=math.sin(angle)*58,-82+math.cos(angle)*58
+            actor.swingFrame=5;actor.renderOffsetX=math.floor(startX*(1-u)+35*u)
+            actor.renderOffsetY=math.floor(startY*(1-u)-math.sin(u*math.pi)*12)
+            actor.facing=1;actor.shadowAlpha=.42+.58*u;actor.shadowOffsetX=actor.renderOffsetX
+        end
+    end
+end
+
+local function finishAmenityPlay(actor,bounds,amenities)
+    if actor.playAmenity=="cat_tower"or actor.playAmenity=="swing"or actor.playAmenity=="ball"then
+        actor.x=math.max(bounds.x1,math.min(bounds.x2,actor.x+(actor.renderOffsetX or 0)))
+    end
+    beginWalk(actor,bounds,amenities)
 end
 
 function Companions.update(state,dt)
@@ -390,23 +624,30 @@ function Companions.update(state,dt)
             local distance=math.sqrt(dx*dx+dy*dy)
             if distance<1 then
                 actor.stops=(actor.stops or 0)+1
-                if actor.stops%3==actor.seed%3 then
+                if actor.playAmenity then
+                    startAmenityPlay(actor)
+                elseif actor.stops%3==actor.seed%3 then
                     actor.state,actor.timer="sleep",6+random(actor)*6
                 else
                     actor.state,actor.timer="idle",1.5+random(actor)*3
                 end
             else
                 if math.abs(dx)>1 then actor.facing=dx<0 and -1 or 1 end
-                local speed=(ART[actor.kind].speed or 20)*(actor.kind=="cat"and(.88+.12*math.sin(actor.clock*.7))or 1)
+                local speed=(ART[actor.kind].speed or 20)*depthScaleForY(actor.y,bounds)*
+                    (actor.kind=="cat"and(.88+.12*math.sin(actor.clock*.7))or 1)
                 local step=math.min(distance,speed*dt)
                 actor.x,actor.y=actor.x+dx/distance*step,actor.y+dy/distance*step
             end
+        elseif actor.state=="play"then
+            updateAmenityPlay(actor,dt)
+            if actor.timer<=0 then finishAmenityPlay(actor,bounds,state.amenities)end
         else
             actor.timer=(actor.timer or 0)-dt
-            if actor.timer<=0 then beginWalk(actor,bounds)end
+            if actor.timer<=0 then beginWalk(actor,bounds,state.amenities)end
         end
     end
     separateActors(state)
+    keepActorsOffScenery(state)
 end
 
 local function drawPixelZ(x,y,size)
@@ -417,14 +658,14 @@ local function drawPixelZ(x,y,size)
     love.graphics.rectangle("fill",x,y+size*4,size*4,size)
 end
 
-local function drawSleepMark(actor,scale,light,time)
+local function drawSleepMark(actor,depth,light,time)
     local phase=((time or 0)*7+actor.seed%11)%12
     local rise=math.floor(phase*.5)
     local tint=.68+.32*(light or 1)
     local direction=actor.facing or 1
     local headHeight=actor.kind=="mole"and 58 or(actor.kind=="cat"and 48 or 45)
-    local x=math.floor(actor.x+direction*10)
-    local y=math.floor(actor.y-headHeight-rise)
+    local x=math.floor(actor.x+direction*10*depth)
+    local y=math.floor(actor.y-headHeight*depth-rise)
     local alpha=.72+.22*math.sin((time or 0)*1.6+actor.seed%7)
     love.graphics.setColor(.76*tint,.92*tint,.79*tint,alpha)
     for index=0,2 do
@@ -435,7 +676,7 @@ local function drawSleepMark(actor,scale,light,time)
     end
 end
 
-local function drawActor(actor,light,time)
+local function drawActor(actor,light,time,bounds)
     local entry=load(actor.kind)
     if not entry then return end
     local asleep=actor.state=="sleep"
@@ -448,20 +689,22 @@ local function drawActor(actor,light,time)
     local spec=entry.spec
     local moving=actor.state=="walk"or(actor.state=="interaction"and actor.interactionMoving)
     local bob=moving and math.floor(math.abs(math.sin((actor.clock or 0)*math.pi*3))*2)or 0
-    local scale=spec.scale
+    local depth=depthScaleForY(actor.y,bounds)
+    local scale=spec.scale*depth
     local flip=(actor.facing or 1)*spec.nativeFacing
     local brightness=.57+.43*(light or 1)
-    love.graphics.setColor(0,0,0,.22*(.72+.28*(light or 1)))
-    love.graphics.ellipse("fill",math.floor(actor.x),math.floor(actor.y+2),
-        asleep and spec.sleepShadowX or spec.shadowX,spec.shadowY)
+    love.graphics.setColor(0,0,0,.22*(.72+.28*(light or 1))*(actor.shadowAlpha or 1))
+    love.graphics.ellipse("fill",math.floor(actor.x+(actor.shadowOffsetX or 0)),math.floor(actor.y+2),
+        (asleep and spec.sleepShadowX or spec.shadowX)*depth,spec.shadowY*depth)
     love.graphics.setColor(brightness,brightness,brightness,1)
     local image=asleep and entry.sleep or entry.walk
     local cellW=asleep and spec.sleepCellW or spec.cellW
     local foot=asleep and spec.sleepFoot or spec.foot
+    local drawX=actor.x+(actor.renderOffsetX or 0)
     local drawY=actor.y-bob+(actor.renderOffsetY or 0)-(actor.interactionLift or 0)
-    love.graphics.draw(image,entry.quads[row][frame],math.floor(actor.x),math.floor(drawY),0,
+    love.graphics.draw(image,entry.quads[row][frame],math.floor(drawX),math.floor(drawY),0,
         scale*flip,scale,cellW/2,foot)
-    if asleep then drawSleepMark(actor,scale,light,time)end
+    if asleep then drawSleepMark(actor,depth,light,time)end
     love.graphics.setColor(1,1,1,1)
 end
 
@@ -536,7 +779,7 @@ function Companions.draw(state,light,pass,splitY,groundOffsetX)
     for _,actor in ipairs(state.animals)do
         local selected=not pass or(pass=="behind"and actor.y<(splitY or math.huge))or
             (pass=="front"and actor.y>=(splitY or-math.huge))
-        if selected then drawActor(actor,light,state.time);drawn=drawn+1 end
+        if selected then drawActor(actor,light,state.time,state.bounds);drawn=drawn+1 end
     end
     drawInteraction(state,light,pass,splitY)
     love.graphics.pop()
@@ -564,7 +807,18 @@ function Companions.preparePreview(state)
         actor.y=bounds.y1+(bounds.y2-bounds.y1)*.86
         actor.targetX=actor.x+36;actor.targetY=actor.y
     end end
+    for _,actor in ipairs(state.animals)do
+        local clearance=bodyRadius(actor.kind,actor.state=="sleep")
+        if blockedByGroundProp(actor.x,actor.y,bounds,clearance)then
+            actor.x,actor.y=point(actor,bounds)
+        end
+        if blockedByGroundProp(actor.targetX,actor.targetY,bounds,clearance)or
+            not clearPath(actor,actor.x,actor.y,actor.targetX,actor.targetY,bounds)then
+            actor.targetX,actor.targetY=point(actor,bounds,actor.x,actor.y)
+        end
+    end
     separateActors(state)
+    keepActorsOffScenery(state)
 end
 
 -- 네 상호작용을 같은 조건에서 오프스크린 캡처하기 위한 결정적 진입점.
@@ -572,6 +826,38 @@ function Companions.prepareInteractionPreview(state,kind)
     if not state or not interactionActors(state,kind)then return false end
     if not startInteraction(state,kind,true)then return false end
     updateInteraction(state,0)
+    return true
+end
+
+-- 구매한 놀이터를 동료가 실제로 사용하는 장면을 결정적으로 검수한다.
+function Companions.prepareAmenityPreview(state,kind)
+    if not state then return false end
+    local amenity
+    for _,candidate in ipairs(state.amenities or{})do
+        if candidate.kind==kind then amenity=candidate;break end
+    end
+    if not amenity then return false end
+    if state.interaction then finishInteraction(state)end
+    local selected
+    for _,actor in ipairs(state.animals or{})do
+        if amenityFits(actor,amenity)then
+            clearAmenity(actor)
+            actor.x,actor.y=amenity.x+(kind=="cat_tower"and-30 or 0),amenity.y
+            actor.targetX,actor.targetY=amenity.x,amenity.y
+            actor.playAmenity=kind;actor.playAmenityRef=amenity;amenity.reservedBy=actor.id
+            startAmenityPlay(actor);updateAmenityPlay(actor,0)
+            actor.interactionRole=nil;actor.interactionMoving=nil
+            selected=actor;break
+        end
+    end
+    if not selected then return false end
+    -- 동작 검수 장면에서는 비참여 동료를 시설 밖에 세워 접점과 실루엣을 가리지 않는다.
+    local index=0
+    for _,actor in ipairs(state.animals or{})do if actor~=selected then
+        clearAmenity(actor);index=index+1
+        actor.x=state.bounds.x1+index*54;actor.y=state.bounds.y1+index*12
+        actor.targetX,actor.targetY=actor.x,actor.y;actor.state="idle";actor.timer=20
+    end end
     return true
 end
 
@@ -590,6 +876,31 @@ function Companions.prepareScalePreview(state,asleep)
         actor.interactionRole=nil;actor.interactionMoving=nil;actor.interactionLift=nil;actor.renderOffsetY=nil
     end
     separateActors(state)
+    keepActorsOffScenery(state)
+    return true
+end
+
+function Companions.prepareDepthPreview(state)
+    if not state then return false end
+    if state.interaction then finishInteraction(state)end
+    local monkeys={}
+    for _,actor in ipairs(state.animals)do if actor.kind=="monkey"then
+        monkeys[#monkeys+1]=actor;if #monkeys==3 then break end
+    end end
+    if #monkeys<3 then return false end
+    local bounds=state.bounds
+    state.animals=monkeys
+    for index,actor in ipairs(monkeys)do
+        local depth=(index-1)/2
+        actor.x=bounds.x1+48+(index-1)*118
+        actor.y=bounds.y1+(bounds.y2-bounds.y1)*(.08+.84*depth)
+        actor.targetX,actor.targetY=actor.x,actor.y
+        actor.facing=1;actor.state=index==2 and"sleep"or"idle";actor.timer=20
+        actor.interactionRole=nil;actor.interactionMoving=nil;actor.interactionLift=nil
+        actor.renderOffsetX=nil;actor.renderOffsetY=nil
+    end
+    separateActors(state)
+    keepActorsOffScenery(state)
     return true
 end
 

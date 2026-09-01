@@ -100,6 +100,16 @@ def ground_anchor_board():
     return target
 
 
+def depth_perspective_board():
+    run(ROOT / "scripts/capture_lobby_companions.lua",
+        "CAPTURE_W=1280;CAPTURE_H=720;LOBBY_HOUR=17;LOBBY_DEPTH_PREVIEW=true")
+    source = OUT / "lobby-companions-draws-1280-h17-depth.json"
+    full = render_ui(source, (1280, 720))
+    target = OUT / "lobby-companions-v4-tree-depth.png"
+    full.crop((420, 430, 1210, 690)).save(target)
+    return target
+
+
 def life_gif():
     frames = []
     for index in range(16):
@@ -168,11 +178,12 @@ def main():
     scale = scale_comparison_board()
     anchored = ground_anchor_gif()
     anchor_board = ground_anchor_board()
+    depth = depth_perspective_board()
     print(f"LOBBY_COMPANIONS_PREVIEW_OK {day.relative_to(ROOT)} {night.relative_to(ROOT)} "
           f"{zoom.relative_to(ROOT)} {motion.relative_to(ROOT)} "
           f"{interactions.relative_to(ROOT)} {wand.relative_to(ROOT)} "
           f"{scale.relative_to(ROOT)} {anchored.relative_to(ROOT)} "
-          f"{anchor_board.relative_to(ROOT)} window=none")
+          f"{anchor_board.relative_to(ROOT)} {depth.relative_to(ROOT)} window=none")
 
 
 if __name__ == "__main__":
