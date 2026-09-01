@@ -18,7 +18,7 @@ local pixelFont=assert(io.open("assets/font-korean-pixel.ttf","rb"));local fontS
 assert(lobbyAudio:find("FOREST DAY / LOOP 07",1,true),"lobby audio track list is missing")
 assert(lobby:find("audioPlayBox",1,true)and lobby:find("LobbyAudio.TRACKS",1,true),"compact pixel audio player is missing")
 assert(lobby:find("syncAudio",1,true)and game:find("lobby:syncAudio",1,true),"lobby music is never started or stopped")
-assert(lobby:find("drawAudioDeck",1,true),"lobby CD deck is missing from the audio player")
+assert(lobby:find("drawAudioDisc",1,true),"lobby half-disc CD is missing from the audio player")
 assert(lobby:find("forest%-floor%-decal%-atlas%-pixel%-v1%.png")and lobby:find("backgroundParallax",1,true),"responsive lobby scenery is missing")
 assert(lobby:find('TimeOfDay.localHour()',1,true)and lobby:find('sky.celestial=="sun"',1,true),"lobby sky is not synchronized to the player's PC-local time")
 assert(not lobby:find("backgroundSmoker",1,true)and not lobby:find("cigarette_sprite",1,true),"lobby character returned")

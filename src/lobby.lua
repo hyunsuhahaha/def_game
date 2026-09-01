@@ -225,9 +225,18 @@ function Lobby:drawMenu(game,x,y,w,rowH,gap,menuFont,keyFont)
 end
 
 function Lobby:drawAudio(x,y,w,h,font)
+ -- 원반을 먼저 그린다. 바가 그 위를 덮어야 "뒤에서 솟았다"가 된다.
+ self:drawAudioDisc(x,y,w)
  love.graphics.setColor(.020,.070,.050,.97);love.graphics.rectangle("fill",x,y,w,h)
  love.graphics.setColor(.34,.72,.50,.88);love.graphics.rectangle("fill",x,y,w,2);love.graphics.rectangle("fill",x,y+h-2,w,2);love.graphics.rectangle("fill",x,y,2,h);love.graphics.rectangle("fill",x+w-2,y,2,h)
  love.graphics.setColor(.95,.62,.18,.92);love.graphics.rectangle("fill",x,y,5,h)
+ -- 원반이 드나드는 슬롯. 바 윗변의 초록 테두리를 원반 폭만큼 어둡게 끊어 준다.
+ local key,cdx=self:audioDiscPlacement(x,w)
+ if key then
+  local slot=CdArt.radius(key)*.34
+  love.graphics.setColor(.008,.030,.022,.95)
+  love.graphics.rectangle("fill",cdx-slot,y,slot*2,3)
+ end
  local button=math.min(28,h-12);local by=y+(h-button)/2
  self.audioPrevBox={x=x+12,y=by,w=button,h=button};self.audioPlayBox={x=x+46,y=by,w=button,h=button};self.audioNextBox={x=x+80,y=by,w=button,h=button}
  for _,data in ipairs({{self.audioPrevBox,"<"},{self.audioPlayBox,self.audioPlaying and "II"or">"},{self.audioNextBox,">"}})do
@@ -242,39 +251,26 @@ function Lobby:drawAudio(x,y,w,h,font)
   for b=1,blocks do love.graphics.setColor(.95,.62,.18,self.audioPlaying and .88 or .28);love.graphics.rectangle("fill",waveX+i*(waveW/16),y+h/2+10-b*5,4,3)end
  end
  love.graphics.setFont(font);love.graphics.setColor(.70,.82,.67);love.graphics.printf(TRACKS[self.audioTrack or 1],waveX+waveW+12,y+h/2-font:getHeight()/2-1,w-(waveX-x)-waveW-24,"right")
- self:drawAudioDeck(x,y,h)
 end
 
--- 플레이어 바 위에 솟은 CD 데크. 원반만 띄우면 아이콘으로 보인다. 바와 같은
--- 색·테두리로 짓고 아랫변을 일부러 바에 물려서 이음매를 지운다 — 두 상자가
--- 붙어 있는 게 아니라 한 기계의 위층으로 읽혀야 한다.
-function Lobby:drawAudioDeck(x,y,h)
- local deckW=64
- local cx=x+deckW/2
- local top=y-58
- local cy=y-30
- love.graphics.setColor(.020,.070,.050,.97)
- love.graphics.rectangle("fill",x,top,deckW,y-top+2)
- love.graphics.setColor(.34,.72,.50,.88)
- love.graphics.rectangle("fill",x,top,deckW,2)
- love.graphics.rectangle("fill",x,top,2,y-top)
- love.graphics.rectangle("fill",x+deckW-2,top,2,y-top+2)
- -- 바의 주황 강조를 그대로 이어 올려 한 기계로 묶는다.
- love.graphics.setColor(.95,.62,.18,.92)
- love.graphics.rectangle("fill",x,top,5,y-top)
- -- 데크와 바 사이의 이음매를 지운다. 바의 윗변 테두리가 데크 밑으로 지나가면
- -- 한 기계의 위층이 아니라 바 위에 올려놓은 별개의 상자로 보인다.
- love.graphics.setColor(.020,.070,.050,1)
- love.graphics.rectangle("fill",x+5,y-2,deckW-7,5)
- -- 원반이 앉는 우묵한 자리. 이게 없으면 원반이 패널 위에 붙은 스티커로 보인다.
- love.graphics.setColor(.008,.030,.022,.95)
- love.graphics.circle("fill",cx,cy,25)
- love.graphics.setColor(.20,.44,.33,.85)
- love.graphics.circle("line",cx,cy,25)
- CdArt.draw(self.audioCd,cx,cy)
- -- 재생 표시등. 멈추면 꺼지는 게 아니라 어두워진다 — 전원은 들어와 있다.
+-- 원반은 바 폭에 맞춰 두 크기 중 하나를 고른다. 한쪽을 확대·축소해 쓰면 트랙
+-- 링이 반씩 잘려 무늬가 깨지므로, 각 크기를 자기 격자에서 따로 구워 두고 고른다.
+function Lobby:audioDiscPlacement(x,w)
+ local key=w>=560 and "large" or "small"
+ return key,math.floor(x+w*.5)
+end
+
+-- 바 뒤에서 솟아 위쪽 절반만 보이는 CD. 원반 중심을 바 윗변에 두면 가운데
+-- 구멍까지 반원으로 잘려 기계에 물려 있는 것으로 읽힌다.
+function Lobby:drawAudioDisc(x,y,w)
+ local key,cx=self:audioDiscPlacement(x,w)
+ local radius=CdArt.radius(key)
+ -- 별도 원형 후광은 두지 않는다. 바 아래로 후광의 아래쪽 반원이 새어 나오면
+ -- 원반을 실제보다 두 배 크게 보이게 하고 숲 바닥을 가린다.
+ CdArt.draw(self.audioCd,key,self.audioTrack or 1,cx,y)
+ -- 재생 표시등은 바 위가 아니라 원반 옆 슬롯 어깨에 둔다.
  love.graphics.setColor(.95,.62,.18,self.audioPlaying and .95 or .30)
- love.graphics.rectangle("fill",x+deckW-11,top+6,4,4)
+ love.graphics.rectangle("fill",cx+radius-6,y-7,4,4)
 end
 
 function Lobby:draw(game)

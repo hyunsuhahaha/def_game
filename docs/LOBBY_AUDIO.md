@@ -40,29 +40,35 @@ python scripts/headless_lua.py scripts/export_lobby_audio.lua
 
 ## CD 데크 — 플레이어 바 위에서 도는 원반
 
-자산: `assets/ui/lobby-cd-spin-pixel-v1.png` (`scripts/build_lobby_cd_art.py`)
-런타임: [`src/lobby_cd_art.lua`](../src/lobby_cd_art.lua) → `Lobby:drawAudioDeck`
+자산: `assets/ui/lobby-cd-tracks-half-pixel-v2.png` / `lobby-cd-tracks-half-small-pixel-v2.png` (`scripts/build_lobby_cd_art.py`)
+런타임: [`src/lobby_cd_art.lua`](../src/lobby_cd_art.lua) → `Lobby:drawAudioDisc`
 
-**회전은 런타임에서 스프라이트를 돌리지 않는다.** 픽셀 자산을 임의 각도로 돌리면 격자가 어긋나 뭉개진다. 광택이 22.5°씩 돌아간 **16프레임을 미리 구운 아틀라스**를 넘긴다. 원반은 어차피 원이라 실루엣을 돌려 봐야 화면에서는 아무 일도 일어나지 않는다 — 도는 것은 광택과 분광이다.
+**회전은 런타임에서 스프라이트를 돌리지 않는다.** 픽셀 자산을 임의 각도로 돌리면 격자가 어긋나 뭉개진다. 좁은 광택이 11.25°씩 돌아간 **32프레임을 미리 구운 아틀라스**를 넘긴다. 원반은 어차피 원이라 실루엣을 돌려 봐야 화면에서는 아무 일도 일어나지 않는다 — 도는 것은 은은한 반사광 하나다.
+
+v2는 넓은 화면 반지름을 144px에서 **76px**, 좁은 화면을 66px에서 **52px**로 줄였다. 원반은 플레이어 바 뒤에서 위쪽 절반만 보이므로 메뉴와 배경의 주목도를 빼앗지 않는다. 곡별 행은 서로 다른 고정 라벨과 재질을 사용한다.
+중단됐던 대형 단일 디자인 `lobby-cd-half-*-v1.png`와 최초 48px 원반은 비교 기록으로 보존하되 런타임에서는 연결하지 않는다.
+
+- `FOREST DAY`: 수지빛 녹색 트랙, 나무색 라벨, 어린 잎 무늬
+- `RIVER LINE`: 짙은 청록 트랙, 푸른 라벨, 끊어진 물결 무늬
+- `OWL SHIFT`: 남보라 트랙, 달 초승달과 작은 호박색 부엉이 눈
 
 제작에서 실제로 판단한 것 세 가지:
 
-- **광택은 원반을 덮어 칠하지 않고 트랙 링 위에 5단계로 섞는다.** 통짜로 칠하면 색종이를 붙인 것처럼 보이고 원반의 재질이 사라진다.
-- **갈래는 좁게(62°) 두 줄기만.** 넓히면 원반 전체가 무지개가 되어 CD 가 아니라 바람개비로 읽힌다. 어두운 원반이 대부분 남아야 한다.
+- **광택은 원반을 덮어 칠하지 않고 트랙 링 위에 4단계로 섞는다.** 통짜로 칠하면 색종이를 붙인 것처럼 보이고 원반의 재질이 사라진다.
+- **광택은 28° 한 줄기만.** 밝기 혼합도 44% 이하라 원반 대부분이 어둡게 남고 바람개비처럼 보이지 않는다.
 - **분광은 각도뿐 아니라 반지름을 따라서도 넘어간다.** 각도로만 나누면 부챗살 무늬가 된다.
-- **반사광 하나는 고정이다.** 빛은 원반과 같이 돌지 않는다. 이 대비가 나머지를 돌게 보이게 한다.
 - 디더는 **단계 경계에만** 넣는다(2×2 정렬 디더). 전면 디더는 재질이 아니라 노이즈다.
 
-회전은 관성으로 붙고 관성으로 선다(`SPIN_UP` 2.6 / `SPIN_DOWN` 1.15). 즉시 켜지고 꺼지면 기계가 아니라 아이콘으로 보인다.
+회전은 약 5.6초에 한 바퀴(`SPIN_SPEED` 0.18)이며 관성으로 붙고 선다(`SPIN_UP` 1.45 / `SPIN_DOWN` 0.72). 이전 작업본의 대칭광은 약 0.8초마다 반복되어 너무 산만했으므로 한 줄기의 느린 반사광으로 교체했다.
 
-데크 패널은 바와 같은 색·테두리로 짓고 **아랫변을 일부러 바에 물려 이음매를 지운다.** 주황 강조도 바에서 그대로 이어 올린다 — 두 상자가 붙어 있는 게 아니라 한 기계의 위층으로 읽혀야 한다.
+바 윗변은 원반 중심의 짧은 구간만 어둡게 끊어 슬롯처럼 보이게 한다. 별도 원형 후광은 바 아래로 새어 나와 원반을 두 배 크게 보이게 하므로 사용하지 않는다.
 
 검수:
 
 ```bash
 python scripts/build_lobby_cd_art.py           # 아틀라스 재빌드
-python scripts/render_lobby_cd_preview.py      # 실제 크기 + 6배 확대 픽셀 검수
-python scripts/render_score_attack_lobby.py    # 실제 그리기 경로로 로비 전체 (창 없음)
+python scripts/render_lobby_cd_preview.py      # 실제 크기 + 4배 확대 픽셀 검수
+python scripts/render_lobby_cd_tracks.py       # 3곡·넓은/좁은 실제 로비 경로 (창 없음)
 ```
 
 ## 고치는 곳
@@ -76,6 +82,6 @@ python scripts/render_score_attack_lobby.py    # 실제 그리기 경로로 로�
 | 전체 음량 | `LobbyAudio:source` 의 `setVolume` |
 | 음색 | `square3`/`warm` 의 배음 비율, `addNote` 의 엔벨로프 |
 | CD 회전 속도·관성 | `src/lobby_cd_art.lua` 의 `SPIN_SPEED`/`SPIN_UP`/`SPIN_DOWN` |
-| CD 광택 폭·색 | `scripts/build_lobby_cd_art.py` 의 `SHEEN_ARC`/`SHEEN`/`LEVELS` (바꾼 뒤 재빌드) |
+| CD 광택 폭·곡별 색 | `scripts/build_lobby_cd_art.py` 의 `SHEEN_ARC`/`PALETTES` (바꾼 뒤 재빌드) |
 
 수치를 바꾸면 `export_lobby_audio.lua` 를 다시 돌려 wav 를 갱신한다.
