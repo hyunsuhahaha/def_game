@@ -48,7 +48,7 @@ local WoodEconomy = require("src.wood_economy")
 local WoodSettlementArt = require("src.wood_settlement_art")
 
 local ClearcutMode = {}
-ClearcutMode.SCORE_AXE_RANGE = 190
+ClearcutMode.SCORE_AXE_RANGE = 120
 ClearcutMode.__index = ClearcutMode
 -- Lua 5.1 은 main chunk 의 local 을 200개로 제한한다. 파일 상단 로컬이 이미 한계라
 -- 새 모듈은 GrayOilCatArt 선례대로 모듈 테이블에 건다.
@@ -3636,8 +3636,12 @@ function ClearcutMode:axeShockwave(x,y,level,game,depth)
 end
 
 function ClearcutMode:resolveScoreAxeAction(action,game)
+    local bladeX,bladeY=action.targetX,action.targetY-65
+    if game.player.scoreAxeBladePosition then bladeX,bladeY=game.player:scoreAxeBladePosition()end
+    local bladeRadius=22+(action.axeArea or 0)*1.3
     if action.drum then
-        if action.drum.state=="settled"then
+        local dx,dy=action.drum.x-bladeX,action.drum.y-54-bladeY
+        if action.drum.state=="settled"and dx*dx+dy*dy<=bladeRadius*bladeRadius then
             self:hitOilDrum(action.drum,action.damage,game)
             return true
         end
@@ -3648,6 +3652,8 @@ function ClearcutMode:resolveScoreAxeAction(action,game)
     local chainChance=self.permanentTraits.scoreAxeChain or 0
     local heavy=self.permanentTraits.scoreAxeHeavy or 0
     for _,node in ipairs(action.targets or{})do if node.active and node.rushTree then
+        local dx,dy=node.x-bladeX,node.y-65-bladeY
+        if dx*dx+dy*dy<=bladeRadius*bladeRadius then
         if action.executeChance>0 and node.rushHp and love.math.random()<action.executeChance then node.rushHp=1 end
         local x,y=node.x,node.y
         -- 거목 특화는 최대 체력에 비례하므로 굵은 수종에서만 크게 붙는다.
@@ -3662,6 +3668,7 @@ function ClearcutMode:resolveScoreAxeAction(action,game)
             if chainChance>0 and love.math.random()<chainChance then self.axeCooldown=0 end
         end
         hit=hit+1
+        end
     end end
     self.maxMulti=math.max(self.maxMulti or 0,hit)
     return hit>0
@@ -3681,7 +3688,7 @@ function ClearcutMode:updateScoreAxeAction(dt,game)
     end
     if action.elapsed>=action.duration then
         self.scoreAxeAction=nil
-        game.player.autoAxeClock=nil
+        game.player.autoAxeClock,game.player.autoAxeTargetX,game.player.autoAxeTargetY=nil,nil,nil
     end
     return self.scoreAxeAction~=nil,impacted
 end
@@ -3693,7 +3700,7 @@ function ClearcutMode:updateScoreAxeAttack(dt,game,heldOverride)
     local axeArea=(self.permanentTraits.scoreAxeArea or 0)+ScoreOperations.weaponArea(self)
     local tx,ty=self:aimPoint(game,range)
     self.aimX,self.aimY,self.aimRadius=tx,ty,54+axeArea
-    game.player.facing=tx<game.player.x and -1 or 1
+    game.player.facing=self.scoreAxeAction and self.scoreAxeAction.facing or(tx<game.player.x and-1 or 1)
     game.player.scoreAxeEquipped=true
     game.player.hideAxeRange=true
     local active,impacted=self:updateScoreAxeAction(dt,game)
@@ -3716,18 +3723,19 @@ function ClearcutMode:updateScoreAxeAttack(dt,game,heldOverride)
         table.sort(candidates,function(a,b)return a.d<b.d end)
         local axeTargets=1+math.floor(self.permanentTraits.extraTargets or 0)+(self:scoreReward("cleave") and 2 or 0)
     for i=1,math.min(#candidates,axeTargets)do targets[i]=candidates[i].node end
-        if #targets==0 then targets[1]=self:closestTreeInAxeRange(game)end
         if not targets[1]then return false end
     end
 
     game.player:cancelInteraction()
     local targetX=drum and drum.x or targets[1].x
+    local targetY=drum and drum.y or targets[1].y
     local speed=(game.tools.axe.speed or 1)*game.player.gather*self.permanentTraits.attackSpeed
         *ScoreOperations.attackSpeedMultiplier(self)*(1+(self.permanentTraits.scoreAxeSpeed or 0))
     local swingDuration=math.max(.18,.36/speed)
-    game.player:playAutoAxeSwing(targetX,swingDuration)
+    game.player:playAutoAxeSwing(targetX,targetY,swingDuration)
     self.scoreAxeAction={elapsed=0,duration=swingDuration,contactTime=swingDuration*.52,
-        drum=drum,targets=targets,damage=4+(self.permanentTraits.treeDamage or 0)+ScoreOperations.weaponDamage(self),axeArea=axeArea,
+        drum=drum,targets=targets,facing=game.player.facing,targetX=targetX,targetY=targetY,
+        damage=4+(self.permanentTraits.treeDamage or 0)+ScoreOperations.weaponDamage(self),axeArea=axeArea,
         executeChance=(self.permanentTraits.executeChance or 0)+(self:scoreReward("undercut") and .25 or 0)}
     if self:scoreReward("heavy_swing") then self.scoreAxeAction.damage=self.scoreAxeAction.damage*2.4 end
     self.axeCooldown=math.max(swingDuration,.62/speed)*(self:scoreReward("heavy_swing") and 1.55 or 1)

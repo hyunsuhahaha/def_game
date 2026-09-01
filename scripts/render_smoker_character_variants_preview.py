@@ -9,7 +9,7 @@ ROOT = Path(__file__).resolve().parents[1]
 INGAME = ROOT / "assets/characters/ingame"
 OUT = ROOT / "docs/previews/smoker-character-variants-v1-display.png"
 AVATARS = (
-    ("ORIGINAL / runtime cigarette only", "smoker-atlas-pixel-v3.png", "smoker-score-axe-atlas-pixel-v1.png"),
+    ("ORIGINAL / runtime cigarette only", "smoker-atlas-pixel-v3.png", "smoker-score-axe-atlas-pixel-v2.png"),
     ("SCRAPYARD WELDER", "scrapyard-welder-atlas-pixel-v1.png", "scrapyard-welder-score-axe-atlas-pixel-v1.png"),
     ("NIGHT SHOPKEEPER", "night-shopkeeper-atlas-pixel-v1.png", "night-shopkeeper-score-axe-atlas-pixel-v1.png"),
 )
@@ -17,7 +17,8 @@ AVATARS = (
 
 def cell(path: str, column: int, row: int = 0) -> Image.Image:
     sheet = Image.open(INGAME / path).convert("RGBA")
-    return sheet.crop((column * 96, row * 192, (column + 1) * 96, (row + 1) * 192))
+    frame_width = sheet.width // 6
+    return sheet.crop((column * frame_width, row * 192, (column + 1) * frame_width, (row + 1) * 192))
 
 
 canvas = Image.new("RGBA", (1200, 690), (96, 130, 62, 255))

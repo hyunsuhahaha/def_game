@@ -33,14 +33,32 @@ mode.aimPoint=function()return drum.x,drum.y end
 
 assert(not mode:updateScoreAxeAttack(0,game,true),"axe dealt damage on input instead of its contact frame")
 assert(mode.scoreAxeAction and drum.hp==8 and game.player.autoAxeClock~=nil,"axe wind-up/action was not started")
+local startDrawX=game.player:autoAxeRenderPosition()
 local contact=mode.scoreAxeAction.contactTime
 mode:updateScoreAxeAttack(contact-.001,game,true)
 assert(drum.hp==8 and #mode.scoreAxeImpacts==0,"drum was hit before the blade contact frame")
+local contactDrawX=game.player:autoAxeRenderPosition()
+local bladeX,bladeY=game.player:scoreAxeBladePosition()
+assert(contactDrawX>startDrawX and math.abs(drum.x-bladeX)<1 and math.abs(drum.y-65-bladeY)<1,
+    "axe body did not step into visible blade-contact distance")
 assert(mode:updateScoreAxeAttack(.002,game,true),"contact frame did not report an impact")
 assert(drum.hp==4 and #mode.scoreAxeImpacts==1 and drum.hitKickTime>0,"first drum dent lacks damage/contact feedback")
 assert(mode.scoreAxeAction.hitStop>0 and game.feedback.last and game.feedback.last.kind=="metal","drum hit lacks contact hold or metal sound")
+local lockedFacing=game.player.facing
+mode.aimPoint=function()return game.player.x-110,game.player.y end
 mode:updateScoreAxeAttack(.01,game,true)
-assert(drum.hp==4 and #mode.scoreAxeImpacts==1,"one swing applied its contact damage more than once")
+assert(drum.hp==4 and #mode.scoreAxeImpacts==1 and game.player.facing==lockedFacing,
+    "one swing applied damage twice or changed direction after locking its target")
+mode.aimPoint=function()return drum.x,drum.y end
+
+-- 접촉 시간만 맞고 보이는 날이 대상에서 벗어나면 피해가 없어야 한다.
+for _=1,30 do mode:updateScoreAxeAttack(.03,game,false)end
+mode.axeCooldown=0;drum.hp,drum.state=8,"settled"
+mode:updateScoreAxeAttack(0,game,true)
+game.player.autoAxeTargetX=drum.x+90
+mode:updateScoreAxeAttack(mode.scoreAxeAction.contactTime+.001,game,true)
+assert(drum.hp==8,"visible axe blade missed the drum but timer-only damage still landed")
+drum.hp=4
 
 -- Finish recovery, bypass only the cooldown wait, then verify the second
 -- authored contact tips the drum and starts its existing oil-spill system.
@@ -70,4 +88,4 @@ local playerSource=assert(io.open("src/player.lua","rb")):read("*a")
 assert(playerSource:find("scoreAxeFrames")and playerSource:find("scoreAxeEquipped"),
     "the authored full-body axe action atlas is not selected by the player renderer")
 assert(sprites.fire.scoreAxeImage and #game.player.scoreAxeFrames==6,"six-frame full-body axe atlas was not loaded")
-print("SCORE_AXE_DRUM_OK full-body-swing contact-frame damage dent+kick+metal+hitstop second-hit=spill")
+print("SCORE_AXE_DRUM_OK full-body-swing step-in+target-lock contact-frame damage dent+kick+metal+hitstop second-hit=spill")

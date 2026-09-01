@@ -7,10 +7,10 @@ from PIL import Image
 
 
 ROOT = Path(__file__).resolve().parents[1]
-SOURCE = ROOT / "assets/source/characters/smoker-score-axe-keyposes-imagegen-v1.png"
-OUTPUT = ROOT / "assets/characters/ingame/smoker-score-axe-atlas-pixel-v1.png"
-FRAME_W, FRAME_H = 96, 192
-X_RANGES = ((0, 365), (365, 685), (685, 1030), (1030, 1425), (1425, 1740), (1740, 2051))
+SOURCE = ROOT / "assets/source/characters/smoker-score-axe-keyposes-imagegen-v2.png"
+OUTPUT = ROOT / "assets/characters/ingame/smoker-score-axe-atlas-pixel-v2.png"
+FRAME_W, FRAME_H = 192, 192
+X_RANGES = ((0, 380), (380, 720), (700, 1160), (1030, 1480), (1450, 1760), (1740, 2051))
 
 
 def background_candidate(pixel: tuple[int, int, int]) -> bool:
@@ -55,6 +55,40 @@ def extract(frame: Image.Image) -> Image.Image:
             if outside[row + x]:
                 data[x, y] = (0, 0, 0, 0)
 
+    # The longer forward swings overlap neighbouring pose columns in the source
+    # sheet. Keep the largest connected subject so an adjacent arm or axe head
+    # cannot leak into this frame.
+    alpha = rgba.getchannel("A")
+    solid = alpha.load()
+    seen = bytearray(width * height)
+    largest: list[int] = []
+    for sy in range(height):
+        for sx in range(width):
+            start = sy * width + sx
+            if seen[start] or solid[sx, sy] == 0:
+                continue
+            seen[start] = 1
+            component: list[int] = []
+            pending = deque([(sx, sy)])
+            while pending:
+                x, y = pending.popleft()
+                component.append(y * width + x)
+                for ny in range(max(0, y - 1), min(height, y + 2)):
+                    for nx in range(max(0, x - 1), min(width, x + 2)):
+                        index = ny * width + nx
+                        if not seen[index] and solid[nx, ny] > 0:
+                            seen[index] = 1
+                            pending.append((nx, ny))
+            if len(component) > len(largest):
+                largest = component
+    keep = bytearray(width * height)
+    for index in largest:
+        keep[index] = 1
+    for y in range(height):
+        for x in range(width):
+            if not keep[y * width + x]:
+                data[x, y] = (0, 0, 0, 0)
+
     box = rgba.getbbox()
     if not box:
         raise RuntimeError("key-pose frame contained no foreground")
@@ -66,7 +100,7 @@ def main() -> None:
     atlas = Image.new("RGBA", (FRAME_W * len(X_RANGES), FRAME_H))
     for index, (left, right) in enumerate(X_RANGES):
         pose = extract(source.crop((left, 0, right, source.height)))
-        scale = min(92 / pose.width, 188 / pose.height)
+        scale = min(188 / pose.width, 188 / pose.height)
         size = (max(1, round(pose.width * scale)), max(1, round(pose.height * scale)))
         pose = pose.resize(size, Image.Resampling.LANCZOS)
         x = index * FRAME_W + (FRAME_W - pose.width) // 2

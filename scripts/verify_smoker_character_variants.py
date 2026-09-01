@@ -13,7 +13,7 @@ BODY_FILES = (
     "night-shopkeeper-atlas-pixel-v1.png",
 )
 AXE_FILES = (
-    "smoker-score-axe-atlas-pixel-v1.png",
+    "smoker-score-axe-atlas-pixel-v2.png",
     "scrapyard-welder-score-axe-atlas-pixel-v1.png",
     "night-shopkeeper-score-axe-atlas-pixel-v1.png",
 )
@@ -39,10 +39,12 @@ for image in bodies:
     assert all(ImageChops.difference(cells[i], cells[i + 1]).getbbox() for i in range(11))
 
 for index, image in enumerate(axes):
-    assert image.size == (576, 192), image.size
+    expected_width = 1152 if index == 0 else 576
+    assert image.size == (expected_width, 192), image.size
     if index:
         assert set(image.getchannel("A").getdata()) <= {0, 255}
-    cells = frames(image, 1)
+    cell_width = image.width // 6
+    cells = [image.crop((column * cell_width, 0, (column + 1) * cell_width, 192)) for column in range(6)]
     assert all(cell.getbbox() for cell in cells)
     assert all(cell.getbbox()[3] >= 188 for cell in cells), "axe pose lost the shared foot baseline"
     assert all(ImageChops.difference(cells[i], cells[i + 1]).getbbox() for i in range(5))

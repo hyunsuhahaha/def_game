@@ -50,10 +50,35 @@ function Player:cancelInteraction()
     self.interactionTarget, self.activeTool, self.actionClock, self.repairingWall, self.nextImpact = nil, nil, 0, false, nil
 end
 
-function Player:playAutoAxeSwing(targetX,duration)
+function Player:playAutoAxeSwing(targetX,targetY,duration)
     self.autoAxeClock = 0
     self.autoAxeDuration = duration or .42
+    self.autoAxeTargetX,self.autoAxeTargetY=targetY and targetX or nil,targetY
     if targetX then self.facing = targetX < self.x and -1 or 1 end
+end
+
+function Player:autoAxeRenderPosition()
+    if self.autoAxeClock==nil or not self.autoAxeTargetX then return self.x,self.y end
+    local progress=math.max(0,math.min(1,self.autoAxeClock/self.autoAxeDuration))
+    local step
+    if progress<=.18 then step=0
+    elseif progress<.52 then
+        local p=(progress-.18)/.34;step=p*p*(3-2*p)
+    elseif progress<=.64 then step=1
+    else
+        local p=(progress-.64)/.36;step=1-p*p*(3-2*p)
+    end
+    local sprite=self.clearcutSprite or{}
+    local bladeX,bladeY=sprite.scoreAxeBladeX or 42,sprite.scoreAxeBladeY or-65
+    local stanceX=self.autoAxeTargetX-(self.facing or 1)*bladeX
+    local stanceY=self.autoAxeTargetY-65-bladeY
+    return self.x+(stanceX-self.x)*step,self.y+(stanceY-self.y)*step
+end
+
+function Player:scoreAxeBladePosition()
+    local x,y=self:autoAxeRenderPosition()
+    local sprite=self.clearcutSprite or{}
+    return x+(self.facing or 1)*(sprite.scoreAxeBladeX or 42),y+(sprite.scoreAxeBladeY or-65)
 end
 
 function Player:setClearcutSprite(sprite, job)
@@ -103,7 +128,9 @@ end
 function Player:update(dt, world, game)
     if self.autoAxeClock then
         self.autoAxeClock = self.autoAxeClock + dt
-        if self.autoAxeClock >= self.autoAxeDuration then self.autoAxeClock = nil end
+        if self.autoAxeClock >= self.autoAxeDuration then
+            self.autoAxeClock,self.autoAxeTargetX,self.autoAxeTargetY=nil,nil,nil
+        end
     end
     local dx, dy = 0, 0
     if love.keyboard.isDown("a", "left") then dx = dx - 1 end
@@ -158,11 +185,12 @@ end
 
 function Player:draw()
     local pulse = self.isMoving and math.sin(self.walkClock * math.pi) or 0
+    local drawX,drawY=self:autoAxeRenderPosition()
     if self.axeHolding and not self.hideAxeRange then
         love.graphics.setColor(1, .68, .2, .08); love.graphics.ellipse("fill", self.x, self.y + 3, self.axeRange, self.axeRange * .38)
         love.graphics.setColor(1, .75, .28, .48); love.graphics.setLineWidth(2); love.graphics.ellipse("line", self.x, self.y + 3, self.axeRange, self.axeRange * .38)
     end
-    love.graphics.setColor(0, 0, 0, .42); love.graphics.ellipse("fill", self.x + 3, self.y + 3, 22 - math.abs(pulse) * 2, 7)
+    love.graphics.setColor(0, 0, 0, .42); love.graphics.ellipse("fill", drawX + 3, drawY + 3, 22 - math.abs(pulse) * 2, 7)
     love.graphics.setColor(1, 1, 1)
     if self.clearcutSprite then
         if self.scoreAxeEquipped and self.scoreAxeFrames then
@@ -174,7 +202,7 @@ function Player:draw()
             local image=self.clearcutSprite.scoreAxeImage
             local scale=self.clearcutSprite.scale or .23
             local foot=(self.clearcutSprite.scoreAxeFeet or{190,190,190,190,190,190})[frame]
-            love.graphics.draw(image,self.scoreAxeFrames[frame],self.x,self.y,0,
+            love.graphics.draw(image,self.scoreAxeFrames[frame],drawX,drawY,0,
                 scale*(self.facing or 1),scale,self.scoreAxeFrameWidth/2,foot)
             return
         end

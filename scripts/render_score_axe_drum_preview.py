@@ -6,7 +6,7 @@ from headless_lua import run
 
 ROOT=Path(__file__).resolve().parents[1]
 OUT=ROOT/"docs"/"previews"
-CAPTURE=OUT/"score-axe-drum-v1-draws.json"
+CAPTURE=OUT/"score-axe-contact-v2-draws.json"
 
 def rgba(values):return tuple(max(0,min(255,round(value*255)))for value in values)
 
@@ -37,6 +37,6 @@ def replay():
     return canvas
 
 run(ROOT/"scripts"/"capture_score_axe_drum.lua")
-image=replay();image.save(OUT/"score-axe-drum-v1-display-scale.png")
-image.crop((0,100,960,350)).resize((1920,500),Image.Resampling.NEAREST).save(OUT/"score-axe-drum-v1-2x.png")
+image=replay();image.save(OUT/"score-axe-contact-v2-display-scale.png")
+image.crop((0,100,960,350)).resize((1920,500),Image.Resampling.NEAREST).save(OUT/"score-axe-contact-v2-2x.png")
 print("SCORE_AXE_DRUM_RENDER_OK display=960x360 enlarged=1920x500 window=none")

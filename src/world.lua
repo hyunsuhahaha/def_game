@@ -1651,7 +1651,11 @@ function World:draw(player, actorSource)
     end} end
     for _, e in ipairs(self.enemies) do local enemy = e; queue[#queue + 1] = {x=enemy.x,y = enemy.y, draw = function() shadow(enemy.x, enemy.y, 20, 9, .5); love.graphics.setColor(.65, .12, .15); love.graphics.circle("fill", enemy.x, enemy.y - 22, 24); love.graphics.setColor(1, .35, .25); love.graphics.circle("line", enemy.x, enemy.y - 22, 24) end} end
     if actorSource then actorSource:queueWorldActors(queue, love.timer.getTime()) end
-    if not player.introHidden then queue[#queue + 1] = {x=player.x,y = player.y, draw = function() player:draw() end} end
+    if not player.introHidden then
+        local drawX,drawY=player.x,player.y
+        if player.autoAxeRenderPosition then drawX,drawY=player:autoAxeRenderPosition()end
+        queue[#queue + 1] = {x=drawX,y=drawY,draw = function() player:draw() end}
+    end
     table.sort(queue, function(a, b)
         if a.y==b.y then return (a.sortBias or 0)<(b.sortBias or 0) end
         return a.y < b.y
