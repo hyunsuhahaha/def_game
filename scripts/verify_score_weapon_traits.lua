@@ -227,19 +227,18 @@ local farAxeGame = axeGame({tree(250)})
 farAxeGame.camera.screenToWorld = function() return 250, 0 end
 assert(not fixedRangeAxe:scoreMeleeTargetAtAim(farAxeGame),
     "도끼가 영구/런 사거리 증가를 받아 고정 문맥 거리 120 밖의 나무를 근접 대상으로 잡는다")
-local nearAxeGame = axeGame({tree(42)})
-nearAxeGame.camera.screenToWorld = function() return 42, 0 end
-assert(fixedRangeAxe:scoreMeleeTargetAtAim(nearAxeGame), "고정된 도끼날 접촉점의 나무를 잡지 못한다")
+local nearAxeGame = axeGame({tree(110)})
+nearAxeGame.camera.screenToWorld = function() return 110, 0 end
+assert(fixedRangeAxe:scoreMeleeTargetAtAim(nearAxeGame), "고정 도끼 사거리 안의 나무를 잡지 못한다")
 
 local contactTree=tree(0)
 local contactGame=axeGame({contactTree})
-contactGame.player.scoreAxeBladePosition=function()return 80,-65 end
+local missAction={targetX=80,targetY=0,targets={contactTree},damage=4,axeArea=0,executeChance=0}
+assert(not fixedRangeAxe:resolveScoreAxeAction(missAction,contactGame)and contactTree.rushHp==500,
+    "고정된 타격점이 밑동을 빗나갔는데 나무 피해가 들어간다")
 local contactAction={targetX=0,targetY=0,targets={contactTree},damage=4,axeArea=0,executeChance=0}
-assert(not fixedRangeAxe:resolveScoreAxeAction(contactAction,contactGame)and contactTree.rushHp==500,
-    "보이는 도끼날이 밑동을 빗나갔는데 나무 피해가 들어간다")
-contactGame.player.scoreAxeBladePosition=function()return 0,-65 end
 assert(fixedRangeAxe:resolveScoreAxeAction(contactAction,contactGame)and contactTree.rushHp==496,
-    "보이는 도끼날이 밑동에 닿았는데 나무 피해가 들어가지 않는다")
+    "고정된 타격점이 밑동에 닿았는데 나무 피해가 들어가지 않는다")
 
 local function rocketCooldownWith(cardLevel)
     local m = ClearcutMode.new()

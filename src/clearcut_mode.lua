@@ -1049,22 +1049,12 @@ function ClearcutMode:hitOilDrum(drum,damage,game)
     return true
 end
 
-function ClearcutMode:scoreAxeContactPoint(game,targetX)
-    local player=game.player
-    local sprite=player.clearcutSprite or{}
-    local facing=targetX<player.x and-1 or 1
-    return player.x+facing*(sprite.scoreAxeBladeX or 42),player.y+(sprite.scoreAxeBladeY or-65)
-end
-
-function ClearcutMode:findAxeOilDrum(game,tx,ty,range,reach,bladeRadius)
+function ClearcutMode:findAxeOilDrum(game,tx,ty,range,reach)
     local best,bestDistance
-    local bladeX,bladeY=self:scoreAxeContactPoint(game,tx)
     for _,drum in ipairs(self.oilDrums or{})do if drum.state=="settled"then
         local playerDistance=(drum.x-game.player.x)^2+(drum.y-game.player.y)^2
         local aimDistance=(drum.x-tx)^2+(drum.y-ty)^2
-        local dx,dy=drum.x-bladeX,drum.y-54-bladeY
-        if playerDistance<=range*range and aimDistance<=reach*reach and dx*dx+dy*dy<=(bladeRadius or 22)^2
-            and(not bestDistance or aimDistance<bestDistance)then
+        if playerDistance<=range*range and aimDistance<=reach*reach and(not bestDistance or aimDistance<bestDistance)then
             best,bestDistance=drum,aimDistance
         end
     end end
@@ -3589,14 +3579,11 @@ function ClearcutMode:scoreMeleeTargetAtAim(game)
     local axeArea=(self.permanentTraits.scoreAxeArea or 0)+ScoreOperations.weaponArea(self)
     local tx,ty=game.camera:screenToWorld(love.mouse.getPosition())
     local reach=82+axeArea
-    local bladeRadius=22+axeArea*1.3
-    local bladeX,bladeY=self:scoreAxeContactPoint(game,tx)
-    if self:findAxeOilDrum(game,tx,ty,range,reach,bladeRadius)then return true end
+    if self:findAxeOilDrum(game,tx,ty,range,reach)then return true end
     for _,node in ipairs(game.world.nodes)do if node.rushTree and node.active then
         local playerDistance=(node.x-game.player.x)^2+(node.y-game.player.y)^2
         local aimDistance=(node.x-tx)^2+(node.y-ty)^2
-        local dx,dy=node.x-bladeX,node.y-65-bladeY
-        if playerDistance<=range*range and aimDistance<=reach*reach and dx*dx+dy*dy<=bladeRadius*bladeRadius then return true end
+        if playerDistance<=range*range and aimDistance<=reach*reach then return true end
     end end
     return false
 end
@@ -3650,7 +3637,6 @@ end
 
 function ClearcutMode:resolveScoreAxeAction(action,game)
     local bladeX,bladeY=action.targetX,action.targetY-65
-    if game.player.scoreAxeBladePosition then bladeX,bladeY=game.player:scoreAxeBladePosition()end
     local bladeRadius=22+(action.axeArea or 0)*1.3
     if action.drum then
         local dx,dy=action.drum.x-bladeX,action.drum.y-54-bladeY
@@ -3726,17 +3712,14 @@ function ClearcutMode:updateScoreAxeAttack(dt,game,heldOverride)
     if active or not held or self.axeCooldown>0 then return impacted end
 
     local reach=82+axeArea
-    local bladeRadius=22+axeArea*1.3
-    local bladeX,bladeY=self:scoreAxeContactPoint(game,tx)
-    local drum=self:findAxeOilDrum(game,tx,ty,range,reach,bladeRadius)
+    local drum=self:findAxeOilDrum(game,tx,ty,range,reach)
     local targets={}
     if not drum then
         local candidates={}
         for _,node in ipairs(game.world.nodes)do if node.rushTree and node.active then
             local playerDistance=(node.x-game.player.x)^2+(node.y-game.player.y)^2
             local aimDistance=(node.x-tx)^2+(node.y-ty)^2
-            local dx,dy=node.x-bladeX,node.y-65-bladeY
-            if playerDistance<=range*range and aimDistance<=reach*reach and dx*dx+dy*dy<=bladeRadius*bladeRadius then
+            if playerDistance<=range*range and aimDistance<=reach*reach then
                 candidates[#candidates+1]={node=node,d=aimDistance}
             end
         end end

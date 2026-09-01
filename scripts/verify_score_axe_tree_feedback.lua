@@ -9,6 +9,11 @@ local game={player={x=100,y=300},camera={trauma=0},feedback={play=function(_,kin
 local node={kind="tree",rushTree=true,active=true,x=210,y=300,rushHp=8,rushMaxHp=8,treeVariant=1}
 local impact={kind="axe",x=210,y=235,dir=1}
 
+world:impactNode(node,game,false)
+world:updateEffects(.01,game)
+assert(world.particles[1]and world.particles[1].y,"ordinary tree impact created a particle without a y coordinate")
+world.particles={};game.camera.trauma=0;node.swayVel=0;played={}
+
 world:impactNode(node,game,false,impact)
 assert(#world.particles==12,"normal axe hit did not create 8 bark chips and 4 leaves")
 for index=1,8 do

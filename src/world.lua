@@ -216,8 +216,8 @@ end
 function World:impactNode(node, game, strong, impact)
     if not node or node.kind == "plot" or (not node.active and not strong) then return end
     local axe=impact and impact.kind=="axe"
-    local x, y = axe and impact.x or effectOrigin(node)
-    if axe then y=impact.y end
+    local x,y
+    if axe then x,y=impact.x,impact.y else x,y=effectOrigin(node)end
     local color = effectColors[node.kind]
     node.hitFlash, node.hitShake = axe and 0 or (strong and .2 or .12), strong and .24 or .14
     if node.rushTree and node.rushMaxHp and node.rushMaxHp>0 then

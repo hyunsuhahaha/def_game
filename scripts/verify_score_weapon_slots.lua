@@ -13,8 +13,8 @@ assert(mode.setScoreWeaponSlot==nil and mode.scoreWeaponSlotAt==nil and mode.dra
     "manual score weapon slots are still active")
 assert(mode:scoreRangedWeaponId()=="cigarette","locked ranged context did not default to the cigarette")
 
-local aimX=42
-local tree={rushTree=true,active=true,x=42,y=0,rushHp=100,rushMaxHp=100}
+local aimX=110
+local tree={rushTree=true,active=true,x=110,y=0,rushHp=100,rushMaxHp=100}
 local farTree={rushTree=true,active=true,x=600,y=0,rushHp=100,rushMaxHp=100}
 local game={
     player={x=0,y=0,facing=1,gather=1.15,axeHolding=false,cancelInteraction=function()end,playAutoAxeSwing=function()end},
