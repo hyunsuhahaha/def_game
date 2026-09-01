@@ -43,11 +43,17 @@ function Shop.update(state,dt)
     if state then state.messageTime=math.max(0,(state.messageTime or 0)-dt)end
 end
 
+local function depthScale(y,h)
+    local depth=math.max(0,math.min(1,(y-h*.70)/math.max(1,h*.195)))
+    return .78+depth*.30
+end
+
 function Shop.amenities(state,traits,w,h)
     local result={}
-    local positions={{w*.43,h*.80},{w*.55,h*.875},{w*.67,h*.84},{w*.79,h*.79}}
+    local positions={{w*.43,h*.78},{w*.55,h*.875},{w*.67,h*.84},{w*.79,h*.72}}
     for index,item in ipairs(ITEMS)do if owned(traits,item.id)then
-        result[#result+1]={id=item.id,kind=item.kind,x=math.floor(positions[index][1]),y=math.floor(positions[index][2])}
+        local x,y=math.floor(positions[index][1]),math.floor(positions[index][2])
+        result[#result+1]={id=item.id,kind=item.kind,x=x,y=y,scale=depthScale(y,h)}
     end end
     return result
 end
@@ -71,9 +77,10 @@ function Shop.drawPlaygrounds(state,traits,w,h,light,groundOffsetX,companions,pa
         if selected then
             local index=amenity.kind=="ball"and 1 or amenity.kind=="sand"and 2 or amenity.kind=="cat_tower"and 3 or 4
             local x=amenity.x+math.floor(groundOffsetX or 0)
-            love.graphics.draw(state.playgrounds,state.quads[index],x,amenity.y,0,1,1,80,116)
+            local scale=amenity.scale or 1
+            love.graphics.draw(state.playgrounds,state.quads[index],x,amenity.y,0,scale,scale,80,116)
             if amenity.kind=="swing"and state.swingMotion then
-                love.graphics.draw(state.swingMotion,state.swingQuads[swingFrame(companions)],x,amenity.y,0,1,1,80,116)
+                love.graphics.draw(state.swingMotion,state.swingQuads[swingFrame(companions)],x,amenity.y,0,scale,scale,80,116)
             end
         end
     end

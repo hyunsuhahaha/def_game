@@ -157,9 +157,10 @@ end
 
 local function blockedByAmenity(x,y,bounds,clearance)
     for _,amenity in ipairs(bounds.amenities or{})do
-        local rx=amenity.kind=="swing"and 82 or amenity.kind=="cat_tower"and 70 or 62
+        local scale=amenity.scale or 1
+        local rx=(amenity.kind=="swing"and 82 or amenity.kind=="cat_tower"and 70 or 62)*scale
         local dx=(x-amenity.x)/math.max(1,rx+(clearance or 0))
-        local dy=(y-amenity.y)/math.max(1,38+(clearance or 0)*.35)
+        local dy=(y-amenity.y)/math.max(1,38*scale+(clearance or 0)*.35)
         if dx*dx+dy*dy<1 then return true end
     end
     return false
@@ -167,8 +168,9 @@ end
 
 local function pushOffAmenities(actor,bounds,clearance)
     for _,amenity in ipairs(bounds.amenities or{})do
-        local rx=(amenity.kind=="swing"and 82 or amenity.kind=="cat_tower"and 70 or 62)+(clearance or 0)
-        local ry=38+(clearance or 0)*.35
+        local scale=amenity.scale or 1
+        local rx=(amenity.kind=="swing"and 82 or amenity.kind=="cat_tower"and 70 or 62)*scale+(clearance or 0)
+        local ry=38*scale+(clearance or 0)*.35
         local dx,dy=(actor.x-amenity.x)/math.max(1,rx),(actor.y-amenity.y)/math.max(1,ry)
         local length=math.sqrt(dx*dx+dy*dy)
         if length<1 then
@@ -238,7 +240,7 @@ local function beginWalk(actor,bounds,amenities)
     if #usable>0 and random(actor)<.55 then
         local amenity=usable[math.floor(random(actor)*#usable)+1]
         actor.playAmenity=amenity.kind;actor.playAmenityRef=amenity;amenity.reservedBy=actor.id
-        actor.targetX=amenity.x+(amenity.kind=="cat_tower"and-30 or 0)
+        actor.targetX=amenity.x+(amenity.kind=="cat_tower"and-30*(amenity.scale or 1)or 0)
         actor.targetY=amenity.y
     else actor.targetX,actor.targetY=point(actor,bounds,actor.x,actor.y)end
     actor.state,actor.timer="walk",0
@@ -287,7 +289,7 @@ function Companions.setAmenities(state,amenities)
         if not actor.playAmenityRef then clearAmenity(actor)
         else
             local amenity=actor.playAmenityRef
-            local approachX=amenity.x+(amenity.kind=="cat_tower"and-30 or 0)
+            local approachX=amenity.x+(amenity.kind=="cat_tower"and-30*(amenity.scale or 1)or 0)
             if actor.state=="play"then actor.x,actor.y=approachX,amenity.y
             else actor.targetX,actor.targetY=approachX,amenity.y end
         end
@@ -598,51 +600,52 @@ end
 local function updateAmenityPlay(actor,dt)
     actor.timer=(actor.timer or 0)-dt;actor.playClock=(actor.playClock or 0)+dt
     local t,kind=actor.playClock,actor.playAmenity
+    local scale=actor.playAmenityRef and actor.playAmenityRef.scale or 1
     actor.renderOffsetX=0;actor.renderOffsetY=0;actor.interactionLift=0
     actor.shadowOffsetX=0;actor.shadowAlpha=1
     if kind=="ball"then
         local phase=t*2.3
-        actor.renderOffsetX=math.floor(math.sin(phase)*22)
+        actor.renderOffsetX=math.floor(math.sin(phase)*22*scale)
         actor.shadowOffsetX=actor.renderOffsetX
-        actor.interactionLift=math.floor(math.max(0,math.sin(phase*2))*8)
+        actor.interactionLift=math.floor(math.max(0,math.sin(phase*2))*8*scale)
         actor.facing=math.cos(phase)>=0 and 1 or-1
         actor.interactionMoving=true
     elseif kind=="sand"then
         local cycle=t%3.2
-        if cycle<.75 then actor.renderOffsetY=math.floor(cycle/.75*23)
-        elseif cycle<1.65 then actor.renderOffsetY=23
-        elseif cycle<2.15 then actor.renderOffsetY=math.floor((2.15-cycle)/.5*23)
+        if cycle<.75 then actor.renderOffsetY=math.floor(cycle/.75*23*scale)
+        elseif cycle<1.65 then actor.renderOffsetY=math.floor(23*scale)
+        elseif cycle<2.15 then actor.renderOffsetY=math.floor((2.15-cycle)/.5*23*scale)
         else actor.renderOffsetY=0 end
         actor.shadowAlpha=cycle<2.15 and .35 or 1
     elseif kind=="cat_tower"then
         if t<1.6 then
-            local u=t/1.6;actor.renderOffsetX=math.floor(u*30);actor.renderOffsetY=math.floor(-u*76)
+            local u=t/1.6;actor.renderOffsetX=math.floor(u*30*scale);actor.renderOffsetY=math.floor(-u*76*scale)
             actor.facing=1;actor.interactionMoving=true;actor.shadowAlpha=1-u*.65
         elseif t<2.75 then
-            actor.renderOffsetX=30;actor.renderOffsetY=-76;actor.facing=-1;actor.shadowAlpha=.3
+            actor.renderOffsetX=math.floor(30*scale);actor.renderOffsetY=math.floor(-76*scale);actor.facing=-1;actor.shadowAlpha=.3
         elseif t<4.15 then
             local u=(t-2.75)/1.4
-            actor.renderOffsetX=math.floor(30+58*u)
-            actor.renderOffsetY=math.floor(-76*(1-u)-math.sin(u*math.pi)*22)
+            actor.renderOffsetX=math.floor((30+58*u)*scale)
+            actor.renderOffsetY=math.floor((-76*(1-u)-math.sin(u*math.pi)*22)*scale)
             actor.facing=1;actor.interactionMoving=true;actor.shadowOffsetX=math.floor(actor.renderOffsetX*u)
             actor.shadowAlpha=.3+.7*u
         else
             local settle=math.max(0,math.sin((t-4.15)*8)*(1-(t-4.15)/1.25))
-            actor.renderOffsetX=88;actor.shadowOffsetX=88;actor.interactionLift=math.floor(settle*6)
+            actor.renderOffsetX=math.floor(88*scale);actor.shadowOffsetX=actor.renderOffsetX;actor.interactionLift=math.floor(settle*6*scale)
         end
     elseif kind=="swing"then
         if t<5.6 then
             local frame=math.floor(t*5)%8+1;local angle=SWING_ANGLES[frame]
             actor.swingFrame=frame
-            actor.renderOffsetX=math.floor(math.sin(angle)*58)
-            actor.renderOffsetY=math.floor(-82+math.cos(angle)*58)
+            actor.renderOffsetX=math.floor(math.sin(angle)*58*scale)
+            actor.renderOffsetY=math.floor((-82+math.cos(angle)*58)*scale)
             actor.facing=(frame<=4 or frame==8)and 1 or-1
             actor.shadowAlpha=.42;actor.shadowOffsetX=math.floor(actor.renderOffsetX*.35)
         else
             local u=math.min(1,(t-5.6)/1.2);local angle=SWING_ANGLES[5]
-            local startX,startY=math.sin(angle)*58,-82+math.cos(angle)*58
-            actor.swingFrame=5;actor.renderOffsetX=math.floor(startX*(1-u)+35*u)
-            actor.renderOffsetY=math.floor(startY*(1-u)-math.sin(u*math.pi)*12)
+            local startX,startY=math.sin(angle)*58*scale,(-82+math.cos(angle)*58)*scale
+            actor.swingFrame=5;actor.renderOffsetX=math.floor(startX*(1-u)+35*scale*u)
+            actor.renderOffsetY=math.floor(startY*(1-u)-math.sin(u*math.pi)*12*scale)
             actor.facing=1;actor.shadowAlpha=.42+.58*u;actor.shadowOffsetX=actor.renderOffsetX
         end
     end

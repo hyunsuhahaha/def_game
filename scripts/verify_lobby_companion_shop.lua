@@ -28,6 +28,14 @@ traits.data.currency=3;assert(not traits:buyLobbyItem("forest_swing",24),"코인
 local state=Shop.new()
 local amenities=Shop.amenities(state,{data=decoded},1280,720)
 assert(#amenities==1 and amenities[1].kind=="ball","구매한 시설만 로비 공터에 배치되지 않았다")
+local allItems={data={lobbyItems={ball_court=true,sand_burrow=true,cat_tower=true,forest_swing=true}}}
+local layout=Shop.amenities(state,allItems,1280,720);local byKind={}
+for _,amenity in ipairs(layout)do byKind[amenity.kind]=amenity end
+assert(#layout==4 and byKind.swing.y<byKind.ball.y and byKind.ball.y<byKind.cat_tower.y and
+    byKind.cat_tower.y<byKind.sand.y,"놀이터가 뒤·중간·앞 깊이로 분산되지 않았다")
+assert(byKind.swing.y<720*.75 and byKind.sand.y>720*.85,"그네는 뒤쪽, 모래굴은 앞쪽 지면에 있어야 한다")
+assert(byKind.swing.scale<byKind.ball.scale and byKind.ball.scale<byKind.sand.scale,
+    "뒤쪽 놀이터가 동료와 같은 원근 배율로 작아지지 않는다")
 love.graphics.getDimensions=function()return 1280,720 end
 love.mouse={getPosition=function()return -100,-100 end,isDown=function()return false end}
 local fonts={}
