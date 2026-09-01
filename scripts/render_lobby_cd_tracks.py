@@ -11,7 +11,7 @@ ROOT = Path(__file__).resolve().parents[1]
 OUT = ROOT / "docs/previews"
 LABELS = ("FOREST DAY / LOOP 07", "RIVER LINE / LOOP 03", "OWL SHIFT / LOOP 11",
           "SAWMILL RUN / LOOP 16", "RAIN SHACK / LOOP 05", "LAST LIGHT / LOOP 09",
-          "DREAM PARADE / LOOP 13")
+          "DREAM PARADE / LOOP 13", "WAKING ROOT / LOOP 00")
 
 
 def render_set(width, height, suffix):

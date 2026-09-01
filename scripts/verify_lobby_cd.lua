@@ -66,9 +66,9 @@ assert(CdArt.frame(state) == 1, "회전각 0 이 첫 프레임이 아니다")
 state.angle = .5
 assert(CdArt.frame(state) == CdArt.FRAMES / 2 + 1,
     "반사광이 한 바퀴 대신 반 바퀴마다 반복된다")
-assert(CdArt.TRACKS == 7 and CdArt.track(1) == 1 and CdArt.track(4) == 4 and
-    CdArt.track(7) == 7 and CdArt.track(99) == 7,
-    "일곱 곡의 고유 CD 행 선택이 깨졌다")
+assert(CdArt.TRACKS == 8 and CdArt.track(1) == 1 and CdArt.track(4) == 4 and
+    CdArt.track(8) == 8 and CdArt.track(99) == 8,
+    "여덟 곡의 고유 CD 행 선택이 깨졌다")
 
 -- 5. 런타임 연결. 자산과 상태 기계가 멀쩡해도 로비가 안 그리면 화면에는 없다.
 local lobby = read("src/lobby.lua")
@@ -82,4 +82,4 @@ assert(lobby:find("CdArt.update", 1, true), "CD 회전이 갱신되지 않아 �
 
 assert(lobby:find("self.audioTrack or 1", 1, true), "현재 곡 번호가 CD 디자인에 연결되지 않았다")
 
-print("LOBBY_CD_OK tracks=7 frames=32 half_disc=compact sizes=2 spin=slow_inertial")
+print("LOBBY_CD_OK tracks=8 frames=32 half_disc=compact sizes=2 spin=slow_inertial")

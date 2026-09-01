@@ -8,9 +8,9 @@ ROOT = Path(__file__).resolve().parents[1]
 ASSET = ROOT / "assets/ui/lobby-cd-tracks-half-pixel-v2.png"
 OUT_DISPLAY = ROOT / "docs/previews/lobby-cd-v2-display-scale.png"
 OUT_ZOOM = ROOT / "docs/previews/lobby-cd-v2-4x.png"
-FRAMES, TRACKS, CELL_W, CELL_H = 32, 7, 160, 84
+FRAMES, TRACKS, CELL_W, CELL_H = 32, 8, 160, 84
 LABELS = ("FOREST DAY", "RIVER LINE", "OWL SHIFT", "SAWMILL RUN",
-          "RAIN SHACK", "LAST LIGHT", "DREAM PARADE")
+          "RAIN SHACK", "LAST LIGHT", "DREAM PARADE", "WAKING ROOT")
 GRASS, PANEL, LINE = (54, 82, 43), (5, 18, 13), (87, 184, 128)
 ACCENT = (242, 158, 46)
 
@@ -41,7 +41,7 @@ def main():
     zoom = Image.new("RGB", (CELL_W * 4 * columns + 40, CELL_H * 4 * rows + 24), PANEL)
     for track in range(TRACKS):
         image = Image.new("RGB", (CELL_W, CELL_H), PANEL)
-        frame = tile(atlas, track, 5 + track * 7)
+        frame = tile(atlas, track, (5 + track * 7) % FRAMES)
         image.paste(frame, (0, 0), frame)
         column, row = track % columns, track // columns
         zoom.paste(image.resize((CELL_W * 4, CELL_H * 4), Image.Resampling.NEAREST),

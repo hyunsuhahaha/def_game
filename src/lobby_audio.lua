@@ -57,6 +57,19 @@ local function addNote(buffer,count,kind,t0,dur,freq,gain,rng)
             amp=(t<.008 and t/.008 or math.exp(-(t-.008)*1.75))
             value=math.sin(freq*t*TAU)*.58+math.sin(freq*2.005*t*TAU)*.24+
                 math.sin(freq*3.01*t*TAU)*.11+math.sin(freq*.502*t*TAU)*.07
+        elseif kind=="memory" then
+            -- 낡은 기억처럼 음정이 아주 천천히 휜다. 무작위가 아니라 루프마다
+            -- 같은 위치에서 흔들려 주선율의 정체성은 유지한다.
+            amp=(t<.012 and t/.012 or math.exp(-(t-.012)*1.35))
+            local phase=freq*t+math.sin(t*TAU*.43)*.018+math.sin(t*TAU*1.17)*.006
+            value=math.sin(phase*TAU)*.64+math.sin(phase*2.003*TAU)*.23+
+                math.sin(phase*.501*TAU)*.13
+        elseif kind=="choir" then
+            local attack=math.min(1,t/.75)
+            local release=math.min(1,(dur-t)/(dur*.55))
+            amp=attack*release*.48
+            value=math.sin(freq*t*TAU)*.58+math.sin(freq*1.004*t*TAU)*.24+
+                math.sin(freq*1.498*t*TAU)*.18
         elseif kind=="kick" then
             amp=math.exp(-t*18)
             local sweep=freq*(1+.9*math.exp(-t*28))
@@ -137,6 +150,24 @@ local TRACKS={
               {9.5,45,.55},{10.25,41,.45},{11,38,1.25}},
         leadKind="glass", bassBeats={0}, hat=false, air=.055,
     },
+    {
+        name="WAKING ROOT / LOOP 00", slug="waking-root-loop-00", bpm=84, beats=32, gain=.30,
+        -- 8마디 서사 루프. 앞 절은 안전한 기억, 뒤 절은 같은 동기를 거꾸로
+        -- 비추는 자각몽이다. 마지막 B7은 첫 Am으로 돌아갈 때만 해소된다.
+        chords={{12,{24,27,31,38}},{8,{20,24,27,31}},{15,{27,31,34,38}},{10,{22,26,29,33}},
+                {6,{18,22,25,29}},{13,{25,29,32,36}},{3,{15,19,22,26}},{2,{14,18,21,25}}},
+        lead={{0,39,.8},{1,43,.55},{2,46,1.35},{3.5,43,.35},
+              {4,41,.8},{5,39,.55},{6,36,1.55},
+              {8,39,.6},{8.75,41,.4},{9.5,43,.6},{10.5,46,1.25},
+              {12,43,.7},{13,41,.45},{14,39,1.55},
+              -- 거울 절: 앞 절의 윤곽은 남지만 도약과 종착음이 아래로 뒤집힌다.
+              {16,39,.8},{17,35,.55},{18,32,1.35},{19.5,35,.35},
+              {20,37,.8},{21,39,.55},{22,42,1.55},
+              {24,39,.6},{24.75,37,.4},{25.5,35,.6},{26.5,32,1.25},
+              {28,35,.7},{29,37,.45},{30,38,1.8}},
+        leadKind="memory",leadGain=.30,padKind="choir",padGain=.25,
+        bassBeats={0,2},bassGain=.54,globalKickBeats={16},hat=false,air=.065,
+    },
 }
 
 LobbyAudio.TRACKS=TRACKS
@@ -168,10 +199,11 @@ function LobbyAudio.render(index)
         local chord=track.chords[bar+1]
         local barStart=bar*beatsPerBar*beat
         for _,offset in ipairs(track.bassBeats) do
-            addNote(buffer,count,"bass",barStart+offset*beat,beat*1.9,pitch(chord[1]),.62,rng)
+            addNote(buffer,count,"bass",barStart+offset*beat,beat*1.9,pitch(chord[1]),track.bassGain or .62,rng)
         end
         for _,semi in ipairs(chord[2]) do
-            addNote(buffer,count,"pad",barStart,beatsPerBar*beat*1.05,pitch(semi),.30,rng)
+            addNote(buffer,count,track.padKind or "pad",barStart,beatsPerBar*beat*1.05,
+                pitch(semi),track.padGain or .30,rng)
         end
         if track.arp then
             for step,slot in ipairs(track.arp) do
@@ -201,7 +233,12 @@ function LobbyAudio.render(index)
     if track.lead then
         for _,entry in ipairs(track.lead) do
             addNote(buffer,count,track.leadKind or "pluck",entry[1]*beat,entry[3]*beat,
-                pitch(entry[2]),.34,rng)
+                pitch(entry[2]),track.leadGain or .34,rng)
+        end
+    end
+    if track.globalKickBeats then
+        for _,offset in ipairs(track.globalKickBeats)do
+            addNote(buffer,count,"kick",offset*beat,beat*.55,pitch(0),.38,rng)
         end
     end
     -- 봉우리를 맞춘 뒤 트랙별 음량으로 낮춘다. 정규화만 하면 세 곡의 체감

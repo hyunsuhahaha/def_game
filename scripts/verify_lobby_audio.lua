@@ -10,7 +10,7 @@ package.path = "./?.lua;./?/init.lua;" .. package.path
 
 local LobbyAudio = require("src.lobby_audio")
 
-assert(#LobbyAudio.TRACKS == 7, "로비 트랙 수가 UI 목록과 어긋났다")
+assert(#LobbyAudio.TRACKS == 8, "로비 트랙 수가 UI 목록과 어긋났다")
 
 for index, track in ipairs(LobbyAudio.TRACKS) do
     local buffer, count = LobbyAudio.render(index)
@@ -109,4 +109,4 @@ do
     assert(attempts == 0, "합성에 실패한 트랙을 매 프레임 다시 만들고 있다")
 end
 
-print("LOBBY_AUDIO_OK tracks=7 synth=runtime loop=wrapped seam=click_free")
+print("LOBBY_AUDIO_OK tracks=8 synth=runtime loop=wrapped seam=click_free")

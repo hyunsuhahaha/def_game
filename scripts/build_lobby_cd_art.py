@@ -1,6 +1,6 @@
 """Bake the compact, track-specific half CDs used by the lobby audio bar.
 
-Each size is authored at its final pixel grid. The seven atlas rows identify the
+Each size is authored at its final pixel grid. The eight atlas rows identify the
 music loops; columns are a quiet moving reflection.
 """
 import math
@@ -11,7 +11,7 @@ from PIL import Image
 
 ROOT = Path(__file__).resolve().parents[1]
 FRAMES = 32
-TRACKS = 7
+TRACKS = 8
 SIZES = (
     ("lobby-cd-tracks-half-pixel-v2.png", 76, 2),
     ("lobby-cd-tracks-half-small-pixel-v2.png", 52, 2),
@@ -64,6 +64,12 @@ PALETTES = (
         "hub_ring": (181, 165, 205),
         "sheen": ((128, 183, 195), (170, 154, 211), (211, 181, 193)),
     },
+    {  # WAKING ROOT: bruised memory, split ivory label, impossible reflection
+        "dark": (19, 22, 28), "mid": (31, 33, 39), "rim": (54, 48, 50),
+        "label": (93, 79, 67), "hub": (21, 23, 29),
+        "hub_ring": (207, 193, 165),
+        "sheen": ((199, 180, 152), (133, 158, 174), (178, 124, 138)),
+    },
 )
 
 
@@ -114,12 +120,24 @@ def motif(track, dx, dy, radius, base):
             return (224, 157, 73)
         if abs(dy + 7 * scale) <= scale and abs(dx) <= 13 * scale:
             return (169, 92, 59)
-    else:
+    elif track == 6:
         # 비대칭 별과 초승달 조각: 작은 크기에서도 야간 회전목마 라벨로 읽힌다.
         for ox, oy in ((-8, -18), (7, -12), (1, -7)):
             px, py = ox * scale, oy * scale
             if abs(dx - px) <= 3 * scale and abs(dy - py) <= scale:
                 return (205, 181, 218)
+    else:
+        # 한쪽은 감은 눈, 한쪽은 뜬 눈. 가운데 금은 꿈과 현실의 경계다.
+        eye_y=-14*scale
+        if abs(dy-eye_y)<=scale and -12*scale<=dx<=-2*scale:
+            return (195, 180, 151)
+        if ((dx-7*scale)/(6*scale))**2+((dy-eye_y)/(3*scale))**2<=1:
+            return (205, 193, 169)
+        if abs(dx-7*scale)<=scale and abs(dy-eye_y)<=2*scale:
+            return (54, 45, 48)
+        crack_x=round((dy+22*scale)/(5*scale))*scale
+        if -24*scale<=dy<=-5*scale and abs(dx-crack_x)<=scale:
+            return (151, 116, 105)
             if abs(dx - px) <= scale and abs(dy - py) <= 3 * scale:
                 return (205, 181, 218)
     return base
