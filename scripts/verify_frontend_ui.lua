@@ -13,6 +13,8 @@ assert(lobby:find("tree%-cartoon%-v3%.png"),"approved v3 trees are missing from 
 assert(lobby:find("font%-korean%-pixel%.ttf"),"lobby pixel font is not connected")
 local pixelFont=assert(io.open("assets/font-korean-pixel.ttf","rb"));local fontSize=pixelFont:seek("end");pixelFont:close();assert(fontSize>500000,"lobby pixel font is missing or truncated")
 assert(lobby:find("FOREST DAY / LOOP 07",1,true)and lobby:find("audioPlayBox",1,true),"compact pixel audio player is missing")
+assert(lobby:find("forest%-floor%-decal%-atlas%-pixel%-v1%.png")and lobby:find("backgroundParallax",1,true),"responsive lobby scenery is missing")
+assert(not lobby:find("backgroundSmoker",1,true)and not lobby:find("cigarette_sprite",1,true),"lobby character returned")
 assert(not lobby:find("NETWORK ONLINE",1,true)and not lobby:find("diagnosticTab",1,true)and not lobby:find("작업 기록",1,true),"removed dashboard decoration returned")
 assert(not lobby:find("숲이 다시 자라기 전에",1,true),"removed lobby slogan returned")
 assert(lobby:find("게임 시작",1,true),"active score-mode start button missing")

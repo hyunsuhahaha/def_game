@@ -1,5 +1,4 @@
 local F=require("src.frontend_ui")
-local Cigarette=require("src.cigarette_sprite")
 local Lobby={};Lobby.__index=Lobby
 
 -- 현재 플레이테스트는 기록 모드 하나에 집중한다. 일반 작전 버튼과 진입 코드는
@@ -27,14 +26,17 @@ function Lobby.new(images,fonts)
  for _,name in ipairs({"rock","fern","log"})do
   local image=love.graphics.newImage("assets/scenery/forest/"..name.."-pixel-v1.png");image:setFilter("nearest","nearest");backgroundProps[name]=image
  end
- local smoker=love.graphics.newImage("assets/characters/ingame/smoker-atlas-pixel-v3.png");smoker:setFilter("nearest","nearest")
- return setmetatable({images=images,fonts=fonts,time=0,activeDevelopmentMode=ACTIVE_DEVELOPMENT_MODE,menuFocus=1,audioTrack=1,audioPlaying=true,backgroundTrees=backgroundTrees,backgroundProps=backgroundProps,backgroundSmoker=smoker,backgroundSmokerIdle=love.graphics.newQuad(0,0,96,192,smoker:getDimensions()),backgroundCigarette=Cigarette.load(),
+ local floor=love.graphics.newImage("assets/scenery/forest/forest-floor-decal-atlas-pixel-v1.png");floor:setFilter("nearest","nearest")
+ local floorQuads={};for index=1,10 do local zero=index-1;floorQuads[index]=love.graphics.newQuad((zero%5)*128,math.floor(zero/5)*96,128,96,floor:getDimensions())end
+ return setmetatable({images=images,fonts=fonts,time=0,activeDevelopmentMode=ACTIVE_DEVELOPMENT_MODE,menuFocus=1,audioTrack=1,audioPlaying=true,backgroundTrees=backgroundTrees,backgroundProps=backgroundProps,backgroundFloor=floor,backgroundFloorQuads=floorQuads,backgroundParallax=0,
   pixelTiny=love.graphics.newFont(pixel,13),pixelSmall=love.graphics.newFont(pixel,17),pixelMenu=love.graphics.newFont(pixel,26),pixelTitle=love.graphics.newFont(pixel,58)},Lobby)
 end
 
 function Lobby:update(dt)
  self.time=self.time+dt
  local mx,my=love.mouse.getPosition()
+ local target=mx>=0 and math.max(-1,math.min(1,(mx/love.graphics.getWidth()-.5)*2))or 0
+ self.backgroundParallax=(self.backgroundParallax or 0)+(target-(self.backgroundParallax or 0))*math.min(1,dt*4)
  for i,box in ipairs(self.menuBoxes or {})do if inside(box,mx,my)then self.menuFocus=i end end
 end
 
@@ -72,13 +74,13 @@ function Lobby:mousepressed(x,y,button)
 end
 
 function Lobby:drawBackground(w,h)
- local horizon=math.floor(h*.57);local unit=math.max(4,math.floor(h/120))
+ local horizon=math.floor(h*.57);local unit=math.max(4,math.floor(h/120));local parallax=self.backgroundParallax or 0
  local sky={{.10,.27,.25},{.14,.34,.29},{.23,.43,.32},{.37,.53,.34},{.55,.62,.34},{.70,.66,.35}}
  for i,color in ipairs(sky)do
   local y=math.floor((i-1)*horizon/#sky);love.graphics.setColor(color[1],color[2],color[3],1);love.graphics.rectangle("fill",0,y,w,math.ceil(horizon/#sky)+1)
  end
  -- Block-built dawn sun and clouds keep the backdrop crisp at every resolution.
- local sunX,sunY=math.floor(w*.79/unit)*unit,math.floor(h*.25/unit)*unit
+ local sunX,sunY=math.floor((w*.79-parallax*unit*2)/unit)*unit,math.floor(h*.25/unit)*unit
  love.graphics.setColor(.95,.63,.22,.10)
  for i=5,1,-1 do love.graphics.rectangle("fill",sunX-i*unit*2,sunY-i*unit,unit*(i*4+1),unit*(i*2+1))end
  love.graphics.setColor(1,.80,.33,1)
@@ -88,46 +90,46 @@ function Lobby:drawBackground(w,h)
   local x,y,cw=math.floor(w*cloud[1]/unit)*unit,math.floor(h*cloud[2]/unit)*unit,cloud[3]*unit
   love.graphics.rectangle("fill",x,y,cw,unit);love.graphics.rectangle("fill",x+unit*2,y-unit,cw-unit*5,unit)
  end
- local function ridge(base,height,step,color,phase)
+ local function ridge(base,height,step,color,phase,shift)
   local points={0,h,0,base}
   for x=0,w+step,step do
-   local y=base-height*(.48+.22*math.sin(x*.009+phase)+.14*math.sin(x*.021+phase*2))
+   local sample=x+(shift or 0);local y=base-height*(.48+.22*math.sin(sample*.009+phase)+.14*math.sin(sample*.021+phase*2))
    points[#points+1]=x;points[#points+1]=math.floor(y/unit)*unit
   end
   points[#points+1]=w;points[#points+1]=h;love.graphics.setColor(color);love.graphics.polygon("fill",points)
  end
- ridge(horizon+unit*5,h*.20,unit*4,{.12,.31,.23,1},.8)
- ridge(horizon+unit*9,h*.13,unit*3,{.10,.25,.17,1},2.1)
+ ridge(horizon+unit*5,h*.20,unit*4,{.12,.31,.23,1},.8,parallax*unit*2)
+ ridge(horizon+unit*9,h*.13,unit*3,{.10,.25,.17,1},2.1,parallax*unit*4)
  local trees=self.backgroundTrees or{}
- if #trees>0 then
-  local function drawRow(ground,startX,count,targetH,tint,offset,overlap)
+ local function drawRow(ground,startX,count,targetH,tint,offset,overlap,shift,sway)
+  if #trees>0 then
    local span=w-startX;local spacing=span/math.max(1,count-(overlap or 0))
    for i=1,count do
     local image=trees[(i+offset-2)%#trees+1];local iw,ih=image:getDimensions();local scale=targetH/ih
-    local x=startX+(i-1)*spacing+(i%2)*spacing*.10
+    local x=startX+(i-1)*spacing+(i%2)*spacing*.10+(shift or 0)+math.floor(math.sin(self.time*.55+i*1.7)*(sway or 0))
     love.graphics.setColor(tint);love.graphics.draw(image,math.floor(x),math.floor(ground-targetH),0,scale,scale)
    end
   end
-  drawRow(horizon+unit*8,0,13,h*.24,{.38,.51,.28,.72},2,1)
-  love.graphics.setColor(.28,.46,.20,1);love.graphics.rectangle("fill",0,horizon,w,h-horizon)
-  love.graphics.setColor(.35,.53,.22,1);love.graphics.rectangle("fill",0,horizon,w,unit*5)
-  love.graphics.setColor(.40,.56,.24,.48)
-  love.graphics.polygon("fill",w*.52,h,w*.63,horizon,w*.78,horizon,w*.91,h,w,h)
-  drawRow(h*.93,w*.55,5,h*.43,{.82,.88,.68,1},1,1)
  end
+ drawRow(horizon+unit*8,-unit*3,14,h*.24,{.38,.51,.28,.72},2,1,-parallax*unit*3,1)
+ love.graphics.setColor(.28,.46,.20,1);love.graphics.rectangle("fill",0,horizon,w,h-horizon)
+ love.graphics.setColor(.35,.53,.22,1);love.graphics.rectangle("fill",0,horizon,w,unit*5)
+ local floor,floorQuads=self.backgroundFloor,self.backgroundFloorQuads or{}
+ local function drawFloor(index,x,y,scale,alpha,flip)
+  if not floor or not floorQuads[index]then return end
+  love.graphics.setColor(1,1,1,alpha);love.graphics.draw(floor,floorQuads[index],math.floor(x-parallax*unit*5),math.floor(y),0,scale*(flip or 1),scale,64,48)
+ end
+ drawFloor(4,w*.67,h*.62,.80,.38);drawFloor(1,w*.68,h*.72,1.18,.42,-1);drawFloor(4,w*.70,h*.84,1.72,.48)
+ drawFloor(8,w*.27,h*.72,1.38,.24,-1);drawFloor(4,w*.42,h*.84,1.50,.27);drawFloor(3,w*.35,h*.91,.76,.58,-1)
+ drawFloor(2,w*.55,h*.89,.78,.82);drawFloor(3,w*.46,h*.78,.68,.66,-1);drawFloor(6,w*.91,h*.86,.82,.78)
+ drawRow(h*.93,w*.55,5,h*.43,{.82,.88,.68,1},1,1,-parallax*unit*7,2)
  local props=self.backgroundProps or{}
  local function drawProp(name,x,ground,targetH,tint)
   local image=props[name];if not image then return end
-  local iw,ih=image:getDimensions();local scale=targetH/ih;love.graphics.setColor(tint or{1,1,1,1});love.graphics.draw(image,math.floor(x),math.floor(ground-targetH),0,scale,scale)
+  local iw,ih=image:getDimensions();local scale=targetH/ih;love.graphics.setColor(tint or{1,1,1,1});love.graphics.draw(image,math.floor(x-parallax*unit*8),math.floor(ground-targetH),0,scale,scale)
  end
  drawProp("rock",w*.50,h*.93,h*.10,{.76,.82,.61,1});drawProp("log",w*.73,h*.96,h*.11,{.88,.83,.61,1})
  drawProp("fern",w*.46,h*.91,h*.085,{.72,.88,.58,1});drawProp("fern",w*.88,h*.94,h*.10,{.72,.88,.58,1})
- if self.backgroundSmoker then
-  local smokerScale=h<640 and .94 or 1.12;local smokerX,smokerGround=math.floor(w*.62),math.floor(h*.875)
-  love.graphics.setColor(.06,.17,.10,.32);love.graphics.ellipse("fill",smokerX,smokerGround-3,35*smokerScale,8*smokerScale)
-  love.graphics.setColor(1,1,1,1);love.graphics.draw(self.backgroundSmoker,self.backgroundSmokerIdle,smokerX,smokerGround,0,smokerScale,smokerScale,48,192)
-  if self.backgroundCigarette then Cigarette.draw(self.backgroundCigarette,smokerX+6*smokerScale,smokerGround-159*smokerScale,1,self.time)end
- end
  love.graphics.setColor(.07,.20,.13,.66);love.graphics.rectangle("fill",0,h*.955,w,h*.045)
  for i=1,18 do
   local x=math.floor(w*(.43+((i*37)%57)/100));local y=math.floor(h*(.31+((i*23)%54)/100))
