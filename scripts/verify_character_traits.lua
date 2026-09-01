@@ -186,6 +186,8 @@ assert(math.abs(scoreSmoker.scoreAttackSpeed-.20)<1e-9 and math.abs(scoreSmoker.
 local earlySmoking=CharacterTraits.new(true)
 earlySmoking.data.currency=50000
 assert(earlySmoking:buy("fire_score_prewarm"),"smoker root purchase failed")
+assert(earlySmoking:getNode("fire_score_alwayssmoke").costs[1]==70,
+    "always-smoking node cost is not 70 research coins")
 assert(earlySmoking:buy("fire_score_impact"),"early cigarette-impact node is not purchasable directly after the root")
 assert(earlySmoking:scoreAttackEffects().scoreCigaretteImpact==1,"early impact purchase did not reach score runtime effects")
 assert(earlySmoking:buy("fire_score_alwayssmoke"),"always-smoking node is not purchasable directly after the root")

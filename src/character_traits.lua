@@ -195,7 +195,7 @@ local scoreFireNodes={
     {id="fire_score_impact",name="꽁초 즉시 타격 반응",short="즉시 타격 반응",desc="꽁초 착지 즉시 최근접 대상 1개를 점화하고 짧은 정지·반동·전용 타격음을 적용합니다.",effect="scoreCigaretteImpact",value=1,max=1,costs={32},wx=750,wy=600,icon="ember",color={1,.42,.10},requires={{"fire_score_prewarm",1}}},
     -- 루트 바로 다음 두 번째 노드. 도끼·폭죽을 들고 있는 동안에도 한 갑을 다 쓴
     -- 긴 재장전을 포함한 흡연 상태가 계속 진행된다.
-    {id="fire_score_alwayssmoke",name="상시 흡연",short="상시 흡연",desc="근접 도끼질이나 폭죽 공격 중에도 담배 재장전이 계속됩니다.",effect="scoreAlwaysSmoking",value=1,max=1,costs={200},wx=2020,wy=760,icon="cigarette",color={.94,.72,.36},requires={{"fire_score_prewarm",1}}},
+    {id="fire_score_alwayssmoke",name="상시 흡연",short="상시 흡연",desc="근접 도끼질이나 폭죽 공격 중에도 담배 재장전이 계속됩니다.",effect="scoreAlwaysSmoking",value=1,max=1,costs={70},wx=2020,wy=760,icon="cigarette",color={.94,.72,.36},requires={{"fire_score_prewarm",1}}},
     {id="fire_score_filter",name="원거리 무기 사거리 상승",short="원거리 사거리",desc="원거리 무기 사거리 +16",effect="scoreRange",value=16,max=6,costs={18,32,50,74,104,142},wx=730,wy=520,icon="filter",color={.88,.66,.32},requires={{"fire_score_prewarm",1}}},
     {id="fire_score_view_1",name="카메라 시야 확장",short="시야 +2.5%",desc="게임 화면에 보이는 월드 범위가 2.5% 넓어집니다.",effect="scoreViewExpansion",value=.025,max=1,costs={46},wx=1040,wy=780,icon="map",color={.48,.72,.66},requires={{"fire_score_filter",2}}},
     {id="fire_score_lighter",name="착화 범위 상승",short="착화 범위",desc="꽁초가 불씨를 옮기는 착화 반경 +12",effect="scoreArea",value=12,max=6,costs={18,32,50,74,104,142},wx=730,wy=900,icon="ember",color={.96,.43,.16},requires={{"fire_score_prewarm",1}}},
