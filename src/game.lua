@@ -62,7 +62,7 @@ local function loadClearcutSprites()
         spec.image = love.graphics.newImage("assets/characters/ingame/" .. spec.file)
         spec.image:setFilter("nearest", "nearest")
     end
-    specs.fire.scoreAxeImage=love.graphics.newImage("assets/characters/ingame/smoker-score-axe-atlas-pixel-v2.png")
+    specs.fire.scoreAxeImage=love.graphics.newImage("assets/characters/ingame/smoker-score-axe-atlas-pixel-v3.png")
     specs.fire.scoreAxeImage:setFilter("nearest","nearest")
     specs.fire.scoreAxeFeet={190,190,190,190,190,190}
     specs.fire.scoreAxeBladeX,specs.fire.scoreAxeBladeY=42,-65

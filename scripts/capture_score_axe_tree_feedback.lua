@@ -12,7 +12,7 @@ local Player=require("src.player")
 local ClearcutMode=require("src.clearcut_mode")
 local walk=love.graphics.newImage("assets/characters/ingame/smoker-atlas-pixel-v2.png")
 local dummy=love.graphics.newImage("assets/characters/ingame/smoker-atlas-pixel-v2.png")
-local axe=love.graphics.newImage("assets/characters/ingame/smoker-score-axe-atlas-pixel-v2.png")
+local axe=love.graphics.newImage("assets/characters/ingame/smoker-score-axe-atlas-pixel-v3.png")
 local cigarette=require("src.cigarette_sprite").load()
 local sprite={image=walk,scoreAxeImage=axe,cigarette=cigarette,scale=.61,nativeFacing=1,
     walkFeet={190,190,190,190,190,190},actionFeet={190,190,190,190,190,190},
@@ -47,5 +47,5 @@ for index=1,3 do
     love.graphics.setColor(1,.95,.75,1);love.graphics.print(labels[index],104,328)
     love.graphics.pop()
 end
-fixture.save("docs/previews/score-axe-tree-feedback-v1-draws.json")
+fixture.save("docs/previews/score-axe-tree-feedback-v2-draws.json")
 print("SCORE_AXE_TREE_CAPTURE_OK normal+fell+always-smoking window=none")

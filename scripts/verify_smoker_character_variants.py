@@ -13,7 +13,7 @@ BODY_FILES = (
     "night-shopkeeper-atlas-pixel-v1.png",
 )
 AXE_FILES = (
-    "smoker-score-axe-atlas-pixel-v2.png",
+    "smoker-score-axe-atlas-pixel-v3.png",
     "scrapyard-welder-score-axe-atlas-pixel-v1.png",
     "night-shopkeeper-score-axe-atlas-pixel-v1.png",
 )

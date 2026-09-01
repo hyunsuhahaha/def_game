@@ -7,10 +7,12 @@ from PIL import Image
 
 
 ROOT = Path(__file__).resolve().parents[1]
-SOURCE = ROOT / "assets/source/characters/smoker-score-axe-keyposes-imagegen-v2.png"
-OUTPUT = ROOT / "assets/characters/ingame/smoker-score-axe-atlas-pixel-v2.png"
+SOURCE = ROOT / "assets/source/characters/smoker-score-axe-keyposes-imagegen-v3.png"
+OUTPUT = ROOT / "assets/characters/ingame/smoker-score-axe-atlas-pixel-v3.png"
 FRAME_W, FRAME_H = 192, 192
-X_RANGES = ((0, 380), (380, 720), (700, 1160), (1030, 1480), (1450, 1760), (1740, 2051))
+# The generated sixth recovery pose touches the source edge. Reuse the complete
+# first guard pose to close the swing loop without shipping a cropped blade.
+X_RANGES = ((0, 390), (390, 725), (700, 1160), (1030, 1500), (1430, 1800), (0, 390))
 
 
 def background_candidate(pixel: tuple[int, int, int]) -> bool:
@@ -103,6 +105,7 @@ def main() -> None:
         scale = min(188 / pose.width, 188 / pose.height)
         size = (max(1, round(pose.width * scale)), max(1, round(pose.height * scale)))
         pose = pose.resize(size, Image.Resampling.LANCZOS)
+        pose.putalpha(pose.getchannel("A").point(lambda alpha: 255 if alpha >= 128 else 0))
         x = index * FRAME_W + (FRAME_W - pose.width) // 2
         y = 190 - pose.height
         atlas.alpha_composite(pose, (x, y))

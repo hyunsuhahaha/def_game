@@ -80,15 +80,15 @@
 - 바닥 접촉 프레임에는 `tree-break-burst-v1.png`의 목재·잎 파편과 기존 먼지·자원 방출만 발생한다.
 - 쓰러진 나무가 다른 나무나 적에게 피해를 주는 연쇄 도미노 판정은 사용하지 않는다.
 
-## 플레이어 도끼 접촉 모션 (v2)
+## 플레이어 도끼 접촉 모션 (v3)
 
-- `smoker-score-axe-atlas-pixel-v2.png`는 192×192 셀 6프레임이다. 기존 96px 폭에서 잘리던 긴 자루와 도끼 머리를 온전히 담고, 준비 → 전방 가속 → 줄기 접촉 → 반동 → 회수로 이어진다.
+- `smoker-score-axe-atlas-pixel-v3.png`는 192×192 셀 6프레임이다. v2보다 강철 도끼 머리를 약 1.6배, 자루 두께를 약 1.2배 키워 실제 표시 크기에서도 무기가 즉시 읽힌다. 준비 → 전방 가속 → 줄기 접촉 → 반동 → 회수 순서와 캐릭터 크기는 유지한다.
 - 접촉 프레임의 날 중심은 발 피벗 기준 `(앞 42, 위 65)`다. 플레이어의 짧은 발 디딤과 실제 나무·드럼통 피해 판정이 이 좌표를 함께 사용하므로, 시간만 접촉 프레임에 도달하고 날이 밑동을 빗나가면 피해가 발생하지 않는다.
-- 원화는 `smoker-score-axe-keyposes-imagegen-v2.png`, 결정적 빌더는 `build_score_axe_swing_atlas.py`다. 실제 표시 크기와 2배 확대 검수본은 `score-axe-contact-v2-display-scale.png`, `score-axe-contact-v2-2x.png`에 보존한다.
+- 원화는 `smoker-score-axe-keyposes-imagegen-v3.png`, 결정적 빌더는 `build_score_axe_swing_atlas.py`다. 생성 원화의 마지막 포즈는 오른쪽 날이 잘려 최종 아틀라스에서 사용하지 않고, 완전한 첫 가드 자세를 회수 프레임으로 재사용한다. 실제 표시 크기와 2배 확대 검수본은 `score-axe-contact-v3-display-scale.png`, `score-axe-contact-v3-2x.png`에 보존한다.
 - 실제 도끼날 접점에서만 방향성 수피 파편이 방출되고 나무가 날의 진행 방향으로 짧게 휘청인다. 일반 타격은 작은 카메라 펀치와 0.045초 접촉 정지, 벌목 성공은 더 큰 펀치와 0.07초 정지를 사용한다. 헛스윙에는 파편·소리·정지가 없다.
 - 벌목 성공 시 나무는 도끼가 들어온 반대쪽, 즉 날의 진행 방향으로 쓰러진다. 접촉음은 기존 일반 채집음과 구분한 저음 장작 타격음 `axe_wood`를 사용한다.
 - `상시 흡연`을 구매한 상태에서는 도끼 6프레임별 입 앵커가 짧은 발 디딤을 따라가며 담배와 연기를 함께 그린다. 특성이 없으면 도끼질 중 담배 재장전과 표시가 모두 멈춘다.
-- 세 상태의 실제 월드 드로우 검수본은 `score-axe-tree-feedback-v1-display-scale.png`, 2배 확대본은 `score-axe-tree-feedback-v1-2x.png`다.
+- 세 상태의 실제 월드 드로우 검수본은 `score-axe-tree-feedback-v2-display-scale.png`, 2배 확대본은 `score-axe-tree-feedback-v2-2x.png`다.
 
 ## 나무 지속 연소 FX (v3)
 

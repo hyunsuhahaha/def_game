@@ -10,7 +10,7 @@ local walk=love.graphics.newImage("assets/characters/ingame/smoker-atlas-pixel-v
 local dummy=love.graphics.newImage("assets/characters/ingame/smoker-atlas-pixel-v2.png")
 local sprite={image=walk,scale=.61,nativeFacing=1,walkFeet={190,190,190,190,190,190},actionFeet={190,190,190,190,190,190},
     actionFacing={-1,-1,-1,-1,1,1},scoreAxeBladeX=42,scoreAxeBladeY=-65}
-sprite.scoreAxeImage=love.graphics.newImage("assets/characters/ingame/smoker-score-axe-atlas-pixel-v2.png")
+sprite.scoreAxeImage=love.graphics.newImage("assets/characters/ingame/smoker-score-axe-atlas-pixel-v3.png")
 sprite.scoreAxeFeet={190,190,190,190,190,190}
 
 local phases={{.27,8,"백스윙"},{.53,4,"접촉"},{.72,4,"반동"}}
@@ -29,5 +29,5 @@ for index,phase in ipairs(phases)do
     DrumArt.drawCat({x=x+148,y=y,state="enter",facing=1,animClock=.12,alpha=1})
     love.graphics.setColor(1,.95,.75,1);love.graphics.print(phase[3],x-24,315)
 end
-fixture.save("docs/previews/score-axe-contact-v2-draws.json")
+fixture.save("docs/previews/score-axe-contact-v3-draws.json")
 print("SCORE_AXE_DRUM_CAPTURE_OK phases=windup+contact+recovery window=none")
