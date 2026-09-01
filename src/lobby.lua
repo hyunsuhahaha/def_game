@@ -1,5 +1,6 @@
 local F=require("src.frontend_ui")
 local LobbyAudio=require("src.lobby_audio")
+local CdArt=require("src.lobby_cd_art")
 local Lobby={};Lobby.__index=Lobby
 
 -- 현재 플레이테스트는 기록 모드 하나에 집중한다. 일반 작전 버튼과 진입 코드는
@@ -36,7 +37,7 @@ function Lobby.new(images,fonts)
  end
  local floor=love.graphics.newImage("assets/scenery/forest/forest-floor-decal-atlas-pixel-v1.png");floor:setFilter("nearest","nearest")
  local floorQuads={};for index=1,10 do local zero=index-1;floorQuads[index]=love.graphics.newQuad((zero%5)*128,math.floor(zero/5)*96,128,96,floor:getDimensions())end
- return setmetatable({images=images,fonts=fonts,time=0,activeDevelopmentMode=ACTIVE_DEVELOPMENT_MODE,menuFocus=1,audio=LobbyAudio.new(),audioTrack=1,audioPlaying=true,backgroundTrees=backgroundTrees,backgroundProps=backgroundProps,backgroundFloor=floor,backgroundFloorQuads=floorQuads,backgroundParallax=0,
+ return setmetatable({images=images,fonts=fonts,time=0,activeDevelopmentMode=ACTIVE_DEVELOPMENT_MODE,menuFocus=1,audio=LobbyAudio.new(),audioCd=CdArt.newState(),audioTrack=1,audioPlaying=true,backgroundTrees=backgroundTrees,backgroundProps=backgroundProps,backgroundFloor=floor,backgroundFloorQuads=floorQuads,backgroundParallax=0,
   pixelTiny=love.graphics.newFont(pixel,13),pixelSmall=love.graphics.newFont(pixel,17),pixelMenu=love.graphics.newFont(pixel,26),pixelTitle=love.graphics.newFont(pixel,58)},Lobby)
 end
 
@@ -46,6 +47,7 @@ function Lobby:update(dt)
  local target=mx>=0 and math.max(-1,math.min(1,(mx/love.graphics.getWidth()-.5)*2))or 0
  self.backgroundParallax=(self.backgroundParallax or 0)+(target-(self.backgroundParallax or 0))*math.min(1,dt*4)
  for i,box in ipairs(self.menuBoxes or {})do if inside(box,mx,my)then self.menuFocus=i end end
+ CdArt.update(self.audioCd,dt,self.audioPlaying and true or false)
 end
 
 -- Game:update 이 모드와 무관하게 매 프레임 부른다. 로비를 떠나면 Lobby:update 가
@@ -213,6 +215,39 @@ function Lobby:drawAudio(x,y,w,h,font)
   for b=1,blocks do love.graphics.setColor(.95,.62,.18,self.audioPlaying and .88 or .28);love.graphics.rectangle("fill",waveX+i*(waveW/16),y+h/2+10-b*5,4,3)end
  end
  love.graphics.setFont(font);love.graphics.setColor(.70,.82,.67);love.graphics.printf(TRACKS[self.audioTrack or 1],waveX+waveW+12,y+h/2-font:getHeight()/2-1,w-(waveX-x)-waveW-24,"right")
+ self:drawAudioDeck(x,y,h)
+end
+
+-- 플레이어 바 위에 솟은 CD 데크. 원반만 띄우면 아이콘으로 보인다. 바와 같은
+-- 색·테두리로 짓고 아랫변을 일부러 바에 물려서 이음매를 지운다 — 두 상자가
+-- 붙어 있는 게 아니라 한 기계의 위층으로 읽혀야 한다.
+function Lobby:drawAudioDeck(x,y,h)
+ local deckW=64
+ local cx=x+deckW/2
+ local top=y-58
+ local cy=y-30
+ love.graphics.setColor(.020,.070,.050,.97)
+ love.graphics.rectangle("fill",x,top,deckW,y-top+2)
+ love.graphics.setColor(.34,.72,.50,.88)
+ love.graphics.rectangle("fill",x,top,deckW,2)
+ love.graphics.rectangle("fill",x,top,2,y-top)
+ love.graphics.rectangle("fill",x+deckW-2,top,2,y-top+2)
+ -- 바의 주황 강조를 그대로 이어 올려 한 기계로 묶는다.
+ love.graphics.setColor(.95,.62,.18,.92)
+ love.graphics.rectangle("fill",x,top,5,y-top)
+ -- 데크와 바 사이의 이음매를 지운다. 바의 윗변 테두리가 데크 밑으로 지나가면
+ -- 한 기계의 위층이 아니라 바 위에 올려놓은 별개의 상자로 보인다.
+ love.graphics.setColor(.020,.070,.050,1)
+ love.graphics.rectangle("fill",x+5,y-2,deckW-7,5)
+ -- 원반이 앉는 우묵한 자리. 이게 없으면 원반이 패널 위에 붙은 스티커로 보인다.
+ love.graphics.setColor(.008,.030,.022,.95)
+ love.graphics.circle("fill",cx,cy,25)
+ love.graphics.setColor(.20,.44,.33,.85)
+ love.graphics.circle("line",cx,cy,25)
+ CdArt.draw(self.audioCd,cx,cy)
+ -- 재생 표시등. 멈추면 꺼지는 게 아니라 어두워진다 — 전원은 들어와 있다.
+ love.graphics.setColor(.95,.62,.18,self.audioPlaying and .95 or .30)
+ love.graphics.rectangle("fill",x+deckW-11,top+6,4,4)
 end
 
 function Lobby:draw(game)
