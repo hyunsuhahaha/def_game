@@ -28,7 +28,7 @@
 | 숲의 재생 성소 | `assets/enemies/arcade/planter-atlas-v2.png`, 256×256 | 너비 90, 고정 뿌리 기단·부유 수관·회전 목재 고리·중앙 씨앗 |
 | 엘더 트렌트 | 같은 폴더, 256×256 | 너비 108 |
 | 세계수 공성형 | `worldtree-siege-atlas-v1.png`, 1024×1024 | 너비 1050·판정 반경 420, HP별 4단 파괴, 전용 공격·낙하 FX 5종 |
-| 기록 모드 세계수 성장형 | `score-worldtree-young-atlas-v2.png` + adolescent/precursor v1, 512×512 | 1~3단계는 넓은 7덩이 수관과 살아 있는 상향 가지의 유목. 단계별 너비·판정 성장, 각 HP 4단 파괴 × 수관 3프레임. 10단계부터 공성형으로 전환 |
+| 기록 모드 세계수 성장형 | `score-worldtree-young-atlas-v2.png` + adolescent/precursor v1, 512×512 | 기존 그림은 유지하고 표시 배율·판정만 키운다. 1~3단계 반경 100→130, 4~6단계 138→172, 7~9단계 200→275. 각 HP 4단 파괴 × 수관 3프레임, 10단계부터 공성형으로 전환 |
 
 기록 모드 성장형 검수는 [세 실루엣·4단 파괴 보드](previews/score-worldtree-growth-v2-contact-sheet.png), [1·4·7·9단계 실제 표시 크기](previews/score-worldtree-growth-v2-display-scale.png), [성목 4배 픽셀 확대](previews/score-worldtree-growth-v2-pixel-zoom.png)를 기준으로 한다. v1 어린형의 한 덩이 수관·잘린 옆가지는 폐기하고 미연결로 보존한다.
 

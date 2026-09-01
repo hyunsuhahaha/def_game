@@ -54,8 +54,10 @@ local standing = m.scoreWorldTree
 local firstProfile=ScoreWorldTree.profile(1)
 assert(not firstProfile.giant and standing.artKey=="scoreWorldtreeYoung",
     "1단계가 어린 세계수 전용 디자인을 쓰지 않는다")
-assert(standing.def.radius==firstProfile.radius and standing.def.radius<100,
-    "1단계 세계수 충돌 범위가 여전히 거대형이다")
+assert(standing.def.radius==firstProfile.radius and standing.def.radius>=100 and standing.def.radius<140,
+    "1단계 세계수 충돌 범위가 표시 크기와 맞지 않거나 거대형처럼 크다")
+assert(firstProfile.crownHeight>=250,
+    "1단계 세계수가 일반 활엽수와 구분되지 않을 만큼 작다")
 assert(standing.scoreWorldTreeCrownHeight==firstProfile.crownHeight and standing.scoreWorldTreeGrowing,
     "1단계 세계수의 빠른 성장 연출/수관 높이가 연결되지 않았다")
 assert(not m.worldTreeEmergence, "1단계부터 6.75초 SKYVIEW 등장 컷이 발동했다")

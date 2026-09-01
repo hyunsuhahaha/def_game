@@ -22,6 +22,21 @@ love = {
 local ClearcutMode = require("src.clearcut_mode")
 local ScoreWorldTree = require("src.score_world_tree")
 
+-- Lua의 부정 문자셋은 UTF-8 문자가 아니라 바이트를 자른다. 실제 HUD에 들어가는
+-- 문자열이 한글 코드포인트 중간에서 끊기지 않는지 고정한다.
+assert(ClearcutMode.scoreRainApproachName({banner="소나기 — 방화 봉쇄"}) == "소나기",
+    "소나기 접근 문구가 UTF-8 구분자 앞에서 안전하게 잘리지 않는다")
+assert(ClearcutMode.scoreRainApproachName({banner="장대비 — 방화 봉쇄"}) == "장대비",
+    "장대비 접근 문구가 UTF-8 구분자 앞에서 안전하게 잘리지 않는다")
+assert(ClearcutMode.scoreRainApproachName({banner="지나가는 비"}) == "지나가는 비",
+    "구분자가 없는 비 이름이 잘렸다")
+do
+    local source=assert(io.open("src/clearcut_mode.lua","rb"))
+    local code=source:read("*a");source:close()
+    assert(not code:find('match("^[^ —]+")',1,true),
+        "UTF-8을 중간 바이트에서 자르는 구형 HUD 패턴이 남아 있다")
+end
+
 -- 5초를 넘기면 벌목 자체가 멈춘다. 어떤 세기도 이 상한을 넘지 못한다.
 assert(ClearcutMode.SCORE_RAIN_MAX_DURATION == 5, "소나기 상한이 5초가 아니다")
 local heaviest = 0

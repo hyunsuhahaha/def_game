@@ -21,15 +21,15 @@ ScoreWorldTree.GIANT_TIER = 10
 -- 같은 그림을 단순 확대하지 않는다. 세 성장형은 서로 다른 가지·수관·뿌리 설계를
 -- 가지며, 각 형 안에서만 작은 크기 보간을 해 단계가 매번 자라는 느낌을 준다.
 local profiles = {
-    {artKey="scoreWorldtreeYoung",artScale=.82,radius=78,crownHeight=178},
-    {artKey="scoreWorldtreeYoung",artScale=1.00,radius=94,crownHeight=218},
-    {artKey="scoreWorldtreeYoung",artScale=1.16,radius=108,crownHeight=253},
-    {artKey="scoreWorldtreeAdolescent",artScale=.87,radius=126,crownHeight=278},
-    {artKey="scoreWorldtreeAdolescent",artScale=1.00,radius=147,crownHeight=319},
-    {artKey="scoreWorldtreeAdolescent",artScale=1.14,radius=168,crownHeight=364},
-    {artKey="scoreWorldtreePrecursor",artScale=.85,radius=192,crownHeight=372},
-    {artKey="scoreWorldtreePrecursor",artScale=1.00,radius=225,crownHeight=437},
-    {artKey="scoreWorldtreePrecursor",artScale=1.18,radius=258,crownHeight=516},
+    {artKey="scoreWorldtreeYoung",artScale=1.20,radius=100,crownHeight=262},
+    {artKey="scoreWorldtreeYoung",artScale=1.35,radius=115,crownHeight=295},
+    {artKey="scoreWorldtreeYoung",artScale=1.50,radius=130,crownHeight=328},
+    {artKey="scoreWorldtreeAdolescent",artScale=1.08,radius=138,crownHeight=344},
+    {artKey="scoreWorldtreeAdolescent",artScale=1.20,radius=154,crownHeight=383},
+    {artKey="scoreWorldtreeAdolescent",artScale=1.32,radius=172,crownHeight=421},
+    {artKey="scoreWorldtreePrecursor",artScale=.98,radius=200,crownHeight=428},
+    {artKey="scoreWorldtreePrecursor",artScale=1.10,radius=235,crownHeight=481},
+    {artKey="scoreWorldtreePrecursor",artScale=1.28,radius=275,crownHeight=559},
 }
 
 function ScoreWorldTree.tier(modeOrTier)

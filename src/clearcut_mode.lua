@@ -2016,6 +2016,15 @@ ClearcutMode.SCORE_RAIN_KINDS={
      banner="장대비 — 방화 봉쇄",warnBanner="검은 하늘",sub="한동안 불이 죽는다"},
 }
 
+-- Lua patterns match bytes, not UTF-8 codepoints.  A negated character class
+-- containing the em dash can therefore stop in the middle of a Korean glyph
+-- and feed invalid UTF-8 to love.graphics.printf.  Match the complete delimiter
+-- instead, and keep banners without a suffix intact.
+function ClearcutMode.scoreRainApproachName(kind)
+    local banner=kind and kind.banner or "비"
+    return banner:match("^(.-) — ") or banner
+end
+
 function ClearcutMode.rollScoreRainDuration(kind)
     local low=math.min(kind.minDuration,ClearcutMode.SCORE_RAIN_MAX_DURATION)
     local high=math.min(kind.maxDuration,ClearcutMode.SCORE_RAIN_MAX_DURATION)
@@ -8232,7 +8241,7 @@ function ClearcutMode:drawHUD(game,fonts)
         love.graphics.printf(isRain and rainTitle or (active and "지진 발생 중" or "지진 임박"), dbx, dby + 7, dbw, "center")
         love.graphics.setFont(fonts.small); love.graphics.setColor(accentColor[1], accentColor[2], accentColor[3], .95)
         local rainSub = active and (rainKind and rainKind.sub or "불이 붙지 않는다")
-            or (rainKind and ("곧 " .. rainKind.banner:match("^[^ —]+") .. "가 온다...") or "곧 비가 쏟아진다...")
+            or (rainKind and ("곧 " .. ClearcutMode.scoreRainApproachName(rainKind) .. "가 온다...") or "곧 비가 쏟아진다...")
         local sub = isRain and rainSub or (active and "낙석을 피해 움직여라" or "곧 땅이 흔들린다...")
         love.graphics.printf(sub, dbx, dby + 31, dbw, "center")
     end
