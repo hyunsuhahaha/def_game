@@ -362,9 +362,15 @@ function CharacterTraitBoard:nodeWorld(node)
         -- 폭죽 졸업과 화염방사기는 폭죽 줄 아래로 새 층을 쌓는다. 도끼가 원숭이로
         -- 졸업한 뒤 폭죽으로 넘어갔듯, 폭죽도 원숭이로 졸업하고 화염방사기로 넘어간다.
         fire_score_rocket_crew={1100,2850},fire_score_flame_unlock={1100,3100},
-        fire_score_flame_damage={750,3350},fire_score_flame_range={1100,3350},fire_score_flame_width={1450,3350},
-        fire_score_flame_ignite={1100,3600},
-        fire_score_stride_4={750,3850},fire_score_yard_7={1450,3850},
+        fire_score_flame_damage={650,3350},fire_score_flame_range={1000,3350},fire_score_flame_width={1350,3350},
+        fire_score_flame_ignite={450,3600},fire_score_flame_damage_2={800,3600},
+        fire_score_flame_range_2={1150,3600},fire_score_flame_width_2={1500,3600},
+        fire_score_flame_damage_3={450,3850},fire_score_flame_range_3={800,3850},
+        fire_score_flame_ignite_2={1150,3850},fire_score_flame_width_3={1500,3850},
+        fire_score_flame_damage_4={450,4100},fire_score_flame_ignite_3={800,4100},
+        fire_score_flame_range_4={1150,4100},fire_score_flame_width_4={1500,4100},
+        fire_score_flame_damage_5={650,4350},fire_score_flame_range_5={1000,4350},fire_score_flame_ignite_4={1350,4350},
+        fire_score_stride_4={100,4100},fire_score_yard_7={1850,4100},
         -- 공용 연구는 흡연자 갈래와 같은 좌표를 쓰고 있었다(각자 다른 탭이었으므로).
         -- 한 판으로 합치면서 흡연자 오른쪽으로 통째로 옮긴다.
         universal_yard={2600,850},universal_robot_start={3000,850},universal_robot_motor={3400,850},

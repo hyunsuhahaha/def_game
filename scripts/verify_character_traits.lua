@@ -77,6 +77,13 @@ end
 for _,id in ipairs({"universal_stride","fire_score_stride_2","universal_stride_3","fire_score_stride_4"})do
     assert(migratedGrowth.levels[id]==1,"legacy movement rank was not migrated into split nodes: "..id)
 end
+local migratedFlame=CharacterTraits.decode("fire_score_flame_damage=5\nfire_score_flame_range=5\nfire_score_flame_width=4\nfire_score_flame_ignite=4\n")
+for _,baseAndMax in ipairs({{"fire_score_flame_damage",5},{"fire_score_flame_range",5},{"fire_score_flame_width",4},{"fire_score_flame_ignite",4}})do
+    for rank=1,baseAndMax[2]do
+        local id=baseAndMax[1]..(rank==1 and ""or"_"..rank)
+        assert(migratedFlame.levels[id]==1,"legacy flamethrower rank was not migrated into split nodes: "..id)
+    end
+end
 store.data.currency = 300
 local blocked = store:buy("physical_axe")
 assert(not blocked, "dependent character trait unlocked before its prerequisite")
@@ -272,10 +279,19 @@ assert(flameMode.flameStream==nil,"비가 오는데 화염 기둥이 남아 있�
 -- + 도끼 4 + 도끼 상위 3(충격파·연속 벌목·나무꾼 고용) + 후반 해금 3(상시 흡연·자동 투척·폭죽)
 -- + 자동 투척 주기 1 + 폭죽 5. 탄약 관리 갈래는 startSmoking의 세 상수(개비 재장전 하한,
 -- 보루 재장전 하한, 보루 크기 20)를 각각 여는 노드이며 폭죽 시각 특성 3개가 추가된다.
--- 이동·시야·작업 구역은 한 노드의 다단계가 아니라 기존 장비 갈래 사이에 놓인 별도
--- 1레벨 노드다. fire 49 / universal 33에 분산돼 있어야 한곳에 다시 뭉치지 않는다.
-assert(#store:getScoreAttackNodes("fire")==49 and #store:getScoreAttackNodes("universal")==33,
-    "active research board did not expose the distributed movement, view and yard nodes")
+-- 이동·시야·작업 구역과 화염방사기 강화 단계는 한 노드의 다단계가 아니라 기존 장비
+-- 갈래 사이에 놓인 별도 1레벨 노드다. fire 63 / universal 33에 분산돼 있어야 한다.
+assert(#store:getScoreAttackNodes("fire")==63 and #store:getScoreAttackNodes("universal")==33,
+    "active research board did not expose the distributed one-rank nodes")
+local flameNodeCount,flameCost=0,0
+for _,node in ipairs(store:getScoreAttackNodes("fire"))do
+    if node.id:match("^fire_score_flame_damage")or node.id:match("^fire_score_flame_range")or
+        node.id:match("^fire_score_flame_width")or node.id:match("^fire_score_flame_ignite")then
+        flameNodeCount=flameNodeCount+1;flameCost=flameCost+node.costs[1]
+        assert(node.max==1 and #node.costs==1,"flamethrower upgrade still contains stacked ranks: "..node.id)
+    end
+end
+assert(flameNodeCount==18 and flameCost==1472,"flamethrower split changed its rank count or total cost")
 for _, job in ipairs({"physical","fire","toxic","developer"}) do
     assert(#store:getNodes(job) >= 30, job .. " character graph has too few trait nodes")
 end
