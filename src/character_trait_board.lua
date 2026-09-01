@@ -329,7 +329,9 @@ function CharacterTraitBoard:nodeWorld(node)
         -- 움직이거나 삭제하지 않고 북서쪽의 독립 가지로 둔다.
         fire_score_impact={750,600},
         fire_score_filter={750,850},fire_score_spark={400,850},
-        fire_score_view_1={700,1050},
+        -- 초반 목재 흡수 범위를 기존 시야 노드 자리에 끼우고, 시야 노드는 같은
+        -- 갈래의 왼쪽 빈 자리로 옮긴다. 둘 다 남아 있으며 연결 순서만 늘어난다.
+        fire_score_pickup_1={700,1050},fire_score_view_1={50,1050},
         fire_score_lighter={1450,850},fire_score_ash={1800,850},
         fire_score_yard_2={2150,750},
         -- 탄약 관리 갈래는 루트 왼쪽 위로 세운다. 개비 회전 → 보루 용량 → 보루 교체 순의
@@ -373,7 +375,8 @@ function CharacterTraitBoard:nodeWorld(node)
         fire_score_flame_damage_4={450,4100},fire_score_flame_ignite_3={800,4100},
         fire_score_flame_range_4={1150,4100},fire_score_flame_width_4={1500,4100},
         fire_score_flame_damage_5={650,4350},fire_score_flame_range_5={1000,4350},fire_score_flame_ignite_4={1350,4350},
-        fire_score_stride_4={100,4100},fire_score_yard_7={1850,4100},
+        -- 후반도 기존 작업 구역 자리에 흡수 범위를 넣고 작업 구역은 다음 행으로 내린다.
+        fire_score_stride_4={100,4100},fire_score_pickup_2={1850,4100},fire_score_yard_7={1850,4350},
         fire_score_popper_unlock={1000,4650},
         fire_score_popper_damage_1={650,4900},fire_score_popper_bounce_1={1000,4900},fire_score_popper_heat_1={1350,4900},
         fire_score_popper_damage_2={500,5150},fire_score_popper_bounce_2={850,5150},

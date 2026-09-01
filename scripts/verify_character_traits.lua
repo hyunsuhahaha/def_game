@@ -336,10 +336,15 @@ assert(flameMode.flameStream==nil,"비가 오는데 화염 기둥이 남아 있�
 -- + 자동 투척 주기 1 + 폭죽 5. 탄약 관리 갈래는 startSmoking의 세 상수(개비 재장전 하한,
 -- 보루 재장전 하한, 보루 크기 20)를 각각 여는 노드이며 폭죽 시각 특성 3개가 추가된다.
 -- 이동·시야·작업 구역과 화염방사기 강화 단계는 한 노드의 다단계가 아니라 기존 장비
--- 갈래 사이에 놓인 별도 1레벨 노드다. 뻥튀기 9개를 포함해 fire 72이고, universal 은
+-- 갈래 사이에 놓인 별도 1레벨 노드다. 초·후반 목재 흡수 범위 2개와 뻥튀기 9개를 포함해 fire 74이고, universal 은
 -- 기존 33에 화덕 피자 10개를 더한 43이다.
-assert(#store:getScoreAttackNodes("fire")==72 and #store:getScoreAttackNodes("universal")==43,
+assert(#store:getScoreAttackNodes("fire")==74 and #store:getScoreAttackNodes("universal")==43,
     "active research board did not expose the distributed one-rank nodes")
+local pickupStore=CharacterTraits.new(true)
+pickupStore.data.levels.fire_score_pickup_1=3
+pickupStore.data.levels.fire_score_pickup_2=3
+assert(pickupStore:scoreAttackEffects().pickupRadius==405,
+    "early and late wood pull-range nodes did not accumulate into score runtime pickup radius")
 local flameNodeCount,flameCost=0,0
 for _,node in ipairs(store:getScoreAttackNodes("fire"))do
     if node.id:match("^fire_score_flame_damage")or node.id:match("^fire_score_flame_range")or
