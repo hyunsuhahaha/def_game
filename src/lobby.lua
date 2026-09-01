@@ -38,6 +38,7 @@ for _,track in ipairs(LobbyAudio.TRACKS)do TRACKS[#TRACKS+1]=track.name end
 local AUDIO_MODES={lobby=true,settings=true,achievements=true,character_traits=true}
 local MENU={
  {label="게임 시작",key="ENT",action="score_attack"},
+ {label="디펜스",key="D",action="defense"},
  {label="강화",key="T",action="character_traits"},
  {label="연습",key="P",action="skill_sandbox"},
  {label="업적",key="A",action="achievements"},
@@ -110,6 +111,7 @@ function Lobby:keypressed(key)
  elseif key=="down" then self.menuFocus=(self.menuFocus or 1)%#MENU+1
  elseif key=="return" or key=="kpenter" or key=="space" then return menuAction(self)
  elseif key=="m" then return "score_attack"
+ elseif key=="d" then return "defense"
  elseif key=="t" then return "character_traits"
  elseif key=="p" then return "skill_sandbox"
  elseif key=="a" then return "achievements"
@@ -137,6 +139,7 @@ function Lobby:mousepressed(x,y,button)
  for i,box in ipairs(self.menuBoxes or {})do if inside(box,x,y)then self.menuFocus=i;return menuAction(self,i)end end
  -- Headless navigation tests provide the named boxes directly.
  if inside(self.scoreAttackBox,x,y)then return "score_attack"
+ elseif inside(self.defenseBox,x,y)then return "defense"
  elseif inside(self.traitsBox,x,y)then return "character_traits"
  elseif inside(self.achievementBox,x,y)then return "achievements"
  elseif inside(self.sandboxBox,x,y)then return "skill_sandbox"
@@ -303,6 +306,7 @@ function Lobby:drawMenu(game,x,y,w,rowH,gap,menuFont,keyFont)
  for i,item in ipairs(MENU)do
   local box={x=x,y=y+(i-1)*(rowH+gap),w=w,h=rowH};self.menuBoxes[i]=box
   if item.action=="score_attack"then self.scoreAttackBox=box
+  elseif item.action=="defense"then self.defenseBox=box
   elseif item.action=="character_traits"then self.traitsBox=box
   elseif item.action=="skill_sandbox"then self.sandboxBox=box
   elseif item.action=="achievements"then self.achievementBox=box

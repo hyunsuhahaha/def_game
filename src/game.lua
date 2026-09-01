@@ -239,6 +239,28 @@ function Game:startClearcutScoreAttack()
     self.mode="playing"
     if self.clearcut.pending>0 then self.clearcut:openUpgradeChoices(self) end
 end
+function Game:startClearcutDefense()
+    self:resetRun()
+    self.clearcut=ClearcutMode.new()
+    self.clearcut.job="fire"
+    self.clearcut.mapId="forest"
+    self.clearcut.stage=1
+    self.clearcut.scoreAttack=true
+    self.clearcut.defenseMode=true
+    self.selectedClearcutMap,self.selectedClearcutStage="forest",1
+    local fireSprite=self.clearcutSprites.fire or self.clearcutSprites.physical
+    local avatar=fireSprite.avatarVariants and fireSprite.avatarVariants[self.scoreAvatarId]
+    self.player:setClearcutSprite(avatar or fireSprite,"fire")
+    self.clearcut:setup(self)
+    self:consumeTestNextRunLevels()
+    self:enableClearcutPerspective()
+    self.mode="playing"
+end
+function Game:retryClearcut()
+    if self.clearcut and self.clearcut.defenseMode then self:startClearcutDefense()
+    elseif self.clearcut and self.clearcut.scoreAttack then self:startClearcutScoreAttack()
+    else self:startClearcut(self.clearcut and self.clearcut.job)end
+end
 function Game:setScoreAvatar(id)
     local fire=self.clearcutSprites and self.clearcutSprites.fire
     if id~="original"and(not fire or not fire.avatarVariants or not fire.avatarVariants[id])then return false end
@@ -547,6 +569,8 @@ function Game:keypressed(key)
             self.mode="clearcut_select"
         elseif action=="score_attack" then
             self:startClearcutScoreAttack()
+        elseif action=="defense" then
+            self:startClearcutDefense()
         elseif action=="character_traits" then
             self.characterTraitReturnMode="lobby"
             self.mode="character_traits"
@@ -639,7 +663,7 @@ function Game:keypressed(key)
     end
     if self.mode == "clearcut_results" then
         if key=="t" or key=="u" then if self.clearcut then self.clearcut:completeResultSettlement(self)end;self.characterTraitReturnMode="lobby";self.mode="character_traits"
-        elseif key=="return" or key=="r" then if self.clearcut then self.clearcut:completeResultSettlement(self)end;if self.clearcut and self.clearcut.scoreAttack then self:startClearcutScoreAttack()else self:startClearcut(self.clearcut and self.clearcut.job)end
+        elseif key=="return" or key=="r" then if self.clearcut then self.clearcut:completeResultSettlement(self)end;self:retryClearcut()
         elseif key=="escape" then if self.clearcut then self.clearcut:completeResultSettlement(self)end;self.mode="lobby" end
         return
     end
@@ -729,6 +753,7 @@ function Game:mousepressed(x, y, button)
         local action = self.lobby:mousepressed(x, y, button)
         if action == "clearcut" then self.mode = "clearcut_select"
         elseif action == "score_attack" then self:startClearcutScoreAttack()
+        elseif action == "defense" then self:startClearcutDefense()
         elseif action == "character_traits" then self.characterTraitReturnMode="lobby"; self.mode = "character_traits"
         elseif action == "character_codex" then self.mode = "character_codex"
         elseif action == "achievements" then self.mode = "achievements"
@@ -852,7 +877,7 @@ function Game:mousepressed(x, y, button)
         return
     end
     if self.mode == "clearcut_results" then
-        if button==1 then local boxes=self.clearcutResultButtons or{};local function inside(b)return b and x>=b.x and x<=b.x+b.w and y>=b.y and y<=b.y+b.h end;if inside(boxes.research)then if self.clearcut then self.clearcut:completeResultSettlement(self)end;self.characterTraitReturnMode="lobby";self.mode="character_traits"elseif inside(boxes.retry)then if self.clearcut then self.clearcut:completeResultSettlement(self)end;if self.clearcut and self.clearcut.scoreAttack then self:startClearcutScoreAttack()else self:startClearcut(self.clearcut and self.clearcut.job)end end end
+        if button==1 then local boxes=self.clearcutResultButtons or{};local function inside(b)return b and x>=b.x and x<=b.x+b.w and y>=b.y and y<=b.y+b.h end;if inside(boxes.research)then if self.clearcut then self.clearcut:completeResultSettlement(self)end;self.characterTraitReturnMode="lobby";self.mode="character_traits"elseif inside(boxes.retry)then if self.clearcut then self.clearcut:completeResultSettlement(self)end;self:retryClearcut()end end
         return
     end
     if self.mode == "results" then
