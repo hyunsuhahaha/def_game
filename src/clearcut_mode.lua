@@ -3799,6 +3799,13 @@ function ClearcutMode:scoreMeleeTargetAtAim(game)
     local tx,ty=game.camera:screenToWorld(love.mouse.getPosition())
     local reach=82+axeArea
     if self:findAxeOilDrum(game,tx,ty,range,reach)then return true end
+    local worldTree=self.scoreWorldTree
+    if worldTree and(worldTree.hp or 0)>0 and not worldTree.worldTreeEmerging then
+        local radius=CombatGeometry.targetRadius(worldTree)
+        local playerDistance=(worldTree.x-game.player.x)^2+(worldTree.y-game.player.y)^2
+        local aimDistance=(worldTree.x-tx)^2+(worldTree.y-ty)^2
+        if playerDistance<=(range+radius)^2 and aimDistance<=(reach+radius)^2 then return true end
+    end
     for _,node in ipairs(game.world.nodes)do if node.rushTree and node.active then
         local playerDistance=(node.x-game.player.x)^2+(node.y-game.player.y)^2
         local aimDistance=(node.x-tx)^2+(node.y-ty)^2
@@ -3869,6 +3876,14 @@ function ClearcutMode:resolveScoreAxeAction(action,game)
     local shockLevel=math.max(0,math.floor(self.permanentTraits.scoreAxeShock or 0))
     local chainChance=self.permanentTraits.scoreAxeChain or 0
     local heavy=self.permanentTraits.scoreAxeHeavy or 0
+    local worldTree=action.worldTree
+    if worldTree and(worldTree.hp or 0)>0 and CombatGeometry.circleOverlapsTarget(bladeX,bladeY,bladeRadius,worldTree)then
+        local blow=action.damage+(heavy>0 and math.floor((worldTree.maxHp or 0)*heavy)or 0)
+        worldTree.hp=worldTree.hp-blow
+        worldTree.visualHit=.18
+        self.traitFx:emit("axe",worldTree.x,worldTree.y,{radius=66,power=1,particles=12})
+        hit=hit+1
+    end
     for _,node in ipairs(action.targets or{})do if node.active and node.rushTree then
         local dx,dy=node.x-bladeX,node.y-65-bladeY
         if dx*dx+dy*dy<=bladeRadius*bladeRadius then
@@ -3932,8 +3947,16 @@ function ClearcutMode:updateScoreAxeAttack(dt,game,heldOverride)
 
     local reach=82+axeArea
     local drum=self:findAxeOilDrum(game,tx,ty,range,reach)
+    local worldTree
     local targets={}
     if not drum then
+        local candidate=self.scoreWorldTree
+        if candidate and(candidate.hp or 0)>0 and not candidate.worldTreeEmerging then
+            local radius=CombatGeometry.targetRadius(candidate)
+            local playerDistance=(candidate.x-game.player.x)^2+(candidate.y-game.player.y)^2
+            local aimDistance=(candidate.x-tx)^2+(candidate.y-ty)^2
+            if playerDistance<=(range+radius)^2 and aimDistance<=(reach+radius)^2 then worldTree=candidate end
+        end
         local candidates={}
         for _,node in ipairs(game.world.nodes)do if node.rushTree and node.active then
             local playerDistance=(node.x-game.player.x)^2+(node.y-game.player.y)^2
@@ -3945,18 +3968,18 @@ function ClearcutMode:updateScoreAxeAttack(dt,game,heldOverride)
         table.sort(candidates,function(a,b)return a.d<b.d end)
         local axeTargets=1+math.floor(self.permanentTraits.extraTargets or 0)+(self:scoreReward("cleave") and 2 or 0)
     for i=1,math.min(#candidates,axeTargets)do targets[i]=candidates[i].node end
-        if not targets[1]then return false end
+        if not targets[1]and not worldTree then return false end
     end
 
     game.player:cancelInteraction()
-    local targetX=drum and drum.x or targets[1].x
-    local targetY=drum and drum.y or targets[1].y
+    local targetX=drum and drum.x or(worldTree and worldTree.x or targets[1].x)
+    local targetY=drum and drum.y or(worldTree and worldTree.y or targets[1].y)
     local speed=(game.tools.axe.speed or 1)*game.player.gather*self.permanentTraits.attackSpeed
         *ScoreOperations.attackSpeedMultiplier(self)*(1+(self.permanentTraits.scoreAxeSpeed or 0))
     local swingDuration=math.max(.18,.36/speed)
     game.player:playAutoAxeSwing(targetX,targetY,swingDuration)
     self.scoreAxeAction={elapsed=0,duration=swingDuration,contactTime=swingDuration*.52,
-        drum=drum,targets=targets,facing=game.player.facing,targetX=targetX,targetY=targetY,
+        drum=drum,worldTree=worldTree,targets=targets,facing=game.player.facing,targetX=targetX,targetY=targetY,
         damage=4+(self.permanentTraits.treeDamage or 0)+ScoreOperations.weaponDamage(self),axeArea=axeArea,
         executeChance=(self.permanentTraits.executeChance or 0)+(self:scoreReward("undercut") and .25 or 0)}
     if self:scoreReward("heavy_swing") then self.scoreAxeAction.damage=self.scoreAxeAction.damage*2.4 end

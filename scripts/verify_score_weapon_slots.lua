@@ -50,6 +50,22 @@ throwLock:updateHeldAxe(0,game,true)
 assert(throwLock.scoreActiveWeapon=="axe"and throwLock.scoreAxeAction,
     "axe did not take over after the committed cigarette motion finished")
 
+-- The score world tree is an enemy actor rather than a world node, but it must
+-- still claim nearby axe input and receive damage on the authored contact frame.
+local bossMode=Mode.new();bossMode.scoreAttack=true;bossMode.job="fire"
+local worldTree={kind="worldtree",scoreWorldTree=true,x=110,y=0,hp=50,maxHp=50,def={radius=110}}
+bossMode.scoreWorldTree=worldTree;bossMode.enemies={worldTree}
+local savedNodes=game.world.nodes;game.world.nodes={}
+aimX=110
+assert(bossMode:scoreMeleeTargetAtAim(game),"score world tree did not claim nearby axe input")
+bossMode:updateHeldAxe(0,game,true)
+assert(bossMode.scoreAxeAction and bossMode.scoreAxeAction.worldTree==worldTree,
+    "score world tree was not captured as the axe target")
+bossMode:updateHeldAxe(1,game,true)
+assert(worldTree.hp<50 and worldTree.visualHit,
+    "score axe contact frame did not damage the world tree")
+game.world.nodes=savedNodes
+
 -- Merely standing near a tree does not steal a ranged click aimed elsewhere.
 mode.permanentTraits.scoreRocketUnlock=1
 mode.smokerWeaponCooldown=0;aimX=600
