@@ -1454,6 +1454,9 @@ function World:draw(player, actorSource)
         love.graphics.setColor(.06, .075, .085, 1); love.graphics.rectangle("fill", 0, 0, self.width, 55); love.graphics.rectangle("fill", 0, self.height - 55, self.width, 55); love.graphics.rectangle("fill", 0, 0, 55, self.height); love.graphics.rectangle("fill", self.width - 55, 0, 55, self.height)
     end
     local queue = {}
+    -- 바닥 장식 큐잉보다 먼저 세계수 가림 구역을 넘긴다. Scenery/Understory 는
+    -- world 만 받으므로 여기서 세워 두지 않으면 정렬을 고칠 방법이 없다.
+    self.worldTreeGuard = actorSource and actorSource.worldTreeGuard and actorSource:worldTreeGuard() or nil
     if self.arcadeForest and self.theme=="forest" then
         ForestScenery.queue(self,queue,player)
         ForestUnderstory.queue(self,queue,player)

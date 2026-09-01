@@ -113,7 +113,13 @@ function Understory.queue(world,queue,player)
     for _,entry in ipairs(data.patches) do
         local patch=entry
         if Maps.insideGroundPlants(world,patch.x,patch.y) then
-            queue[#queue+1]={x=patch.x,y=patch.y-1,anchorY=patch.y,draw=function() drawPatch(patch,player) end}
+            -- 세계수 밑동을 덮는 덤불은 그리기는 그대로, 정렬만 세계수 뒤로 보낸다.
+            local y=patch.y-1
+            local guard=world.worldTreeGuard
+            if guard and guard.hits(guard,patch.x,patch.y) then
+                y=math.min(y,guard.sortY-.5)
+            end
+            queue[#queue+1]={x=patch.x,y=y,anchorY=patch.y,draw=function() drawPatch(patch,player) end}
         end
     end
 end

@@ -145,11 +145,21 @@ function Scenery.drawGround(world)
     end
 end
 
+-- 세계수 밑동을 덮는 자리에 있으면 그림은 그대로 두고 정렬만 세계수 뒤로 보낸다.
+-- 큐에서 빼 버리면 세계수가 솟는 순간 풀이 통째로 사라져 눈에 띈다.
+local function sortY(world,prop)
+    local guard=world.worldTreeGuard
+    if guard and guard.hits(guard,prop.x,prop.y) then
+        return math.min(prop.y,guard.sortY-.5)
+    end
+    return prop.y
+end
+
 function Scenery.queue(world,queue,player)
     for _,entry in ipairs(world.forestScenery and world.forestScenery.actors or {}) do
         local prop=entry
         if Maps.canPlant(world,prop.x,prop.y) and (prop.kind~="fern" or Maps.insideGroundPlants(world,prop.x,prop.y,{left=135,right=135,top=220,bottom=120})) then
-            queue[#queue+1]={x=prop.x,y=prop.y,draw=function() draw(prop,player) end}
+            queue[#queue+1]={x=prop.x,y=sortY(world,prop),anchorY=prop.y,draw=function() draw(prop,player) end}
         end
     end
 end

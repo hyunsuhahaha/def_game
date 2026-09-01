@@ -1231,6 +1231,10 @@ function ClearcutMode:spawnScoreTree(game)
     if not self.scoreAttack or self.remainingTrees>=self:scoreDynamicTreeCap()then return false end
     local Maps=require("src.clearcut_maps");local world=game.world;local w,h=world.width,world.height
     local variantCount=math.max(1,#(world.images.treeVariants or{}));local x,y,variant
+    -- 세계수가 서 있는 동안에는 그 밑동 앞에 새 나무가 앉지 않는다. 정렬로 뒤로
+    -- 보낼 수 있는 바닥 장식과 달리 나무는 벌목 대상이라, 뒤로 밀면 클릭은 되는데
+    -- 안 보이는 나무가 생긴다.
+    local guard=self:worldTreeGuard()
     for _=1,90 do
         local zoning=self:levelOf("forest_zoning")
         local margin=130+zoning*35
@@ -1240,7 +1244,8 @@ function ClearcutMode:spawnScoreTree(game)
             px=math.max(margin,math.min(w-margin,game.player.x+math.cos(angle)*distance))
             py=math.max(margin,math.min(h-margin,game.player.y+math.sin(angle)*distance))
         else px=love.math.random(margin,w-margin);py=love.math.random(margin,h-margin)end
-        if Maps.treeSpace(world,px,py)and not ForestScenery.isSceneryPocket(px,py,w,h)then
+        if Maps.treeSpace(world,px,py)and not ForestScenery.isSceneryPocket(px,py,w,h)
+            and not ClearcutMode.worldTreeGuardHits(guard,px,py)then
             local separated=true
             local pressure=math.max(1,self:scoreTreeSpawnRate()/math.max(.01,self.treeSpawnRate or .55))
             local minSep=self.scoreAttack and math.max(48,118-math.floor(math.log(pressure)/math.log(2))*12)or 118
@@ -2428,20 +2433,34 @@ end
 
 -- 1~9단계는 빠른 성장형을, 10단계부터는 기존 거대형과 SKYVIEW 등장 연출을 쓴다.
 -- 캠페인의 존 코어 비활성화·토템·공격 패턴은 기록 모드로 가져오지 않는다.
+-- 세계수가 서 있는 동안 그 밑동을 가려서는 안 되는 구역. 바닥 장식(풀·고사리·
+-- 통나무·돌)과 새로 자라는 나무가 이 타원 안에 들어오면 세계수 뒤로 보내거나
+-- 아예 자리를 잡지 못하게 한다. 60초마다 오는 유일한 랜드마크가 잡초에 잘려
+-- 보이면 "저기로 갈지 계속 벨지"라는 이 모드의 핵심 판단이 흐려진다.
+function ClearcutMode:worldTreeGuard()
+    local tree=self.scoreWorldTree
+    if not tree or not tree.x or not tree.y then return nil end
+    local radius=(tree.def and tree.def.radius) or 100
+    -- ForestArt.footY 와 같은 발선 규약을 쓴다. 정렬 기준이 어긋나면 가림 판정도 어긋난다.
+    local footY=tree.y+radius*.65
+    return {x=tree.x,y=footY,rx=radius*1.15,ry=radius*.9,sortY=footY,hits=ClearcutMode.worldTreeGuardHits}
+end
+
+-- 타원 안이면서 세계수 발선보다 앞(아래)에 있는 것만 잡는다. 뒤쪽은 어차피
+-- 정렬로 이미 가려지므로 손댈 필요가 없다. 배경 모듈이 clearcut_mode 를 되-require
+-- 하지 않도록 판정을 guard 테이블에 얹어 넘긴다.
+function ClearcutMode.worldTreeGuardHits(guard,x,y)
+    if not guard or y<guard.y then return false end
+    local dx,dy=(x-guard.x)/guard.rx,(y-guard.y)/guard.ry
+    return dx*dx+dy*dy<=1
+end
+
 function ClearcutMode:spawnScoreWorldTree(game)
     local bounds=game.world.playBounds or {x=0,y=0,w=game.world.width,h=game.world.height}
-    local px,py=game.player.x,game.player.y
     local profile=ClearcutMode.ScoreWorldTree.profile(self)
-    local margin=math.min(profile.radius+56,math.min(bounds.w,bounds.h)*.26)
-    local x,y
-    for _=1,32 do
-        local cx=bounds.x+margin+love.math.random()*math.max(1,bounds.w-margin*2)
-        local cy=bounds.y+margin+love.math.random()*math.max(1,bounds.h-margin*2)
-        local dx,dy=cx-px,cy-py
-        if dx*dx+dy*dy>=ClearcutMode.ScoreWorldTree.MIN_DISTANCE^2 then x,y=cx,cy;break end
-    end
-    x=x or (bounds.x+bounds.w*.5)
-    y=y or (bounds.y+bounds.h*.5)
+    -- 항상 이동 가능 구역의 정중앙. 무작위 배치는 랜드마크를 화면 밖으로 보냈다.
+    local x=bounds.x+bounds.w*.5
+    local y=bounds.y+bounds.h*.5
     local tree=self:spawnEnemy("worldtree",x,y,{})
     if not tree then return false end
     -- enemyDefs.worldtree 는 공유 테이블이므로 반지름을 직접 바꾸면 캠페인 거대형까지

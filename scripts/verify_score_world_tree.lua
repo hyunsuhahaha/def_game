@@ -49,6 +49,72 @@ assert(m.scoreWorldTree, "40초가 지나도 세계수가 등장하지 않았다
 -- 2. 세계수가 서 있는 동안에는 타이머가 멈춰 두 그루가 겹치지 않는다.
 local standing = m.scoreWorldTree
 
+-- 1-1. 세계수는 항상 이동 가능 구역의 정중앙에 선다. 무작위 배치는 랜드마크를
+-- 화면 밖으로 보내 60초마다 오는 유일한 선택을 놓치게 했다.
+assert(standing.x==1120 and standing.y==700,
+    "세계수가 이동 가능 구역 중앙에 서지 않았다")
+assert(standing.fixedX==standing.x and standing.fixedY==standing.y,
+    "세계수 고정 좌표가 중앙과 어긋났다")
+
+-- 1-2. 밑동 앞을 덮는 바닥 장식은 세계수 뒤로 정렬된다. 판정은 발선(ForestArt.footY)
+-- 규약을 그대로 쓰고, 발선 뒤쪽은 어차피 가려지므로 건드리지 않는다.
+local guard = m:worldTreeGuard()
+assert(guard and guard.hits, "세계수 가림 구역이 만들어지지 않았다")
+local foot = standing.y + standing.def.radius * .65
+assert(math.abs(guard.sortY-foot)<.001, "가림 구역 정렬선이 세계수 발선과 다르다")
+assert(guard.hits(guard, standing.x, foot + 10),
+    "밑동 바로 앞의 바닥 장식이 세계수를 덮는다")
+assert(not guard.hits(guard, standing.x, foot - 40),
+    "발선 뒤쪽까지 불필요하게 뒤로 밀었다")
+assert(not guard.hits(guard, standing.x + guard.rx * 2, foot + 10),
+    "세계수와 겹치지도 않는 먼 장식까지 뒤로 밀었다")
+assert(not guard.hits(guard, standing.x, foot + guard.ry * 2),
+    "앞쪽 원경 장식까지 세계수 뒤로 보내 깊이가 뒤집혔다")
+assert(not ClearcutMode.worldTreeGuardHits(nil, 0, 0),
+    "세계수가 없을 때도 가림 판정이 켜져 있다")
+
+-- 1-3. 실제 큐잉 경로로 확인한다. 기하만 맞고 world.lua 연결이 빠지면 화면은
+-- 그대로 가려진 채다. world.lua 는 정렬 y 가 작을수록 먼저(뒤에) 그린다.
+do
+    local Scenery = require("src.forest_scenery")
+    local Understory = require("src.forest_understory")
+    local near, far = foot + 12, foot + guard.ry * 2
+    local stub = {
+        width = 2240, height = 1400, clearcutMap = "temperate",
+        playBounds = {x = 0, y = 0, w = 2240, h = 1400},
+        worldTreeGuard = guard,
+        forestScenery = {actors = {
+            {kind = "rock", x = standing.x, y = near, scale = 1, flip = 1, angle = 0, tone = 1},
+            {kind = "rock", x = standing.x, y = far, scale = 1, flip = 1, angle = 0, tone = 1},
+        }},
+        forestUnderstory = {patches = {
+            {x = standing.x, y = near, scale = 1, flip = 1, bend = 0, rustle = 0},
+            {x = standing.x, y = far, scale = 1, flip = 1, bend = 0, rustle = 0},
+        }},
+    }
+    local queue = {}
+    Scenery.queue(stub, queue, nil)
+    Understory.queue(stub, queue, nil)
+    assert(#queue == 4, "바닥 장식 큐잉 경로가 바뀌었다")
+    for _, item in ipairs(queue) do
+        if item.anchorY == near then
+            assert(item.y < guard.sortY,
+                "세계수 밑동을 덮는 바닥 장식이 여전히 세계수보다 앞에 그려진다")
+        else
+            assert(item.y >= guard.sortY,
+                "세계수와 겹치지 않는 앞쪽 장식까지 뒤로 밀려 깊이가 뒤집혔다")
+        end
+    end
+    stub.worldTreeGuard = nil
+    local plain = {}
+    Scenery.queue(stub, plain, nil)
+    Understory.queue(stub, plain, nil)
+    for _, item in ipairs(plain) do
+        assert(math.abs(item.y - item.anchorY) <= 1,
+            "세계수가 없을 때도 바닥 장식 정렬을 건드렸다")
+    end
+end
+
 -- 2-1. 1단계부터 거대 공성 세계수를 재사용하지 않는다. 성장형은 실제 그림뿐 아니라
 -- 충돌 반지름과 수관 높이도 작아야 주변 나무/공격 판정과 시각이 일치한다.
 local firstProfile=ScoreWorldTree.profile(1)

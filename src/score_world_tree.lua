@@ -15,7 +15,10 @@ local ScoreWorldTree = {}
 ScoreWorldTree.INTERVAL = 40
 ScoreWorldTree.BASE_HP = 260
 ScoreWorldTree.TIER_HP = 1.18   -- 재생 단계마다 체력 배수
-ScoreWorldTree.MIN_DISTANCE = 420
+-- 세계수는 항상 이동 가능 구역의 정중앙에 선다. 매번 다른 자리에 무작위로
+-- 솟으면 화면 밖에서 조용히 자라 플레이어가 놓치고, 판마다 "어디에 있더라"를
+-- 다시 찾아야 한다. 중앙 고정은 그 자체로 랜드마크가 되어 항상 같은 방향을 본다.
+ScoreWorldTree.CENTER_SPAWN = true
 ScoreWorldTree.GIANT_TIER = 10
 
 -- 같은 그림을 단순 확대하지 않는다. 세 성장형은 서로 다른 가지·수관·뿌리 설계를
