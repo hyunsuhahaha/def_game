@@ -3757,7 +3757,11 @@ function ClearcutMode:updateHeldAxe(dt, game, heldOverride)
     if self.scoreAttack and self.job=="fire" then
         local held=heldOverride
         if held==nil then held=love.mouse.isDown(1)end
-        local weapon=(self.scoreAxeAction or(held and self:scoreMeleeTargetAtAim(game)))and"axe"or self:scoreRangedWeaponId()
+        -- Once the cigarette flick has begun it owns the hand until the motion
+        -- finishes. Entering axe range mid-flick must not cancel the throw.
+        local rangedWeapon=self:scoreRangedWeaponId()
+        local cigaretteThrowActive=rangedWeapon=="cigarette"and self.smoking and self.smoking.phase=="flick"
+        local weapon=cigaretteThrowActive and"cigarette"or((self.scoreAxeAction or(held and self:scoreMeleeTargetAtAim(game)))and"axe"or rangedWeapon)
         self.scoreActiveWeapon=weapon
         game.player.scoreAxeEquipped=weapon=="axe"
         game.player.hideAxeRange=weapon=="axe"

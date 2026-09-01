@@ -32,6 +32,24 @@ end
 assert(tree.rushHp==96 and mode.actionAudit.scoreAxe==1,
     "contextual axe did not apply its real contact-frame hit")
 
+-- A cigarette flick that has started owns the action until its release frame,
+-- even if the aim enters axe range before the next update.
+local throwLock=Mode.new();throwLock.scoreAttack=true;throwLock.job="fire"
+throwLock.smoking={phase="loaded",t=0,dur=1,loaded=true,fired=false}
+local thrown=0
+throwLock.hurlMolotovAt=function()thrown=thrown+1 end
+aimX=600
+throwLock:updateHeldAxe(0,game,true)
+assert(throwLock.smoking.phase=="flick"and throwLock.scoreActiveWeapon=="cigarette",
+    "far click did not begin the cigarette flick")
+aimX=110
+throwLock:updateHeldAxe(1,game,true)
+assert(thrown==1 and not throwLock.scoreAxeAction and throwLock.scoreActiveWeapon=="cigarette",
+    "entering axe range interrupted a cigarette flick that had already started")
+throwLock:updateHeldAxe(0,game,true)
+assert(throwLock.scoreActiveWeapon=="axe"and throwLock.scoreAxeAction,
+    "axe did not take over after the committed cigarette motion finished")
+
 -- Merely standing near a tree does not steal a ranged click aimed elsewhere.
 mode.permanentTraits.scoreRocketUnlock=1
 mode.smokerWeaponCooldown=0;aimX=600
