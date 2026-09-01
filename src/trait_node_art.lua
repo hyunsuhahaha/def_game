@@ -20,7 +20,7 @@ function Art.draw(icon,cx,cy,size,alpha)
                 cat:setFilter("nearest","nearest");Art.cat=cat
                 Art.catQuad=love.graphics.newQuad(0,0,128,128,cat:getDimensions())
             end
-            local popperOk,popper=pcall(love.graphics.newImage,"assets/automation/popping-machine-atlas-pixel-v1.png")
+            local popperOk,popper=pcall(love.graphics.newImage,"assets/automation/popping-machine-atlas-pixel-v2.png")
             if popperOk then
                 popper:setFilter("nearest","nearest");Art.popper=popper
                 Art.popperQuad=love.graphics.newQuad(0,0,256,192,popper:getDimensions())

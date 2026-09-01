@@ -8,19 +8,37 @@ local source={active=true,burning=true,x=0,y=0}
 local trees={tree(120,20),tree(240,20),tree(360,20),tree(480,20),tree(600,20)}
 local world={nodes={source,trees[1],trees[2],trees[3],trees[4],trees[5]},width=900,height=600}
 function world:impactNode()end
-local mode={scoreAttack=true,permanentTraits={scorePopperUnlock=1},poppingMachines={{x=0,y=0,state="cold",heat=0,life=0,recoil=0,shake=0}},puffedRiceShots={},puffedRiceImpacts={},poppingMachineTimer=99,poppingMachineSequence=1,oilTrail={},_popperWorld=world}
+local mode={scoreAttack=true,permanentTraits={scorePopperUnlock=1},poppingMachines={},puffedRiceShots={},puffedRiceImpacts={},poppingMachineSequence=0,oilTrail={},cigaretteButts={},_popperWorld=world}
 function mode:fellTree(node)node.active=false;return true end
 local game={world=world,player={x=0,y=0}}
+Popper.update(mode,.01,game)
+assert(#mode.poppingMachines==1 and mode.poppingMachines[1].state=="cooldown","persistent monkey cart did not spawn in the map")
+local cart,id=mode.poppingMachines[1],mode.poppingMachines[1].id
+cart.x,cart.y,cart.state,cart.cooldown=0,0,"ready",0
 for _=1,260 do Popper.update(mode,.02,game)end
+source.burning=false
 assert(trees[1].rushHp==16 and trees[2].rushHp==16 and trees[3].rushHp==16,"base puffed rice did not damage three consecutive trees")
 assert(trees[1].active and trees[2].active and trees[3].active,"base puffed rice incorrectly one-shot a normal tree")
 assert(trees[4].rushHp==20,"base puffed rice exceeded its contact count")
 
 mode.permanentTraits.scorePopperDamage=10;mode.permanentTraits.scorePopperBounces=2
-mode.poppingMachines[1].state="heating";mode.poppingMachines[1].heat=2.79
+cart.x,cart.y,cart.state,cart.heat=0,0,"heating",2.79
 for _=1,150 do Popper.update(mode,.02,game)end
 for index=1,3 do assert(trees[index].rushHp==2,"upgraded puffed rice failed to revisit surviving tree "..index)end
 for index=4,5 do assert(trees[index].rushHp==6,"upgraded puffed rice failed to continue through new tree "..index)end
+
+for _=1,3000 do Popper.update(mode,.02,game)end
+assert(#mode.poppingMachines==1 and mode.poppingMachines[1].id==id,"monkey cart left or respawned after its old lifetime")
+cart=mode.poppingMachines[1];cart.x,cart.y,cart.state,cart.cooldown=0,0,"ready",0
+mode.cigaretteButts={{x=0,y=0,phase="smolder"}};Popper.update(mode,.01,game)
+assert(cart.state=="heating","smoldering cigarette butt did not ignite the ready cart")
+cart.state,cart.heat="ready",0;mode.cigaretteButts={};mode.oilTrail={{x=0,y=0,ignited=true}};Popper.update(mode,.01,game)
+assert(cart.state=="heating","burning oil did not ignite the ready cart")
+cart.state,cart.heat="ready",0;mode.oilTrail={};mode.flameStream={x=-100,y=0,nx=1,ny=0,reach=220,halfWidth=45}
+function mode.flameStreamCovers(x,y,nx,ny,reach,halfWidth,px,py)return px>=x and px<=x+reach and math.abs(py-y)<=halfWidth end
+Popper.update(mode,.01,game);assert(cart.state=="heating","flamethrower did not ignite the ready cart")
+mode.flameStream=nil;mode.permanentTraits.scorePopperExtra=1;Popper.update(mode,.01,game)
+assert(#mode.poppingMachines==2,"extra permanent monkey cart did not remain on the map")
 
 local store=Traits.new(true);local count,ranks,cost,multi,damage,bounces,heat=0,0,0,0,0,0,0
 for _,node in ipairs(store:getScoreAttackNodes("fire"))do if node.id:match("^fire_score_popper")then
@@ -33,4 +51,4 @@ end end
 assert(count==9 and ranks==16 and cost==2320,"popper research branch totals changed")
 assert(multi==5 and damage==10 and bounces==2 and math.abs(heat-.7)<.001,"popper upgrades are not distributed multi-rank nodes")
 fixture.reset();Popper.queue(mode,{});Popper.load()
-print("POPPING_MACHINE_OK base_damage=4 base_contacts=3 upgraded_damage=14 upgraded_contacts=5 survivor_chain=true nodes=9 ranks=16 distributed=true")
+print("POPPING_MACHINE_OK persistent=true monkey_cart=true cooldown=10 ignition=butt+flame+oil+tree base_damage=4 base_contacts=3 upgraded_damage=14 upgraded_contacts=5 survivor_chain=true nodes=9 ranks=16 distributed=true")

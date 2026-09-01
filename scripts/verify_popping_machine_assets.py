@@ -2,7 +2,7 @@ from pathlib import Path
 from PIL import Image
 ROOT=Path(__file__).resolve().parents[1]
 specs={
- 'assets/automation/popping-machine-atlas-pixel-v1.png':(1536,192,24),
+ 'assets/automation/popping-machine-atlas-pixel-v2.png':(1536,192,24),
  'assets/projectiles/puffed-rice-atlas-pixel-v1.png':(512,128,6),
  'assets/fx/puffed-rice-impact-atlas-pixel-v1.png':(1152,192,10),
 }

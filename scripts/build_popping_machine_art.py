@@ -18,6 +18,10 @@ def machine_frame(state):
  im=Image.new('RGBA',(256,192));d=ImageDraw.Draw(im);import math
  heat=min(1,max(0,(state-1)/3))
 
+ # Long stroller handle reaches the monkey's forward hands and stays behind the cart.
+ d.line((3,150,61,139),fill=INK,width=9);d.line((4,148,60,138),fill=IRON[6],width=4)
+ rect(d,(1,143,16,154),INK);rect(d,(3,145,14,151),RED[3])
+
  # Low red handcart: a broad, readable base instead of two disconnected sticks.
  poly(d,((42,136),(199,136),(211,148),(199,157),(53,154)),INK)
  poly(d,((49,137),(194,139),(201,147),(193,150),(56,148)),RED[2])
@@ -161,8 +165,8 @@ def atlas(frames,cell,path):
  path.parent.mkdir(parents=True,exist_ok=True);out.save(path)
 
 def main():
- atlas([machine_frame(i)for i in range(6)],(256,192),ROOT/'assets/automation/popping-machine-atlas-pixel-v1.png')
+ atlas([machine_frame(i)for i in range(6)],(256,192),ROOT/'assets/automation/popping-machine-atlas-pixel-v2.png')
  atlas([projectile_frame(i)for i in range(4)],(128,128),ROOT/'assets/projectiles/puffed-rice-atlas-pixel-v1.png')
  atlas([impact_frame(i)for i in range(6)],(192,192),ROOT/'assets/fx/puffed-rice-impact-atlas-pixel-v1.png')
- print('POPPING_MACHINE_ART_BUILT machine=1536x192 projectile=512x128 impact=1152x192')
+ print('POPPING_MACHINE_ART_BUILT machine_v2=1536x192 projectile=512x128 impact=1152x192')
 if __name__=='__main__':main()

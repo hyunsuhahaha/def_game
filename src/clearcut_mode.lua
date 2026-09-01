@@ -213,7 +213,7 @@ function ClearcutMode.new()
         treeSparks={}, treeSparkArrivals={}, strawTimer=0, strawBales={}, strawBaleSequence=0,
         oilTrail={}, oilTrailTimer=0, oilTrailLastX=nil, oilTrailLastY=nil, oilTrailSequence=0,
         oilDrums={},oilDrumSpills={},oilDrumTimer=0,oilDrumSequence=0,oilPuddleGroups={},grayOilCat=nil,
-        poppingMachines={},puffedRiceShots={},puffedRiceImpacts={},poppingMachineTimer=2.5,poppingMachineSequence=0,
+        poppingMachines={},puffedRiceShots={},puffedRiceImpacts={},poppingMachineSequence=0,
         worldTreeLumber={},
         job=nil, attackCooldown=0, dashing=nil, dashTrail={}, smoking=nil,
         minerClawAction=nil, minerClawFx={}, minerClawMarks={}, minerBurrow=nil, minerBurrowCooldown=0, thrownTrees={}, burrowTracks={}, burrowTrackSequence=0,moleCompanion=nil,moleCompanions={},
