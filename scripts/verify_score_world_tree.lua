@@ -7,7 +7,7 @@
 package.path = "./?.lua;./?/init.lua;" .. package.path
 
 love = {
-    math = {random = math.random}, filesystem = {},
+    math = {random = math.random}, filesystem = {}, timer = {getTime = function() return 0 end},
     graphics = {getDimensions = function() return 1280, 720 end, newQuad = function() return {} end,
         newImage = function() return {setFilter = function() end,
             getWidth = function() return 64 end, getHeight = function() return 64 end,
@@ -87,5 +87,68 @@ assert(math.abs(windy:spreadFactor() - calm:spreadFactor() * 2) < 1e-9,
 -- 8. 새 런은 보상을 물려받지 않는다.
 local fresh = mode()
 assert(not fresh:scoreReward("dry_wind"), "이전 판의 보상이 다음 판까지 남았다")
+
+-- 세계수는 공격하지 않으므로, 때리는 쪽에 반응이 없으면 체력만 많은 기둥이다.
+-- 수관에서 쏟아지는 목재가 유일한 타격감이라 타격마다 실제로 나와야 한다.
+do
+    local mode = ClearcutMode.new()
+    mode.scoreAttack = true
+    mode.enemies = {}
+    local catalog = require("src.forest_enemy_catalog")
+    local tree = {x = 300, y = 200, hp = 260, maxHp = 260, scoreWorldTree = true,
+        def = {radius = 420}}
+    mode.scoreWorldTree = tree
+    mode.scoreWorldTreeHp = tree.hp
+    local fxGame = {world = {nodes = {}, playBounds = {x=0,y=0,w=800,h=600}},
+        player = {x = 0, y = 0}, setNotice = function() end}
+
+    -- 체력이 그대로면 아무것도 나오지 않는다.
+    mode:updateScoreWorldTree(1/60, fxGame)
+    assert(#mode.worldTreeLumber == 0, "때리지도 않았는데 목재가 쏟아진다")
+
+    -- 한 대 때리면 나온다. 피해원마다 훅을 거는 대신 체력 변화를 관찰하므로
+    -- 도끼든 폭죽이든 기름이든 전부 잡힌다.
+    tree.hp = tree.hp - 12
+    mode:updateScoreWorldTree(1/60, fxGame)
+    local firstBurst = #mode.worldTreeLumber
+    assert(firstBurst > 0, "세계수를 때렸는데 목재가 나오지 않는다")
+
+    -- 수관에서 나와야 "위에서 쏟아진다" 로 읽힌다. 발밑에서 솟으면 안 된다.
+    local crown = catalog.worldtree.height
+    for _, piece in ipairs(mode.worldTreeLumber) do
+        assert(piece.height > crown * .5, "목재가 수관이 아니라 발밑에서 나온다")
+        assert(piece.height <= crown * 1.1, "목재가 수관보다 훨씬 위에서 나온다")
+    end
+
+    -- 큰 피해일수록 많이 쏟아지되 상한이 있다.
+    mode.worldTreeLumber = {}
+    tree.hp = tree.hp - 200
+    mode:updateScoreWorldTree(1/60, fxGame)
+    assert(#mode.worldTreeLumber > firstBurst, "큰 피해인데 목재가 더 나오지 않는다")
+    assert(#mode.worldTreeLumber <= 6, "한 번의 타격에서 목재가 너무 많이 나온다")
+
+    -- 순수 연출이다. 줍히는 목재로 만들면 때릴 때마다 수입이 붙어 경제가 바뀐다.
+    assert(fxGame.world.drops == nil, "세계수 연출이 줍히는 목재를 만들었다")
+
+    -- 떨어지고 나면 사라진다. 남으면 바닥에 목재가 쌓인 것처럼 보인다.
+    for _ = 1, math.ceil(ClearcutMode.WORLD_TREE_LUMBER_LIFE * 60) + 4 do
+        mode:updateWorldTreeLumber(1/60)
+    end
+    assert(#mode.worldTreeLumber == 0, "쏟아진 목재가 사라지지 않는다")
+
+    -- 세계수가 쓰러진 뒤에도 떨어지던 목재는 마저 떨어져야 한다.
+    tree.hp = 40
+    mode.scoreWorldTreeHp = 60
+    mode:updateScoreWorldTree(1/60, fxGame)
+    assert(#mode.worldTreeLumber > 0, "마지막 타격에서 목재가 나오지 않는다")
+    mode.scoreWorldTree = nil
+    mode:updateWorldTreeLumber(1/60)
+    assert(#mode.worldTreeLumber > 0, "세계수가 사라지자 떨어지던 목재도 같이 사라졌다")
+
+    -- 상한을 넘게 쌓이지 않는다.
+    for _ = 1, 60 do mode:spawnWorldTreeLumber(tree, 260, fxGame) end
+    assert(#mode.worldTreeLumber <= ClearcutMode.WORLD_TREE_LUMBER_CAP,
+        "쏟아진 목재가 상한 없이 쌓인다")
+end
 
 print("SCORE_WORLD_TREE_OK interval=60s trigger=time no_attack reward=3pick run_only")

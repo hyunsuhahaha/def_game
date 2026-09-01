@@ -211,6 +211,7 @@ function ClearcutMode.new()
         treeSparks={}, treeSparkArrivals={}, strawTimer=0, strawBales={}, strawBaleSequence=0,
         oilTrail={}, oilTrailTimer=0, oilTrailLastX=nil, oilTrailLastY=nil, oilTrailSequence=0,
         oilDrums={},oilDrumSpills={},oilDrumTimer=0,oilDrumSequence=0,oilPuddleGroups={},grayOilCat=nil,
+        worldTreeLumber={},
         job=nil, attackCooldown=0, dashing=nil, dashTrail={}, smoking=nil,
         minerClawAction=nil, minerClawFx={}, minerClawMarks={}, minerBurrow=nil, minerBurrowCooldown=0, thrownTrees={}, burrowTracks={}, burrowTrackSequence=0,moleCompanion=nil,moleCompanions={},
         smokeRing=nil, smokeRingCooldown=0, smokeRingCharge=nil, smokeRingChargeDuration=1.5,
@@ -517,6 +518,8 @@ function ClearcutMode:setup(game)
     local Maps=require("src.clearcut_maps")
     self.mapId=Maps.get(self.mapId).id
     self.lumberInventory={}
+    self.worldTreeLumber={}
+    self.scoreWorldTreeHp=nil
     self.resultSettlement=nil
     self.stage=math.max(1,math.min(BiomeBosses.stageCap(self.mapId),self.stage or 1))
     self.stageElapsed,self.stageTimeLimit,self.failureReason=0,self.scoreAttack and math.huge or stageTimeLimit(self.stage,self.mapId),nil
@@ -1418,6 +1421,7 @@ function ClearcutMode:update(dt, game)
     if tierTransition then return end
     if self:updateScoreTreeGrowth(dt,game)then return end
     self:updateScoreWorldTree(dt,game)
+    self:updateWorldTreeLumber(dt)
     self:updateMoleCompanion(dt,game)
     self:updateOilDrums(dt,game)
     ScoreAxeArt.update(self,dt)
@@ -2212,13 +2216,101 @@ end
 function ClearcutMode:updateScoreWorldTree(dt,game)
     if not self.scoreAttack then return end
     if self.scoreWorldTree then
-        if self.scoreWorldTree.hp and self.scoreWorldTree.hp>0 then return end
+        local tree=self.scoreWorldTree
+        if tree.hp and tree.hp>0 then
+            -- 적 체력은 도끼·폭죽·기름·두더지·화염 등 여러 곳에서 직접 깎인다.
+            -- 타격 지점마다 훅을 걸면 무기가 늘 때마다 빠뜨리므로, 체력이 줄었는지를
+            -- 여기서 관찰해 한 곳에서 연출을 낸다. 같은 프레임의 여러 타격은 한 번으로
+            -- 합쳐지는데, 그게 오히려 연출이 폭주하지 않게 잡아 준다.
+            local previous=self.scoreWorldTreeHp or tree.hp
+            if tree.hp<previous then self:spawnWorldTreeLumber(tree,previous-tree.hp,game) end
+            self.scoreWorldTreeHp=tree.hp
+            return
+        end
         self.scoreWorldTree=nil
+        self.scoreWorldTreeHp=nil
     end
     self.scoreWorldTreeTimer=(self.scoreWorldTreeTimer or ClearcutMode.ScoreWorldTree.INTERVAL)-dt
     if self.scoreWorldTreeTimer>0 then return end
     self.scoreWorldTreeTimer=ClearcutMode.ScoreWorldTree.INTERVAL
     self:spawnScoreWorldTree(game)
+end
+
+-- 세계수를 때리면 수관에서 목재가 쏟아진다. 세계수는 공격하지 않으므로 때리는
+-- 쪽에 아무 반응이 없으면 그냥 체력 많은 기둥이다. 이 연출이 유일한 타격감이다.
+--
+-- 목재는 순수 연출이라 줍히지 않는다. World.drops 로 만들면 때릴 때마다 수입이
+-- 붙어 경제가 바뀌는데, 요청은 시각 효과였다.
+ClearcutMode.WORLD_TREE_LUMBER_LIFE=1.6
+ClearcutMode.WORLD_TREE_LUMBER_CAP=96
+
+function ClearcutMode:spawnWorldTreeLumber(tree,damage,game)
+    self.worldTreeLumber=self.worldTreeLumber or {}
+    local fx=self.worldTreeLumber
+    -- 수관 높이는 그려지는 스프라이트 높이를 그대로 쓴다. 눈에 보이는 꼭대기에서
+    -- 나와야 "위에서 쏟아진다" 로 읽힌다.
+    local catalog=require("src.forest_enemy_catalog")
+    local crown=(catalog.worldtree and catalog.worldtree.height or 300)
+    local share=damage/math.max(1,tree.maxHp or damage)
+    local count=math.max(1,math.min(6,1+math.floor(share*34)))
+    local spread=(tree.def and tree.def.radius or 420)*.16
+    for _=1,count do
+        local a=love.math.random()*math.pi*2
+        local reach=spread*(.3+love.math.random()*.7)
+        fx[#fx+1]={
+            x=tree.x+math.cos(a)*reach, y=tree.y+math.sin(a)*reach*.34,
+            vx=math.cos(a)*(50+love.math.random()*110), vy=math.sin(a)*(20+love.math.random()*52)+26,
+            height=crown*(.72+love.math.random()*.30), vz=love.math.random(-10,70),
+            angle=love.math.random()*math.pi*2,
+            spin=(love.math.random()<.5 and -1 or 1)*(2.2+love.math.random()*4.4),
+            age=0, life=ClearcutMode.WORLD_TREE_LUMBER_LIFE,
+        }
+    end
+    -- 긴 싸움에서 무한히 쌓이지 않게 오래된 것부터 버린다.
+    while #fx>ClearcutMode.WORLD_TREE_LUMBER_CAP do table.remove(fx,1) end
+end
+
+-- 세계수가 쓰러진 뒤에도 떨어지던 목재는 마저 떨어져야 한다. 그래서 세계수 유무와
+-- 무관하게 매 프레임 돈다.
+function ClearcutMode:updateWorldTreeLumber(dt)
+    local fx=self.worldTreeLumber
+    if not fx or #fx==0 then return end
+    for i=#fx,1,-1 do
+        local piece=fx[i]
+        piece.age=piece.age+dt
+        piece.x,piece.y=piece.x+piece.vx*dt,piece.y+piece.vy*dt
+        piece.vx,piece.vy=piece.vx*math.exp(-dt*3.2),piece.vy*math.exp(-dt*3.2)
+        piece.height=piece.height+piece.vz*dt
+        piece.vz=piece.vz-360*dt
+        if piece.height<=0 then
+            piece.height=0
+            -- World.updateDrops 와 같은 중력·반발 규약을 쓴다. 같은 화면에서 진짜
+            -- 목재와 나란히 떨어지므로 물리가 다르면 눈에 띈다.
+            if piece.vz<-60 then piece.vz=-piece.vz*.26;piece.spin=piece.spin*.5
+            else piece.vz,piece.spin=0,piece.spin*.82 end
+        end
+        piece.angle=piece.angle+piece.spin*dt
+        if piece.age>=piece.life then table.remove(fx,i) end
+    end
+end
+
+function ClearcutMode:drawWorldTreeLumber(game)
+    local fx=self.worldTreeLumber
+    if not fx or #fx==0 then return end
+    local img=game.world.images and game.world.images.lumber
+    if not img then return end
+    local width=44
+    local scale=width/img:getWidth()
+    for _,piece in ipairs(fx) do
+        local remaining=piece.life-piece.age
+        local fade=remaining<.5 and math.max(0,remaining/.5) or 1
+        local grounded=1-math.min(1,piece.height/200)
+        love.graphics.setColor(0,0,0,.26*fade*grounded)
+        love.graphics.ellipse("fill",piece.x+2,piece.y+3,width*.34,width*.11)
+        love.graphics.setColor(1,1,1,fade)
+        love.graphics.draw(img,piece.x,piece.y-piece.height,piece.angle,scale,scale,img:getWidth()/2,img:getHeight()*.91)
+    end
+    love.graphics.setColor(1,1,1,1)
 end
 
 -- 캠페인의 spawnWorldTree 는 존 코어 비활성화·토템 소환·6.75초 등장 연출을 함께
@@ -2246,6 +2338,7 @@ function ClearcutMode:spawnScoreWorldTree(game)
     tree.slamTimer,tree.summonTimer,tree.rootSpikeTimer,tree.vineWhipTimer=math.huge,math.huge,math.huge,math.huge
     tree.scoreWorldTree=true
     self.scoreWorldTree=tree
+    self.scoreWorldTreeHp=tree.hp
     game:setNotice("세계수가 솟아올랐다 — 쓰러뜨리면 보상을 고른다","food")
     return true
 end
@@ -7353,6 +7446,7 @@ end
 function ClearcutMode:drawWorldOverlay(game)
     love.graphics.setLineStyle("rough")
     local t = love.timer.getTime()
+    self:drawWorldTreeLumber(game)
     local projected=game.world.deferBillboards
     if projected then self:queueProjectedOverlay(game,t) end
     local px, py = game.player.x + 14, game.player.y - 34
