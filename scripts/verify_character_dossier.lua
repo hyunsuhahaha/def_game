@@ -33,7 +33,8 @@ assert(dossier:find("universal_robot_start",1,true)and dossier:find("universal_r
     "dossier baby robot permanent research is stale")
 for _,id in ipairs({
     "universal_mole_companion","universal_mole_damage","universal_mole_speed","universal_mole_attack_speed",
-    "universal_mole_claw","universal_mole_dual","universal_mole_extra","universal_oil_drum",
+    "universal_mole_claw","universal_mole_dual","universal_mole_extra","universal_mole_burrow",
+    "universal_mole_burrow_speed","universal_mole_burrow_damage","universal_mole_burrow_cooldown","universal_oil_drum",
     "universal_oil_interval","universal_oil_radius","universal_oil_splash_count","universal_oil_patch_scale","universal_oil_ignition_radius",
     "universal_oil_duration","universal_oil_burn_duration","universal_oil_damage",
     "universal_gray_cat","universal_gray_cat_chance","universal_gray_cat_delay","universal_gray_cat_speed","universal_gray_cat_exit_speed"

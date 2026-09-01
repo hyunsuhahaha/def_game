@@ -231,6 +231,8 @@ Traits.data.levels.universal_mole_companion=1
 Traits.data.levels.universal_mole_damage=3;Traits.data.levels.universal_mole_speed=3
 Traits.data.levels.universal_mole_attack_speed=3;Traits.data.levels.universal_mole_claw=2
 Traits.data.levels.universal_mole_dual=1;Traits.data.levels.universal_mole_extra=2
+Traits.data.levels.universal_mole_burrow=1;Traits.data.levels.universal_mole_burrow_speed=3
+Traits.data.levels.universal_mole_burrow_damage=3;Traits.data.levels.universal_mole_burrow_cooldown=3
 for _,id in ipairs({"fire_score_prewarm","fire_score_filter","fire_score_lighter","fire_score_spark","fire_score_launch","fire_score_ash","fire_score_drag","fire_score_heat"})do Traits.data.levels[id]=5 end
 Traits.data.levels.fire_score_stock=1
 game:startClearcutScoreAttack()
@@ -248,6 +250,10 @@ assert(#game.clearcut.moleCompanions==3,"two additional companion nodes did not 
 local mole=game.clearcut.moleCompanion
 assert(mole.damage==5 and math.abs(mole.speed-292.5)<1e-9 and mole.attackDuration<.46 and
     mole.clawLevel==5 and mole.attackReach==140 and mole.dualClaw,"split mole damage, movement, attack-speed and claw upgrades were not applied")
+assert(game.clearcut.permanentTraits.scoreMoleBurrow==1 and
+    math.abs(game.clearcut.permanentTraits.scoreMoleBurrowSpeed-.36)<1e-9 and
+    game.clearcut.permanentTraits.scoreMoleBurrowDamage==6 and game.clearcut.permanentTraits.scoreMoleBurrowCooldown==4.5,
+    "mole burrow unlock and upgrades did not reach score runtime")
 local claimed={}
 for _,companion in ipairs(game.clearcut.moleCompanions)do
     local target=game.clearcut:findMoleCompanionTree(companion,game)
@@ -277,25 +283,40 @@ assert(game.clearcut:findMoleCompanionTree(mole,game)==landmark,"mole ignored a 
 game.clearcut:updateOneMoleCompanion(mole,.01,game)
 game.clearcut:updateOneMoleCompanion(mole,.25,game)
 assert(landmark.rushHp<50,"mole stood beside a giant-canopy tree without chopping it")
--- 맵 경계에서 좌표가 아주 조금씩 움직이지만 목표 거리는 줄지 않는 경우를 재현한다.
--- 예전 moved 기반 감시는 매 프레임 타이머가 초기화되어 같은 나무로 영원히 걸었다.
-local maps=require("src.clearcut_maps")
-local originalConstrain=maps.constrain
-local unreachable={kind="tree",rushTree=true,active=true,x=mole.x+500,y=mole.y,
-    rushHp=50,rushMaxHp=50,treeVariant=1,respawn=math.huge}
-local reachable={kind="tree",rushTree=true,active=true,x=mole.x-96,y=mole.y,
-    rushHp=50,rushMaxHp=50,treeVariant=1,respawn=math.huge}
-game.world.nodes={unreachable,reachable};mole.state,mole.target="walk",unreachable
-mole.blockedTarget,mole.blockedTargetT,mole.approachNoProgress=nil,0,0
-maps.constrain=function(_,_,_,_)return mole.x,mole.y+.2 end
-for _=1,10 do game.clearcut:updateOneMoleCompanion(mole,.05,game)end
-maps.constrain=originalConstrain
-assert(mole.blockedTarget==unreachable and mole.target==nil,
-    "mole did not abandon a target while sliding along the map boundary")
-game.clearcut:updateOneMoleCompanion(mole,.01,game)
-assert(mole.target==reachable,"mole immediately reselected the same unreachable tree")
+-- 공격 방향은 예외 없이 360도다. 상하좌우와 네 대각선에서 실제로 접근한 뒤
+-- 같은 원형 사거리 판정으로 발톱 피해까지 들어가는지 모두 검사한다.
+local centerX,centerY=game.world.width*.5,game.world.height*.5
+for direction=0,7 do
+    local angle=direction*math.pi/4
+    local directionalTree={kind="tree",rushTree=true,active=true,x=centerX+math.cos(angle)*300,
+        y=centerY+math.sin(angle)*300,rushHp=50,rushMaxHp=50,treeVariant=1,respawn=math.huge}
+    game.world.nodes={directionalTree}
+    mole.x,mole.y,mole.state,mole.target=centerX,centerY,"seek",nil
+    mole.burrowCooldown=999
+    for _=1,120 do game.clearcut:updateOneMoleCompanion(mole,.02,game)end
+    assert(directionalTree.rushHp<50,"mole failed to attack direction "..direction)
+end
+-- 기존 플레이어 땅굴의 경로 자국·접촉·뿌리 투척을 두더지 AI가 가까운 나무를
+-- 연속으로 찾아가며 사용한다.
+local uprootTree={kind="tree",rushTree=true,active=true,x=centerX+170,y=centerY,
+    rushHp=1,rushMaxHp=1,treeVariant=1,respawn=math.huge}
+local tunnelTree={kind="tree",rushTree=true,active=true,x=centerX+340,y=centerY,
+    rushHp=40,rushMaxHp=40,treeVariant=1,respawn=math.huge}
+game.world.nodes={uprootTree,tunnelTree}
+mole.x,mole.y,mole.state,mole.target=centerX,centerY,"seek",nil
+mole.burrowCooldown=0;mole.burrowHit={}
+local thrownBefore=#game.clearcut.thrownTrees
+for _=1,100 do
+    game.clearcut:updateOneMoleCompanion(mole,.02,game)
+    if not uprootTree.active and tunnelTree.rushHp<40 then break end
+end
+assert(not uprootTree.active and uprootTree.uprooted and #game.clearcut.thrownTrees>thrownBefore,
+    "mole AI burrow did not reuse the existing zero-HP tree launch")
+assert(tunnelTree.rushHp<40 and mole.x>centerX+200,
+    "mole AI burrow did not travel quickly through nearby trees and damage its path")
+assert(#game.clearcut.burrowTracks>0,"mole AI burrow did not reuse the authored underground trail")
 game.world.nodes=ordinaryNodes;mole.state,mole.target="seek",nil
-mole.blockedTarget,mole.blockedTargetT=nil,0
+mole.burrowCooldown=0
 assert(game.clearcut.totalWood==0 and game.clearcut.level==1 and game.clearcut.xpNext==0 and game.clearcut.pending==0,
     "score run did not start with its in-run progression disabled")
 assert(game.clearcut.smoking and game.clearcut.smoking.dur<.75,"first ignition preparation trait did not shorten the opening load")

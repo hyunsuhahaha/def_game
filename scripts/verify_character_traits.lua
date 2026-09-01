@@ -100,13 +100,16 @@ for _,spec in ipairs({{"universal_oil_interval",3},{"universal_oil_radius",5},{"
     for rank=1,spec[2]do assert(moleUpgradeStore:buy(spec[1]),spec[1].." rank "..rank.." was not purchasable")end
 end
 for _,spec in ipairs({{"universal_mole_damage",3},{"universal_mole_speed",3},{"universal_mole_attack_speed",3},
-    {"universal_mole_claw",2},{"universal_mole_dual",1},{"universal_mole_extra",2}})do
+    {"universal_mole_claw",2},{"universal_mole_dual",1},{"universal_mole_extra",2},{"universal_mole_burrow",1},
+    {"universal_mole_burrow_speed",3},{"universal_mole_burrow_damage",3},{"universal_mole_burrow_cooldown",3}})do
     for rank=1,spec[2]do assert(moleUpgradeStore:buy(spec[1]),spec[1].." rank "..rank.." was not purchasable")end
 end
 local moleEffects=moleUpgradeStore:scoreAttackEffects()
 assert(moleEffects.scoreMoleCompanion==1 and moleEffects.scoreMoleDamage==3 and math.abs(moleEffects.scoreMoleSpeed-.30)<1e-9 and
     math.abs(moleEffects.scoreMoleAttackSpeed-.36)<1e-9 and moleEffects.scoreMoleClawTier==2 and moleEffects.scoreMoleDualClaw==1 and
-    moleEffects.scoreMoleExtraCompanions==2,"split mole research nodes did not accumulate independently")
+    moleEffects.scoreMoleExtraCompanions==2 and moleEffects.scoreMoleBurrow==1 and
+    math.abs(moleEffects.scoreMoleBurrowSpeed-.36)<1e-9 and moleEffects.scoreMoleBurrowDamage==6 and
+    moleEffects.scoreMoleBurrowCooldown==4.5,"split mole research nodes did not accumulate independently")
 assert(moleEffects.scoreOilDrum==1 and moleEffects.scoreGrayCat==1,"gray oil-cat research effects were not accumulated")
 assert(moleEffects.scoreOilDrumInterval==6 and moleEffects.scoreOilRadius==150 and moleEffects.scoreOilSplashCount==12 and
     math.abs(moleEffects.scoreOilPatchScale-.32)<1e-9 and moleEffects.scoreOilIgnitionRadius==64 and
@@ -165,6 +168,8 @@ store.data.levels.universal_mole_companion=1
 store.data.levels.universal_mole_damage=3;store.data.levels.universal_mole_speed=3
 store.data.levels.universal_mole_attack_speed=3;store.data.levels.universal_mole_claw=2
 store.data.levels.universal_mole_dual=1;store.data.levels.universal_mole_extra=2
+store.data.levels.universal_mole_burrow=1;store.data.levels.universal_mole_burrow_speed=3
+store.data.levels.universal_mole_burrow_damage=3;store.data.levels.universal_mole_burrow_cooldown=3
 local splitGrowth=store:scoreAttackEffects()
 assert(splitGrowth.scoreYardExpansion==7,"split logging-yard expansion did not reach seven nodes")
 assert(math.abs(splitGrowth.moveSpeed-1.24)<1e-9,"split movement upgrades did not preserve +24% total speed")
@@ -195,7 +200,8 @@ assert(earlySmoking:scoreAttackEffects().scoreAlwaysSmoking==1,"early always-smo
 local activeScore=store:scoreAttackEffects()
 assert(activeScore.scoreInitialIgnitionReduction==.4,"score-mode opening ignition trait is not active")
 assert(activeScore.scoreStartingBabyRobot==1 and activeScore.scoreRobotSpeed==.5,"score-mode baby robot permanent research is not active")
-assert(activeScore.scoreMoleCompanion==1 and activeScore.scoreMoleDamage==3 and activeScore.scoreMoleExtraCompanions==2,
+assert(activeScore.scoreMoleCompanion==1 and activeScore.scoreMoleDamage==3 and activeScore.scoreMoleExtraCompanions==2 and
+    activeScore.scoreMoleBurrow==1 and activeScore.scoreMoleBurrowDamage==6,
     "split score-mode mole companion upgrades are not active")
 assert(activeScore.scoreOilDrum==1 and activeScore.scoreOilIgnitionRadius==64 and activeScore.scoreOilBurnDuration==6 and activeScore.scoreGrayCat==1,
     "oil drum ignition upgrades or gray oil-cat permanent research are not active")
@@ -337,8 +343,8 @@ assert(flameMode.flameStream==nil,"비가 오는데 화염 기둥이 남아 있�
 -- 보루 재장전 하한, 보루 크기 20)를 각각 여는 노드이며 폭죽 시각 특성 3개가 추가된다.
 -- 이동·시야·작업 구역과 화염방사기 강화 단계는 한 노드의 다단계가 아니라 기존 장비
 -- 갈래 사이에 놓인 별도 1레벨 노드다. 초·후반 목재 흡수 범위 2개와 뻥튀기 9개를 포함해 fire 74이고, universal 은
--- 기존 33에 화덕 피자 10개를 더한 43이다.
-assert(#store:getScoreAttackNodes("fire")==74 and #store:getScoreAttackNodes("universal")==43,
+-- 기존 33에 화덕 피자 10개와 두더지 땅굴 4개를 더한 47이다.
+assert(#store:getScoreAttackNodes("fire")==74 and #store:getScoreAttackNodes("universal")==47,
     "active research board did not expose the distributed one-rank nodes")
 local pickupStore=CharacterTraits.new(true)
 pickupStore.data.levels.fire_score_pickup_1=3
@@ -402,7 +408,8 @@ assert(pcall(board.draw,board), "character trait board draw contract failed")
 assert(board.researchBackground==nil,"research board restored the removed forest-photo backdrop")
 local molePositions={};local minMoleY,maxMoleY=math.huge,-math.huge
 for _,id in ipairs({"universal_mole_companion","universal_mole_damage","universal_mole_speed","universal_mole_attack_speed",
-    "universal_mole_claw","universal_mole_dual","universal_mole_extra"})do
+    "universal_mole_claw","universal_mole_dual","universal_mole_extra","universal_mole_burrow",
+    "universal_mole_burrow_speed","universal_mole_burrow_damage","universal_mole_burrow_cooldown"})do
     local mx,my=board:nodeWorld(store:getNode(id));local key=mx..":"..my
     assert(not molePositions[key],"split mole research nodes overlap at "..key);molePositions[key]=true
     minMoleY,maxMoleY=math.min(minMoleY,my),math.max(maxMoleY,my)

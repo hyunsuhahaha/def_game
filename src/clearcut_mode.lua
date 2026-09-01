@@ -248,6 +248,7 @@ function ClearcutMode.new()
             moveSpeed=1, pickupRadius=0, hpRegen=0, reviveCharges=0,
             scoreInitialIgnitionReduction=0,scoreCigaretteImpact=0,scoreMoleCompanion=0,scoreMoleDamage=0,scoreMoleSpeed=0,
             scoreMoleAttackSpeed=0,scoreMoleClawTier=0,scoreMoleDualClaw=0,scoreMoleExtraCompanions=0,
+            scoreMoleBurrow=0,scoreMoleBurrowSpeed=0,scoreMoleBurrowDamage=0,scoreMoleBurrowCooldown=0,
             scoreOilDrum=0,scoreOilDrumInterval=0,scoreOilRadius=0,scoreOilIgnitionRadius=0,
             scoreOilDuration=0,scoreOilBurnDuration=0,scoreOilDamage=0,scoreOilSplashCount=0,scoreOilPatchScale=0,
             scoreGrayCat=0,scoreGrayCatChance=0,scoreGrayCatDelay=0,scoreGrayCatSpeed=0,scoreGrayCatExitSpeed=0,
@@ -755,7 +756,8 @@ function ClearcutMode:initMoleCompanion(game)
             speed=225*(1+math.max(0,traits.scoreMoleSpeed or 0)),damage=2+math.max(0,traits.scoreMoleDamage or 0),
             clawLevel=1+math.max(0,math.min(2,math.floor(traits.scoreMoleClawTier or 0)))*2,
             attackReach=104+math.max(0,math.min(2,math.floor(traits.scoreMoleClawTier or 0)))*18,
-            dualClaw=(traits.scoreMoleDualClaw or 0)>0,treesFelled=0}
+            dualClaw=(traits.scoreMoleDualClaw or 0)>0,treesFelled=0,
+            burrowCooldown=math.max(0,(index-1)*.7),burrowT=0,burrowHit={}}
     end
     self.moleCompanion=self.moleCompanions[1]
     return true
@@ -802,26 +804,93 @@ function ClearcutMode:findMoleCompanionTree(companion,game)
     for _,other in ipairs(self.moleCompanions or{})do
         if other~=companion and other.target and other.target.active and not other.target.treeEmergence then claimed[other.target]=true end
     end
-    -- 방금 경계에 막힌 나무는 잠시 후보에서 뺀다. 그렇지 않으면 타깃을
-    -- 포기한 바로 다음 프레임에 같은 나무를 다시 골라 무한 보행한다.
-    local blocked=(companion.blockedTargetT or 0)>0 and companion.blockedTarget or nil
-    local best,bestDistance,fallback,fallbackDistance
+    local best,bestDistance,fallback,fallbackDistance,bestX,bestY,fallbackX,fallbackY
     for _,node in ipairs(game.world.nodes)do
         -- giantTree는 큰 수관을 고르는 시각 표식일 뿐 살아 있는 벌목 대상이다. 이를
         -- 제외하면 큰 나무만 남은 순간 동료가 화면의 나무 옆에서 영원히 대기한다.
-        if node.rushTree and node.active and not node.treeEmergence and node~=blocked then
-            local dx,dy=node.x-companion.x,node.y-companion.y
-            local distance=dx*dx+dy*dy
-            if not fallbackDistance or distance<fallbackDistance then fallback,fallbackDistance=node,distance end
-            if not claimed[node]and(not bestDistance or distance<bestDistance)then best,bestDistance=node,distance end
+        if node.rushTree and node.active and not node.treeEmergence then
+            local approachX,approachY=self:moleCompanionAttackPoint(companion,node,game)
+            if approachX then
+                local dx,dy=approachX-companion.x,approachY-companion.y
+                local distance=dx*dx+dy*dy
+                if not fallbackDistance or distance<fallbackDistance then
+                    fallback,fallbackDistance,fallbackX,fallbackY=node,distance,approachX,approachY
+                end
+                if not claimed[node]and(not bestDistance or distance<bestDistance)then
+                    best,bestDistance,bestX,bestY=node,distance,approachX,approachY
+                end
+            end
         end
     end
     local target=best or fallback
-    if companion.target~=target then
-        companion.approachNoProgress=0
-    end
     companion.target=target
+    companion.targetApproachX=best and bestX or fallbackX
+    companion.targetApproachY=best and bestY or fallbackY
+    companion.routeViaCenter=target and not self:moleCompanionPathClear(game.world,companion.x,companion.y,
+        companion.targetApproachX,companion.targetApproachY)or false
     return companion.target
+end
+
+-- 나무 중심의 어느 방향에서든 같은 원형 사거리로 공격할 수 있는 지점을 찾는다.
+-- 후보를 실제 이동 영역에 먼저 투영하므로 위·아래·좌·우·대각선과 가장자리 나무가
+-- 모두 동일한 규칙을 쓰며, 갈 수 없는 좌표를 목표로 잡는 일이 없다.
+function ClearcutMode:moleCompanionAttackPoint(companion,node,game)
+    if not node or not node.x or not node.y then return nil end
+    local maps=require("src.clearcut_maps")
+    local reach=math.max(42,(companion.attackReach or 104)-8)
+    local dx,dy=companion.x-node.x,companion.y-node.y
+    local base=(math.abs(dx)+math.abs(dy))>.01 and moleCompanionAngle(dy,dx)or 0
+    local bestX,bestY,bestScore
+    for index=0,15 do
+        local offset=index==0 and 0 or math.ceil(index/2)*(math.pi/8)*(index%2==1 and 1 or -1)
+        local angle=base+offset
+        local x,y=maps.constrain(game.world,node.x+math.cos(angle)*reach,node.y+math.sin(angle)*reach,42)
+        local treeDx,treeDy=x-node.x,y-node.y
+        if treeDx*treeDx+treeDy*treeDy<=(companion.attackReach or 104)^2 then
+            local moveDx,moveDy=x-companion.x,y-companion.y
+            local score=moveDx*moveDx+moveDy*moveDy
+            if not bestScore or score<bestScore then bestX,bestY,bestScore=x,y,score end
+        end
+    end
+    return bestX,bestY
+end
+
+function ClearcutMode:moleCompanionPathClear(world,x0,y0,x1,y1)
+    if not x1 or not y1 then return false end
+    local maps=require("src.clearcut_maps")
+    local dx,dy=x1-x0,y1-y0
+    local steps=math.max(1,math.ceil(math.sqrt(dx*dx+dy*dy)/48))
+    for index=1,steps do
+        local ratio=index/steps
+        local x,y=x0+dx*ratio,y0+dy*ratio
+        local cx,cy=maps.constrain(world,x,y,42)
+        if math.abs(cx-x)>.5 or math.abs(cy-y)>.5 then return false end
+    end
+    return true
+end
+
+function ClearcutMode:moveMoleCompanionToTarget(companion,dt,game,speed,targetCenter)
+    local goalX,goalY
+    if targetCenter then
+        goalX,goalY=companion.target.x,companion.target.y
+    else
+        goalX,goalY=companion.targetApproachX,companion.targetApproachY
+    end
+    if not goalX then return companion.x,companion.y,companion.x,companion.y,true end
+    if companion.routeViaCenter then
+        local centerX,centerY=require("src.clearcut_maps").constrain(game.world,game.world.width*.5,game.world.height*.5,42)
+        local centerDx,centerDy=centerX-companion.x,centerY-companion.y
+        if centerDx*centerDx+centerDy*centerDy<=24^2 then companion.routeViaCenter=false
+        else goalX,goalY=centerX,centerY end
+    end
+    local oldX,oldY=companion.x,companion.y
+    local dx,dy=goalX-oldX,goalY-oldY
+    local distance=math.sqrt(dx*dx+dy*dy)
+    if distance<=1 then return oldX,oldY,oldX,oldY,true end
+    local step=math.min(distance,speed*dt)
+    local x,y=oldX+dx/distance*step,oldY+dy/distance*step
+    companion.x,companion.y=require("src.clearcut_maps").constrain(game.world,x,y,42)
+    return oldX,oldY,companion.x,companion.y,distance<=step+.01
 end
 
 function ClearcutMode:moleCompanionImpact(companion,game)
@@ -915,16 +984,117 @@ function ClearcutMode:companionSpeed(companion)
     return base*(1+.6*power)
 end
 
+function ClearcutMode:findMoleCompanionBurrowTree(companion,game)
+    local best,bestDistance
+    for _,node in ipairs(game.world.nodes)do
+        if node.rushTree and node.active and not node.treeEmergence and not companion.burrowHit[node]then
+            local dx,dy=node.x-companion.x,node.y-companion.y
+            local distance=dx*dx+dy*dy
+            if not bestDistance or distance<bestDistance then best,bestDistance=node,distance end
+        end
+    end
+    companion.target=best
+    if best then
+        companion.routeViaCenter=not self:moleCompanionPathClear(game.world,companion.x,companion.y,best.x,best.y)
+    end
+    return best
+end
+
+function ClearcutMode:startMoleCompanionBurrow(companion,game)
+    if companion.kind=="lumberjack"or(self.permanentTraits.scoreMoleBurrow or 0)<=0 then return false end
+    companion.state,companion.burrowT,companion.burrowElapsed="burrow_enter",0,0
+    companion.burrowHit,companion.side,companion.launched={},companion.side or 1,0
+    companion.burrowTrackX,companion.burrowTrackY=companion.x,companion.y
+    self:addBurrowTrack(companion.x,companion.y,0,"entry")
+    return true
+end
+
+-- 플레이어의 수동 땅굴과 두더지 AI가 공유하는 경로 접촉 판정이다.
+function ClearcutMode:burrowPathTouchesTree(node,x0,y0,x1,y1,radius)
+    local vx,vy=x1-x0,y1-y0
+    local lengthSquared=vx*vx+vy*vy
+    local ratio=0
+    if lengthSquared>.0001 then
+        ratio=math.max(0,math.min(1,((node.x-x0)*vx+(node.y-y0)*vy)/lengthSquared))
+    end
+    local dx,dy=node.x-(x0+vx*ratio),node.y-(y0+vy*ratio)
+    return dx*dx+dy*dy<=radius*radius
+end
+
+function ClearcutMode:updateMoleCompanionBurrow(companion,dt,game)
+    companion.burrowT=(companion.burrowT or 0)+dt
+    if companion.state=="burrow_enter"then
+        if companion.burrowT>=.18 then
+            companion.state,companion.burrowT="burrow",0
+            if not companion.target or not companion.target.active then self:findMoleCompanionBurrowTree(companion,game)end
+            if companion.target then
+                companion.routeViaCenter=not self:moleCompanionPathClear(game.world,companion.x,companion.y,
+                    companion.target.x,companion.target.y)
+            end
+        end
+        return true
+    end
+    if companion.state=="burrow_exit"then
+        if companion.burrowT>=.18 then
+            companion.state,companion.target,companion.burrowT="seek",nil,0
+            companion.burrowCooldown=math.max(3.5,10-math.max(0,self.permanentTraits.scoreMoleBurrowCooldown or 0))
+        end
+        return true
+    end
+    companion.burrowElapsed=(companion.burrowElapsed or 0)+dt
+    local target=companion.target
+    if not target or not target.active or companion.burrowHit[target]then target=self:findMoleCompanionBurrowTree(companion,game)end
+    if not target or companion.burrowElapsed>=2.4 then
+        companion.state,companion.burrowT="burrow_exit",0
+        self:addBurrowTrack(companion.x,companion.y,0,"exit")
+        return true
+    end
+    local speed=self:companionSpeed(companion)*(1.35+math.max(0,self.permanentTraits.scoreMoleBurrowSpeed or 0))
+    local x0,y0,x1,y1,reached=self:moveMoleCompanionToTarget(companion,dt,game,speed,true)
+    local moveX,moveY=x1-x0,y1-y0
+    if math.abs(moveX)>2 then companion.facing=moveX<0 and -1 or 1 end
+    local trackDx,trackDy=x1-(companion.burrowTrackX or x0),y1-(companion.burrowTrackY or y0)
+    local trackDistance=math.sqrt(trackDx*trackDx+trackDy*trackDy)
+    if trackDistance>=22 then
+        local nx,ny=trackDx/trackDistance,trackDy/trackDistance
+        local traveled=22
+        while traveled<=trackDistance do
+            self:addBurrowTrack((companion.burrowTrackX or x0)+nx*traveled,
+                (companion.burrowTrackY or y0)+ny*traveled,moleCompanionAngle(ny,nx))
+            traveled=traveled+22
+        end
+        local used=traveled-22
+        companion.burrowTrackX=(companion.burrowTrackX or x0)+nx*used
+        companion.burrowTrackY=(companion.burrowTrackY or y0)+ny*used
+    end
+    local hitRadius=58
+    local damage=self:companionDamage(companion)+2+math.max(0,self.permanentTraits.scoreMoleBurrowDamage or 0)
+    for _,node in ipairs(game.world.nodes)do
+        if node.rushTree and node.active and not companion.burrowHit[node]
+            and self:burrowPathTouchesTree(node,x0,y0,x1,y1,hitRadius)then
+            companion.burrowHit[node]=true
+            node.rushHp=(node.rushHp or node.rushMaxHp)-damage
+            game.world:impactNode(node,game,true)
+            if node.rushHp<=0 and self:launchTreeSideways(node,moveX,moveY,companion,game,companion,
+                math.max(0,self.permanentTraits.scoreMoleBurrowDamage or 0))then
+                companion.treesFelled=(companion.treesFelled or 0)+1
+            end
+        end
+    end
+    if reached or companion.burrowHit[target]then self:findMoleCompanionBurrowTree(companion,game)end
+    return true
+end
+
 function ClearcutMode:updateOneMoleCompanion(companion,dt,game)
     self:configureGraduateMonkeyWeapon(companion)
     if companion.kind=="lumberjack"and not companion.prop then companion.state="idle";companion.target=nil;return false end
     -- 화덕에 다녀오는 중이면 이 프레임의 벌목 루프는 통째로 건너뛴다.
     if ClearcutMode.PizzaOven.updateDiner(self,companion,dt,game)then return true end
-    companion.blockedTargetT=math.max(0,(companion.blockedTargetT or 0)-dt)
-    if companion.blockedTargetT<=0 or not companion.blockedTarget or not companion.blockedTarget.active then
-        companion.blockedTarget=nil
-    end
+    companion.burrowCooldown=math.max(0,(companion.burrowCooldown or 0)-dt)
     companion.walkClock=companion.walkClock+dt*7.5
+    if companion.state=="burrow_enter"or companion.state=="burrow"or companion.state=="burrow_exit"then
+        return self:updateMoleCompanionBurrow(companion,dt,game)
+    end
     local attackDuration=self:companionAttackDuration(companion)
     if companion.state=="attack"then
         companion.attackT=math.min(attackDuration,companion.attackT+dt)
@@ -940,35 +1110,20 @@ function ClearcutMode:updateOneMoleCompanion(companion,dt,game)
     end
     local target=companion.target
     if not target or not target.active or target.treeEmergence then target=self:findMoleCompanionTree(companion,game)end
-    if not target then companion.state="seek";companion.stuckTime=0;companion.approachNoProgress=0;return false end
+    if not target then companion.state="seek";return false end
     local dx,dy=target.x-companion.x,target.y-companion.y
     local distance=math.sqrt(dx*dx+dy*dy)
     if math.abs(dx)>2 then companion.facing=dx<0 and -1 or 1 end
     local attackReach=companion.attackReach or 104
     if distance>attackReach then
-        local step=math.min(distance-attackReach,self:companionSpeed(companion)*dt)
-        local x,y=companion.x+dx/distance*step,companion.y+dy/distance*step
-        local oldX,oldY=companion.x,companion.y
-        companion.x,companion.y=require("src.clearcut_maps").constrain(game.world,x,y,42)
-        local moved=(companion.x-oldX)^2+(companion.y-oldY)^2
-        local nextDx,nextDy=target.x-companion.x,target.y-companion.y
-        local distanceProgress=distance-math.sqrt(nextDx*nextDx+nextDy*nextDy)
-        -- 경계면을 따라 조금씩 미끄러지는 것도 정지로 본다. 기존 moved 검사만으로는
-        -- 좌표가 변한다는 이유로 stuckTime이 매 프레임 초기화되어 영원히 걸었다.
-        local minimumProgress=math.max(.08,step*.08)
-        local approaching=moved>=.01 and distanceProgress>=minimumProgress
-        companion.approachNoProgress=approaching and 0 or(companion.approachNoProgress or 0)+dt
-        companion.stuckTime=companion.approachNoProgress
-        if companion.approachNoProgress>=.45 then
-            -- 실패한 나무를 1.2초간 재선택하지 않고 다른 살아 있는 나무를 찾는다.
-            companion.blockedTarget,companion.blockedTargetT=target,1.2
-            companion.target=nil;companion.state="seek";companion.stuckTime=0;companion.approachNoProgress=0
-            return false
+        if companion.kind~="lumberjack"and(self.permanentTraits.scoreMoleBurrow or 0)>0
+            and companion.burrowCooldown<=0 then
+            return self:startMoleCompanionBurrow(companion,game)
         end
+        self:moveMoleCompanionToTarget(companion,dt,game,self:companionSpeed(companion),false)
         companion.state="walk"
     else
         companion.state,companion.attackT,companion.struck,companion.stuckTime="attack",0,false,0
-        companion.approachNoProgress=0
     end
     return true
 end
@@ -987,9 +1142,11 @@ end
 
 function ClearcutMode:drawMoleCompanion(companion)
     if not companion or not companion.sprite then return end
-    local action=companion.state=="attack"
+    if companion.state=="burrow"then return end
+    local action=companion.state=="attack"or companion.state=="burrow_enter"or companion.state=="burrow_exit"
     local row=action and(companion.sprite.graduateMonkey and(companion.prop or"walk")or"action")or"walk"
-    local progress=action and math.min(.999,companion.attackT/self:companionAttackDuration(companion))or 0
+    local progress=companion.state=="attack"and math.min(.999,companion.attackT/self:companionAttackDuration(companion))
+        or action and math.min(.999,(companion.burrowT or 0)/.18)or 0
     local frame=action and(math.floor(progress*6)+1)or(math.floor(companion.walkClock)%6+1)
     local sprite=companion.sprite
     local direction=(sprite[row.."Facing"]or{})[frame]or 1
@@ -4711,16 +4868,6 @@ function ClearcutMode:updateMinerAttack(dt, game, heldOverride)
     return false
 end
 
-local function pointSegmentDistanceSquared(px, py, ax, ay, bx, by)
-    local vx, vy = bx - ax, by - ay
-    local length2 = vx*vx + vy*vy
-    if length2 <= .001 then return (px-ax)^2 + (py-ay)^2 end
-    local u = math.max(0, math.min(1, ((px-ax)*vx + (py-ay)*vy) / length2))
-    local dx, dy = px - (ax + vx*u), py - (ay + vy*u)
-    return dx*dx + dy*dy
-end
-
-
 -- The claw atlas is anchored at (96,64). Its visible contact reaches roughly
 -- 72 native pixels behind and 85 ahead of that anchor, with 39px half-width.
 -- These helpers keep area damage bound to the one visible swipe.
@@ -4871,14 +5018,15 @@ function ClearcutMode:updateBurrowTracks(dt)
     end
 end
 
-function ClearcutMode:launchTreeSideways(node, moveX, moveY, burrow, game)
+function ClearcutMode:launchTreeSideways(node, moveX, moveY, burrow, game, actor, powerOverride)
     local length = math.sqrt(moveX*moveX + moveY*moveY)
-    if length < .01 then moveX,moveY,length=game.player.facing or 1,0,1 end
+    actor=actor or game.player
+    if length < .01 then moveX,moveY,length=actor.facing or 1,0,1 end
     local nx,ny=moveX/length,moveY/length
     local side=burrow.side
     burrow.side=-burrow.side
     local sx,sy=-ny*side,nx*side
-    local power=self:power("burrow_uproot")
+    local power=powerOverride or self:power("burrow_uproot")
     local speed=610+power*55
     local variant=node.treeVariant or 1
     local x,y=node.x,node.y
@@ -4890,7 +5038,7 @@ function ClearcutMode:launchTreeSideways(node, moveX, moveY, burrow, game)
         gravity=820,angle=0,spin=side*(3.8+power*.18),variant=variant,
         damage=3.5+power*1.35,penetration=1+self:powerCount("burrow_uproot"),hit={}
     }
-    burrow.launched=burrow.launched+1
+    burrow.launched=(burrow.launched or 0)+1
     self:addBurrowTrack(x,y,math.atan2(moveY,moveX),"root")
     self.traitFx:emit("construction_blast",x,y,{radius=78,particles=24,power=1.05,color={.48,.3,.12}})
     if game.camera then game.camera.trauma=math.min(1,game.camera.trauma+.22) end
@@ -4996,7 +5144,7 @@ function ClearcutMode:updateMinerBurrow(dt, game)
         end
         local hitRadius=72+self:power("burrow_uproot")*5+self.permanentTraits.area*.25
         for _,node in ipairs(game.world.nodes) do
-            if node.rushTree and node.active and pointSegmentDistanceSquared(node.x,node.y,x0,y0,x1,y1)<=hitRadius*hitRadius then
+            if node.rushTree and node.active and self:burrowPathTouchesTree(node,x0,y0,x1,y1,hitRadius)then
                 self:launchTreeSideways(node,moveX,moveY,burrow,game)
             end
         end
