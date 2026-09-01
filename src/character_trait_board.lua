@@ -395,6 +395,13 @@ function CharacterTraitBoard:nodeWorld(node)
         universal_mole_damage={2600,1350},universal_mole_speed={3000,1350},universal_mole_attack_speed={3400,1350},
         universal_mole_claw={2600,1600},universal_mole_extra={3000,1600},universal_mole_dual={2600,1850},
         universal_view_2={3400,1850},
+        -- 화덕은 동료 급식 설비라 두더지 해금 아래로 새 층을 쌓는다. 기름/고양이
+        -- 줄과 겹치지 않도록 y=2100 아래를 통째로 쓴다.
+        universal_oven_unlock={3800,2100},
+        universal_oven_heat={3400,2350},universal_oven_radius={3800,2350},universal_oven_slice_cost={4200,2350},
+        universal_oven_slices={3000,2600},universal_oven_call={3400,2600},
+        universal_oven_duration={3800,2600},universal_oven_power={4200,2600},universal_oven_rain={4600,2600},
+        universal_oven_stack={3800,2850},
     }
     local fixed=scoreLayout[node.id]
     if fixed then return fixed[1],fixed[2] end

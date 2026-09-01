@@ -464,6 +464,16 @@ expand("universal",{
     {id="universal_gray_cat_chance",name="고양이 출현 확률",short="고양이 출현 확률",desc="단계마다 고양이 출현 확률이 20% 증가합니다.",effect="scoreGrayCatChance",value=.20,max=3,costs={40,68,104},wx=2050,wy=1210,icon="gray_cat",color={.62,.66,.70},requires={{"universal_gray_cat",1}},scoreMode=true},
     {id="universal_gray_cat_delay",name="고양이 출동 대기시간",short="고양이 대기시간",desc="단계마다 고양이 출동 대기시간이 0.45초 감소합니다.",effect="scoreGrayCatDelay",value=.45,max=3,costs={34,58,88},wx=2350,wy=1210,icon="clock",color={.50,.66,.72},requires={{"universal_gray_cat_chance",1}},scoreMode=true},
     {id="universal_gray_cat_speed",name="고양이 등장 속도",short="빠른 등장",desc="단계마다 고양이가 화면 밖에서 드럼통까지 달려오는 속도가 20% 증가합니다.",effect="scoreGrayCatSpeed",value=.20,max=4,costs={28,46,70,100},wx=2050,wy=1470,icon="road",color={.52,.64,.68},requires={{"universal_gray_cat",1}},scoreMode=true},
+    {id="universal_oven_unlock",name="화덕 피자 설치",short="화덕 해금",desc="작업장 한가운데에 화덕이 섭니다. 반경 안에서 타고 있는 나무의 열로 피자를 굽고, 구워진 조각은 두더지와 졸업 원숭이가 직접 와서 먹습니다.",effect="scoreOvenUnlock",value=1,max=1,costs={210},wx=3800,wy=2100,icon="pizza_oven",color={.94,.60,.28},requires={{"universal_mole_companion",1}},scoreMode=true},
+    {id="universal_oven_heat",name="불목 확장",short="화력 상승",desc="타고 있는 나무 한 그루가 올리는 화력이 단계마다 0.4 증가합니다. 기본은 그루당 초당 1입니다.",effect="scoreOvenHeat",value=.4,max=4,costs={34,56,84,118},wx=3400,wy=2350,icon="ember",color={1,.52,.18},requires={{"universal_oven_unlock",1}},scoreMode=true},
+    {id="universal_oven_radius",name="굴뚝 개조",short="수집 반경",desc="열을 걷어오는 반경이 단계마다 50 증가합니다. 기본 반경은 260입니다.",effect="scoreOvenRadius",value=50,max=4,costs={30,50,76,108},wx=3800,wy=2350,icon="map",color={.88,.66,.34},requires={{"universal_oven_unlock",1}},scoreMode=true},
+    {id="universal_oven_slice_cost",name="얇은 도우",short="필요 화력 감소",desc="조각 하나에 필요한 화력이 단계마다 1.5 줄어듭니다. 기본은 10입니다.",effect="scoreOvenSliceCost",value=1.5,max=3,costs={48,78,120},wx=4200,wy=2350,icon="clock",color={.96,.82,.58},requires={{"universal_oven_unlock",1}},scoreMode=true},
+    {id="universal_oven_slices",name="큰 판",short="조각 수 증가",desc="한 판에 올라가는 조각이 단계마다 1개 늘어납니다. 기본은 6조각입니다.",effect="scoreOvenSlices",value=1,max=3,costs={70,115,175},wx=3000,wy=2600,icon="split",color={.92,.74,.30},requires={{"universal_oven_heat",2}},scoreMode=true},
+    {id="universal_oven_call",name="소문이 퍼짐",short="호출 거리 증가",desc="먹으러 오는 동료의 거리 제한이 단계마다 180 늘어납니다. 기본은 520이며, 이보다 멀리 있는 동료는 아예 오지 않습니다.",effect="scoreOvenCall",value=180,max=3,costs={40,68,104},wx=3400,wy=2600,icon="road",color={.72,.82,.56},requires={{"universal_oven_unlock",1}},scoreMode=true},
+    {id="universal_oven_duration",name="넉넉한 인심",short="지속시간 증가",desc="한 조각이 주는 버프 지속시간이 단계마다 5초 늘어납니다. 기본은 30초입니다.",effect="scoreOvenDuration",value=5,max=4,costs={32,54,80,112},wx=3800,wy=2600,icon="lunch",color={.86,.62,.30},requires={{"universal_oven_unlock",1}},scoreMode=true},
+    {id="universal_oven_power",name="치즈 두 배",short="버프 배율 상승",desc="먹은 동료의 피해·공격속도·이동속도 상승폭이 단계마다 커집니다. 기본은 피해 2배, 공격속도 +120%, 이동속도 +60%입니다.",effect="scoreOvenPower",value=.35,max=4,costs={60,96,148,210},wx=4200,wy=2600,icon="fist",color={1,.72,.26},requires={{"universal_oven_duration",1}},scoreMode=true},
+    {id="universal_oven_rain",name="젖은 장작",short="비 대응",desc="비가 오는 동안에도 화력의 20%가 단계마다 유지됩니다. 강화하지 않으면 비가 오는 동안 화덕이 완전히 멈춥니다.",effect="scoreOvenRain",value=.2,max=2,costs={58,92},wx=4600,wy=2600,icon="wind",color={.52,.72,.84},requires={{"universal_oven_radius",2}},scoreMode=true},
+    {id="universal_oven_stack",name="곱빼기",short="중첩 급식",desc="이미 먹은 동료도 남은 조각을 몰아 먹으러 오고, 먹을 때마다 버프가 중첩됩니다.",effect="scoreOvenStack",value=1,max=1,costs={340},wx=3800,wy=2850,icon="capstone",color={1,.56,.20},requires={{"universal_oven_power",2},{"universal_oven_slices",2}},scoreMode=true,capstone=true},
     {id="universal_gray_cat_exit_speed",name="고양이 퇴장 속도",short="빠른 퇴장",desc="단계마다 드럼통을 넘어뜨린 고양이가 화면 밖으로 사라지는 속도가 25% 증가합니다.",effect="scoreGrayCatExitSpeed",value=.25,max=4,costs={30,50,76,108},wx=2350,wy=1470,icon="road",color={.48,.60,.66},requires={{"universal_gray_cat_speed",1}},scoreMode=true},
 })
 
@@ -716,6 +726,9 @@ function CharacterTraits:scoreAttackEffects()
         scoreOilDrum=0,scoreOilDrumInterval=0,scoreOilRadius=0,scoreOilIgnitionRadius=0,
         scoreOilDuration=0,scoreOilBurnDuration=0,scoreOilDamage=0,scoreOilSplashCount=0,scoreOilPatchScale=0,
         scoreGrayCat=0,scoreGrayCatChance=0,scoreGrayCatDelay=0,scoreGrayCatSpeed=0,scoreGrayCatExitSpeed=0,
+        -- 화덕 피자. 연료는 목재가 아니라 반경 안에서 타고 있는 나무 수다.
+        scoreOvenUnlock=0,scoreOvenHeat=0,scoreOvenRadius=0,scoreOvenSliceCost=0,scoreOvenSlices=0,
+        scoreOvenCall=0,scoreOvenDuration=0,scoreOvenPower=0,scoreOvenRain=0,scoreOvenStack=0,
         -- 문맥 자동 무기 3종용. scoreTreeDamage는 도끼·폭죽 공용이고, 나머지는 각 무기가
         -- 담배용 수치를 계수로 나눠 쓰던 것을 전용으로 분리한 값이다.
         scoreTreeDamage=0,

@@ -57,6 +57,7 @@ ClearcutMode.SCORE_TIME_DOUBLING_SECONDS=30
 ClearcutMode.GrayOilCatArt = require("src.gray_oil_cat_art")
 ClearcutMode.OilDrumSpillArt = require("src.oil_drum_spill_art")
 ClearcutMode.PoppingMachine = require("src.popping_machine")
+ClearcutMode.PizzaOven = require("src.pizza_oven")
 ClearcutMode.OIL_BASE_RADIUS=180
 
 ClearcutMode.scoreWeaponDefinitions = {
@@ -213,7 +214,7 @@ function ClearcutMode.new()
         treeSparks={}, treeSparkArrivals={}, strawTimer=0, strawBales={}, strawBaleSequence=0,
         oilTrail={}, oilTrailTimer=0, oilTrailLastX=nil, oilTrailLastY=nil, oilTrailSequence=0,
         oilDrums={},oilDrumSpills={},oilDrumTimer=0,oilDrumSequence=0,oilPuddleGroups={},grayOilCat=nil,
-        poppingMachines={},puffedRiceShots={},puffedRiceImpacts={},poppingMachineSequence=0,
+        poppingMachines={},puffedRiceShots={},puffedRiceImpacts={},poppingMachineSequence=0,pizzaOven=nil,
         worldTreeLumber={},
         job=nil, attackCooldown=0, dashing=nil, dashTrail={}, smoking=nil,
         minerClawAction=nil, minerClawFx={}, minerClawMarks={}, minerBurrow=nil, minerBurrowCooldown=0, thrownTrees={}, burrowTracks={}, burrowTrackSequence=0,moleCompanion=nil,moleCompanions={},
@@ -630,6 +631,7 @@ function ClearcutMode:setup(game)
         self.oilDrumTimer=3.5
     end
     if self.scoreAttack and (self.permanentTraits.scorePopperUnlock or 0)>0 then ClearcutMode.PoppingMachine.load()end
+    if self.scoreAttack and (self.permanentTraits.scoreOvenUnlock or 0)>0 then ClearcutMode.PizzaOven.load()end
     local notice=self.scoreAttack and string.format("벌목 기록 — 활성 나무가 %d그루에 닿으면 종료",self.scoreTreeAllowance)or(Maps.get(self.mapId).name.." — 마우스를 누른 채 나무 근처로 이동하세요")
     if self.job=="miner" then notice=Maps.get(self.mapId).name.." — 좌클릭 할퀴기 · SPACE/우클릭 잠복" end
     game:setNotice(notice, "food")
@@ -823,7 +825,7 @@ function ClearcutMode:moleCompanionImpact(companion,game)
     local angle=moleCompanionAngle(ny,nx)
     local curveFlip=(companion.facing or 1)>0 and -1 or 1
     if companion.kind=="lumberjack"and companion.prop=="firework"then
-        self:detonateFirework({x1=node.x,y1=node.y,radius=125,damage=math.max(3,companion.damage)},game)
+        self:detonateFirework({x1=node.x,y1=node.y,radius=125,damage=math.max(3,self:companionDamage(companion))},game)
         companion.treesFelled=companion.treesFelled+(not node.active and 1 or 0)
         return true
     elseif companion.kind=="lumberjack"and companion.prop=="cigarette"then
@@ -838,7 +840,7 @@ function ClearcutMode:moleCompanionImpact(companion,game)
         node.rushHp=1
     end
     local treeX,treeY=node.x,node.y
-    node.rushHp=(node.rushHp or node.rushMaxHp)-companion.damage
+    node.rushHp=(node.rushHp or node.rushMaxHp)-self:companionDamage(companion)
     game.world:impactNode(node,game,true)
     SupplementArt.impact(self,"axe",contactX,contactY,20)
     if node.rushHp<=0 and self:fellTree(node,game)then
@@ -873,18 +875,50 @@ function ClearcutMode:configureGraduateMonkeyWeapon(companion)
     end
 end
 
+-- 화덕 피자를 먹은 동료는 정해진 시간 동안 두 배로 일한다.
+-- configureGraduateMonkeyWeapon 이 매 프레임 원숭이의 피해·공격주기를 다시 쓰므로
+-- 버프를 필드에 구워 넣으면 원숭이에게만 즉시 지워진다. 그래서 읽는 순간 곱한다.
+function ClearcutMode:companionFeastPower(companion)
+    if not companion or (companion.feastT or 0)<=0 then return 0 end
+    return companion.feastPower or 1
+end
+
+function ClearcutMode:companionDamage(companion)
+    local base=companion.damage or 0
+    local power=self:companionFeastPower(companion)
+    if power<=0 then return base end
+    return math.max(base,math.floor(base*(1+power)+.5))
+end
+
+function ClearcutMode:companionAttackDuration(companion)
+    local base=companion.attackDuration or .62
+    local power=self:companionFeastPower(companion)
+    if power<=0 then return base end
+    return base/(1+1.2*power)
+end
+
+function ClearcutMode:companionSpeed(companion)
+    local base=companion.speed or 210
+    local power=self:companionFeastPower(companion)
+    if power<=0 then return base end
+    return base*(1+.6*power)
+end
+
 function ClearcutMode:updateOneMoleCompanion(companion,dt,game)
     self:configureGraduateMonkeyWeapon(companion)
     if companion.kind=="lumberjack"and not companion.prop then companion.state="idle";companion.target=nil;return false end
+    -- 화덕에 다녀오는 중이면 이 프레임의 벌목 루프는 통째로 건너뛴다.
+    if ClearcutMode.PizzaOven.updateDiner(self,companion,dt,game)then return true end
     companion.walkClock=companion.walkClock+dt*7.5
+    local attackDuration=self:companionAttackDuration(companion)
     if companion.state=="attack"then
-        companion.attackT=math.min(companion.attackDuration,companion.attackT+dt)
-        local progress=companion.attackT/companion.attackDuration
+        companion.attackT=math.min(attackDuration,companion.attackT+dt)
+        local progress=companion.attackT/attackDuration
         if not companion.struck and progress>=.53 then
             companion.struck=true
             self:moleCompanionImpact(companion,game)
         end
-        if companion.attackT>=companion.attackDuration then
+        if companion.attackT>=attackDuration then
             companion.state,companion.target,companion.attackT,companion.struck="seek",nil,0,false
         end
         return true
@@ -897,7 +931,7 @@ function ClearcutMode:updateOneMoleCompanion(companion,dt,game)
     if math.abs(dx)>2 then companion.facing=dx<0 and -1 or 1 end
     local attackReach=companion.attackReach or 104
     if distance>attackReach then
-        local step=math.min(distance-attackReach,companion.speed*dt)
+        local step=math.min(distance-attackReach,self:companionSpeed(companion)*dt)
         local x,y=companion.x+dx/distance*step,companion.y+dy/distance*step
         local oldX,oldY=companion.x,companion.y
         companion.x,companion.y=require("src.clearcut_maps").constrain(game.world,x,y,42)
@@ -932,7 +966,7 @@ function ClearcutMode:drawMoleCompanion(companion)
     if not companion or not companion.sprite then return end
     local action=companion.state=="attack"
     local row=action and(companion.sprite.graduateMonkey and(companion.prop or"walk")or"action")or"walk"
-    local progress=action and math.min(.999,companion.attackT/companion.attackDuration)or 0
+    local progress=action and math.min(.999,companion.attackT/self:companionAttackDuration(companion))or 0
     local frame=action and(math.floor(progress*6)+1)or(math.floor(companion.walkClock)%6+1)
     local sprite=companion.sprite
     local direction=(sprite[row.."Facing"]or{})[frame]or 1
@@ -948,6 +982,7 @@ function ClearcutMode:drawMoleCompanion(companion)
     if sprite.graduateMonkey then
         GraduateMonkeyArt.drawProp(companion,row,frame,flip,foot,bob,drawScale*poseScale)
     end
+    ClearcutMode.PizzaOven.drawFeastAura(companion)
 end
 
 local function clearcutDistance(ax,ay,bx,by)
@@ -1436,6 +1471,7 @@ function ClearcutMode:update(dt, game)
     self:updateMoleCompanion(dt,game)
     self:updateOilDrums(dt,game)
     ClearcutMode.PoppingMachine.update(self,dt,game)
+    ClearcutMode.PizzaOven.update(self,dt,game)
     ScoreAxeArt.update(self,dt)
     self:updateHeldAxe(dt, game)
     self:updateThrownTrees(dt, game)
@@ -7233,6 +7269,7 @@ function ClearcutMode:queueWorldActors(queue,t)
             draw=function()ClearcutMode.GrayOilCatArt.drawDrum(drum)end}
     end
     ClearcutMode.PoppingMachine.queue(self,queue)
+    ClearcutMode.PizzaOven.queue(self,queue)
     for _,value in ipairs(self.scoreAxeImpacts or{})do local impact=value
         queue[#queue+1]={x=impact.x,y=impact.y+48,anchorY=impact.y+48,sortBias=.004,
             draw=function()ScoreAxeArt.drawImpact(impact)end}

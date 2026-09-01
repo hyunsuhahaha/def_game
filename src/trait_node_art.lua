@@ -1,4 +1,4 @@
-local Art={image=nil,quads=nil,cat=nil,catQuad=nil,drum=nil,popper=nil,popperQuad=nil}
+local Art={image=nil,quads=nil,cat=nil,catQuad=nil,drum=nil,popper=nil,popperQuad=nil,oven=nil,ovenQuad=nil}
 local order={ember=1,filter=2,cigarette=2,wind=3,ash=4,clock=5,warning=6,pack=7,map=8,basket=9}
 
 local function load()
@@ -9,9 +9,9 @@ local function load()
     for i=0,8 do Art.quads[i+1]=love.graphics.newQuad((i%3)*96,math.floor(i/3)*96,96,96,image:getDimensions())end
 end
 
-function Art.has(icon)return order[icon]~=nil or icon=="oil_drum"or icon=="gray_cat"or icon=="popping_machine"end
+function Art.has(icon)return order[icon]~=nil or icon=="oil_drum"or icon=="gray_cat"or icon=="popping_machine"or icon=="pizza_oven"end
 function Art.draw(icon,cx,cy,size,alpha)
-    if icon=="oil_drum"or icon=="gray_cat"or icon=="popping_machine"then
+    if icon=="oil_drum"or icon=="gray_cat"or icon=="popping_machine"or icon=="pizza_oven"then
         if not Art.drum then
             local drumOk,drum=pcall(love.graphics.newImage,"assets/characters/companions/oil-drum-pixel-v1.png")
             local catOk,cat=pcall(love.graphics.newImage,"assets/characters/companions/gray-oil-cat-atlas-pixel-v1.png")
@@ -25,6 +25,11 @@ function Art.draw(icon,cx,cy,size,alpha)
                 popper:setFilter("nearest","nearest");Art.popper=popper
                 Art.popperQuad=love.graphics.newQuad(0,0,256,192,popper:getDimensions())
             end
+            local ovenOk,oven=pcall(love.graphics.newImage,"assets/automation/pizza-oven-atlas-pixel-v1.png")
+            if ovenOk then
+                oven:setFilter("nearest","nearest");Art.oven=oven
+                Art.ovenQuad=love.graphics.newQuad(3*256,0,256,192,oven:getDimensions())
+            end
         end
         love.graphics.setColor(1,1,1,alpha or 1)
         if icon=="oil_drum"and Art.drum then
@@ -35,6 +40,9 @@ function Art.draw(icon,cx,cy,size,alpha)
             return true
         elseif icon=="popping_machine"and Art.popper and Art.popperQuad then
             love.graphics.draw(Art.popper,Art.popperQuad,math.floor(cx+.5),math.floor(cy+.5),0,size/180,size/180,128,112)
+            return true
+        elseif icon=="pizza_oven"and Art.oven and Art.ovenQuad then
+            love.graphics.draw(Art.oven,Art.ovenQuad,math.floor(cx+.5),math.floor(cy+.5),0,size/172,size/172,128,120)
             return true
         end
         return false
