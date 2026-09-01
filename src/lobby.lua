@@ -18,7 +18,11 @@ local function menuAction(self,index)return MENU[index or self.menuFocus or 1].a
 
 function Lobby.new(images,fonts)
  local pixel="assets/font-korean-pixel.ttf"
- return setmetatable({images=images,fonts=fonts,time=0,activeDevelopmentMode=ACTIVE_DEVELOPMENT_MODE,menuFocus=1,audioTrack=1,audioPlaying=true,
+ local backgroundTrees={}
+ for _,name in ipairs({"broadleaf","pine","birch","maple"})do
+  local image=love.graphics.newImage("assets/trees/"..name.."-tree-cartoon-v3.png");image:setFilter("nearest","nearest");backgroundTrees[#backgroundTrees+1]=image
+ end
+ return setmetatable({images=images,fonts=fonts,time=0,activeDevelopmentMode=ACTIVE_DEVELOPMENT_MODE,menuFocus=1,audioTrack=1,audioPlaying=true,backgroundTrees=backgroundTrees,
   pixelTiny=love.graphics.newFont(pixel,13),pixelSmall=love.graphics.newFont(pixel,17),pixelMenu=love.graphics.newFont(pixel,26),pixelTitle=love.graphics.newFont(pixel,58)},Lobby)
 end
 
@@ -70,6 +74,26 @@ function Lobby:drawBackground(w,h)
  for y=step,h,step do for x=(y/step%2)*step,w,step*2 do
   love.graphics.setColor(.52,.78,.54,.040);love.graphics.rectangle("fill",x,y,2,2)
  end end
+ local trees=self.backgroundTrees or{}
+ if #trees>0 then
+  local function drawRow(ground,startX,count,targetH,alpha,offset)
+   local span=w-startX;local spacing=span/math.max(1,count)
+   for i=1,count do
+    local image=trees[(i+offset-2)%#trees+1];local iw,ih=image:getDimensions();local scale=targetH/ih
+    local x=startX+(i-1)*spacing+(i%2)*spacing*.12
+    love.graphics.setColor(.60,.78,.48,alpha);love.graphics.draw(image,math.floor(x),math.floor(ground-targetH),0,scale,scale)
+   end
+  end
+  drawRow(h*.70,h<640 and w*.48 or w*.43,6,h*.24,.18,2)
+  drawRow(h*.91,w*.50,4,h*.37,.42,1)
+ end
+ love.graphics.setColor(.32,.57,.39,.16);love.graphics.rectangle("fill",w*.43,h*.68,w*.57,h*.035)
+ love.graphics.setColor(.49,.72,.50,.12);love.graphics.rectangle("fill",w*.48,h*.76,w*.52,h*.022)
+ love.graphics.setColor(.025,.09,.06,.72);love.graphics.rectangle("fill",0,h*.90,w,h*.10)
+ for i=1,12 do
+  local x=w*(.48+((i*37)%50)/100);local y=h*(.26+((i*23)%48)/100)
+  love.graphics.setColor(.98,.75,.25,.18+.12*math.abs(math.sin(self.time*1.4+i)));love.graphics.rectangle("fill",math.floor(x),math.floor(y),3,3)
+ end
 end
 
 local function pixelFrame(x,y,w,h,selected)
