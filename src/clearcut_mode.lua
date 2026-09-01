@@ -669,6 +669,8 @@ function ClearcutMode:scoreTreeSpawnRate()
         base=self:scoreTimedTreeSpawnRate()*self:scoreTimePressureMultiplier()*density
         -- 무허가 확장: 허용량을 크게 얻는 대신 숲이 더 빨리 차오른다.
         if self:scoreReward("permit")then base=base*1.5 end
+        -- 할당량 감축: 숲이 천천히 차오르는 대신 목재값을 깎는다.
+        if self:scoreReward("quota")then base=base*.6 end
         if self.scoreCollapseActive then
             local age=math.max(0,(self.scoreDeficitTimer or 5)-5)
             return math.max(base*(1+math.min(5,age*1.2)),1.35+math.min(2.4,age*.40))
@@ -728,6 +730,7 @@ function ClearcutMode:initMoleCompanion(game)
     end
     local traits=self.permanentTraits or{}
     local count=1+math.max(0,math.min(2,math.floor(traits.scoreMoleExtraCompanions or 0)))
+        +(self:scoreReward("mole_pack") and 2 or 0)
     self.moleCompanions={}
     for index=1,count do
         local angle=(index-1)/math.max(1,count)*math.pi*2
@@ -1126,6 +1129,7 @@ function ClearcutMode:updateOilDrums(dt,game)
     self.oilDrumTimer=(self.oilDrumTimer or 0)-dt
     if self.oilDrumTimer<=0 then
         self.oilDrumTimer=math.max(10,22-(self.permanentTraits.scoreOilDrumInterval or 0))
+            *(self:scoreReward("drum_run") and .5 or 1)
         self:spawnOilDrum(game)
     end
     for index=#self.oilDrums,1,-1 do
@@ -2232,7 +2236,7 @@ function ClearcutMode:updateScoreWorldTree(dt,game)
     end
     self.scoreWorldTreeTimer=(self.scoreWorldTreeTimer or ClearcutMode.ScoreWorldTree.INTERVAL)-dt
     if self.scoreWorldTreeTimer>0 then return end
-    self.scoreWorldTreeTimer=ClearcutMode.ScoreWorldTree.INTERVAL
+    self.scoreWorldTreeTimer=ClearcutMode.ScoreWorldTree.INTERVAL*(self:scoreReward("second_tree") and .6 or 1)
     self:spawnScoreWorldTree(game)
 end
 
@@ -2925,10 +2929,28 @@ end
 -- 보상을 고른 순간 즉시 반영해야 하는 것들. 나머지는 매 프레임 scoreReward 를 읽는다.
 function ClearcutMode:applyScoreReward(id,game)
     ClearcutMode.ScoreWorldTree.grant(self,id)
+    -- 대부분의 보상은 매 프레임 읽히는 곳에 걸려 있어 grant 만으로 끝난다. 여기 있는
+    -- 것들은 한 번 바뀌면 그대로인 값이라 이 자리에서 직접 반영해야 한다.
     if id=="permit" then self.scoreTreeAllowance=(self.scoreTreeAllowance or 12)+10 end
+    if id=="clear_cut" then self.scoreTreeAllowance=math.max(4,(self.scoreTreeAllowance or 12)-4) end
+    if id=="mole_pack" and self.moleCompanions and #self.moleCompanions>0 then self:initMoleCompanion(game) end
+    if id=="second_tree" then
+        self.scoreWorldTreeTimer=math.min(self.scoreWorldTreeTimer or ClearcutMode.ScoreWorldTree.INTERVAL,
+            ClearcutMode.ScoreWorldTree.INTERVAL*.6)
+    end
     local def=ClearcutMode.ScoreWorldTree.get(id)
     if def and game and game.setNotice then game:setNotice(def.name.." — "..def.desc,"food") end
     return true
+end
+
+-- 정산 수입에 붙는 판 한정 보너스. 호출부가 둘이라 식을 복붙하면 어긋난다.
+-- 숲과의 거래(forest) 셋은 서로 배타적이므로 그중 하나만 더해진다.
+function ClearcutMode:scoreSettlementBonus()
+    local bonus=0
+    if self:scoreReward("deep_roots") then bonus=bonus+.4 end
+    if self:scoreReward("clear_cut") then bonus=bonus+.5 end
+    if self:scoreReward("quota") then bonus=bonus-.25 end
+    return bonus
 end
 
 function ClearcutMode:scoreReward(id)
@@ -2940,6 +2962,7 @@ function ClearcutMode:spreadFactor()
     local routeFire = self:skillBranch("molotov") == "flame_route" and 1.3 or 1
     return (.12 + dryPower * .14 + (self.permanentTraits.spreadChance or 0))
         * routeFire * SPREAD_REFERENCE_BURN * (self:scoreReward("dry_wind") and 2 or 1)
+        * (self:scoreReward("slow_burn") and 0 or 1)
 end
 
 -- 기대값을 정수 전파 횟수로 바꾼다. 소수부는 확률로 처리해 평균이 정확히 factor가 된다.
@@ -3216,12 +3239,15 @@ function ClearcutMode:updateFire(dt, game)
     local molotovLevel = self:levelOf("molotov")
     -- 기록 모드의 담배 자동 투척은 이 루프를 그대로 쓴다. 간격 2.6초는 수동 투척
     -- 주기(약 2.2초)보다 느려서, 손을 비우는 대가로 화력을 조금 내주는 교환이 된다.
-    local autoThrow = self.scoreAttack and (self.permanentTraits.scoreAutoThrow or 0) > 0
+    -- 줄담배: 자동 투척을 아직 안 열었어도 이 판에서는 열린다. 손이 통째로 빈다.
+    local autoThrow = self.scoreAttack and ((self.permanentTraits.scoreAutoThrow or 0) > 0
+        or self:scoreReward("auto_carton"))
     if molotovLevel > 0 or autoThrow then
         self.molotovTimer = self.molotovTimer + dt
         -- `자동 투척 주기 단축`이 이 2.6초 상수를 연다. 손이 도끼·폭죽으로 넘어간 뒤의
         -- 담배 화력은 오직 이 간격으로만 자라므로, 없으면 후반 담배 수치가 고정된다.
         local autoInterval = 2.6 / (1 + math.max(0, self.permanentTraits.scoreAutoThrowRate or 0))
+            * (self:scoreReward("auto_carton") and .5 or 1)
         local interval = autoThrow and autoInterval or math.max(2.6, 8 - self:power("molotov") * 1.6)
         if self.molotovTimer >= interval then
             self.molotovTimer = 0
@@ -3237,10 +3263,14 @@ function ClearcutMode:updateFire(dt, game)
     local burnDuration = BURN_WINDOW
     local burnTickInterval = BURN_TICK_INTERVAL
         / self.permanentTraits.burnSpeed
+    -- 세계수 보상 "불의 성격". 셋 중 하나만 가질 수 있으므로 서로 곱해질 일이 없다.
+    if self:scoreReward("slow_burn") then burnDuration = burnDuration * 2
+    elseif self:scoreReward("flashover") then burnDuration = burnDuration * .55; burnTickInterval = burnTickInterval * .45 end
     -- `무기 피해`는 공용 수치이므로 도끼·폭죽뿐 아니라 불에도 걸린다. 연소속도가
     -- "더 자주", 무기 피해가 "더 세게"를 맡아 두 갈래가 총 피해를 함께 올린다.
     local burnTickDamage = (BURN_TICK_DAMAGE + (self.permanentTraits.treeDamage or 0)
         + ScoreOperations.weaponDamage(self)) * (self:scoreReward("tinder") and 2 or 1)
+        * (self:scoreReward("flashover") and 1.3 or 1)
     self:updateStrawBales(dt, game)
     self:updateOilTrail(dt, game)
     self:updateSecondhandSmoke(dt, game)
@@ -3697,8 +3727,9 @@ function ClearcutMode:updateScoreAxeAttack(dt,game,heldOverride)
     game.player:playAutoAxeSwing(targetX,swingDuration)
     self.scoreAxeAction={elapsed=0,duration=swingDuration,contactTime=swingDuration*.52,
         drum=drum,targets=targets,damage=4+(self.permanentTraits.treeDamage or 0)+ScoreOperations.weaponDamage(self),axeArea=axeArea,
-        executeChance=self.permanentTraits.executeChance or 0}
-    self.axeCooldown=math.max(swingDuration,.62/speed)
+        executeChance=(self.permanentTraits.executeChance or 0)+(self:scoreReward("undercut") and .25 or 0)}
+    if self:scoreReward("heavy_swing") then self.scoreAxeAction.damage=self.scoreAxeAction.damage*2.4 end
+    self.axeCooldown=math.max(swingDuration,.62/speed)*(self:scoreReward("heavy_swing") and 1.55 or 1)
     return false
 end
 
@@ -3822,8 +3853,9 @@ function ClearcutMode:updateFlamethrowerAttack(dt,game,held)
     end
     local traits=self.permanentTraits
     self.smokerWeaponCooldown=math.max(0,(self.smokerWeaponCooldown or 0)-dt)
-    local reach=250+(traits.scoreFlameRange or 0)+ScoreOperations.weaponRange(self)*.4
-    local halfWidth=72+(traits.scoreFlameWidth or 0)+ScoreOperations.weaponArea(self)*.35
+    local wall=self:scoreReward("flame_wall")
+    local reach=(250+(traits.scoreFlameRange or 0)+ScoreOperations.weaponRange(self)*.4)*(wall and 1.35 or 1)
+    local halfWidth=(72+(traits.scoreFlameWidth or 0)+ScoreOperations.weaponArea(self)*.35)*(wall and 1.8 or 1)
     local tx,ty,nx,ny=smokerAim(self,game,reach)
     self.aimX,self.aimY,self.aimRadius=tx,ty,reach*.5
     if not held then
@@ -3876,7 +3908,8 @@ function ClearcutMode:updateFireworkAttack(dt,game,held)
     if held==nil then held=love.mouse.isDown(1)end
     self.smokerWeaponCooldown=math.max(0,(self.smokerWeaponCooldown or 0)-dt)
     -- 폭발 반경은 담배용 착화 범위(area)를 ×0.3으로 얻어 쓰던 것을 전용 수치로 분리했다.
-    local blastRadius=(self.permanentTraits.scoreRocketRadius or 0)+ScoreOperations.weaponArea(self)
+    local blastRadius=((self.permanentTraits.scoreRocketRadius or 0)+ScoreOperations.weaponArea(self))
+        *(self:scoreReward("wide_blast") and 1.8 or 1)
     local tx,ty,nx,ny=smokerAim(self,game,720+self.permanentTraits.range+ScoreOperations.weaponRange(self))
     self.aimX,self.aimY,self.aimRadius=tx,ty,178+blastRadius
     if not held or self.smokerWeaponCooldown>0 then return false end
@@ -6047,7 +6080,9 @@ function ClearcutMode:fellTree(node, game)
     self.treesFelled = self.treesFelled + 1
     local lumber=WoodEconomy.forTree(self.mapId,node.treeVariant or 1)
     self.lumberInventory=self.lumberInventory or{}
-    self.lumberInventory[lumber.id]=(self.lumberInventory[lumber.id]or 0)+1
+    -- 노다지: 정산 재고에만 붙는다. 화면의 목재 드롭은 그대로라 눈이 헷갈리지 않는다.
+    local yield=(self:scoreReward("windfall") and love.math.random()<.12) and 2 or 1
+    self.lumberInventory[lumber.id]=(self.lumberInventory[lumber.id]or 0)+yield
     if self.scoreAttack then
         self.scoreFellTimes=self.scoreFellTimes or{}
         self.scoreFellTimes[#self.scoreFellTimes+1]=self.stageElapsed or self.elapsed or 0
@@ -6197,12 +6232,12 @@ function ClearcutMode:finish(game, victory)
     local traitReward = math.max(1, math.floor(baseReward * (self.permanentTraits.reward or 1) + .5))
     local lumberRows,lumberCoinTotal,tierMultiplier
     if self.scoreAttack then
-        lumberRows,lumberCoinTotal,tierMultiplier=WoodEconomy.settlement(self.mapId,self.lumberInventory,self.scoreStartingRegenTier,self.scoreHighestRegenTier,self:scoreReward("deep_roots") and .4 or 0)
+        lumberRows,lumberCoinTotal,tierMultiplier=WoodEconomy.settlement(self.mapId,self.lumberInventory,self.scoreStartingRegenTier,self.scoreHighestRegenTier,self:scoreSettlementBonus())
         -- Results from older fixtures/runs still settle instead of opening an empty panel.
         if #lumberRows==0 and self.treesFelled>0 then
             local fallback=WoodEconomy.forTree(self.mapId,1)
             self.lumberInventory={[fallback.id]=self.treesFelled}
-            lumberRows,lumberCoinTotal,tierMultiplier=WoodEconomy.settlement(self.mapId,self.lumberInventory,self.scoreStartingRegenTier,self.scoreHighestRegenTier,self:scoreReward("deep_roots") and .4 or 0)
+            lumberRows,lumberCoinTotal,tierMultiplier=WoodEconomy.settlement(self.mapId,self.lumberInventory,self.scoreStartingRegenTier,self.scoreHighestRegenTier,self:scoreSettlementBonus())
         end
         traitReward=0
     elseif game.characterTraits then game.characterTraits:addCurrency(traitReward) end
@@ -8421,8 +8456,10 @@ local scoreOperationIconAliases={robot_scanner="chain_lightning",yard_management
 -- 세계수 처치 보상 3택. 기존 카드 UI(drawSelection)는 융합·아르카나·배니시 같은
 -- 일반 작전 상태를 함께 다루므로 재사용하지 않고 여기서 단순하게 그린다.
 function ClearcutMode:scoreRewardRect(index,w,h)
-    local cardW,cardH,gap=300,190,22
-    local total=cardW*3+gap*2
+    local cardW,cardH,gap=300,206,22
+    -- 후보가 3개보다 적을 수 있다(축이 잠기면 풀이 준다). 실제 개수로 가운데를 잡는다.
+    local shown=math.max(1,#(self.scoreRewardChoices or{}))
+    local total=cardW*shown+gap*(shown-1)
     return math.floor((w-total)/2)+(index-1)*(cardW+gap),math.floor(h/2-cardH/2),cardW,cardH
 end
 
@@ -8464,6 +8501,14 @@ function ClearcutMode:drawScoreRewards(game,fonts)
         love.graphics.setFont(fonts.small or fonts.body)
         love.graphics.setColor(.78,.80,.74,1)
         love.graphics.printf(def.desc,x+14,y+84,cw-28,"left")
+        -- 배타 축은 카드에 적어 준다. 고르면 그 판에서 나머지가 잠기는 것을 모르면
+        -- 선택의 무게가 전달되지 않는다.
+        local groupName=ClearcutMode.ScoreWorldTree.groupName(def)
+        if groupName then
+            love.graphics.setFont(fonts.micro or fonts.small)
+            love.graphics.setColor(c[1],c[2],c[3],.62)
+            love.graphics.printf(groupName.." · 하나만 고를 수 있습니다",x+14,y+ch-30,cw-28,"left")
+        end
     end
 end
 

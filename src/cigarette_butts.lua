@@ -133,8 +133,11 @@ local function attempt(mode,butt,at,game)
     local heat=1-.15*(at-butt.bornAt)/Butts.lifetime
     local routeMultiplier=mode.skillBranch and mode:skillBranch("molotov")=="flame_route"and 1.35 or 1
     local permanentChance=mode.permanentTraits and mode.permanentTraits.cigaretteIgnitionChance or 0
+    -- 불쏘시개(세계수 보상)의 대가. 설명에는 있었지만 실제로는 깎이지 않아서
+    -- 순수 상향으로 굴러가고 있었다.
+    local tinder=mode.scoreReward and mode:scoreReward("tinder") and .5 or 1
     local chance=math.min(.96,(Butts.baseChance+mode:levelOf("dry_forest")*.02+permanentChance)*routeMultiplier)
-        *heat*(1-.12*distance/butt.radius)
+        *heat*(1-.12*distance/butt.radius)*tinder
     if love.math.random()>=chance then return end
     local duration=.12+.10*distance/butt.radius
     local tipX,tipY=Butts.tip(butt,at)

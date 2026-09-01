@@ -151,4 +151,97 @@ do
         "쏟아진 목재가 상한 없이 쌓인다")
 end
 
+-- 7개짜리 풀에 작은 수치 증가만 있으면 매 판이 똑같다. 풀을 늘리는 것만으로는
+-- 부족하고, 축이 배타적이어야 "이번 판은 이런 판" 이 만들어진다.
+do
+    assert(#ScoreWorldTree.rewards >= 20, "보상 풀이 20개 미만이다: " .. #ScoreWorldTree.rewards)
+
+    local seen, groups = {}, {}
+    for _, def in ipairs(ScoreWorldTree.rewards) do
+        assert(not seen[def.id], "보상 id 가 중복이다: " .. def.id)
+        seen[def.id] = true
+        assert(def.name and def.desc and def.color, def.id .. " 에 이름/설명/색이 없다")
+        if def.group then
+            groups[def.group] = (groups[def.group] or 0) + 1
+            assert(ScoreWorldTree.groupName(def), def.group .. " 에 표시 이름이 없다")
+        end
+    end
+    -- 혼자뿐인 group 은 배타성이 아무 일도 하지 않으면서 풀만 잠근다.
+    for group, count in pairs(groups) do
+        assert(count >= 2, "group '" .. group .. "' 에 보상이 하나뿐이라 배타성이 무의미하다")
+    end
+
+    local mode = ClearcutMode.new()
+    mode.scoreAttack = true
+    local game = {setNotice = function() end, world = {nodes = {}}}
+
+    -- 한 번의 3택에 같은 축이 둘 뜨면 실질 선택지가 준다.
+    for _ = 1, 200 do
+        local probe = ClearcutMode.new(); probe.scoreAttack = true
+        local picks = ScoreWorldTree.roll(probe, 3)
+        assert(#picks == 3, "선택지가 3개가 아니다: " .. #picks)
+        local offered = {}
+        for _, def in ipairs(picks) do
+            assert(not (def.group and offered[def.group]), "한 번의 3택에 같은 축이 둘 떴다: " .. tostring(def.group))
+            if def.group then offered[def.group] = true end
+        end
+    end
+
+    -- 축을 하나 고르면 그 축의 나머지는 그 판에서 영원히 잠긴다.
+    mode:applyScoreReward("dry_wind", game)
+    assert(ScoreWorldTree.groupTaken(mode, "fire"), "축을 골랐는데 잠기지 않았다")
+    for _ = 1, 200 do
+        for _, def in ipairs(ScoreWorldTree.roll(mode, 3)) do
+            assert(def.group ~= "fire", "이미 정한 축의 보상이 다시 나왔다: " .. def.id)
+            assert(def.id ~= "dry_wind", "이미 고른 보상이 다시 나왔다")
+        end
+    end
+
+    -- 풀이 마르면 빈 목록을 돌려주고 호출부가 창을 열지 않는다.
+    local drained = ClearcutMode.new(); drained.scoreAttack = true
+    for _, def in ipairs(ScoreWorldTree.rewards) do ScoreWorldTree.grant(drained, def.id) end
+    assert(#ScoreWorldTree.roll(drained, 3) == 0, "다 가졌는데 선택지가 남아 있다")
+end
+
+-- 설명만 있고 코드에 걸려 있지 않은 보상은 순수 장식이다. 실제로 읽히는지 본다.
+do
+    local source = assert(io.open("src/clearcut_mode.lua", "rb"))
+    local code = source:read("*a"); source:close()
+    local butts = assert(io.open("src/cigarette_butts.lua", "rb"))
+    code = code .. butts:read("*a"); butts:close()
+    for _, def in ipairs(ScoreWorldTree.rewards) do
+        assert(code:find('scoreReward("' .. def.id .. '")', 1, true)
+            or code:find('id=="' .. def.id .. '"', 1, true),
+            "보상 '" .. def.id .. "' 이 어디에서도 읽히지 않는다 — 설명만 있는 장식이다")
+    end
+end
+
+-- 대가가 붙은 보상은 대가도 실제로 걸려 있어야 한다. 없으면 순수 상향이 된다.
+do
+    local mode = ClearcutMode.new(); mode.scoreAttack = true
+    mode.permanentTraits.burnSpeed = 1
+    local game = {setNotice = function() end, world = {nodes = {}}}
+
+    local baseSpread = mode:spreadFactor()
+    mode:applyScoreReward("slow_burn", game)
+    assert(mode:spreadFactor() == 0, "뭉근한 불의 대가(확산 없음)가 걸려 있지 않다")
+    assert(baseSpread > 0, "기본 확산이 0이라 검사가 무의미하다")
+
+    local quota = ClearcutMode.new(); quota.scoreAttack = true
+    assert(quota:scoreSettlementBonus() == 0, "아무것도 안 골랐는데 정산 보너스가 있다")
+    quota:applyScoreReward("quota", game)
+    assert(quota:scoreSettlementBonus() < 0, "할당량 감축의 대가(수입 감소)가 걸려 있지 않다")
+
+    local cut = ClearcutMode.new(); cut.scoreAttack = true
+    cut.scoreTreeAllowance = 12
+    cut:applyScoreReward("clear_cut", game)
+    assert(cut.scoreTreeAllowance == 8, "좁고 깊게의 대가(허용량 감소)가 걸려 있지 않다")
+    assert(cut:scoreSettlementBonus() > 0, "좁고 깊게의 수입 증가가 걸려 있지 않다")
+
+    local permit = ClearcutMode.new(); permit.scoreAttack = true
+    permit.scoreTreeAllowance = 12
+    permit:applyScoreReward("permit", game)
+    assert(permit.scoreTreeAllowance == 22, "무허가 확장의 허용량이 늘지 않았다")
+end
+
 print("SCORE_WORLD_TREE_OK interval=60s trigger=time no_attack reward=3pick run_only")
