@@ -19,7 +19,8 @@ local achievements=Achievements.new(true)
 achievements:recordRun({scoreAttack=true,trees=412,maxChain=9,stage=1,highestRegenTier=8,lumberCoinTotal=980})
 achievements.data.stats.total_trees=12847;achievements.data.stats.runs=63
 local game={characterTraits=traits,achievements=achievements}
-local lobby=Lobby.new({},fonts);lobby.time=1.4;lobby:draw(game)
+local lobby=Lobby.new({},fonts);lobby.time=1.4;lobby.timeOfDayOverride=LOBBY_HOUR;lobby:draw(game)
 local suffix=captureW==1280 and "" or "-"..captureW
+if LOBBY_HOUR~=nil then suffix=suffix..string.format("-h%02d",math.floor(LOBBY_HOUR))end
 fixture.save("docs/previews/score-attack-lobby-draws"..suffix..".json")
 print(string.format("SCORE_ATTACK_LOBBY_CAPTURE_OK %dx%d progress=shown window=none",captureW,captureH))

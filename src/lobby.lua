@@ -1,6 +1,7 @@
 local F=require("src.frontend_ui")
 local LobbyAudio=require("src.lobby_audio")
 local CdArt=require("src.lobby_cd_art")
+local TimeOfDay=require("src.lobby_time_of_day")
 local Lobby={};Lobby.__index=Lobby
 
 -- 현재 플레이테스트는 기록 모드 하나에 집중한다. 일반 작전 버튼과 진입 코드는
@@ -92,7 +93,10 @@ end
 
 function Lobby:drawBackground(w,h)
  local horizon=math.floor(h*.57);local unit=math.max(4,math.floor(h/120));local parallax=self.backgroundParallax or 0
- local top,middle,bottom={.11,.29,.42},{.39,.49,.55},{.89,.58,.36}
+ -- os.date("*t") reads the player's PC-local civil time. The optional override
+ -- exists only for deterministic offscreen captures and regression tests.
+ local sky=TimeOfDay.state(self.timeOfDayOverride or TimeOfDay.localHour())
+ local top,middle,bottom=sky.top,sky.middle,sky.bottom
  for y=0,horizon,unit do
   local t=math.min(1,y/horizon);local a,b,mix
   if t<.55 then a,b,mix=top,middle,t/.55 else a,b,mix=middle,bottom,(t-.55)/.45 end
@@ -101,16 +105,37 @@ function Lobby:drawBackground(w,h)
  local function drawBlob(x,y,radius,step,color,rowStep)
   rowStep=rowStep or step;love.graphics.setColor(color);for row=-radius,radius do local half=math.floor(math.sqrt(radius*radius-row*row));love.graphics.rectangle("fill",x-half*step,y+row*rowStep,(half*2+1)*step,rowStep)end
  end
- local sunX,sunY=math.floor((w*.80-parallax*unit*2)/unit)*unit,math.floor(h*.28/unit)*unit
- drawBlob(sunX,sunY,8,unit,{1,.66,.38,.07});drawBlob(sunX,sunY,5,unit,{1,.84,.52,1})
+ -- Sparse fixed-grid stars stay behind clouds and scenery. Their brightness is
+ -- continuous through dusk/dawn, so crossing 18:00 never pops a whole layer on.
+ if sky.stars>0 then for index=1,34 do
+  local x=math.floor(w*((index*73)%997)/997/unit)*unit
+  local y=math.floor(h*(.055+((index*47)%409)/409*.40)/unit)*unit
+  local twinkle=.52+.48*math.abs(math.sin(self.time*.75+index*1.91))
+  love.graphics.setColor(.72,.82,1,sky.stars*(index%5==0 and .88 or .48)*twinkle)
+  love.graphics.rectangle("fill",x,y,index%7==0 and unit*2 or unit,unit)
+ end end
+ local celestialX=math.floor((w*sky.celestialX-parallax*unit*2)/unit)*unit
+ local celestialY=math.floor(h*sky.celestialY/unit)*unit
+ if sky.celestial=="sun"then
+  drawBlob(celestialX,celestialY,8,unit,{1,.61,.27,.09});drawBlob(celestialX,celestialY,5,unit,{1,.84,.52,1})
+  drawBlob(celestialX-unit,celestialY-unit,3,unit,{1,.91,.63,1})
+ else
+  drawBlob(celestialX,celestialY,7,unit,{.48,.61,.86,.10});drawBlob(celestialX,celestialY,5,unit,{.80,.86,.82,1})
+  drawBlob(celestialX-unit,celestialY-unit,4,unit,{.91,.88,.72,1})
+  drawBlob(celestialX-unit*2,celestialY+unit,1,unit,{.56,.62,.61,.72})
+  drawBlob(celestialX+unit*2,celestialY-unit,1,unit,{.62,.66,.63,.66})
+ end
  local function drawCloud(x,y,size,alpha)
   x=math.floor((x-parallax*unit)/size)*size;y=math.floor(y/size)*size
   local rowStep=math.max(2,math.floor(size*.55))
-  love.graphics.setColor(.27,.36,.45,alpha*.78);love.graphics.rectangle("fill",x+size*2,y,size*23,size*2)
-  for _,part in ipairs({{5,0,4},{11,-2,6},{18,-1,5},{23,1,3}})do drawBlob(x+part[1]*size,y+part[2]*rowStep,part[3],size,{.27,.36,.45,alpha*.78},rowStep)end
-  love.graphics.setColor(.66,.65,.66,alpha);love.graphics.rectangle("fill",x+size*2,y-rowStep,size*20,size*2)
-  for _,part in ipairs({{6,-2,3},{11,-4,4},{17,-3,4},{21,-1,3}})do drawBlob(x+part[1]*size,y+part[2]*rowStep,part[3],size,{.66,.65,.66,alpha},rowStep)end
-  for _,part in ipairs({{9,-5,2},{13,-6,3},{18,-4,2}})do drawBlob(x+part[1]*size,y+part[2]*rowStep,part[3],size,{.96,.82,.67,alpha*.92},rowStep)end
+  local light=sky.light;local shadow={.11+.16*light,.16+.20*light,.24+.21*light,alpha*.78}
+  local body={.24+.42*light,.28+.37*light,.34+.32*light,alpha}
+  local highlight={.48+.48*light,.50+.32*light,.55+.12*light+sky.warm*.10,alpha*.92}
+  love.graphics.setColor(shadow);love.graphics.rectangle("fill",x+size*2,y,size*23,size*2)
+  for _,part in ipairs({{5,0,4},{11,-2,6},{18,-1,5},{23,1,3}})do drawBlob(x+part[1]*size,y+part[2]*rowStep,part[3],size,shadow,rowStep)end
+  love.graphics.setColor(body);love.graphics.rectangle("fill",x+size*2,y-rowStep,size*20,size*2)
+  for _,part in ipairs({{6,-2,3},{11,-4,4},{17,-3,4},{21,-1,3}})do drawBlob(x+part[1]*size,y+part[2]*rowStep,part[3],size,body,rowStep)end
+  for _,part in ipairs({{9,-5,2},{13,-6,3},{18,-4,2}})do drawBlob(x+part[1]*size,y+part[2]*rowStep,part[3],size,highlight,rowStep)end
  end
  drawCloud(w*.70,h*.31,unit,.88);drawCloud(w*.50,h*.14,math.max(3,unit-1),.48);drawCloud(w*.90,h*.10,math.max(3,unit-1),.34)
  local function ridge(base,height,step,color,phase,shift)
@@ -121,8 +146,9 @@ function Lobby:drawBackground(w,h)
   end
   points[#points+1]=w;points[#points+1]=h;love.graphics.setColor(color);love.graphics.polygon("fill",points)
  end
- ridge(horizon+unit*5,h*.20,unit*4,{.23,.31,.39,1},.8,parallax*unit*2)
- ridge(horizon+unit*9,h*.13,unit*3,{.10,.24,.29,1},2.1,parallax*unit*4)
+ local light=sky.light
+ ridge(horizon+unit*5,h*.20,unit*4,{.07+.16*light,.10+.21*light,.17+.22*light,1},.8,parallax*unit*2)
+ ridge(horizon+unit*9,h*.13,unit*3,{.035+.065*light,.08+.16*light,.12+.17*light,1},2.1,parallax*unit*4)
  local trees=self.backgroundTrees or{}
  local function drawRow(ground,startX,count,targetH,tint,offset,overlap,shift,sway)
   if #trees>0 then
@@ -134,26 +160,27 @@ function Lobby:drawBackground(w,h)
    end
   end
  end
- drawRow(horizon+unit*8,-unit*3,14,h*.24,{.58,.64,.49,.76},2,1,-parallax*unit*3,1)
- love.graphics.setColor(.30,.43,.21,1);love.graphics.rectangle("fill",0,horizon,w,h-horizon)
- love.graphics.setColor(.42,.54,.27,1);love.graphics.rectangle("fill",0,horizon,w,unit*5)
+ drawRow(horizon+unit*8,-unit*3,14,h*.24,{.18+.40*light,.23+.41*light,.22+.27*light,.76},2,1,-parallax*unit*3,1)
+ love.graphics.setColor(.08+.22*light,.15+.28*light,.10+.11*light,1);love.graphics.rectangle("fill",0,horizon,w,h-horizon)
+ love.graphics.setColor(.12+.30*light,.19+.35*light,.13+.14*light,1);love.graphics.rectangle("fill",0,horizon,w,unit*5)
  local floor,floorQuads=self.backgroundFloor,self.backgroundFloorQuads or{}
  local function drawFloor(index,x,y,scale,alpha,flip)
   if not floor or not floorQuads[index]then return end
-  love.graphics.setColor(1,1,1,alpha);love.graphics.draw(floor,floorQuads[index],math.floor(x-parallax*unit*5),math.floor(y),0,scale*(flip or 1),scale,64,48)
+  love.graphics.setColor(.30+.70*light,.34+.66*light,.42+.58*light,alpha);love.graphics.draw(floor,floorQuads[index],math.floor(x-parallax*unit*5),math.floor(y),0,scale*(flip or 1),scale,64,48)
  end
  drawFloor(4,w*.67,h*.62,.80,.38);drawFloor(1,w*.68,h*.72,1.18,.42,-1);drawFloor(4,w*.70,h*.84,1.72,.48)
  drawFloor(8,w*.27,h*.72,1.38,.24,-1);drawFloor(4,w*.42,h*.84,1.50,.27);drawFloor(3,w*.35,h*.91,.76,.58,-1)
  drawFloor(2,w*.55,h*.89,.78,.82);drawFloor(3,w*.46,h*.78,.68,.66,-1);drawFloor(6,w*.91,h*.86,.82,.78)
- drawRow(h*.93,w*.55,5,h*.43,{1,1,1,1},1,1,-parallax*unit*7,2)
+ drawRow(h*.93,w*.55,5,h*.43,{.24+.76*light,.29+.71*light,.38+.62*light,1},1,1,-parallax*unit*7,2)
  local props=self.backgroundProps or{}
  local function drawProp(name,x,ground,targetH,tint)
   local image=props[name];if not image then return end
   local iw,ih=image:getDimensions();local scale=targetH/ih;love.graphics.setColor(tint or{1,1,1,1});love.graphics.draw(image,math.floor(x-parallax*unit*8),math.floor(ground-targetH),0,scale,scale)
  end
- drawProp("rock",w*.50,h*.93,h*.10,{1,1,1,1});drawProp("log",w*.73,h*.96,h*.11,{1,1,1,1})
- drawProp("fern",w*.46,h*.91,h*.085,{1,1,1,1});drawProp("fern",w*.88,h*.94,h*.10,{1,1,1,1})
- love.graphics.setColor(.14,.28,.16,.72);love.graphics.rectangle("fill",0,h*.955,w,h*.045)
+ local propTint={.28+.72*light,.31+.69*light,.40+.60*light,1}
+ drawProp("rock",w*.50,h*.93,h*.10,propTint);drawProp("log",w*.73,h*.96,h*.11,propTint)
+ drawProp("fern",w*.46,h*.91,h*.085,propTint);drawProp("fern",w*.88,h*.94,h*.10,propTint)
+ love.graphics.setColor(.04+.10*light,.10+.18*light,.07+.09*light,.72);love.graphics.rectangle("fill",0,h*.955,w,h*.045)
  for i=1,18 do
   local x=math.floor(w*(.43+((i*37)%57)/100));local y=math.floor(h*(.31+((i*23)%54)/100))
   love.graphics.setColor(1,.75,.24,.18+.18*math.abs(math.sin(self.time*1.4+i)));love.graphics.rectangle("fill",x,y,unit,unit)
