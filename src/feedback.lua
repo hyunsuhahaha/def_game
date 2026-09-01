@@ -59,8 +59,8 @@ local function makeSource(kind)
     return love.audio.newSource(data, "static")
 end
 
-function Feedback.new()
-    local self = setmetatable({pools = {}, cursor = {}}, Feedback)
+function Feedback.new(volume)
+    local self = setmetatable({pools = {}, cursor = {},volume=math.max(0,math.min(1,volume or 1))}, Feedback)
     local ok = pcall(function()
         for _, kind in ipairs({"tree", "axe_wood", "stone", "ore", "metal", "harvest", "grass", "creak", "ember_land", "butt_hit", "ignite", "tier_up", "popper"}) do
             self.pools[kind], self.cursor[kind] = {}, 1
@@ -73,6 +73,10 @@ function Feedback.new()
     return self
 end
 
+function Feedback:setVolume(volume)
+    self.volume=math.max(0,math.min(1,volume or 1))
+end
+
 function Feedback:play(kind, strong)
     local pool = self.pools[kind] or self.pools.harvest
     if not pool then return end
@@ -81,7 +85,7 @@ function Feedback:play(kind, strong)
     self.cursor[kind] = index % #pool + 1
     source:stop()
     source:setPitch((strong and .88 or 1) + love.math.random() * .12)
-    source:setVolume(strong and .28 or .16)
+    source:setVolume((strong and .28 or .16)*(self.volume or 1))
     source:play()
 end
 

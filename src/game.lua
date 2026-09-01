@@ -7,6 +7,7 @@ local Frontend = require("src.frontend_ui")
 local Progression = require("src.progression")
 local TraitTree = require("src.trait_tree")
 local Feedback = require("src.feedback")
+local Settings = require("src.settings")
 local RunUpgrades = require("src.run_upgrades")
 local RushMode = require("src.rush_mode")
 local ClearcutMode = require("src.clearcut_mode")
@@ -95,11 +96,13 @@ end
 
 function Game.new()
     local self = setmetatable({}, Game)
-    self.fonts, self.light, self.feedback = makeFonts(), radial(512), Feedback.new()
+    local temporaryProfile = os.getenv("LAST_HAUL_SELF_TEST") or os.getenv("LAST_HAUL_CAPTURE_META") or os.getenv("LAST_HAUL_CAPTURE_RESULTS") or os.getenv("LAST_HAUL_CAPTURE_TEST_OPTIONS") or os.getenv("LAST_HAUL_CAPTURE_TURRET_PROMPT") or os.getenv("LAST_HAUL_CAPTURE_TURRET_PLACEMENT") or os.getenv("LAST_HAUL_CAPTURE_BOSS_ENTRANCE") or os.getenv("LAST_HAUL_CAPTURE_ACHIEVEMENTS") or os.getenv("LAST_HAUL_CAPTURE_ACHIEVEMENT_POPUP") or os.getenv("LAST_HAUL_CAPTURE_SKYVIEW")
+    self.settingsStore=Settings.load(temporaryProfile~=nil,love.window.getFullscreen())
+    self.settings=self.settingsStore.data
+    self.fonts, self.light, self.feedback = makeFonts(), radial(512), Feedback.new(self.settings.sfxVolume)
     self.clearcutSprites = loadClearcutSprites()
     self.clearcutMachineryImage = love.graphics.newImage("assets/characters/ingame/developer-bulldozer-pixel-v2.png")
     self.clearcutMachineryImage:setFilter("nearest", "nearest")
-    self.settings = {fullscreen = love.window.getFullscreen(), screenShake = true, viewPitch = .76}
     self.tools = {
         axe = {name = "나무 도끼", speed = .8, type = "벌목"},
         hoe = {name = "나무 괭이", speed = 1, type = "농사"},
@@ -108,7 +111,6 @@ function Game.new()
         hammer = {name = "나무 수리 망치", speed = 1, type = "방벽 수리"}
     }
     self.wallCosts = {{wood = 0, stone = 0}, {wood = 12, stone = 8}, {wood = 22, stone = 16}, {wood = 36, stone = 28}}
-    local temporaryProfile = os.getenv("LAST_HAUL_SELF_TEST") or os.getenv("LAST_HAUL_CAPTURE_META") or os.getenv("LAST_HAUL_CAPTURE_RESULTS") or os.getenv("LAST_HAUL_CAPTURE_TEST_OPTIONS") or os.getenv("LAST_HAUL_CAPTURE_TURRET_PROMPT") or os.getenv("LAST_HAUL_CAPTURE_TURRET_PLACEMENT") or os.getenv("LAST_HAUL_CAPTURE_BOSS_ENTRANCE") or os.getenv("LAST_HAUL_CAPTURE_ACHIEVEMENTS") or os.getenv("LAST_HAUL_CAPTURE_ACHIEVEMENT_POPUP") or os.getenv("LAST_HAUL_CAPTURE_SKYVIEW")
     self.progression = Progression.new(temporaryProfile ~= nil)
     self.characterTraits = CharacterTraits.new(temporaryProfile ~= nil)
     self.achievements = Achievements.new(temporaryProfile ~= nil)
@@ -121,6 +123,20 @@ function Game.new()
     self.sandboxMode = false
     self:resetRun(); self.mode = "lobby"
     return self
+end
+
+function Game:saveSettings()
+    if self.settingsStore then self.settingsStore:save()end
+end
+
+function Game:setMusicVolume(value)
+    self.settings.musicVolume=math.max(0,math.min(1,value or 0))
+    if self.lobby and self.lobby.audio then self.lobby.audio:setVolume(self.settings.musicVolume)end
+end
+
+function Game:setSfxVolume(value)
+    self.settings.sfxVolume=math.max(0,math.min(1,value or 0))
+    if self.feedback then self.feedback:setVolume(self.settings.sfxVolume)end
 end
 
 function Game:resetRun()
@@ -454,7 +470,7 @@ function Game:update(dt)
     self.achievementBoard:update(dt)
     -- 로비 배경음은 모드와 무관하게 매 프레임 맞춘다. 일시정지보다 앞이어야
     -- 정지 상태로 로비를 떠나도 소리가 남지 않는다.
-    if self.lobby then self.lobby:syncAudio(self.mode) end
+    if self.lobby then self.lobby:syncAudio(self.mode,self.settings.musicVolume) end
     if self.paused then return end
     -- Camera presentation modes keep lerping even while an intro, boss reveal,
     -- or skill cut-in temporarily freezes ordinary world/camera tracking.
@@ -776,16 +792,21 @@ function Game:mousepressed(x, y, button)
     if self.mode == "settings" then
         if button == 1 then
             if Frontend.inside(self.settingsBackBox,x,y) then self.mode = "lobby"
+            elseif Frontend.inside(self.settingsMusicBox,x,y) then
+                self.settingsMusicDragging=true;self:setMusicVolume(Frontend.sliderValueAt(self.settingsMusicBox,x))
+            elseif Frontend.inside(self.settingsSfxBox,x,y) then
+                self.settingsSfxDragging=true;self:setSfxVolume(Frontend.sliderValueAt(self.settingsSfxBox,x))
             elseif Frontend.inside(self.settingsTiltBox,x,y) then
                 self.settingsTiltDragging=true
                 self:setViewTilt(Frontend.sliderValueAt(self.settingsTiltBox,x))
             elseif Frontend.inside(self.settingsShakeBox,x,y) then
                 self.settings.screenShake = not self.settings.screenShake
                 self.camera.shakeScale = self.settings.screenShake and 1 or 0
+                self:saveSettings()
             elseif Frontend.inside(self.settingsFullscreenBox,x,y) then
                 local nextValue = not self.settings.fullscreen
                 local ok = love.window.setFullscreen(nextValue, "desktop")
-                if ok ~= false then self.settings.fullscreen = nextValue end
+                if ok ~= false then self.settings.fullscreen = nextValue;self:saveSettings() end
             elseif Frontend.inside(self.settingsTestBox,x,y) then self:openTestOptions("settings")
             end
         end
@@ -911,7 +932,9 @@ function Game:wheelmoved(x, y)
     end
     if self.mode=="settings" then
         local mx,my=love.mouse.getPosition()
-        if Frontend.inside(self.settingsTiltBox,mx,my) and y~=0 then self:setViewTilt(self:viewTiltAmount()+(y>0 and .04 or -.04)) end
+        if Frontend.inside(self.settingsMusicBox,mx,my) and y~=0 then self:setMusicVolume(self.settings.musicVolume+(y>0 and .05 or -.05));self:saveSettings()
+        elseif Frontend.inside(self.settingsSfxBox,mx,my) and y~=0 then self:setSfxVolume(self.settings.sfxVolume+(y>0 and .05 or -.05));self:saveSettings()
+        elseif Frontend.inside(self.settingsTiltBox,mx,my) and y~=0 then self:setViewTilt(self:viewTiltAmount()+(y>0 and .04 or -.04)) end
         return
     end
     if self.mode=="character_traits" then self.characterTraitBoard:wheelmoved(x,y); return end
@@ -1587,12 +1610,22 @@ end
 
 function Game:mousemoved(x,y,dx,dy)
     if self.paused and self.pauseTiltDragging then local _,_,_,_,_,_,tiltBox=self:pauseButtons();self:setViewTilt(Frontend.sliderValueAt(tiltBox,x));return end
-    if self.mode=="settings" and self.settingsTiltDragging then self:setViewTilt(Frontend.sliderValueAt(self.settingsTiltBox,x));return end
+    if self.mode=="settings" then
+        if self.settingsMusicDragging then self:setMusicVolume(Frontend.sliderValueAt(self.settingsMusicBox,x));return
+        elseif self.settingsSfxDragging then self:setSfxVolume(Frontend.sliderValueAt(self.settingsSfxBox,x));return
+        elseif self.settingsTiltDragging then self:setViewTilt(Frontend.sliderValueAt(self.settingsTiltBox,x));return end
+    end
     if self.mode=="clearcut_map_select" then require("src.clearcut_map_select").mousemoved(self,x,y,dx,dy) end
 end
 
 function Game:mousereleased(x,y,button)
-    if button==1 then self.settingsTiltDragging=false;self.pauseTiltDragging=false end
+    if button==1 then
+        local changed=self.settingsTiltDragging or self.settingsMusicDragging or self.settingsSfxDragging
+        local testSfx=self.settingsSfxDragging
+        self.settingsTiltDragging=false;self.settingsMusicDragging=false;self.settingsSfxDragging=false;self.pauseTiltDragging=false
+        if changed then self:saveSettings()end
+        if testSfx and self.feedback then self.feedback:play("tier_up",false)end
+    end
     if self.mode=="clearcut_map_select" then
         local index=require("src.clearcut_map_select").mousereleased(self,x,y,button)
         if index then self.clearcutMapFocus=index;self:chooseClearcutMap(index) end
@@ -1626,18 +1659,36 @@ function Game:drawSettings()
     love.graphics.setFont(f.title); love.graphics.setColor(.98,.96,.87); love.graphics.print("환경 설정",34,51)
     love.graphics.setFont(f.small); love.graphics.setColor(.54,.62,.56); love.graphics.print("시각 피드백과 표시 환경을 현재 장비에 맞게 조정합니다",34,96)
     self.settingsBackBox={x=w-174,y=28,w=140,h=42}; Frontend.button(self.settingsBackBox,"지휘실로",f.small,{accent=Frontend.colors.teal,key="ESC"})
-    local x,y,pw=math.max(34,w*.14),compact and 122 or 138,math.min(820,w*.72); local cx=x+(w-pw-2*x)/2
-    x=cx; Frontend.frame(x,y,pw,h-198,Frontend.colors.teal,{selected=true})
-    Frontend.label("화면",x+24,y+22,f.micro,Frontend.colors.teal)
-    local rowH=compact and 54 or 66;local firstY=y+(compact and 48 or 54);local gap=compact and 10 or 12
-    self.settingsShakeBox={x=x+24,y=firstY,w=pw-48,h=rowH}; Frontend.toggle(self.settingsShakeBox,self.settings.screenShake,f.body,"화면 흔들림",compact and nil or "타격·폭발·보스 등장 시 카메라 반동",Frontend.colors.amber)
-    self.settingsFullscreenBox={x=x+24,y=firstY+rowH+gap,w=pw-48,h=rowH}; Frontend.toggle(self.settingsFullscreenBox,self.settings.fullscreen,f.body,"화면 모드",compact and nil or (self.settings.fullscreen and "전체 화면으로 실행 중" or "창 모드로 실행 중"),Frontend.colors.teal)
-    local tiltY=firstY+(rowH+gap)*2;self.settingsTiltBox={x=x+24,y=tiltY,w=pw-48,h=compact and 70 or 82}
-    Frontend.slider(self.settingsTiltBox,self:viewTiltAmount(),f.body,"시점 기울기",compact and "평면  ↔  깊은 원근" or "벌목 지역·연습장 지면의 깊이만 조절 · 캐릭터 비율 유지",Frontend.colors.amber)
-    local devY=self.settingsTiltBox.y+self.settingsTiltBox.h+(compact and 12 or 20)
-    Frontend.label("개발 도구",x+24,devY,f.micro,Frontend.colors.rust)
-    self.settingsTestBox={x=x+24,y=devY+26,w=pw-48,h=compact and 42 or 54}; Frontend.button(self.settingsTestBox,"테스트 도구 열기  (F10)",f.body,{accent=Frontend.colors.rust,align="left"})
-    Frontend.footer(w,h,"드래그 / 휠 / ← →  시점 조절    ·    F10  테스트 도구    ·    ESC  지휘실",f.small)
+    local x,y,pw=math.max(34,w*.14),compact and 112 or 128,math.min(820,w*.72); local cx=x+(w-pw-2*x)/2
+    x=cx; Frontend.frame(x,y,pw,h-y-52,Frontend.colors.teal,{selected=true})
+    local gap=compact and 6 or 10;local sliderH=compact and 54 or 76
+    local musicDetail=not compact and "로비 음악 음량 · 드래그하는 동안 즉시 반영"or nil
+    local sfxDetail=not compact and "타격·벌목·불·보상 효과음 · 놓으면 시험음 재생"or nil
+    Frontend.label("소리",x+24,y+18,f.micro,Frontend.colors.teal)
+    local firstY=y+(compact and 38 or 48)
+    self.settingsMusicBox={x=x+24,y=firstY,w=pw-48,h=sliderH}
+    Frontend.slider(self.settingsMusicBox,self.settings.musicVolume,f.body,"배경음악",musicDetail,Frontend.colors.teal)
+    self.settingsSfxBox={x=x+24,y=firstY+sliderH+gap,w=pw-48,h=sliderH}
+    Frontend.slider(self.settingsSfxBox,self.settings.sfxVolume,f.body,"효과음",sfxDetail,Frontend.colors.amber)
+    local displayLabelY=self.settingsSfxBox.y+self.settingsSfxBox.h+gap+6
+    Frontend.label("화면",x+24,displayLabelY,f.micro,Frontend.colors.teal)
+    local rowH=compact and 42 or 56;local displayY=displayLabelY+(compact and 18 or 22)
+    local shakeDetail=not compact and "타격·폭발·보스 등장 시 카메라 반동"or nil
+    local fullscreenDetail=not compact and(self.settings.fullscreen and "전체 화면으로 실행 중"or"창 모드로 실행 중")or nil
+    self.settingsShakeBox={x=x+24,y=displayY,w=pw-48,h=rowH}; Frontend.toggle(self.settingsShakeBox,self.settings.screenShake,f.body,"화면 흔들림",shakeDetail,Frontend.colors.amber)
+    self.settingsFullscreenBox={x=x+24,y=displayY+rowH+gap,w=pw-48,h=rowH}; Frontend.toggle(self.settingsFullscreenBox,self.settings.fullscreen,f.body,"화면 모드",fullscreenDetail,Frontend.colors.teal)
+    local tiltY=self.settingsFullscreenBox.y+rowH+gap;self.settingsTiltBox={x=x+24,y=tiltY,w=pw-48,h=compact and 58 or 76}
+    local tiltDetail=not compact and "벌목 지역·연습장 지면의 깊이만 조절 · 캐릭터 비율 유지"or nil
+    Frontend.slider(self.settingsTiltBox,self:viewTiltAmount(),f.body,"시점 기울기",tiltDetail,Frontend.colors.amber)
+    self.settingsTestBox=nil
+    if not compact then
+        local devY=self.settingsTiltBox.y+self.settingsTiltBox.h+12
+        if devY+64<h-48 then
+            Frontend.label("개발 도구",x+24,devY,f.micro,Frontend.colors.rust)
+            self.settingsTestBox={x=x+24,y=devY+22,w=pw-48,h=42}; Frontend.button(self.settingsTestBox,"테스트 도구 열기  (F10)",f.body,{accent=Frontend.colors.rust,align="left"})
+        end
+    end
+    Frontend.footer(w,h,"음량 드래그 / 휠    ·    효과음은 놓으면 시험 재생    ·    F10 테스트 도구    ·    ESC 지휘실",f.small)
 end
 
 function Game:drawTestOptions()

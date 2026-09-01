@@ -53,8 +53,9 @@ end
 
 -- Game:update 이 모드와 무관하게 매 프레임 부른다. 로비를 떠나면 Lobby:update 가
 -- 멈추므로, 정지를 여기서 처리하지 않으면 작전 중에도 로비 음악이 계속 흐른다.
-function Lobby:syncAudio(mode)
+function Lobby:syncAudio(mode,volume)
  if not self.audio then return end
+ self.audio:setVolume(volume or 1)
  self.audio:sync(self.audioTrack or 1,AUDIO_MODES[mode] and self.audioPlaying or false)
 end
 

@@ -218,8 +218,17 @@ function LobbyAudio.render(index)
 end
 
 function LobbyAudio.new()
-    local self=setmetatable({sources={},current=nil,playing=false},LobbyAudio)
+    local self=setmetatable({sources={},current=nil,playing=false,volume=1},LobbyAudio)
     return self
+end
+
+function LobbyAudio:setVolume(volume)
+    volume=math.max(0,math.min(1,volume or 1))
+    if self.volume==volume then return end
+    self.volume=volume
+    for _,source in pairs(self.sources)do
+        if source then pcall(function()source:setVolume(.55*self.volume)end)end
+    end
 end
 
 -- 첫 재생 때만 만든다. 세 트랙을 미리 다 계산하면 로비 진입이 그만큼 늦어지고,
@@ -236,7 +245,7 @@ function LobbyAudio:source(index)
         for i=0,count-1 do data:setSample(i,buffer[i]) end
         local made=love.audio.newSource(data,"static")
         made:setLooping(true)
-        made:setVolume(.55)
+        made:setVolume(.55*self.volume)
         return made
     end)
     if not ok or not source then self.sources[index]=false;return nil end

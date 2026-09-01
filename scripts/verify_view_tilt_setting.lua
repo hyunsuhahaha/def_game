@@ -7,10 +7,11 @@ end
 love={graphics={getDimensions=function()return 1280,720 end},math={random=function()return 0 end}}
 local Projection=require("src.world_projection")
 local game=read("src/game.lua")
+local settings=read("src/settings.lua")
 local frontend=read("src/frontend_ui.lua")
 local maps=read("src/clearcut_maps.lua")
 
-assert(game:find("viewPitch = .76",1,true),"default view tilt no longer matches the approved 2.5D camera")
+assert(settings:find("viewPitch=.76",1,true),"default view tilt no longer matches the approved 2.5D camera")
 assert(game:find("function Game:setViewTilt",1,true) and game:find("function Game:enableClearcutPerspective",1,true),"view tilt setting is not connected to the camera")
 assert(game:find("Frontend.slider(self.settingsTiltBox",1,true),"settings screen has no view tilt slider")
 assert(game:find('Frontend.slider(tiltBox,self:viewTiltAmount()',1,true),"in-game ESC pause menu has no perspective slider")
