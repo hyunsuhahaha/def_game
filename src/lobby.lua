@@ -75,25 +75,27 @@ end
 
 function Lobby:drawBackground(w,h)
  local horizon=math.floor(h*.57);local unit=math.max(4,math.floor(h/120));local parallax=self.backgroundParallax or 0
- local sky={{.12,.29,.33},{.16,.36,.39},{.23,.43,.43},{.32,.49,.45},{.43,.56,.46},{.56,.62,.45},{.68,.65,.43},{.78,.64,.41},{.86,.62,.38}}
- for i,color in ipairs(sky)do
-  local y=math.floor((i-1)*horizon/#sky);local bandH=math.ceil(horizon/#sky)+1
-  love.graphics.setColor(color[1],color[2],color[3],1);love.graphics.rectangle("fill",0,y,w,bandH)
-  local nextColor=sky[i+1];if nextColor then love.graphics.setColor(nextColor[1],nextColor[2],nextColor[3],.55);for x=(i%2)*unit,w,unit*2 do love.graphics.rectangle("fill",x,y+bandH-unit,unit,unit)end end
+ local top,middle,bottom={.11,.29,.42},{.39,.49,.55},{.89,.58,.36}
+ for y=0,horizon,unit do
+  local t=math.min(1,y/horizon);local a,b,mix
+  if t<.55 then a,b,mix=top,middle,t/.55 else a,b,mix=middle,bottom,(t-.55)/.45 end
+  mix=mix*mix*(3-2*mix);love.graphics.setColor(a[1]+(b[1]-a[1])*mix,a[2]+(b[2]-a[2])*mix,a[3]+(b[3]-a[3])*mix,1);love.graphics.rectangle("fill",0,y,w,unit+1)
  end
- -- Stepped pixel silhouettes avoid the old rectangular glow and flat line-clouds.
- local sunX,sunY=math.floor((w*.79-parallax*unit*2)/unit)*unit,math.floor(h*.25/unit)*unit
- local function drawOrb(radius,color)
-  love.graphics.setColor(color);for row=-radius,radius do local half=math.floor(math.sqrt(radius*radius-row*row));love.graphics.rectangle("fill",sunX-half*unit,sunY+row*unit,(half*2+1)*unit,unit)end
+ local function drawBlob(x,y,radius,step,color,rowStep)
+  rowStep=rowStep or step;love.graphics.setColor(color);for row=-radius,radius do local half=math.floor(math.sqrt(radius*radius-row*row));love.graphics.rectangle("fill",x-half*step,y+row*rowStep,(half*2+1)*step,rowStep)end
  end
- drawOrb(8,{1,.68,.35,.055});drawOrb(6,{1,.73,.39,.10});drawOrb(4,{1,.86,.52,1})
+ local sunX,sunY=math.floor((w*.80-parallax*unit*2)/unit)*unit,math.floor(h*.28/unit)*unit
+ drawBlob(sunX,sunY,8,unit,{1,.66,.38,.07});drawBlob(sunX,sunY,5,unit,{1,.84,.52,1})
  local function drawCloud(x,y,size,alpha)
-  x=math.floor((x-parallax*unit)/unit)*unit;y=math.floor(y/unit)*unit
-  love.graphics.setColor(.55,.49,.43,alpha*.42);love.graphics.rectangle("fill",x+size*2,y+size,size*14,size*2)
-  love.graphics.setColor(1,.86,.68,alpha);love.graphics.rectangle("fill",x,y,size*16,size*2);love.graphics.rectangle("fill",x+size*3,y-size,size*6,size*2);love.graphics.rectangle("fill",x+size*10,y-size,size*4,size*2)
-  love.graphics.setColor(1,.93,.77,alpha*.72);love.graphics.rectangle("fill",x+size*4,y-size,size*4,size)
+  x=math.floor((x-parallax*unit)/size)*size;y=math.floor(y/size)*size
+  local rowStep=math.max(2,math.floor(size*.55))
+  love.graphics.setColor(.27,.36,.45,alpha*.78);love.graphics.rectangle("fill",x+size*2,y,size*23,size*2)
+  for _,part in ipairs({{5,0,4},{11,-2,6},{18,-1,5},{23,1,3}})do drawBlob(x+part[1]*size,y+part[2]*rowStep,part[3],size,{.27,.36,.45,alpha*.78},rowStep)end
+  love.graphics.setColor(.66,.65,.66,alpha);love.graphics.rectangle("fill",x+size*2,y-rowStep,size*20,size*2)
+  for _,part in ipairs({{6,-2,3},{11,-4,4},{17,-3,4},{21,-1,3}})do drawBlob(x+part[1]*size,y+part[2]*rowStep,part[3],size,{.66,.65,.66,alpha},rowStep)end
+  for _,part in ipairs({{9,-5,2},{13,-6,3},{18,-4,2}})do drawBlob(x+part[1]*size,y+part[2]*rowStep,part[3],size,{.96,.82,.67,alpha*.92},rowStep)end
  end
- drawCloud(w*.54,h*.17,unit,.34);drawCloud(w*.86,h*.11,unit,.28);drawCloud(w*.67,h*.37,math.max(3,unit-1),.22)
+ drawCloud(w*.70,h*.31,unit,.88);drawCloud(w*.50,h*.14,math.max(3,unit-1),.48);drawCloud(w*.90,h*.10,math.max(3,unit-1),.34)
  local function ridge(base,height,step,color,phase,shift)
   local points={0,h,0,base}
   for x=0,w+step,step do
@@ -102,8 +104,8 @@ function Lobby:drawBackground(w,h)
   end
   points[#points+1]=w;points[#points+1]=h;love.graphics.setColor(color);love.graphics.polygon("fill",points)
  end
- ridge(horizon+unit*5,h*.20,unit*4,{.16,.33,.32,1},.8,parallax*unit*2)
- ridge(horizon+unit*9,h*.13,unit*3,{.09,.25,.25,1},2.1,parallax*unit*4)
+ ridge(horizon+unit*5,h*.20,unit*4,{.23,.31,.39,1},.8,parallax*unit*2)
+ ridge(horizon+unit*9,h*.13,unit*3,{.10,.24,.29,1},2.1,parallax*unit*4)
  local trees=self.backgroundTrees or{}
  local function drawRow(ground,startX,count,targetH,tint,offset,overlap,shift,sway)
   if #trees>0 then
