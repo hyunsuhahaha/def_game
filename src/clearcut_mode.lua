@@ -1955,6 +1955,45 @@ function ClearcutMode:rollScoreRainGap()
     return floor+love.math.random()*(ceiling-floor)
 end
 
+-- 비가 오는 동안에는 화면에 화염이 하나도 남지 않고 화염 계열 피해가 전부 멎어야
+-- 한다. 점화 경로를 하나씩 막는 방식은 화염원이 늘 때마다 빠뜨리므로, 매 프레임
+-- 전부 끄는 쪽을 택한다. 첫 프레임 이후에는 끌 것이 없어 사실상 공짜다.
+--
+-- 폭죽의 폭발 피해는 남긴다. 그건 화염이 아니라 충격이고, 착탄 점화만 막힌다.
+function ClearcutMode:extinguishAllFire(game)
+    for _,node in ipairs((game.world and game.world.nodes) or {}) do
+        if node.burning then
+            node.burning,node.burnTimer,node.fireTickTimer,node.burnDamageTimer=false,nil,nil,nil
+            node.spreadBudget,node.spreadDone=nil,nil
+            for _=1,5 do game.world:addParticle(node.x+love.math.random(-14,14),node.y-20-love.math.random(0,18),{.8,.82,.84},true,false) end
+        end
+        node.igniting,node.cigaretteIgnitedAt=nil,nil
+    end
+    for _,enemy in ipairs(self.enemies or {}) do
+        if enemy.burning then
+            enemy.burning,enemy.burnTimer,enemy.fireTickTimer=false,nil,nil
+            enemy.burnDuration,enemy.fireIgnitedAt=nil,nil
+        end
+    end
+    -- 화염방사기의 화염 기둥은 그리기와 판정을 한 객체가 겸한다. 지우면 둘 다 멎는다.
+    self.flameStream=nil
+    for _,spot in ipairs(self.oilTrail or {}) do spot.ignited,spot.ignitedAt,spot.tickTimer=false,nil,nil end
+    for _,spill in ipairs(self.oilDrumSpills or {}) do spill.ignited,spill.ignitedAge=false,nil end
+    for _,group in pairs(self.oilPuddleGroups or {}) do group.ignited,group.tickTimer=false,nil end
+    for _,bale in ipairs(self.strawBales or {}) do
+        bale.primedAt=nil
+        if bale.ignited then bale.ignited,bale.ignitedAt,bale.tickTimer=false,nil,nil end
+    end
+    for _,transfer in ipairs(self.emberTransfers or {}) do
+        if transfer.target and transfer.target.cigaretteEmber==transfer then transfer.target.cigaretteEmber=nil end
+    end
+    self.emberTransfers,self.emberArrivals={},{}
+    self.treeSparks,self.treeSparkArrivals={},{}
+    -- igniteFx 가 남긴 불티도 화염 이펙트다. ember 표식이 붙은 것만 걷어낸다.
+    local particles=(game.world and game.world.particles) or {}
+    for i=#particles,1,-1 do if particles[i].ember then table.remove(particles,i) end end
+end
+
 -- 지진과 낙하 가지는 플레이어 체력을 깎는 캠페인 장치라, "나무를 얼마나 없앴는가"
 -- 만 재고 죽음이 없는 이 모드에는 맞지 않는다. 비만 돌린다.
 function ClearcutMode:updateScoreRain(dt,game)
@@ -1976,18 +2015,11 @@ function ClearcutMode:updateScoreRain(dt,game)
             self.disasterState,self.disasterTimer="active",ClearcutMode.rollScoreRainDuration(kind)
             self.rainSuppressFire=true
             self.lightningTimer=kind.heavy and .6 or 1.1
-            for _,node in ipairs(game.world.nodes) do
-                if node.burning then
-                    node.burning,node.burnTimer,node.fireTickTimer=false,nil,nil
-                    for _=1,5 do game.world:addParticle(node.x+love.math.random(-14,14),node.y-20-love.math.random(0,18),{.8,.82,.84},true,false) end
-                end
-            end
-            for _,enemy in ipairs(self.enemies) do
-                if enemy.burning then enemy.burning,enemy.burnTimer,enemy.fireTickTimer=false,nil,nil end
-            end
+            self:extinguishAllFire(game)
             game:setNotice(kind.notice,"food")
         end
     elseif self.disasterState=="active" then
+        self:extinguishAllFire(game)
         self.lightningTimer=(self.lightningTimer or 2)-dt
         if self.lightningTimer<=0 then
             local heavy=self.scoreRainKind and self.scoreRainKind.heavy
@@ -2760,7 +2792,7 @@ function ClearcutMode:updateOilTrail(dt, game)
 end
 
 function ClearcutMode:igniteOilTrail(spot, game)
-    if spot.ignited then return end
+    if spot.ignited or self.rainSuppressFire then return end
     local now = self.smokerGroundTime
     spot.ignited, spot.ignitedAt = true, now
     local frontier, total = {spot}, 1
@@ -2827,6 +2859,9 @@ end
 
 -- 나무 점화의 단일 진입점. 모든 점화 경로가 확산 예산을 같은 방식으로 받도록 한다.
 function ClearcutMode:beginTreeBurn(node, depth)
+    -- 모든 나무 점화가 지나는 단일 입구. 여기서 막으면 담배·폭죽·화염방사기·연쇄가
+    -- 한 번에 막힌다.
+    if self.rainSuppressFire then return end
     node.burning, node.burnTimer, node.fireTickTimer = true, 0, 0
     node.spreadDepth = depth or 0
     node.spreadBudget, node.spreadDone, node.burnDamageTimer = self:rollSpreadBudget(), 0, nil
@@ -3685,6 +3720,13 @@ end
 ClearcutMode.FLAME_TICK=.12
 
 function ClearcutMode:updateFlamethrowerAttack(dt,game,held)
+    -- 화염방사기는 직접 피해까지 전부 화염이다. 비가 오면 기둥도 안 나가고 피해도
+    -- 없다. 그 몇 초 동안 원거리 자리가 비고 도끼가 유일한 답이 된다.
+    if self.rainSuppressFire then
+        self.flameStream=nil
+        if game.player.clearClearcutAction then game.player:clearClearcutAction()end
+        return false
+    end
     local traits=self.permanentTraits
     self.smokerWeaponCooldown=math.max(0,(self.smokerWeaponCooldown or 0)-dt)
     local reach=250+(traits.scoreFlameRange or 0)+ScoreOperations.weaponRange(self)*.4
@@ -3706,8 +3748,8 @@ function ClearcutMode:updateFlamethrowerAttack(dt,game,held)
     local speed=(game.tools.axe.speed or 1)*game.player.gather*traits.attackSpeed
         *ScoreOperations.attackSpeedMultiplier(self)
     self.smokerWeaponCooldown=ClearcutMode.FLAME_TICK/math.max(.25,speed)
-    -- 직접 피해가 본체다. 점화는 이 피해와 독립된 추가 효과라 비가 오거나 확률이
-    -- 실패해도 누르고 있는 동안 매 틱 체력은 계속 깎인다.
+    -- 직접 피해가 본체이고 점화는 그와 독립된 추가 효과다. 다만 둘 다 화염이라
+    -- 비가 오면 위에서 함께 멎는다.
     local damage=(3+(traits.treeDamage or 0)+(traits.scoreFlameDamage or 0)
         +ScoreOperations.weaponDamage(self))*ClearcutMode.FLAME_TICK
     local igniteChance=(.18+(traits.scoreFlameIgnite or 0))*ClearcutMode.FLAME_TICK

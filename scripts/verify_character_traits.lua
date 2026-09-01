@@ -223,9 +223,12 @@ assert(not stream(0,0,1,0,250,72,-20,0),"flame stream burned behind the nozzle")
 assert(not stream(0,0,1,0,250,72,200,90),"flame stream widened like a cone")
 assert(stream(0,0,1,0,250,128,200,118),"thickness research did not widen the column")
 
--- 비로 점화를 완전히 막아도 직접 피해는 매 틱 독립적으로 들어가야 한다.
-local flameMode=ClearcutMode.new();flameMode.scoreAttack=true;flameMode.rainSuppressFire=true
-flameMode.permanentTraits.scoreFlameUnlock=1;flameMode.permanentTraits.scoreFlameIgnite=0
+-- 점화가 한 번도 성공하지 않아도 직접 피해는 매 틱 독립적으로 들어가야 한다.
+-- 점화 확률 0으로 이걸 확인한다. (예전에는 rainSuppressFire 로 점화를 껐는데,
+-- 이제 비는 화염방사기를 통째로 멎게 하므로 그 수단은 쓸 수 없다 —
+-- 비 중 화염 차단은 verify_score_rain.lua 가 본다.)
+local flameMode=ClearcutMode.new();flameMode.scoreAttack=true
+flameMode.permanentTraits.scoreFlameUnlock=1;flameMode.permanentTraits.scoreFlameIgnite=-99
 local flameTree={rushTree=true,active=true,x=120,y=-30,rushHp=100,rushMaxHp=100,burning=false}
 local flameWorld={nodes={flameTree}}
 function flameWorld:impactNode()end
@@ -238,6 +241,13 @@ local afterFirstTick=flameTree.rushHp
 assert(flameMode:updateFlamethrowerAttack(.13,flameGame,true),"second continuous flame tick missed")
 assert(flameTree.rushHp<afterFirstTick and not flameTree.burning,
     "direct flame damage stopped when ignition was unavailable")
+
+-- 반면 비가 오면 직접 피해까지 함께 멎는다. 화염방사기는 전부가 화염이다.
+flameMode.rainSuppressFire=true
+local beforeRain=flameTree.rushHp
+assert(flameMode:updateFlamethrowerAttack(.13,flameGame,true)==false,"비가 오는데 화염방사기가 판정을 냈다")
+assert(flameTree.rushHp==beforeRain,"비가 오는데 화염방사기 직접 피해가 들어갔다")
+assert(flameMode.flameStream==nil,"비가 오는데 화염 기둥이 남아 있다")
 -- 불 갈래 33 = 담배 9 + 탄약 관리 3(개비 재장전·보루 용량·보루 교체) + 공용 나무 피해 1
 -- + 도끼 4 + 도끼 상위 3(충격파·연속 벌목·나무꾼 고용) + 후반 해금 3(상시 흡연·자동 투척·폭죽)
 -- + 자동 투척 주기 1 + 폭죽 5. 탄약 관리 갈래는 startSmoking의 세 상수(개비 재장전 하한,

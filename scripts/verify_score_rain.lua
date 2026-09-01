@@ -104,6 +104,62 @@ assert(rainLength <= ClearcutMode.SCORE_RAIN_MAX_DURATION + STEP * 2,
     "비가 상한 5초를 넘겼다: " .. rainLength)
 assert(not mode.rainSuppressFire, "비가 그쳤는데 점화 억제가 남아 있다")
 
+-- 비가 오는 동안에는 화면에 화염이 하나도 남지 않고 화염 피해가 전부 멎어야 한다.
+-- 점화 경로를 하나씩 막는 방식은 화염원이 늘 때마다 빠뜨리므로 여기서 전부 본다.
+do
+    local wet = ClearcutMode.new()
+    wet.scoreAttack = true
+    wet.rainSuppressFire = true
+    wet.enemies = {{x = 0, y = 0, hp = 10, burning = true, burnTimer = .3, fireTickTimer = .1}}
+    wet.oilTrail = {{x = 0, y = 0, ignited = true, ignitedAt = 0, tickTimer = .1}}
+    wet.oilDrumSpills = {{group = "g", ignited = true, ignitedAge = 1}}
+    wet.oilPuddleGroups = {g = {id = "g", ignited = true, tickTimer = .1, spots = {}}}
+    wet.strawBales = {{x = 0, y = 0, ignited = true, ignitedAt = 0, tickTimer = .1}}
+    wet.flameStream = {x = 0, y = 0, nx = 1, ny = 0, reach = 250, halfWidth = 72, t = 1}
+    wet.emberArrivals = {{x = 0, y = 0}}
+    wet.treeSparks = {{x = 0, y = 0}}
+    local tree = {x = 40, y = 0, burning = true, burnTimer = .5, fireTickTimer = .2, rushTree = true, active = true}
+    local wetGame = {
+        world = {nodes = {tree}, addParticle = function() end,
+            particles = {{ember = true}, {ember = true}, {ember = nil}}},
+        camera = {trauma = 0}, setNotice = function() end,
+    }
+
+    wet:extinguishAllFire(wetGame)
+
+    assert(not tree.burning and tree.burnTimer == nil, "비가 오는데 나무가 계속 탄다")
+    assert(not wet.enemies[1].burning, "비가 오는데 적이 계속 탄다")
+    assert(wet.flameStream == nil, "비가 오는데 화염 기둥이 남아 있다")
+    assert(not wet.oilTrail[1].ignited, "비가 오는데 기름 화염대가 남아 있다")
+    assert(not wet.oilDrumSpills[1].ignited, "비가 오는데 기름 자국이 계속 탄다")
+    assert(not wet.oilPuddleGroups.g.ignited, "비가 오는데 기름 웅덩이가 계속 탄다")
+    assert(not wet.strawBales[1].ignited, "비가 오는데 짚단이 계속 탄다")
+    assert(#wet.emberArrivals == 0 and #wet.treeSparks == 0, "비가 오는데 불씨 이펙트가 남아 있다")
+    assert(#wetGame.world.particles == 1 and wetGame.world.particles[1].ember == nil,
+        "비가 오는데 불티 파티클이 남아 있다")
+
+    -- 점화 입구가 전부 막혀야 한다. 나무 점화는 beginTreeBurn 하나로 모인다.
+    wet:beginTreeBurn(tree, 0)
+    assert(not tree.burning, "비가 오는데 새로 불이 붙는다")
+    wet:igniteNear({x = 0, y = 0, spreadDepth = 0}, wetGame, 200, 3, 0)
+    assert(not tree.burning, "비가 오는데 연쇄 점화가 들어온다")
+    local oilSpot = {x = 0, y = 0, ignited = false}
+    wet.oilTrail = {oilSpot}
+    wet:igniteOilTrail(oilSpot, wetGame)
+    assert(not oilSpot.ignited, "비가 오는데 기름에 불이 붙는다")
+
+    -- 화염방사기는 직접 피해까지 화염이다. 비 중에는 기둥도 판정도 없어야 한다.
+    wet.permanentTraits.scoreFlameUnlock = 1
+    local healthy = {x = 60, y = 0, rushTree = true, active = true, rushHp = 100, rushMaxHp = 100}
+    wetGame.world.nodes = {healthy}
+    wetGame.player = {x = 0, y = 0, facing = 1, gather = 1, isMoving = false}
+    wetGame.tools = {axe = {speed = 1}}
+    local fired = wet:updateFlamethrowerAttack(1/60, wetGame, true)
+    assert(fired == false, "비가 오는데 화염방사기가 판정을 냈다")
+    assert(wet.flameStream == nil, "비가 오는데 화염 기둥이 그려진다")
+    assert(healthy.rushHp == 100, "비가 오는데 화염방사기 직접 피해가 들어갔다")
+end
+
 -- 그친 뒤에는 다시 불이 붙어야 한다. 억제가 남으면 판이 죽는다.
 mode:beginTreeBurn(burning, 0)
 assert(burning.burning, "비가 그친 뒤에도 점화가 막혀 있다")
