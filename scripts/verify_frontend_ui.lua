@@ -8,10 +8,11 @@ local maps=read("src/clearcut_map_select.lua")
 local frontend=read("src/frontend_ui.lua")
 local doc=read("docs/FRONTEND_UI_REDESIGN.md")
 
-assert(lobby:find("lobby%-forest%-lofi%-day%-pixel%-v4%.png"),"bright forest lo-fi lobby background is not connected")
+assert(not lobby:find("love%.graphics%.newImage"),"lobby returned to a fixed background image")
+assert(lobby:find("field radio",1,true)and lobby:find("radioSignalBox",1,true),"interactive field radio is missing")
 assert(not lobby:find("숲이 다시 자라기 전에",1,true),"removed lobby slogan returned")
 assert(lobby:find("게임 시작",1,true),"active score-mode start button missing")
-assert(lobby:find('ACTIVE_DEVELOPMENT_MODE="score_attack"',1,true)and lobby:find("시작 6그루 · 영구 재생 단계",1,true),"score mode is not clearly marked with the persistent regeneration opening")
+assert(lobby:find('ACTIVE_DEVELOPMENT_MODE="score_attack"',1,true)and lobby:find("활성 나무 6그루",1,true),"score mode is not clearly marked with the persistent regeneration opening")
 assert(lobby:find("강화하기",1,true)and lobby:find("영구 전투 · 재생 단계 · 허용량",1,true),"active score upgrade entry is missing from lobby")
 -- 로비는 저장 데이터를 하나도 보여주지 않고 버튼만 있었다. 인크리멘탈에서 홈 화면이
 -- 진행 상황판이 아니면 다시 켤 이유가 없다.
@@ -29,6 +30,4 @@ assert(game:find("function Game:mousemoved",1,true) and game:find("function Game
 assert(frontend:find("function Frontend.button",1,true) and frontend:find("hover and 3 or 0",1,true),"interactive button presentation missing")
 assert(doc:find("레벨업 3택 화면은 이 프로젝트의 품질 기준이 아니다",1,true),"commercial indie quality bar is undocumented")
 
-local asset=assert(io.open("assets/lobby-forest-lofi-day-pixel-v4.png","rb")); local size=asset:seek("end"); asset:close()
-assert(size>500000,"lobby background appears to be a placeholder")
-print("FRONTEND_UI_OK flow=briefing lobby=forest-lofi-day copy=concrete responsive=960x540..1280x720")
+print("FRONTEND_UI_OK flow=briefing lobby=responsive-operations-desk radio=interactive copy=concrete responsive=960x540..1280x720")

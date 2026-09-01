@@ -27,6 +27,10 @@ local lobby = setmetatable({
 }, Lobby)
 assert(lobby:keypressed("return") == "score_attack" and lobby:keypressed("m")=="score_attack" and lobby:keypressed("c") == nil, "active lobby did not intentionally disable campaign shortcuts")
 assert(lobby:mousepressed(20,20,1)=="score_attack" and lobby:mousepressed(130,20,1) == "character_traits", "score-attack lobby navigation is not wired")
+lobby.radioStation=1;lobby.radioPlaying=false;lobby:keypressed("]")
+assert(lobby.radioStation==2 and lobby.radioPlaying,"lobby radio channel shortcut failed")
+lobby:keypressed("r");lobby:keypressed("3")
+assert(not lobby.radioPlaying and lobby.diagnosticTab==3,"lobby interactive controls failed")
 
 local store = CharacterTraits.new(true)
 assert(store:getRegenTier()==1 and store:unlockRegenTier(3) and store:getRegenTier()==3 and not store:unlockRegenTier(2),"persistent regeneration tier did not advance monotonically")

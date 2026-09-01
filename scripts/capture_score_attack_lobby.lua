@@ -1,9 +1,10 @@
 package.path="./?.lua;./?/init.lua;"..package.path
 local fixture=require("scripts.forest_render_fixture")
 local Lobby=require("src.lobby")
-love.graphics.getDimensions=function()return 1280,720 end
-love.graphics.getWidth=function()return 1280 end
-love.graphics.getHeight=function()return 720 end
+local captureW,captureH=CAPTURE_W or 1280,CAPTURE_H or 720
+love.graphics.getDimensions=function()return captureW,captureH end
+love.graphics.getWidth=function()return captureW end
+love.graphics.getHeight=function()return captureH end
 love.mouse={getPosition=function()return -100,-100 end,isDown=function()return false end}
 fixture.reset();fixture.time=1.4
 local fonts={}
@@ -19,5 +20,6 @@ achievements:recordRun({scoreAttack=true,trees=412,maxChain=9,stage=1,highestReg
 achievements.data.stats.total_trees=12847;achievements.data.stats.runs=63
 local game={characterTraits=traits,achievements=achievements}
 local lobby=Lobby.new({},fonts);lobby.time=1.4;lobby:draw(game)
-fixture.save("docs/previews/score-attack-lobby-draws.json")
-print("SCORE_ATTACK_LOBBY_CAPTURE_OK 1280x720 progress=shown window=none")
+local suffix=captureW==1280 and "" or "-"..captureW
+fixture.save("docs/previews/score-attack-lobby-draws"..suffix..".json")
+print(string.format("SCORE_ATTACK_LOBBY_CAPTURE_OK %dx%d progress=shown window=none",captureW,captureH))
