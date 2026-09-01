@@ -346,14 +346,18 @@ function CharacterTraitBoard:nodeWorld(node)
         fire_score_axe_shock={400,1850},fire_score_axe_chain={750,1850},
         fire_score_axe_pierce={100,2100},fire_score_axe_heavy={1050,1850},
         fire_score_axe_crew={575,2100},
-        fire_score_rocket_radius={400,2350},fire_score_rocket_damage={750,2350},
-        fire_score_rocket_speed={1100,2350},fire_score_rocket_ignite={1450,2350},
-        fire_score_rocket_cooldown={1800,2350},
+        -- 폭죽 가지는 단계별로 한 줄씩만 내린다. 같은 행을 가로질러 다른 노드를
+        -- 관통하던 선만 풀고, 담배/도끼 등 기존 연구 배치는 그대로 둔다.
+        fire_score_rocket_radius={750,1850},fire_score_rocket_damage={1450,1850},
+        fire_score_rocket_speed={500,2100},fire_score_rocket_ignite={900,2100},
+        fire_score_rocket_cooldown={1450,2100},
+        fire_score_rocket_cluster={700,2350},fire_score_rocket_twin={1500,2350},
+        fire_score_rocket_finale={1100,2600},
         -- 폭죽 졸업과 화염방사기는 폭죽 줄 아래로 새 층을 쌓는다. 도끼가 원숭이로
         -- 졸업한 뒤 폭죽으로 넘어갔듯, 폭죽도 원숭이로 졸업하고 화염방사기로 넘어간다.
-        fire_score_rocket_crew={1100,2600},fire_score_flame_unlock={1100,2850},
-        fire_score_flame_damage={750,3100},fire_score_flame_range={1100,3100},fire_score_flame_width={1450,3100},
-        fire_score_flame_ignite={1100,3350},
+        fire_score_rocket_crew={1100,2850},fire_score_flame_unlock={1100,3100},
+        fire_score_flame_damage={750,3350},fire_score_flame_range={1100,3350},fire_score_flame_width={1450,3350},
+        fire_score_flame_ignite={1100,3600},
         -- 공용 연구는 흡연자 갈래와 같은 좌표를 쓰고 있었다(각자 다른 탭이었으므로).
         -- 한 판으로 합치면서 흡연자 오른쪽으로 통째로 옮긴다.
         universal_yard={2600,850},universal_robot_start={3000,850},universal_robot_motor={3400,850},
@@ -362,11 +366,12 @@ function CharacterTraitBoard:nodeWorld(node)
         -- 드럼통 강화는 설비/고양이 선을 가로지르지 않도록 우측 상단에 독립 배치한다.
         -- 두 줄의 동일 간격 구조라 범위 계열과 지속 계열이 한눈에 구분된다.
         universal_oil_drum={3800,425},
-        universal_oil_interval={4200,250},universal_oil_radius={4600,250},universal_oil_ignition_radius={5000,250},
-        universal_oil_duration={4200,600},universal_oil_damage={4600,600},universal_oil_burn_duration={5000,600},
+        universal_oil_interval={4200,250},universal_oil_radius={4600,250},
+        universal_oil_splash_count={5000,250},universal_oil_patch_scale={5400,250},universal_oil_ignition_radius={5000,550},
+        universal_oil_duration={4200,650},universal_oil_burn_duration={4600,650},universal_oil_damage={5400,650},
         universal_gray_cat={3800,1100},
-        universal_gray_cat_chance={3800,1350},universal_gray_cat_delay={3800,1600},
-        universal_gray_cat_speed={3400,1100},
+        universal_gray_cat_chance={4100,1000},universal_gray_cat_delay={4400,1000},
+        universal_gray_cat_speed={4100,1200},universal_gray_cat_exit_speed={4400,1200},
         universal_mole_companion={3000,1100},
         universal_mole_damage={2600,1350},universal_mole_speed={3000,1350},universal_mole_attack_speed={3400,1350},
         universal_mole_claw={2600,1600},universal_mole_extra={3000,1600},universal_mole_dual={2600,1850},
