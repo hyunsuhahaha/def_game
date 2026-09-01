@@ -213,6 +213,7 @@ function ClearcutMode.new()
         smokerWeaponProjectiles={},smokerWeaponCooldown=0,vapeCharge=0,vapeKick=0,vapeWindLeaves={},flameStream=nil,
         treeSparks={}, treeSparkArrivals={}, strawTimer=0, strawBales={}, strawBaleSequence=0,
         oilTrail={}, oilTrailTimer=0, oilTrailLastX=nil, oilTrailLastY=nil, oilTrailSequence=0,
+        oilFireLinks={},oilFireLinkTickTimer=0,oilFireLinksDirty=true,
         oilDrums={},oilDrumSpills={},oilDrumTimer=0,oilDrumSequence=0,oilPuddleGroups={},grayOilCat=nil,
         poppingMachines={},puffedRiceShots={},puffedRiceImpacts={},poppingMachineSequence=0,pizzaOven=nil,
         worldTreeLumber={},
@@ -1074,6 +1075,7 @@ function ClearcutMode:spillOilDrum(drum,source)
         self.oilTrail[#self.oilTrail+1]=spot;spots[#spots+1]=spot
     end
     self.oilPuddleGroups[group]={id=group,x=drum.x,y=drum.y,radius=radius,spots=spots,tickTimer=0,source=source,damage=1+oilDamage}
+    self.oilFireLinksDirty=true
     return true
 end
 
@@ -2082,6 +2084,7 @@ function ClearcutMode:extinguishAllFire(game)
     for _,spot in ipairs(self.oilTrail or {}) do spot.ignited,spot.ignitedAt,spot.tickTimer=false,nil,nil end
     for _,spill in ipairs(self.oilDrumSpills or {}) do spill.ignited,spill.ignitedAge=false,nil end
     for _,group in pairs(self.oilPuddleGroups or {}) do group.ignited,group.tickTimer=false,nil end
+    self.oilFireLinks={};self.oilFireLinksDirty=false
     for _,bale in ipairs(self.strawBales or {}) do
         bale.primedAt=nil
         if bale.ignited then bale.ignited,bale.ignitedAt,bale.tickTimer=false,nil,nil end
@@ -3039,8 +3042,9 @@ function ClearcutMode:updateOilTrail(dt, game)
             x=game.player.x,y=game.player.y,spawnedAt=now,ignited=false,
             angle=angle,variant=(self.oilTrailSequence-1)%3+1,sequence=self.oilTrailSequence
         }
+        self.oilFireLinksDirty=true
         self.oilTrailLastX,self.oilTrailLastY=game.player.x,game.player.y
-        if #self.oilTrail > 90 then table.remove(self.oilTrail, 1) end
+        if #self.oilTrail > 90 then table.remove(self.oilTrail, 1);self.oilFireLinksDirty=true end
     elseif playerTrailActive and not game.player.isMoving then
         self.oilTrailLastX,self.oilTrailLastY=game.player.x,game.player.y
     end
@@ -3066,9 +3070,11 @@ function ClearcutMode:updateOilTrail(dt, game)
                 self:igniteEnemiesInRadius(spot.x,spot.y,hitRadius,game,0)
             end
             local burnDuration=5+(spot.source=="drum"and(self.permanentTraits.scoreOilBurnDuration or 0)or 0)
-            if now - spot.ignitedAt >= math.min(burnDuration,spot.lifetime or burnDuration) then table.remove(self.oilTrail, i) end
+            if now - spot.ignitedAt >= math.min(burnDuration,spot.lifetime or burnDuration) then
+                table.remove(self.oilTrail,i);self.oilFireLinksDirty=true
+            end
         elseif now - spot.spawnedAt >= (spot.lifetime or 6) then
-            table.remove(self.oilTrail, i)
+            table.remove(self.oilTrail,i);self.oilFireLinksDirty=true
         end
     end
     for id,group in pairs(self.oilPuddleGroups or{})do
@@ -3102,6 +3108,92 @@ function ClearcutMode:updateOilTrail(dt, game)
             end
         end
     end
+    self:updateOilFireLinks(dt,game,now)
+end
+
+function ClearcutMode.oilLinkPointDistanceSq(px,py,from,to)
+    local dx,dy=to.x-from.x,to.y-from.y
+    local lengthSq=dx*dx+dy*dy
+    if lengthSq<=.001 then return (px-from.x)^2+(py-from.y)^2 end
+    local t=math.max(0,math.min(1,((px-from.x)*dx+(py-from.y)*dy)/lengthSq))
+    local x,y=from.x+dx*t,from.y+dy*t
+    return (px-x)^2+(py-y)^2
+end
+
+-- A dense spill can contain 28 patches. Drawing every possible pair creates a
+-- solid orange net and multiplies damage at intersections, so build one minimum
+-- spanning forest over nearby burning patches. It keeps every connected pool in
+-- one readable chain with at most N-1 bridges and also permits two different drum
+-- spills to meet when their actual oil patches overlap.
+function ClearcutMode:updateOilFireLinks(dt,game,now)
+    now=now or self.smokerGroundTime or 0
+    if self.oilFireLinksDirty~=false then
+        local spots={}
+        for _,spot in ipairs(self.oilTrail or{})do
+            local spawned=now>=(spot.spawnedAt or 0)
+            local alive=now-(spot.spawnedAt or 0)<(spot.lifetime or 6)
+            if spawned and alive and spot.ignited then spots[#spots+1]=spot end
+        end
+        local candidates={}
+        local maxDistance=OilTrailArt.LINK_MAX_DISTANCE
+        for left=1,#spots-1 do for right=left+1,#spots do
+            local dx,dy=spots[right].x-spots[left].x,spots[right].y-spots[left].y
+            local distanceSq=dx*dx+dy*dy
+            if distanceSq>=18^2 and distanceSq<=maxDistance^2 then
+                candidates[#candidates+1]={from=spots[left],to=spots[right],distanceSq=distanceSq,
+                    order=(spots[left].sequence or left)*100000+(spots[right].sequence or right)}
+            end
+        end end
+        table.sort(candidates,function(a,b)
+            if a.distanceSq==b.distanceSq then return a.order<b.order end
+            return a.distanceSq<b.distanceSq
+        end)
+        local parent={}
+        for index=1,#spots do parent[spots[index]]=spots[index]end
+        local function root(value)
+            local current=value
+            while parent[current]~=current do current=parent[current]end
+            while parent[value]~=value do local nextValue=parent[value];parent[value]=current;value=nextValue end
+            return current
+        end
+        local links={}
+        for _,candidate in ipairs(candidates)do
+            local a,b=root(candidate.from),root(candidate.to)
+            if a~=b then
+                parent[b]=a
+                candidate.damage=math.max(candidate.from.damage or 4,candidate.to.damage or 4)
+                links[#links+1]=candidate
+            end
+        end
+        self.oilFireLinks=links
+        self.oilFireLinksDirty=false
+    end
+    local links=self.oilFireLinks or{}
+    if #links==0 or self.rainSuppressFire then return end
+    self.oilFireLinkTickTimer=(self.oilFireLinkTickTimer or 0)-dt
+    if self.oilFireLinkTickTimer>0 then return end
+    self.oilFireLinkTickTimer=.4
+    local halfWidth=22
+    local treeDamage=1+(self.permanentTraits.scoreOilDamage or 0)
+    for _,node in ipairs(game.world.nodes or{})do if node.active and node.rushTree then
+        for _,link in ipairs(links)do
+            if ClearcutMode.oilLinkPointDistanceSq(node.x,node.y,link.from,link.to)<=(halfWidth+20)^2 then
+                self:damageTreeWithSmokerWeapon(node,treeDamage,game)
+                break
+            end
+        end
+    end end
+    for _,enemy in ipairs(self.enemies or{})do if (enemy.hp or 0)>0 then
+        local radius=halfWidth+(enemy.radius or 18)
+        for _,link in ipairs(links)do
+            if ClearcutMode.oilLinkPointDistanceSq(enemy.x,enemy.y,link.from,link.to)<=radius*radius then
+                enemy.hp=enemy.hp-link.damage;enemy.visualHit=.14
+                self:igniteEnemy(enemy,game,0)
+                for _=1,4 do game.world:addParticle(enemy.x,enemy.y-12,{1,.32,.2},true,false)end
+                break
+            end
+        end
+    end end
 end
 
 function ClearcutMode:igniteOilTrail(spot, game)
@@ -3114,7 +3206,7 @@ function ClearcutMode:igniteOilTrail(spot, game)
         for _, other in ipairs(self.oilTrail) do
             if not other.ignited and total < 40 then
                 local dx, dy = other.x - current.x, other.y - current.y
-                if dx * dx + dy * dy <= 55 * 55 then
+                if dx * dx + dy * dy <= OilTrailArt.LINK_MAX_DISTANCE^2 then
                     other.ignited, other.ignitedAt = true, now
                     frontier[#frontier + 1] = other
                     total = total + 1
@@ -3122,6 +3214,7 @@ function ClearcutMode:igniteOilTrail(spot, game)
             end
         end
     end
+    self.oilFireLinksDirty=true
 end
 
 function ClearcutMode:updateTreeSparks()
@@ -7505,11 +7598,18 @@ function ClearcutMode:queueWorldActors(queue,t)
         end
         local previous=self.oilTrail[index-1]
         local sameGroup=previous and((not previous.group and not spot.group)or previous.group==spot.group)
-        if sameGroup and not(previous.hiddenGround or spot.hiddenGround)then
+        if sameGroup and not(previous.hiddenGround or spot.hiddenGround)
+            and not(previous.ignited and spot.ignited)then
             queue[#queue+1]={y=-99999+math.min(previous.y,spot.y)*.001,ground=true,draw=function() OilTrailArt.drawGroundBridge(previous,spot,groundTime) end}
-            if previous.ignited and spot.ignited then
-                queue[#queue+1]={x=(previous.x+spot.x)*.5,y=(previous.y+spot.y)*.5+.1,anchorY=(previous.y+spot.y)*.5,draw=function() OilTrailArt.drawFlameBridge(previous,spot,groundTime) end}
-            end
+        end
+    end
+    for _,value in ipairs(self.oilFireLinks or{})do local link=value
+        if not(link.from.hiddenGround or link.to.hiddenGround)then
+            queue[#queue+1]={y=-99998+math.min(link.from.y,link.to.y)*.001,ground=true,
+                draw=function()OilTrailArt.drawGroundBridge(link.from,link.to,groundTime)end}
+            queue[#queue+1]={x=(link.from.x+link.to.x)*.5,y=(link.from.y+link.to.y)*.5+.1,
+                anchorY=(link.from.y+link.to.y)*.5,
+                draw=function()OilTrailArt.drawFlameBridge(link.from,link.to,groundTime)end}
         end
     end
     for _,value in ipairs(self.cigaretteButts) do

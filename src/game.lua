@@ -452,6 +452,9 @@ end
 function Game:update(dt)
     self.achievements:update(dt)
     self.achievementBoard:update(dt)
+    -- 로비 배경음은 모드와 무관하게 매 프레임 맞춘다. 일시정지보다 앞이어야
+    -- 정지 상태로 로비를 떠나도 소리가 남지 않는다.
+    if self.lobby then self.lobby:syncAudio(self.mode) end
     if self.paused then return end
     -- Camera presentation modes keep lerping even while an intro, boss reveal,
     -- or skill cut-in temporarily freezes ordinary world/camera tracking.
