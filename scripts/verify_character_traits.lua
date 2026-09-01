@@ -483,4 +483,20 @@ board:wheelmoved(0,1)
 assert(board.zoom>oldZoom,"mouse wheel did not zoom the research canvas")
 assert(board.zoom>=board.referenceZoom*.85 and board.zoom<=board.referenceZoom*1.15,"research canvas zoom escaped its spacing-preserving range")
 
+-- 개발자 만렙은 현재 보이는 연구만이 아니라 등록된 캐릭터·공용 노드 전체를 채우고,
+-- 코인·재생 단계·장비 상태는 그대로 둔 채 한 번만 저장해야 한다.
+local maxStore=CharacterTraits.new(true)
+maxStore.data.currency=4321;maxStore.data.regenTier=4
+maxStore.data.equipmentConfigured=true;maxStore.data.playerWeapons={2,3}
+local nodes,ranks=maxStore:maxAll()
+local countedNodes,countedRanks=0,0
+for _,group in pairs(maxStore:getJobs())do for _,node in ipairs(group.nodes)do
+    countedNodes,countedRanks=countedNodes+1,countedRanks+node.max
+    assert(maxStore:getLevel(node.id)==node.max,"developer max-all missed trait: "..node.id)
+end end
+assert(nodes==countedNodes and ranks==countedRanks,"developer max-all reported the wrong scope")
+assert(maxStore.data.currency==4321 and maxStore:getRegenTier()==4
+    and maxStore.data.equipmentConfigured and maxStore.data.playerWeapons[2]==3,
+    "developer max-all changed currency, regen tier, or equipment state")
+
 print("CHARACTER_TRAITS_OK")

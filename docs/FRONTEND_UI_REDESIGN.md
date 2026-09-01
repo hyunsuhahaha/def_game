@@ -49,7 +49,7 @@
 지리 원본은 `assets/ui/sources/ne_50m_land.geojson`, `ne_50m_lakes.geojson`에 보존한다. [Natural Earth 1:50m physical vectors](https://www.naturalearthdata.com/downloads/50m-physical-vectors/)를 사용했으며 [이용 조건](https://www.naturalearthdata.com/about/terms-of-use/)에 따라 공개 도메인이다. 실제 해안선은 유지하고 색·명암·산맥 표시는 게임용 카툰 픽셀 표현이다.
 - **브리핑:** 선택 결과를 최종 검토하는 작전 명령서다. 승인 전에는 런을 생성하지 않는다.
 - **환경 설정:** 실제 설정과 개발자 도구를 다른 섹션으로 분리한다. 설정값은 토글 상태로 즉시 읽혀야 한다.
-- **개발자 도구:** 로비에서는 다음 런 시작 레벨 `+20`을 한 번 예약하고, 진행 중에는 현재 런 레벨 `+10`을 지급한다. 일반 방어·러시·벌목 런의 각 레벨/3택 큐에 맞게 적용하며, 다음 런 예약은 한 번 소비한 뒤 즉시 지운다. 자원 예약·영구 재화·2회 확인 초기화도 같은 검증 범위에 둔다.
+- **개발자 도구:** 로비에서는 다음 런 시작 레벨 `+20`을 한 번 예약하고, 진행 중에는 현재 런 레벨 `+10`을 지급한다. 일반 방어·러시·벌목 런의 각 레벨/3택 큐에 맞게 적용하며, 다음 런 예약은 한 번 소비한 뒤 즉시 지운다. `모든 영구 특성 만렙`은 등록된 캐릭터·공용 노드 전체를 비용·선행조건 없이 최대 단계로 맞추고 즉시 저장하되, 코인·재생 단계·장비 배치는 보존한다. 진행 중에 누르면 저장은 즉시 끝나고, 시작 시 배치되는 동료·설비·맵 확장까지 포함한 전체 효과는 판을 재시작한 뒤 적용된다고 상태 문구로 알린다. 자원 예약·영구 재화·2회 확인 초기화도 같은 검증 범위에 둔다. 도구 메뉴는 960×540부터 여섯 작업 행·상태 문구·돌아가기 버튼이 겹치지 않는 조밀한 반응형 배치를 사용한다.
 - **특성 연구:** 캐릭터 기록, 연구망, 미니맵을 하나의 연구 시스템처럼 보이게 유지한다.
 - **레벨업 선택:** 기존 3택을 기준으로 삼지 않고 공통 배경·계층 라벨·입력 반응을 적용한다. 카드 내부 정보보다 선택의 중요도와 희귀도 연출이 먼저 읽혀야 한다.
 
@@ -57,6 +57,7 @@
 
 - 현재 활성 로비: `docs/previews/score-attack-lobby-v1.png`, `docs/previews/score-attack-lobby-v1-960.png`
 - 현재 활성 영구 연구: `docs/previews/score-trait-board-v1.png`
+- 개발자 도구 전체 특성 만렙: `docs/previews/developer-tools-max-all-1280x720.png`, `docs/previews/developer-tools-max-all-960x540.png`
 - `docs/previews/frontend-v2-lobby.png`
 - `docs/previews/frontend-v2-operator.png`
 - `docs/previews/frontend-v2-map.png`

@@ -7,13 +7,33 @@ local game=setmetatable({
     food=0,ore=0,wood=0,stone=0,seeds=0,
     runLevel=1,runXP=0,runXPNext=18,pendingLevels=0,runType=nil,
     progression={data={currency=0},addCurrency=function(self,n)self.data.currency=self.data.currency+n end,reset=function()resets.progression=resets.progression+1 end},
-    characterTraits={data={currency=0},addCurrency=function(self,n)self.data.currency=self.data.currency+n end,reset=function()resets.traits=resets.traits+1 end},
+    characterTraits={data={currency=0},addCurrency=function(self,n)self.data.currency=self.data.currency+n end,
+        maxAll=function(self)self.maxed=(self.maxed or 0)+1;return 321,999 end,
+        reset=function()resets.traits=resets.traits+1 end},
     achievements={reset=function()resets.achievements=resets.achievements+1 end},
     upgrades={rollChoices=function(self)self.rolled=true end},
 },Game)
 
 game.testReturnMode="lobby";game:useTestOption(1)
 assert(game.characterTraits.data.currency==1000000 and game.progression.data.currency==0,"developer research coin grant failed")
+
+game:useTestOption(6)
+assert(game.characterTraits.maxed==1 and game.testMessage:find("321개 노드 / 999단계",1,true),
+    "developer max-all-traits action did not persist or report its scope")
+
+for _,size in ipairs({{960,540},{1280,720}})do
+    local layout=game:testOptionLayout(size[1],size[2])
+    assert(#layout.actions==6,"developer tool layout lost an action row")
+    assert(layout.panel.x>=0 and layout.panel.y>=0 and layout.back.y+layout.back.h<=size[2],
+        "developer tool panel clipped at "..size[1].."x"..size[2])
+    for index=2,#layout.actions do
+        assert(layout.actions[index-1].y+layout.actions[index-1].h<=layout.actions[index].y,
+            "developer tool actions overlap at "..size[1].."x"..size[2])
+    end
+    assert(layout.actions[#layout.actions].y+layout.actions[#layout.actions].h<=layout.message.y
+        and layout.message.y+layout.message.h<=layout.back.y,
+        "developer status message overlaps a control at "..size[1].."x"..size[2])
+end
 
 game:useTestOption(2)
 assert(game.testGrantNextRun,"next-run resource reservation failed")
@@ -32,6 +52,9 @@ game.testLevelsNextRun,game.testLevelsNextRunManual=20,true
 assert(game:consumeTestNextRunLevels()==20 and game.clearcut.level==21 and game.clearcut.pending==20,"clearcut next-run levels failed")
 game.testReturnMode="playing";game:useTestOption(3)
 assert(game.clearcut.level==31 and game.clearcut.pending==30,"current clearcut +10 failed")
+game:useTestOption(6)
+assert(game.characterTraits.maxed==2 and game.testMessage:find("재시작 후 전체 적용",1,true),
+    "active-run max-all did not explain when spawn-time traits take effect")
 game:closeTestOptions()
 assert(game.mode=="clearcut_upgrade" and game.clearcut.opened,"closing developer tools did not open clearcut choices")
 
@@ -46,4 +69,5 @@ assert(game.testResetArmed and game.testResetTime==4,"developer reset confirmati
 game:useTestOption(4)
 assert(resets.progression==1 and resets.traits==1 and resets.achievements==1 and not game.testResetArmed,"developer reset did not clear every permanent store")
 
-print("DEVELOPER_TOOLS_OK research_coin=1m resources=next_once levels=current10+next20 modes=standard+rush+clearcut reset=confirmed")
+print("DEVELOPER_TOOLS_OK research_coin=1m traits=max_all resources=next_once levels=current10+next20 "..
+    "responsive=960x540+ modes=standard+rush+clearcut reset=confirmed")

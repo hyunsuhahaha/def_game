@@ -345,6 +345,32 @@ function Game:closeTestOptions()
     end
 end
 
+-- 960x540에서도 여섯 개의 작업 버튼과 상태 문구가 잘리지 않는 조밀한 도구 배치.
+-- draw와 mousepressed가 같은 박스를 공유해 해상도별 클릭 좌표가 어긋나지 않는다.
+function Game:testOptionLayout(width,height)
+    local w=width or love.graphics.getWidth()
+    local h=height or love.graphics.getHeight()
+    local compact=h<650
+    local margin=compact and 14 or 28
+    local panelW=math.min(720,w-margin*2)
+    local panelH=math.min(compact and 512 or 650,h-margin*2)
+    local panel={x=(w-panelW)/2,y=(h-panelH)/2,w=panelW,h=panelH}
+    local bx=panel.x+(compact and 32 or 70)
+    local bw=panel.w-(compact and 64 or 140)
+    local rowH,gap=compact and 40 or 48,compact and 6 or 10
+    local firstY=panel.y+(compact and 112 or 130)
+    local order={1,2,3,5,6,4}
+    local actions={}
+    for row,index in ipairs(order)do
+        actions[#actions+1]={index=index,x=bx,y=firstY+(row-1)*(rowH+gap),w=bw,h=rowH}
+    end
+    local backH=compact and 36 or 46
+    local back={x=bx,y=panel.y+panel.h-backH-(compact and 10 or 12),w=bw,h=backH}
+    local actionBottom=actions[#actions].y+actions[#actions].h
+    local message={x=panel.x+24,y=actionBottom+(compact and 8 or 12),w=panel.w-48,h=math.max(24,back.y-actionBottom-(compact and 12 or 18))}
+    return{panel=panel,compact=compact,actions=actions,back=back,message=message}
+end
+
 function Game:useTestOption(index)
     local activeRun=self.testReturnMode=="playing" or self.testReturnMode=="upgrade" or self.testReturnMode=="rush_upgrade" or self.testReturnMode=="clearcut_upgrade"
     if index==1 then
@@ -363,6 +389,10 @@ function Game:useTestOption(index)
         if activeRun and self.clearcut and self.clearcut.scoreAttack then self.testMessage="벌목 기록 모드는 인게임 레벨업을 사용하지 않습니다."
         else self.testLevelsNextRun,self.testLevelsNextRunManual=20,true
             self.testMessage="다음 런 시작 레벨 +20을 예약했습니다. 강화를 직접 3택으로 고릅니다." end
+    elseif index==6 then
+        local nodes,ranks=self.characterTraits:maxAll()
+        self.testMessage=string.format("모든 영구 특성 만렙 완료 · %d개 노드 / %d단계 저장%s",nodes,ranks,
+            activeRun and " · 진행 중인 판은 재시작 후 전체 적용"or"")
     end
 end
 
@@ -667,15 +697,11 @@ function Game:mousepressed(x, y, button)
     end
     if self.mode=="test_options" then
         if button==1 then
-            local w=love.graphics.getWidth(); local bx=w/2-290
-            if x>=bx and x<=bx+580 then
-                if y>=220 and y<=278 then self:useTestOption(1)
-                elseif y>=300 and y<=358 then self:useTestOption(2)
-                elseif y>=380 and y<=438 then self:useTestOption(3)
-                elseif y>=460 and y<=518 then self:useTestOption(5)
-                elseif y>=540 and y<=598 then self:useTestOption(4)
-                elseif y>=640 and y<=686 then self:closeTestOptions() end
+            local layout=self:testOptionLayout()
+            for _,box in ipairs(layout.actions)do
+                if Frontend.inside(box,x,y)then self:useTestOption(box.index);return end
             end
+            if Frontend.inside(layout.back,x,y)then self:closeTestOptions()end
         end
         return
     end
@@ -1668,22 +1694,34 @@ end
 
 function Game:drawTestOptions()
     local w,h,f=love.graphics.getWidth(),love.graphics.getHeight(),self.fonts
+    local layout=self:testOptionLayout(w,h);local panel,compact=layout.panel,layout.compact
     love.graphics.clear(.055,.11,.105)
     love.graphics.setColor(.12,.28,.23,.32); for x=0,w,48 do love.graphics.line(x,0,x,h) end; for y=0,h,48 do love.graphics.line(0,y,w,y) end
-    UI.panel(w/2-360,84,720,640,{.42,1,.6,1},.98)
-    love.graphics.setFont(f.title); love.graphics.setColor(1,1,1); love.graphics.printf("테스트 옵션",w/2-330,105,660,"center")
-    love.graphics.setFont(f.small); love.graphics.setColor(.62,.78,.72); love.graphics.printf("개발 중인 특성·생산·방어 시스템을 빠르게 확인하는 메뉴",w/2-330,153,660,"center")
-    love.graphics.setColor(1,.72,.25); love.graphics.printf("보유 연구 코인  "..self.characterTraits.data.currency,w/2-330,181,660,"center")
-    local bx=w/2-290
-    UI.button(bx,220,580,58,"연구 코인 +1,000,000",true,f.heading)
-    UI.button(bx,300,580,58,"런 자원 각 +1,000,000  (식량·광석·목재·돌)",true,f.body)
+    UI.panel(panel.x,panel.y,panel.w,panel.h,{.42,1,.6,1},.98)
+    love.graphics.setFont(compact and f.heading or f.title);love.graphics.setColor(1,1,1)
+    love.graphics.printf("테스트 옵션",panel.x+20,panel.y+(compact and 16 or 20),panel.w-40,"center")
+    love.graphics.setFont(f.small);love.graphics.setColor(.62,.78,.72)
+    love.graphics.printf("개발 중인 특성·생산·방어 시스템을 빠르게 확인하는 메뉴",panel.x+20,panel.y+(compact and 50 or 62),panel.w-40,"center")
+    love.graphics.setColor(1,.72,.25)
+    love.graphics.printf("보유 연구 코인  "..self.characterTraits.data.currency,panel.x+20,panel.y+(compact and 78 or 92),panel.w-40,"center")
     local activeRun=self.testReturnMode=="playing" or self.testReturnMode=="upgrade" or self.testReturnMode=="rush_upgrade" or self.testReturnMode=="clearcut_upgrade"
     local scoreRun=activeRun and self.clearcut and self.clearcut.scoreAttack
-    UI.button(bx,380,580,58,scoreRun and "벌목 기록 모드 · 인게임 레벨업 비활성"or(activeRun and "현재 런 레벨 +10  (강화 3택 테스트)" or "다음 런 시작 레벨 +20  (자동 선택)"),not scoreRun,f.body)
-    UI.button(bx,460,580,58,scoreRun and "벌목 기록 모드 · 강화 3택 없음"or"다음 런 시작 레벨 +20  (수동 선택 · 직접 3택)",not scoreRun,f.body)
-    UI.button(bx,540,580,58,self.testResetArmed and "정말 초기화 — 다시 클릭" or "영구 재화·특성 초기화",true,f.body)
-    UI.button(bx,640,580,46,"돌아가기  [F10 / ESC]",true,f.body)
-    love.graphics.setColor(self.testResetArmed and {1,.42,.25} or {.68,.82,.76}); love.graphics.printf(self.testMessage or "",w/2-315,615,630,"center")
+    local labels={
+        [1]="연구 코인 +1,000,000",
+        [2]="런 자원 각 +1,000,000  (식량·광석·목재·돌)",
+        [3]=scoreRun and "벌목 기록 모드 · 인게임 레벨업 비활성"or(activeRun and "현재 런 레벨 +10  (강화 3택 테스트)"or"다음 런 시작 레벨 +20  (자동 선택)"),
+        [5]=scoreRun and "벌목 기록 모드 · 강화 3택 없음"or"다음 런 시작 레벨 +20  (수동 선택 · 직접 3택)",
+        [6]="모든 영구 특성 만렙",
+        [4]=self.testResetArmed and "정말 초기화 — 다시 클릭"or"영구 재화·특성 초기화",
+    }
+    for _,box in ipairs(layout.actions)do
+        local enabled=not scoreRun or(box.index~=3 and box.index~=5)
+        UI.button(box.x,box.y,box.w,box.h,labels[box.index],enabled,box.index==1 and f.heading or f.body)
+    end
+    UI.button(layout.back.x,layout.back.y,layout.back.w,layout.back.h,"돌아가기  [F10 / ESC]",true,f.body)
+    love.graphics.setFont(f.small)
+    love.graphics.setColor(self.testResetArmed and {1,.42,.25}or{.68,.82,.76})
+    love.graphics.printf(self.testMessage or "",layout.message.x,layout.message.y,layout.message.w,"center")
 end
 
 function Game:drawResults()

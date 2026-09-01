@@ -708,6 +708,21 @@ function CharacterTraits:addCurrency(amount, deferSave)
     return amount
 end
 
+-- 개발자 도구 전용. 구매 루프를 억지로 돌리면 후반 가격 상승과 선행 조건 때문에
+-- 일부 노드가 남을 수 있으므로, 등록된 원본 노드의 max를 그대로 한 번에 저장한다.
+-- 코인·재생 단계·장비 배치는 건드리지 않아 테스트하려던 별도 상태를 보존한다.
+function CharacterTraits:maxAll()
+    local nodes,ranks=0,0
+    for _,id in ipairs(orderedIds)do
+        local node=byId[id]
+        self.data.levels[id]=node.max
+        nodes,ranks=nodes+1,ranks+node.max
+    end
+    self._scoreRanks=nil
+    self:save()
+    return nodes,ranks
+end
+
 function CharacterTraits:hasSeenStory(jobId)
     return self.data.storySeen[jobId] == true
 end
