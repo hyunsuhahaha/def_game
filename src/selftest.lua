@@ -743,17 +743,31 @@ function SelfTest.run(game)
     game.clearcut:updateDisasters(.01, game)
     assert(game.clearcut.disasterState == "cooldown" and game.clearcut.rainSuppressFire == false, "비 종료 처리 실패")
 
-    game.clearcut.disasterState, game.clearcut.disasterTimer, game.clearcut.disasterType = "warn", 0, "quake"
+    game.clearcut.disasterState, game.clearcut.disasterTimer, game.clearcut.disasterType = "warn", 0, "rootQuake"
     game.clearcut.bossTelegraphs = {}
     game.clearcut:updateDisasters(.01, game)
     assert(game.clearcut.disasterState == "active", "지진 활성화 실패")
     game.clearcut.quakeTickTimer = 0
     game.clearcut:updateDisasters(.01, game)
     local quakeTelFound = false
-    for _, tel in ipairs(game.clearcut.bossTelegraphs) do if tel.quake then quakeTelFound = true end end
+    for _, tel in ipairs(game.clearcut.bossTelegraphs) do if tel.rootQuake then quakeTelFound = true end end
     assert(quakeTelFound, "지진 낙석 텔레그래프 생성 실패")
     game.clearcut.disasterState, game.clearcut.disasterTimer, game.clearcut.disasterType = "idle", 999, nil
     game.clearcut.bossTelegraphs = {}
+
+    -- 실제 기록 모드 HUD의 비 경고/활성 문구를 LÖVE 폰트에 넣는다. Lua 패턴이
+    -- em dash를 바이트 문자셋으로 잘라 한글 중간 바이트를 만들면 여기서 printf가
+    -- 즉시 UTF-8 decoding error를 내야 한다.
+    game.clearcut.scoreAttack = true
+    game.clearcut.scoreRainKind = game.clearcut.SCORE_RAIN_KINDS[2]
+    game.clearcut.disasterType, game.clearcut.disasterState = "rain", "warn"
+    local rainWarnDrawOk, rainWarnDrawErr = pcall(game.draw, game)
+    assert(rainWarnDrawOk, "기록 모드 비 경고 HUD UTF-8 렌더 실패: " .. tostring(rainWarnDrawErr))
+    game.clearcut.disasterState = "active"
+    local rainActiveDrawOk, rainActiveDrawErr = pcall(game.draw, game)
+    assert(rainActiveDrawOk, "기록 모드 비 활성 HUD UTF-8 렌더 실패: " .. tostring(rainActiveDrawErr))
+    game.clearcut.scoreAttack, game.clearcut.scoreRainKind = false, nil
+    game.clearcut.disasterType, game.clearcut.disasterState, game.clearcut.disasterTimer = nil, "idle", 999
 
     -- 오프스크린 인디케이터 + 새 카드 이펙트가 실제 렌더 경로에서 에러 없이 그려지는지 확인
     game.clearcut:spawnEnemy("reaper", game.camera.x + 4000, game.camera.y + 4000)
@@ -798,7 +812,7 @@ function SelfTest.run(game)
     game.clearcut.levels.revival_meeting = 0
     game.clearcut.revivalTimer, game.clearcut.revivalCooldown = 0, 0
 
-    print("SELF_TEST_OK: LOBBY_DUAL_MODE RUSH_3MIN RUSH_FOREST RUSH_HOLD_TO_CHOP RUSH_MULTI_HIT RUSH_CHAIN_FELL RUSH_AUTO_PICKUP RUSH_THREE_CHOICES RUSH_AUTO_FRONT RUSH_RESULTS LOBBY_AUX_NAV SETTINGS BIG_TREE_SINGLE TREE_PER_HIT_DROP TREE_PROXIMITY_PICKUP QUARRY_GROUNDED QUARRY_PER_HIT_DROP QUARRY_ORE_RATIO QUARRY_PROXIMITY_PICKUP FARM TREE QUARRY_INFINITE TOOL_SPEED IMPACT_SYNC HARVEST_FEEDBACK VISIBLE_TURRET VISIBLE_DRONE VISIBLE_REPAIR_STATION MINING_DRILL_VFX RUN_LEVELUP THREE_CHOICES AUTOMATION EVOLUTION WALL_UPGRADE WALL_BLOCK HAMMER_REPAIR CRIT_CHANCE PRESTIGE_RUN MOVE_WHILE_FARM TURRET_SLOT_BASE TURRET_SLOT_TRAIT TURRET_SLOT_OCCUPIED TURRET_NEARBY TURRET_F_INTERACT TURRET_UPGRADE TURRET_AIM VISIBLE_BULLET MUZZLE_FLASH CHAIN_COIL_VFX EXPLOSIVE_SHELL_VFX META_SAVE TRAIT_TREE TRAIT_APPLY RUN_REWARD TEST_CURRENCY TEST_RESOURCES TEST_LEVELS TEST_RESET CIGARETTE_SMOKE_WINDUP CLEARCUT_CARD_FRAME CURSE_SCALING SWARM_SCALING TIME_SPAWNER ELITE_SPAWN REAPER_SPAWN REAPER_DASH_AI ELITE_THORN_FIRE STAGE_PROGRESSION WORLDTREE_ATTACKS WORLDTREE_ENRAGE SHADED_SPRITES BERSERK_ROUND BERSERK_TREE_FX CARD_REROLL CARD_BANISH ARCANA_STAGE SPECIAL_CARD VINE_PLANT NATURAL_DISASTER OFFSCREEN_INDICATOR CHARACTER_STORY_FLOW CHARACTER_CODEX SKILL_SANDBOX SANDBOX_FUSION SMOKE_RING SALIVA_GAUGE REVIVAL_MEETING")
+    print("SELF_TEST_OK: LOBBY_DUAL_MODE RUSH_3MIN RUSH_FOREST RUSH_HOLD_TO_CHOP RUSH_MULTI_HIT RUSH_CHAIN_FELL RUSH_AUTO_PICKUP RUSH_THREE_CHOICES RUSH_AUTO_FRONT RUSH_RESULTS LOBBY_AUX_NAV SETTINGS BIG_TREE_SINGLE TREE_PER_HIT_DROP TREE_PROXIMITY_PICKUP QUARRY_GROUNDED QUARRY_PER_HIT_DROP QUARRY_ORE_RATIO QUARRY_PROXIMITY_PICKUP FARM TREE QUARRY_INFINITE TOOL_SPEED IMPACT_SYNC HARVEST_FEEDBACK VISIBLE_TURRET VISIBLE_DRONE VISIBLE_REPAIR_STATION MINING_DRILL_VFX RUN_LEVELUP THREE_CHOICES AUTOMATION EVOLUTION WALL_UPGRADE WALL_BLOCK HAMMER_REPAIR CRIT_CHANCE PRESTIGE_RUN MOVE_WHILE_FARM TURRET_SLOT_BASE TURRET_SLOT_TRAIT TURRET_SLOT_OCCUPIED TURRET_NEARBY TURRET_F_INTERACT TURRET_UPGRADE TURRET_AIM VISIBLE_BULLET MUZZLE_FLASH CHAIN_COIL_VFX EXPLOSIVE_SHELL_VFX META_SAVE TRAIT_TREE TRAIT_APPLY RUN_REWARD TEST_CURRENCY TEST_RESOURCES TEST_LEVELS TEST_RESET CIGARETTE_SMOKE_WINDUP CLEARCUT_CARD_FRAME CURSE_SCALING SWARM_SCALING TIME_SPAWNER ELITE_SPAWN REAPER_SPAWN REAPER_DASH_AI ELITE_THORN_FIRE STAGE_PROGRESSION WORLDTREE_ATTACKS WORLDTREE_ENRAGE SHADED_SPRITES BERSERK_ROUND BERSERK_TREE_FX CARD_REROLL CARD_BANISH ARCANA_STAGE SPECIAL_CARD VINE_PLANT NATURAL_DISASTER SCORE_RAIN_HUD_UTF8 OFFSCREEN_INDICATOR CHARACTER_STORY_FLOW CHARACTER_CODEX SKILL_SANDBOX SANDBOX_FUSION SMOKE_RING SALIVA_GAUGE REVIVAL_MEETING")
 end
 
 return SelfTest
