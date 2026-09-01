@@ -97,6 +97,17 @@ function Lobby:keypressed(key)
   if key=="escape"then CompanionShop.close(self.companionShop)end
   return
  end
+ if self.exitMenuOpen then
+  if key=="escape"then self.exitMenuOpen=false
+  elseif key=="up"or key=="w"then self.exitMenuFocus=1
+  elseif key=="down"or key=="s"then self.exitMenuFocus=2
+  elseif key=="return"or key=="kpenter"or key=="space"then
+   if(self.exitMenuFocus or 1)==1 then return "quit"end
+   self.exitMenuOpen=false;return "settings"
+  end
+  return
+ end
+ if key=="escape"then self.exitMenuOpen=true;self.exitMenuFocus=1;return end
  if key=="up" or key=="w" then self.menuFocus=((self.menuFocus or 1)-2)%#MENU+1
  elseif key=="down" then self.menuFocus=(self.menuFocus or 1)%#MENU+1
  elseif key=="return" or key=="kpenter" or key=="space" then return menuAction(self)
@@ -115,6 +126,11 @@ function Lobby:mousepressed(x,y,button)
  if CompanionShop.isOpen(self.companionShop)then
   CompanionShop.mousepressed(self.companionShop,x,y,button,self.shopTraits)
   return
+ end
+ if self.exitMenuOpen then
+  if inside(self.exitBox,x,y)then return "quit"
+  elseif inside(self.exitSettingsBox,x,y)then self.exitMenuOpen=false;return "settings"
+  else self.exitMenuOpen=false;return end
  end
  if CompanionShop.openAtBuilding(self.companionShop,x,y)then return end
  if inside(self.audioPrevBox,x,y)then self:cycleTrack(-1);return end
@@ -253,6 +269,26 @@ local function drawCursor(x,y,h,pulse)
  love.graphics.rectangle("fill",x+10+offset,y+h/2-3,5,6)
 end
 
+function Lobby:drawExitMenu()
+ local w,h=love.graphics.getDimensions();local f=self.fonts
+ local menuFont=self.pixelMenu or f.heading;local tinyFont=self.pixelTiny or f.small
+ love.graphics.setColor(0,0,0,.58);love.graphics.rectangle("fill",0,0,w,h)
+ local pw=math.min(390,w-48);local rowH=h<620 and 48 or 56;local gap=8
+ local ph=72+rowH*2+gap;local x=(w-pw)/2;local y=(h-ph)/2
+ love.graphics.setColor(.006,.028,.020,.96);love.graphics.rectangle("fill",x+6,y+7,pw,ph)
+ pixelFrame(x,y,pw,ph,true)
+ love.graphics.setFont(tinyFont);love.graphics.setColor(.52,.88,.62);love.graphics.print("종료 메뉴",x+24,y+18)
+ self.exitBox={x=x+20,y=y+52,w=pw-40,h=rowH}
+ self.exitSettingsBox={x=x+20,y=y+52+rowH+gap,w=pw-40,h=rowH}
+ for index,data in ipairs({{self.exitBox,"게임 종료"},{self.exitSettingsBox,"설정"}})do
+  local box,label=data[1],data[2];local selected=index==(self.exitMenuFocus or 1)
+  pixelFrame(box.x+20,box.y,box.w-20,box.h,selected)
+  if selected then drawCursor(box.x,box.y,box.h,math.floor(self.time*3)%2==0)end
+  love.graphics.setFont(menuFont);love.graphics.setColor(selected and {.995,.96,.77,1}or{.68,.79,.65,1})
+  love.graphics.print(label,box.x+46,box.y+box.h/2-menuFont:getHeight()/2-1)
+ end
+end
+
 function Lobby:drawMenu(game,x,y,w,rowH,gap,menuFont,keyFont)
  self.menuBoxes={}
  for i,item in ipairs(MENU)do
@@ -338,8 +374,9 @@ function Lobby:draw(game)
  local rowH=compact and 46 or 54;local gap=compact and 5 or 7;local menuY=titleY+titleFont:getHeight()+44
  self:drawMenu(game,x,menuY,menuW,rowH,gap,menuFont,tinyFont)
  local audioW=math.min(compact and 530 or 590,w-x*2);self:drawAudio(x,h-(compact and 62 or 72),audioW,compact and 44 or 48,tinyFont)
- love.graphics.setFont(tinyFont);love.graphics.setColor(.48,.70,.55);love.graphics.printf("R 재생  ·  [ ] 트랙  ·  ESC 종료",0,h-22,w-x,"right")
+ love.graphics.setFont(tinyFont);love.graphics.setColor(.48,.70,.55);love.graphics.printf("R 재생  ·  [ ] 트랙  ·  ESC 종료 메뉴",0,h-22,w-x,"right")
+ if CompanionShop.isOpen(self.companionShop)then CompanionShop.drawOverlay(self.companionShop,self.shopTraits,f)
+ elseif self.exitMenuOpen then self:drawExitMenu()end
 end
- if CompanionShop.isOpen(self.companionShop)then CompanionShop.drawOverlay(self.companionShop,self.shopTraits,f)end
 
 return Lobby

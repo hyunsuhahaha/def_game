@@ -539,7 +539,6 @@ function Game:keypressed(key)
         return
     end
     if self.mode == "lobby" then
-        if key == "escape" then love.event.quit(); return end
         local action=self.lobby:keypressed(key)
         -- "clearcut" is intentionally unreachable from the active lobby, but
         -- this branch is preserved so the campaign can be restored without
@@ -560,6 +559,8 @@ function Game:keypressed(key)
             self:startClearcutSandbox("fire")
         elseif action=="settings" then
             self.mode="settings"
+        elseif action=="quit" then
+            love.event.quit()
         end
         return
     end
@@ -732,7 +733,8 @@ function Game:mousepressed(x, y, button)
         elseif action == "character_codex" then self.mode = "character_codex"
         elseif action == "achievements" then self.mode = "achievements"
         elseif action == "skill_sandbox" then self.sandboxMode = true; self:startClearcutSandbox("fire")
-        elseif action == "settings" then self.mode = "settings" end
+        elseif action == "settings" then self.mode = "settings"
+        elseif action == "quit" then love.event.quit() end
         return
     end
     if ClearcutIntro.active(self) then if button==1 then ClearcutIntro.skip(self) end;return end

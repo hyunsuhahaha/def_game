@@ -73,11 +73,15 @@ choice.branchChoices=require("src.clearcut_skill_branches").smokerEvolutionChoic
 fixture.time=2;fixture.reset();choice:drawSelectionContent({mode="clearcut_upgrade",setNotice=function()end},fonts,width,height)
 fixture.save("docs/previews/smoker-weapon-evolution-choice-draws.json")
 
+-- Runtime-driven review of the permanent firework spectacle branch:
+-- twin launch -> five cluster children -> two shrinking finale echoes.
 local spectacle=Mode.new();spectacle.scoreAttack=true;spectacle.job="fire"
 spectacle.permanentTraits.scoreRocketUnlock=1;spectacle.permanentTraits.scoreRocketTwin=1
 spectacle.permanentTraits.scoreRocketCluster=1;spectacle.permanentTraits.scoreRocketFinale=1
-local spectacleGame={player={x=112,y=304,facing=1,gather=1,clearClearcutAction=function()end},tools={axe={speed=1}},
- camera={screenToWorld=function()return 420,178 end},world={nodes={}},setNotice=function()end}
+local spectacleGame={
+ player={x=112,y=304,facing=1,gather=1,clearClearcutAction=function()end},tools={axe={speed=1}},
+ camera={screenToWorld=function()return 420,178 end},world={nodes={}},setNotice=function()end
+}
 spectacle:updateFireworkAttack(1,spectacleGame,true)
 local reviewTimes={.08,.46,.70,.92};local reviewTime=0
 for index,targetTime in ipairs(reviewTimes)do

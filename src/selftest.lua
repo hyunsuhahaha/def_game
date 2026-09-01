@@ -33,6 +33,9 @@ function SelfTest.run(game)
     game.lobby.traitsBox = {x = 120, y = 10, w = 100, h = 50}
     game.lobby.settingsBox = {x = 230, y = 10, w = 100, h = 50}
     assert(game.lobby:keypressed("return") == "score_attack" and game.lobby:mousepressed(30, 30, 1) == "score_attack", "활성 벌목 기록 로비 시작 버튼 실패")
+    assert(game.lobby:keypressed("escape") == nil and game.lobby.exitMenuOpen, "로비 ESC 종료 메뉴 열기 실패")
+    assert(game.lobby:keypressed("down") == nil and game.lobby:keypressed("return") == "settings" and not game.lobby.exitMenuOpen, "로비 종료 메뉴 설정 진입 실패")
+    game.lobby:keypressed("escape");assert(game.lobby:keypressed("return") == "quit", "로비 종료 메뉴 종료 선택 실패");game.lobby.exitMenuOpen=false
     assert(game.lobby:keypressed("t") == "character_traits", "캐릭터 특성 단축키 실패")
     assert(game.lobby:mousepressed(140, 30, 1) == "character_traits" and game.lobby:mousepressed(250, 30, 1) == "settings", "로비 보조 메뉴 진입 실패")
     game:startRush()

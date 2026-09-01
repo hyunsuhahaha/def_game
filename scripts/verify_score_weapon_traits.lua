@@ -140,6 +140,8 @@ slowRocket.smokerWeaponCooldown = 0
 slowRocket:updateHeldAxe(1, rocketGame, true)
 assert(slowRocket.smokerWeaponProjectiles[1].dur > shot.dur, "폭죽 비행 속도 특성이 도달 시간을 줄이지 않는다")
 
+-- 쌍발은 좌우 궤적 두 개, 자탄은 별 모양 5발, 대단원은 지연 폭발 두 번으로
+-- 실제 투사체 상태가 달라져야 한다. 단순 수치 노드로 되돌아가면 이 검사가 잡는다.
 local spectacle=ClearcutMode.new()
 spectacle.scoreAttack,spectacle.sandbox,spectacle.job,spectacle.mapId=true,true,"fire","forest"
 spectacle.permanentTraits.scoreRocketUnlock=1;spectacle.permanentTraits.scoreRocketTwin=1
@@ -148,6 +150,7 @@ assert(spectacle:updateHeldAxe(1,rocketGame,true),"쌍발 폭죽을 발사하지
 assert(#spectacle.smokerWeaponProjectiles==2 and
     (spectacle.smokerWeaponProjectiles[1].x1~=spectacle.smokerWeaponProjectiles[2].x1 or spectacle.smokerWeaponProjectiles[1].y1~=spectacle.smokerWeaponProjectiles[2].y1),
     "쌍발 발사대가 좌우로 갈라진 폭죽 2발을 만들지 않는다")
+
 local primary=spectacle.smokerWeaponProjectiles[1]
 spectacle.smokerWeaponProjectiles={};spectacle.permanentTraits.scoreRocketCluster=1;spectacle.permanentTraits.scoreRocketFinale=1
 spectacle:detonateFirework(primary,rocketGame)
