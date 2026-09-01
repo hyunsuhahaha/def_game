@@ -22,6 +22,52 @@ local scoreBoardCopy={
     universal={title="동료 · 설비",detail="로봇·두더지·고양이와 현장 설비를 영구 강화한다."},
 }
 
+-- 활성 연구는 예전처럼 탭별 좌표를 포개지 않고, 기능별 가로 레인에 전부 펼친다.
+-- 모든 의존선이 왼쪽에서 오른쪽으로 흐르므로 긴 트리도 교차 없이 따라갈 수 있다.
+local SCORE_LAYOUT={
+    -- 담배
+    fire_score_prewarm={450,900},
+    fire_score_impact={950,200},
+    fire_score_reload={950,450},fire_score_carton_size={1450,450},fire_score_carton_reload={1950,450},
+    fire_score_filter={950,700},fire_score_spark={1450,700},
+    fire_score_launch={950,950},fire_score_drag={1450,950},
+    fire_score_lighter={950,1200},fire_score_ash={1450,1200},
+    fire_score_heat={950,1450},fire_score_stock={1450,1450},
+    fire_score_alwayssmoke={950,1700},fire_score_autothrow={1450,1700},fire_score_autothrow_rate={1950,1500},
+
+    -- 폭죽에서 화염방사기까지 한 방향으로 이어지는 후반 무기 계통
+    fire_score_rocket_unlock={1950,1850},
+    fire_score_rocket_radius={2450,1650},fire_score_rocket_damage={2450,2150},
+    fire_score_rocket_speed={2950,1450},fire_score_rocket_ignite={2950,1700},fire_score_rocket_cooldown={2950,2150},
+    fire_score_rocket_cluster={3450,1550},fire_score_rocket_twin={3450,2050},fire_score_rocket_finale={3950,1800},
+    fire_score_rocket_crew={4450,1800},fire_score_flame_unlock={4950,1800},
+    fire_score_flame_damage={5450,1550},fire_score_flame_range={5450,1800},fire_score_flame_width={5450,2050},
+    fire_score_flame_ignite={5950,1925},
+
+    -- 도끼
+    fire_score_edge={450,2800},
+    fire_score_axe_area={950,2500},fire_score_axe_targets={1450,2400},fire_score_axe_shock={1950,2400},
+    fire_score_axe_pierce={2450,2250},
+    fire_score_axe_speed={950,3100},fire_score_axe_execute={1450,3200},fire_score_axe_chain={1950,3200},
+    fire_score_axe_heavy={1450,2800},fire_score_axe_crew={2450,2800},
+
+    -- 독립 공용 연구와 재생 단계 연구
+    universal_yard={450,3650},universal_stride={450,3900},
+    universal_veteran_yard={3500,2800},universal_veteran_crew={4000,2800},universal_wildfire={4500,2800},
+
+    -- 동료 · 설비
+    universal_robot_start={450,4500},universal_robot_motor={950,4050},
+    universal_mole_companion={950,4500},
+    universal_mole_damage={1450,4100},universal_mole_speed={1450,4500},universal_mole_attack_speed={1450,4900},
+    universal_mole_claw={1950,4100},universal_mole_extra={1950,4700},universal_mole_dual={2450,4100},
+    universal_oil_drum={950,5200},
+    universal_oil_interval={1450,5000},universal_oil_radius={1950,4900},
+    universal_oil_splash_count={2450,4900},universal_oil_patch_scale={2950,4900},universal_oil_ignition_radius={2450,4450},
+    universal_oil_duration={1450,5350},universal_oil_burn_duration={1950,5450},universal_oil_damage={3450,5150},
+    universal_gray_cat={1450,5750},universal_gray_cat_chance={1950,5600},universal_gray_cat_delay={2450,5600},
+    universal_gray_cat_speed={1950,5900},universal_gray_cat_exit_speed={2450,5900},
+}
+
 local function inside(box, x, y)
     return box and x >= box.x and x <= box.x + box.w and y >= box.y and y <= box.y + box.h
 end
@@ -123,7 +169,7 @@ function CharacterTraitBoard.new(store, fonts, sprites)
         tabBoxes={}, nodeBoxes={}, nodeHover={}, particles={}, time=0,
         message="", messageTime=0, messageKind="ok", unlockFx=nil,
         selectedNodeId=first and first.id or"fire_score_prewarm", blockedNode=nil, blockedTime=0, tabPulse=0,
-        canvasW=5400,canvasH=2650,panX=1100,panY=920,zoom=.80,referenceZoom=.80,panVX=0,panVY=0,drag=nil,viewport=nil,viewInitialized=false,crispFonts={},
+        canvasW=6400,canvasH=6200,panX=450,panY=900,zoom=.80,referenceZoom=.80,panVX=0,panVY=0,drag=nil,viewport=nil,viewInitialized=false,crispFonts={},
         minimapBox=nil,resetViewBox=nil
     }, CharacterTraitBoard)
 end
@@ -320,58 +366,7 @@ function CharacterTraitBoard:wheelmoved(_,delta)
 end
 
 function CharacterTraitBoard:nodeWorld(node)
-    -- 기록전 연구는 수가 적어 한 화면에 전부 읽혀야 한다. 저장 데이터의 좌표를
-    -- 바꾸지 않고 화면에서만 뿌리->가지 방향의 고정 배치를 사용한다.
-    local scoreLayout={
-        fire_score_prewarm={1100,850},
-        -- 18코인 루트 뒤 32코인으로 열리는 초반 손맛 노드. 기존 네 방향 갈래는
-        -- 움직이거나 삭제하지 않고 북서쪽의 독립 가지로 둔다.
-        fire_score_impact={750,600},
-        fire_score_filter={750,850},fire_score_spark={400,850},
-        fire_score_lighter={1450,850},fire_score_ash={1800,850},
-        -- 탄약 관리 갈래는 루트 왼쪽 위로 세운다. 개비 회전 → 보루 용량 → 보루 교체 순의
-        -- 한 줄기라 기존 착화/확산 갈래와 선이 겹치지 않는다.
-        fire_score_reload={400,600},fire_score_carton_size={400,350},fire_score_carton_reload={750,350},
-        fire_score_launch={1100,600},fire_score_drag={1100,350},
-        -- 상시 흡연은 루트 바로 아래 두 번째 노드다. 자동 투척과 폭죽 해금은 그 아래로
-        -- 이어지고, 기존 연소속도→추가 꽁초 갈래는 오른쪽으로 빼서 겹치지 않게 한다.
-        fire_score_alwayssmoke={1100,1100},fire_score_autothrow={1100,1350},
-        fire_score_autothrow_rate={1450,1350},
-        fire_score_rocket_unlock={1100,1600},
-        fire_score_heat={1450,1100},fire_score_stock={1800,1100},
-        -- 공용/도끼는 왼쪽, 폭죽 강화는 해금 아래 한 줄로 편다.
-        fire_score_edge={400,1100},
-        fire_score_axe_area={400,1350},fire_score_axe_speed={750,1350},
-        fire_score_axe_targets={400,1600},fire_score_axe_execute={750,1600},
-        fire_score_axe_shock={400,1850},fire_score_axe_chain={750,1850},
-        fire_score_axe_pierce={100,2100},fire_score_axe_heavy={1050,1850},
-        fire_score_axe_crew={575,2100},
-        fire_score_rocket_radius={400,2350},fire_score_rocket_damage={750,2350},
-        fire_score_rocket_speed={1100,2350},fire_score_rocket_ignite={1450,2350},
-        fire_score_rocket_cooldown={1800,2350},
-        -- 폭죽 졸업과 화염방사기는 폭죽 줄 아래로 새 층을 쌓는다. 도끼가 원숭이로
-        -- 졸업한 뒤 폭죽으로 넘어갔듯, 폭죽도 원숭이로 졸업하고 화염방사기로 넘어간다.
-        fire_score_rocket_crew={1100,2600},fire_score_flame_unlock={1100,2850},
-        fire_score_flame_damage={750,3100},fire_score_flame_range={1100,3100},fire_score_flame_width={1450,3100},
-        fire_score_flame_ignite={1100,3350},
-        -- 공용 연구는 흡연자 갈래와 같은 좌표를 쓰고 있었다(각자 다른 탭이었으므로).
-        -- 한 판으로 합치면서 흡연자 오른쪽으로 통째로 옮긴다.
-        universal_yard={2600,850},universal_robot_start={3000,850},universal_robot_motor={3400,850},
-        -- 이동속도는 선행 없는 루트라 공용 갈래 입구 옆에 둔다.
-        universal_stride={2600,550},
-        -- 드럼통 강화는 설비/고양이 선을 가로지르지 않도록 우측 상단에 독립 배치한다.
-        -- 두 줄의 동일 간격 구조라 범위 계열과 지속 계열이 한눈에 구분된다.
-        universal_oil_drum={3800,425},
-        universal_oil_interval={4200,250},universal_oil_radius={4600,250},universal_oil_ignition_radius={5000,250},
-        universal_oil_duration={4200,600},universal_oil_damage={4600,600},universal_oil_burn_duration={5000,600},
-        universal_gray_cat={3800,1100},
-        universal_gray_cat_chance={3800,1350},universal_gray_cat_delay={3800,1600},
-        universal_gray_cat_speed={3400,1100},
-        universal_mole_companion={3000,1100},
-        universal_mole_damage={2600,1350},universal_mole_speed={3000,1350},universal_mole_attack_speed={3400,1350},
-        universal_mole_claw={2600,1600},universal_mole_extra={3000,1600},universal_mole_dual={2600,1850},
-    }
-    local fixed=scoreLayout[node.id]
+    local fixed=SCORE_LAYOUT[node.id]
     if fixed then return fixed[1],fixed[2] end
     return node.wx or (200+(node.x or .5)*1600),node.wy or (500+(node.y or .5)*900)
 end
@@ -388,20 +383,34 @@ end
 function CharacterTraitBoard:drawConnection(bounds, from, to, active, available, color)
     local x1,y1=self:nodePosition(bounds,from)
     local x2,y2=self:nodePosition(bounds,to)
+    local midX=(x1+x2)/2
+    local path={x1,y1,midX,y1,midX,y2,x2,y2}
     local rr,gg,bb=.28,.57,.36
     local locked=not active and not available
     local z=self.zoom or .8
     love.graphics.setLineWidth(math.max(4,(active and 13 or 10)*z))
     if locked then love.graphics.setColor(.34,.35,.34,.30) else love.graphics.setColor(rr,gg,bb,active and .18 or .10) end
-    love.graphics.line(x1,y1,x2,y2)
+    love.graphics.line(path)
     love.graphics.setLineWidth(math.max(2,(active and 7 or 5)*z))
     if locked then love.graphics.setColor(.31,.32,.31,.72) else love.graphics.setColor(rr,gg,bb,active and 1 or .72) end
-    love.graphics.line(x1,y1,x2,y2)
-    love.graphics.setLineWidth(1); love.graphics.setColor(.92,.96,.89,active and .42 or .08);love.graphics.line(x1,y1-1,x2,y2-1)
+    love.graphics.line(path)
+    love.graphics.setLineWidth(1); love.graphics.setColor(.92,.96,.89,active and .42 or .08)
+    love.graphics.line(x1,y1-1,midX,y1-1,midX,y2-1,x2,y2-1)
     if active then
         local travel=(self.time*.72 + (to.x or 0)*.7 + (to.y or 0)*.3)%1
+        local halfHorizontal=math.abs(x2-x1)/2
+        local vertical=math.abs(y2-y1)
+        local at=travel*(halfHorizontal*2+vertical)
+        local dotX,dotY
+        if at<=halfHorizontal then
+            dotX=x1+(midX-x1)*(at/math.max(1,halfHorizontal));dotY=y1
+        elseif at<=halfHorizontal+vertical then
+            dotX=midX;dotY=y1+(y2-y1)*((at-halfHorizontal)/math.max(1,vertical))
+        else
+            dotX=midX+(x2-midX)*((at-halfHorizontal-vertical)/math.max(1,halfHorizontal));dotY=y2
+        end
         love.graphics.setColor(.78,1,1,.96)
-        love.graphics.circle("fill",x1+(x2-x1)*travel,y1+(y2-y1)*travel,math.max(3,5*z))
+        love.graphics.circle("fill",dotX,dotY,math.max(3,5*z))
     end
     love.graphics.setLineWidth(1)
 end
