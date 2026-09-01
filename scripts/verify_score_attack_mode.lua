@@ -80,9 +80,14 @@ assert(#mode.enemies==1,"score mode did not introduce exactly one sparse monster
 mode.scoreEnemyTimer=0
 mode:updateTimeSpawner(.1,game)
 assert(#mode.enemies==1,"score mode exceeded its opening one-monster cap")
-local berserkBefore,vinesBefore,disasterBefore=mode.berserkTimer,mode.vinePlantTimer,mode.disasterTimer
-mode:updateBerserk(999,game);mode:updateVinePlants(999,game);mode:updateDisasters(999,game)
-assert(mode.berserkTimer==berserkBefore and mode.vinePlantTimer==vinesBefore and mode.disasterTimer==disasterBefore,"normal-stage threat systems remained active in score mode")
+local berserkBefore,vinesBefore=mode.berserkTimer,mode.vinePlantTimer
+mode:updateBerserk(999,game);mode:updateVinePlants(999,game)
+assert(mode.berserkTimer==berserkBefore and mode.vinePlantTimer==vinesBefore,"normal-stage threat systems remained active in score mode")
+-- 재해는 통째로 꺼져 있었으나 이제 비만 돈다. 비는 피해를 주지 않고 불만 끊으므로
+-- 위협 시스템이 아니라 무기 독점을 푸는 장치다. 지속·상세는 verify_score_rain.lua.
+mode:updateDisasters(1,game)
+assert(mode.disasterType==nil or mode.disasterType=="rain","기록 모드에 비 이외의 재해가 들어왔다")
+assert(mode.scoreRainReady,"기록 모드 재해가 캠페인 경로로 흘렀다")
 
 local scorePool=mode:upgradePool()
 assert(#scorePool==0,"score mode still exposes in-run upgrade choices")

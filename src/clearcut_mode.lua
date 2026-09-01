@@ -1897,9 +1897,70 @@ function ClearcutMode:updateVinePlants(dt, game)
     game:setNotice("땅속에서 무언가 꿈틀거린다...", "ore")
 end
 
+-- 기록 모드의 비. 캠페인 재해 3종 중 비만 쓴다.
+--
+-- 후반이 흡연 빌드 단독으로 굳어서 손이 할 일이 없어진다. 비는 rainSuppressFire 로
+-- 불을 끊어 도끼를 주기적으로 다시 손에 쥐게 하는 장치다. 짧아야 의미가 있다 —
+-- 길면 벌목이 멈추고, 잦으면 불 빌드에 코인을 넣을 이유가 사라진다.
+--
+-- 세계수 주기(60초)와 맞물려 매번 같이 오면 두 이벤트가 서로를 가리므로 주기를
+-- 어긋나게 잡는다. 첫 비는 첫 세계수(60초) 뒤에 온다.
+ClearcutMode.SCORE_RAIN_FIRST=70
+ClearcutMode.SCORE_RAIN_INTERVAL=75
+ClearcutMode.SCORE_RAIN_WARN=2.2
+ClearcutMode.SCORE_RAIN_DURATION=5
+
+-- 지진과 낙하 가지는 플레이어 체력을 깎는 캠페인 장치라, "나무를 얼마나 없앴는가"
+-- 만 재고 죽음이 없는 이 모드에는 맞지 않는다. 비만 돌린다.
+function ClearcutMode:updateScoreRain(dt,game)
+    if not self.scoreRainReady then
+        self.scoreRainReady=true
+        self.disasterState,self.disasterType,self.disasterTimer="idle",nil,ClearcutMode.SCORE_RAIN_FIRST
+    end
+    self.disasterTimer=self.disasterTimer-dt
+    if self.disasterState=="idle" then
+        if self.disasterTimer<=0 then
+            self.disasterState,self.disasterType,self.disasterTimer="warn","rain",ClearcutMode.SCORE_RAIN_WARN
+            game:setNotice("먹구름이 몰려온다...","ore")
+        end
+    elseif self.disasterState=="warn" then
+        if self.disasterTimer<=0 then
+            self.disasterState,self.disasterTimer="active",ClearcutMode.SCORE_RAIN_DURATION
+            self.rainSuppressFire=true
+            self.lightningTimer=1.1
+            for _,node in ipairs(game.world.nodes) do
+                if node.burning then
+                    node.burning,node.burnTimer,node.fireTickTimer=false,nil,nil
+                    for _=1,5 do game.world:addParticle(node.x+love.math.random(-14,14),node.y-20-love.math.random(0,18),{.8,.82,.84},true,false) end
+                end
+            end
+            for _,enemy in ipairs(self.enemies) do
+                if enemy.burning then enemy.burning,enemy.burnTimer,enemy.fireTickTimer=false,nil,nil end
+            end
+            game:setNotice("소나기 — "..ClearcutMode.SCORE_RAIN_DURATION.."초간 불이 붙지 않는다","food")
+        end
+    elseif self.disasterState=="active" then
+        self.lightningTimer=(self.lightningTimer or 2)-dt
+        if self.lightningTimer<=0 then
+            self.lightningTimer=2.2+love.math.random()*1.6
+            self.lightningFlashAt=love.timer.getTime()
+            self.lightningBoltSeed=love.math.random()*1000
+            if game.camera then game.camera.trauma=math.min(1,game.camera.trauma+.12) end
+        end
+        if self.disasterTimer<=0 then
+            self.disasterState,self.disasterTimer="cooldown",2
+            self.rainSuppressFire=false
+            game:setNotice("비가 그쳤다","food")
+        end
+    elseif self.disasterTimer<=0 then
+        self.disasterState,self.disasterType,self.disasterTimer="idle",nil,ClearcutMode.SCORE_RAIN_INTERVAL
+    end
+end
+
 -- 자연재해: 비, 뿌리 지진, 낙하 가지. 지면 경고 뒤 실제 식생이 공격한다.
 function ClearcutMode:updateDisasters(dt, game)
-    if self.sandbox or self.scoreAttack then return end
+    if self.sandbox then return end
+    if self.scoreAttack then return self:updateScoreRain(dt,game) end
     if self.stage<2 then return end
     self.disasterTimer = self.disasterTimer - dt
     if self.disasterState == "idle" then
