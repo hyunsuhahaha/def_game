@@ -120,4 +120,6 @@ assets/                 이미지·폰트
 
 ## 폰트 라이선스
 
-한글 UI는 Google Fonts의 Noto Sans KR을 사용한다. 라이선스는 `assets/FONT-OFL.txt`에 포함되어 있다.
+본문 한글 UI는 Google Fonts의 Noto Sans KR을 사용한다. 라이선스는 `assets/FONT-OFL.txt`에 포함되어 있다.
+
+로비 메뉴와 픽셀 오디오는 Neo둥근모 Pro를 사용한다. 라이선스는 `assets/FONT-NEODGM-OFL.txt`에 포함되어 있다.

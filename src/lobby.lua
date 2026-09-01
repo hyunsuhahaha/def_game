@@ -17,7 +17,9 @@ local function inside(box,x,y)return F.inside(box,x,y)end
 local function menuAction(self,index)return MENU[index or self.menuFocus or 1].action end
 
 function Lobby.new(images,fonts)
- return setmetatable({images=images,fonts=fonts,time=0,activeDevelopmentMode=ACTIVE_DEVELOPMENT_MODE,menuFocus=1,audioTrack=1,audioPlaying=true,microFont=love.graphics.newFont("assets/font-korean-bold.ttf",12)},Lobby)
+ local pixel="assets/font-korean-pixel.ttf"
+ return setmetatable({images=images,fonts=fonts,time=0,activeDevelopmentMode=ACTIVE_DEVELOPMENT_MODE,menuFocus=1,audioTrack=1,audioPlaying=true,
+  pixelTiny=love.graphics.newFont(pixel,13),pixelSmall=love.graphics.newFont(pixel,17),pixelMenu=love.graphics.newFont(pixel,26),pixelTitle=love.graphics.newFont(pixel,58)},Lobby)
 end
 
 function Lobby:update(dt)
@@ -68,7 +70,25 @@ function Lobby:drawBackground(w,h)
  end end
 end
 
-function Lobby:drawMenu(game,x,y,w,rowH,gap,f,micro)
+local function pixelFrame(x,y,w,h,selected)
+ love.graphics.setColor(0,0,0,.72);love.graphics.rectangle("fill",x+5,y+6,w,h)
+ love.graphics.setColor(selected and {.030,.11,.075,1}or{.012,.030,.023,1})
+ love.graphics.rectangle("fill",x+5,y,w-10,h);love.graphics.rectangle("fill",x,y+5,w,h-10)
+ local color=selected and {.95,.62,.18,1}or{.16,.38,.29,.72};love.graphics.setColor(color)
+ love.graphics.rectangle("fill",x+6,y,w-12,2);love.graphics.rectangle("fill",x+6,y+h-2,w-12,2)
+ love.graphics.rectangle("fill",x,y+6,2,h-12);love.graphics.rectangle("fill",x+w-2,y+6,2,h-12)
+ love.graphics.rectangle("fill",x+2,y+2,5,2);love.graphics.rectangle("fill",x+w-7,y+2,5,2)
+ love.graphics.rectangle("fill",x+2,y+h-4,5,2);love.graphics.rectangle("fill",x+w-7,y+h-4,5,2)
+end
+
+local function drawCursor(x,y,h,pulse)
+ local offset=pulse and 2 or 0;love.graphics.setColor(.98,.65,.18,1)
+ love.graphics.rectangle("fill",x+offset,y+h/2-9,5,18)
+ love.graphics.rectangle("fill",x+5+offset,y+h/2-6,5,12)
+ love.graphics.rectangle("fill",x+10+offset,y+h/2-3,5,6)
+end
+
+function Lobby:drawMenu(game,x,y,w,rowH,gap,menuFont,keyFont)
  self.menuBoxes={}
  for i,item in ipairs(MENU)do
   local box={x=x,y=y+(i-1)*(rowH+gap),w=w,h=rowH};self.menuBoxes[i]=box
@@ -77,50 +97,50 @@ function Lobby:drawMenu(game,x,y,w,rowH,gap,f,micro)
   elseif item.action=="skill_sandbox"then self.sandboxBox=box
   elseif item.action=="achievements"then self.achievementBox=box
   elseif item.action=="settings"then self.settingsBox=box end
-  local selected=i==(self.menuFocus or 1);local offset=selected and 10 or 0
-  love.graphics.setColor(selected and {.035,.10,.075,1}or{.012,.027,.022,1});love.graphics.rectangle("fill",box.x,box.y,box.w,box.h)
-  love.graphics.setColor(selected and {.95,.62,.18,1}or{.16,.38,.29,.65});love.graphics.rectangle("fill",box.x,box.y,selected and 4 or 1,box.h)
-  love.graphics.setColor(.22,.47,.35,selected and .68 or .20);love.graphics.rectangle("fill",box.x+12,box.y+box.h-1,box.w-12,1)
-  love.graphics.setFont(f.heading);love.graphics.setColor(selected and {.95,.94,.80,1}or{.58,.67,.59,1});love.graphics.print(item.label,box.x+18+offset,box.y+box.h/2-f.heading:getHeight()/2)
-  love.graphics.setFont(micro);love.graphics.setColor(selected and {.95,.62,.18,1}or{.35,.48,.40,1})
+  local selected=i==(self.menuFocus or 1);pixelFrame(box.x+22,box.y,box.w-22,box.h,selected)
+  if selected then drawCursor(box.x,box.y,box.h,math.floor(self.time*3)%2==0)end
+  love.graphics.setFont(menuFont);love.graphics.setColor(selected and {.97,.94,.76,1}or{.48,.62,.52,1});love.graphics.print(item.label,box.x+48,box.y+box.h/2-menuFont:getHeight()/2-1)
+  love.graphics.setFont(keyFont);love.graphics.setColor(selected and {.95,.62,.18,1}or{.28,.47,.37,1})
   local suffix="["..item.key.."]"
   if item.action=="character_traits"and game and game.characterTraits then suffix=string.format("%d P   %s",game.characterTraits.data.currency or 0,suffix)end
-  love.graphics.printf(suffix,box.x,box.y+box.h/2-micro:getHeight()/2,box.w-16,"right")
+  love.graphics.printf(suffix,box.x,box.y+box.h/2-keyFont:getHeight()/2,box.w-16,"right")
  end
 end
 
-function Lobby:drawAudio(x,y,w,h,f,micro)
+function Lobby:drawAudio(x,y,w,h,font)
  love.graphics.setColor(.005,.012,.010,.96);love.graphics.rectangle("fill",x,y,w,h)
- love.graphics.setColor(.25,.58,.43,.72);love.graphics.rectangle("line",x+.5,y+.5,w-1,h-1)
- love.graphics.setColor(.95,.62,.18,.85);love.graphics.rectangle("fill",x,y,3,h)
+ love.graphics.setColor(.25,.58,.43,.72);love.graphics.rectangle("fill",x,y,w,2);love.graphics.rectangle("fill",x,y+h-2,w,2);love.graphics.rectangle("fill",x,y,2,h);love.graphics.rectangle("fill",x+w-2,y,2,h)
+ love.graphics.setColor(.95,.62,.18,.92);love.graphics.rectangle("fill",x,y,5,h)
  local button=math.min(28,h-12);local by=y+(h-button)/2
  self.audioPrevBox={x=x+12,y=by,w=button,h=button};self.audioPlayBox={x=x+46,y=by,w=button,h=button};self.audioNextBox={x=x+80,y=by,w=button,h=button}
  for _,data in ipairs({{self.audioPrevBox,"<"},{self.audioPlayBox,self.audioPlaying and "II"or">"},{self.audioNextBox,">"}})do
   local box,label=data[1],data[2];local hover=inside(box,love.mouse.getPosition())
   love.graphics.setColor(hover and {.10,.22,.16,1}or{.025,.06,.045,1});love.graphics.rectangle("fill",box.x,box.y,box.w,box.h)
   love.graphics.setColor(hover and {.95,.62,.18,1}or{.39,.68,.52,1});love.graphics.rectangle("line",box.x+.5,box.y+.5,box.w-1,box.h-1)
-  love.graphics.setFont(micro);love.graphics.printf(label,box.x,box.y+box.h/2-micro:getHeight()/2,box.w,"center")
+  love.graphics.setFont(font);love.graphics.printf(label,box.x,box.y+box.h/2-font:getHeight()/2-1,box.w,"center")
  end
  local waveX=x+122;local waveW=math.min(112,w*.27)
  for i=0,15 do
-  local height=self.audioPlaying and 3+math.floor((math.sin(i*1.7+self.time*3)+1)*5)or 3
-  love.graphics.setColor(.95,.62,.18,self.audioPlaying and .84 or .28);love.graphics.rectangle("fill",waveX+i*(waveW/16),y+h/2-height/2,3,height)
+  local blocks=self.audioPlaying and 1+math.floor((math.sin(i*1.7+self.time*3)+1)*2.5)or 1
+  for b=1,blocks do love.graphics.setColor(.95,.62,.18,self.audioPlaying and .88 or .28);love.graphics.rectangle("fill",waveX+i*(waveW/16),y+h/2+10-b*5,4,3)end
  end
- love.graphics.setFont(micro);love.graphics.setColor(.53,.66,.56);love.graphics.printf(TRACKS[self.audioTrack or 1],waveX+waveW+12,y+h/2-micro:getHeight()/2,w-(waveX-x)-waveW-24,"right")
+ love.graphics.setFont(font);love.graphics.setColor(.53,.66,.56);love.graphics.printf(TRACKS[self.audioTrack or 1],waveX+waveW+12,y+h/2-font:getHeight()/2-1,w-(waveX-x)-waveW-24,"right")
 end
 
 function Lobby:draw(game)
- local w,h=love.graphics.getDimensions();local f=self.fonts;local micro=self.microFont or f.small
- local display=f.display or self.displayFont or f.heading
+ local w,h=love.graphics.getDimensions();local f=self.fonts
+ local titleFont=self.pixelTitle or f.display or self.displayFont or f.heading
+ local menuFont=self.pixelMenu or f.heading;local smallFont=self.pixelSmall or f.small;local tinyFont=self.pixelTiny or f.small
  self:drawBackground(w,h)
  local compact=w<1080 or h<640;local x=math.max(24,math.floor(w*.07));local menuW=math.min(compact and 430 or 470,math.floor(w*.46))
  local titleY=math.floor(h*(compact and .09 or .11))
- love.graphics.setFont(display);love.graphics.setColor(.93,.94,.80);love.graphics.print("LAST HAUL",x,titleY)
- love.graphics.setFont(micro);love.graphics.setColor(.38,.62,.48);love.graphics.print("벌목 기록",x,titleY+display:getHeight()+4)
- local rowH=compact and 43 or 50;local gap=compact and 4 or 6;local menuY=titleY+display:getHeight()+42
- self:drawMenu(game,x,menuY,menuW,rowH,gap,f,micro)
- local audioW=math.min(compact and 530 or 590,w-x*2);self:drawAudio(x,h-(compact and 58 or 68),audioW,compact and 40 or 44,f,micro)
- love.graphics.setFont(micro);love.graphics.setColor(.30,.43,.35);love.graphics.printf("R 재생  ·  [ ] 트랙  ·  ESC 종료",0,h-20,w-x,"right")
+ love.graphics.setFont(titleFont);love.graphics.setColor(.05,.19,.14,1);love.graphics.print("LAST HAUL",x+4,titleY+5)
+ love.graphics.setColor(.97,.94,.75);love.graphics.print("LAST HAUL",x,titleY)
+ love.graphics.setFont(smallFont);love.graphics.setColor(.40,.72,.53);love.graphics.print("벌목 기록",x+3,titleY+titleFont:getHeight()+1)
+ local rowH=compact and 46 or 54;local gap=compact and 5 or 7;local menuY=titleY+titleFont:getHeight()+44
+ self:drawMenu(game,x,menuY,menuW,rowH,gap,menuFont,tinyFont)
+ local audioW=math.min(compact and 530 or 590,w-x*2);self:drawAudio(x,h-(compact and 62 or 72),audioW,compact and 44 or 48,tinyFont)
+ love.graphics.setFont(tinyFont);love.graphics.setColor(.30,.50,.39);love.graphics.printf("R 재생  ·  [ ] 트랙  ·  ESC 종료",0,h-22,w-x,"right")
 end
 
 return Lobby
