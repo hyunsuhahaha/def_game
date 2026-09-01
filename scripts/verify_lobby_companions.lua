@@ -15,9 +15,9 @@ local function be32(png,offset)
 end
 
 local sizes={
-    ["assets/characters/companions/lobby-monkey-sleep-atlas-pixel-v1.png"]={768,128},
-    ["assets/characters/companions/lobby-mole-sleep-atlas-pixel-v1.png"]={1152,384},
-    ["assets/characters/companions/lobby-cat-sleep-atlas-pixel-v1.png"]={768,128},
+    ["assets/characters/companions/lobby-monkey-sleep-atlas-pixel-v2.png"]={1152,160},
+    ["assets/characters/companions/lobby-mole-sleep-atlas-pixel-v2.png"]={1920,384},
+    ["assets/characters/companions/lobby-cat-sleep-atlas-pixel-v2.png"]={1152,160},
     ["assets/characters/companions/lobby-interaction-props-atlas-pixel-v1.png"]={384,320},
 }
 read("assets/characters/companions/concepts/lobby-companion-sleep-concept-v1.png")
@@ -48,6 +48,16 @@ Companions.preparePreview(state)
 local states={}
 for _,actor in ipairs(state.animals)do states[actor.state]=true end
 assert(states.walk and states.idle and states.sleep,"생활 상태 세 종류가 준비되지 않았다")
+local function radius(actor)
+    if actor.state=="sleep"then return actor.kind=="monkey"and 35 or(actor.kind=="mole"and 47 or 48)end
+    return actor.kind=="monkey"and 19 or(actor.kind=="mole"and 27 or 23)
+end
+for left=1,#state.animals-1 do for right=left+1,#state.animals do
+    local a,b=state.animals[left],state.animals[right]
+    local dx,dy=a.x-b.x,a.y-b.y
+    assert(math.sqrt(dx*dx+dy*dy)>=radius(a)+radius(b)-1,
+        "일상 동료끼리 몸체가 겹친다: "..a.id.." / "..b.id)
+end end
 
 local walker
 for _,actor in ipairs(state.animals)do if actor.state=="walk"then walker=actor;break end end
@@ -77,6 +87,10 @@ assert(sourceKinds["assets/characters/companions/graduate-monkey-atlas-pixel-v3.
     sourceKinds["assets/characters/companions/gray-oil-cat-atlas-pixel-v1.png"],
     "승인된 원숭이·두더지·고양이 몸체가 걷기 경로에 연결되지 않았다")
 assert(sleepDraws>=3 and zMarks>=45,"이불 수면 자세 또는 세 단계 Z Z Z가 그려지지 않았다")
+for kind,spec in pairs(Companions.ART)do
+    assert(spec.sleepCellW>spec.cellW and spec.sleepCellH>=spec.cellH and spec.sleepFoot,
+        kind.." 수면 자세가 서 있는 몸과 같은 작은 셀에 축소됐다")
+end
 local behind=Companions.draw(state,.35,"behind",state.bounds.y1+(state.bounds.y2-state.bounds.y1)*.62)
 local front=Companions.draw(state,.35,"front",state.bounds.y1+(state.bounds.y2-state.bounds.y1)*.62)
 assert(behind>0 and front>0 and behind+front==#state.animals,
@@ -103,17 +117,38 @@ local scheduled=Companions.new();Companions.sync(scheduled,fakeTraits(levels),12
 scheduled.nextInteraction=.01;Companions.update(scheduled,.02)
 assert(scheduled.interaction and scheduled.interaction.kind=="cat_wand",
     "일상 상태에서 첫 상호작용이 자동 예약되지 않았다")
+local sleepingCat=Companions.new();Companions.sync(sleepingCat,fakeTraits(levels),1280,720)
+for _,actor in ipairs(sleepingCat.animals)do if actor.kind=="cat"then actor.state="sleep"end end
+assert(not Companions.prepareInteractionPreview(sleepingCat,"cat_wand"),
+    "자던 고양이가 이불을 순간적으로 없애고 상호작용에 끌려갔다")
 local chase=Companions.new();Companions.sync(chase,fakeTraits(levels),1280,720)
 Companions.prepareInteractionPreview(chase,"chase_train")
 local chaseKinds={}
 for _,actor in ipairs(chase.interaction.actors)do chaseKinds[actor.kind]=true end
 assert(chaseKinds.monkey and chaseKinds.mole and chaseKinds.cat,
     "최대 해금 술래잡기가 세 동물 종을 섞지 않는다")
+for index=2,#chase.interaction.actors do
+    local a,b=chase.interaction.actors[index-1],chase.interaction.actors[index]
+    local dx,dy=a.x-b.x,a.y-b.y
+    assert(math.sqrt(dx*dx+dy*dy)>=50,"술래잡기 대열의 동료가 서로 겹친다")
+end
+
+local anchored=Companions.new();Companions.sync(anchored,fakeTraits(levels),1280,720)
+Companions.prepareInteractionPreview(anchored,"cat_wand")
+fixture.reset();Companions.draw(anchored,.7,nil,nil,0)
+local baseX
+for _,op in ipairs(fixture.commands)do if op.op=="draw"then baseX=op.args[1];break end end
+fixture.reset();Companions.draw(anchored,.7,nil,nil,-37)
+local shiftedX
+for _,op in ipairs(fixture.commands)do if op.op=="draw"then shiftedX=op.args[1];break end end
+assert(baseX and shiftedX and math.abs((shiftedX-baseX)+37)<.001,
+    "동료·장난감이 전경 지면 패럴랙스와 함께 이동하지 않는다")
 
 local lobby=read("src/lobby.lua")
 local game=read("src/game.lua")
 assert(lobby:find('require("src.lobby_companions")',1,true)and
-    lobby:find("LobbyCompanions.sync",1,true)and lobby:find("LobbyCompanions.draw",1,true),
+    lobby:find("LobbyCompanions.sync",1,true)and lobby:find("groundOffset=-parallax*unit*7",1,true)and
+    lobby:find("companionSplit,groundOffset",1,true)and lobby:find("x+groundOffset",1,true),
     "로비가 동료 생활 모듈을 사용하지 않는다")
 assert(game:find("self.lobby:update(dt,self)",1,true),
     "실제 해금 저장값이 로비 업데이트에 전달되지 않는다")
@@ -123,4 +158,4 @@ assert(baker:find("lobby%-companion%-sleep%-concept%-v1%.png")and
     not baker:find("rotate(",1,true),
     "수면 자산이 실제 이불 원화 대신 회전 몸체를 사용한다")
 
-print("LOBBY_COMPANIONS_OK unlocked_only=true monkey=6 mole=3 cat=1 states=walk+idle+blanket_sleep interactions=cat_wand+banana_toss+mole_peek+chase_train zzz=3 cap=monkey depth=behind_foreground")
+print("LOBBY_COMPANIONS_OK unlocked_only=true ground_anchor=foreground_parallax sleep_scale=physical_v2 interactions=cat_wand+banana_toss+mole_peek+chase_train depth=behind_foreground")

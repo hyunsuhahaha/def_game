@@ -20,20 +20,26 @@ FRAMES = 6
 SPECS = (
     {
         "name": "monkey", "zone": (0.00, 0.14, 0.34, 0.61),
-        "cell": (128, 128), "width": 112, "foot": 120,
-        "output": OUT / "lobby-monkey-sleep-atlas-pixel-v1.png",
+        "cell": (192, 160), "width": 174, "foot": 152,
+        "output": OUT / "lobby-monkey-sleep-atlas-pixel-v2.png",
     },
     {
         "name": "mole", "zone": (0.35, 0.14, 0.66, 0.62),
-        "cell": (192, 384), "width": 176, "foot": 380,
-        "output": OUT / "lobby-mole-sleep-atlas-pixel-v1.png",
+        "cell": (320, 384), "width": 292, "foot": 380,
+        "output": OUT / "lobby-mole-sleep-atlas-pixel-v2.png",
     },
     {
         "name": "cat", "zone": (0.67, 0.14, 0.99, 0.62),
-        "cell": (128, 128), "width": 114, "foot": 120,
-        "output": OUT / "lobby-cat-sleep-atlas-pixel-v1.png",
+        "cell": (192, 160), "width": 166, "foot": 152,
+        "output": OUT / "lobby-cat-sleep-atlas-pixel-v2.png",
     },
 )
+
+WALK_SPECS = {
+    "monkey": (OUT / "graduate-monkey-atlas-pixel-v3.png", (128, 128), .42),
+    "mole": (ROOT / "assets/characters/ingame/coin-miner-mole-atlas-pixel-v3.png", (192, 384), .29),
+    "cat": (OUT / "gray-oil-cat-atlas-pixel-v1.png", (128, 128), .60),
+}
 
 
 def remove_backdrop(image):
@@ -81,7 +87,7 @@ def build(source, spec):
 
     # Slow inhale/hold/exhale. The ground and lower tucked hem remain anchored;
     # only two native pixels of vertical expansion are used to avoid noisy motion.
-    breath = (0, 1, 2, 2, 1, 0)
+    breath = (0, 2, 4, 4, 2, 0)
     for frame, amount in enumerate(breath):
         breathing = pose.resize((pose.width, pose.height + amount), Image.Resampling.NEAREST)
         x = frame * cell_w + (cell_w - breathing.width) // 2
@@ -98,7 +104,24 @@ def build(source, spec):
           f"frames={FRAMES} colors={colours} blanket=1 closed_eyes=1 hard_alpha=1")
 
 
+def validate_display_proportions(spec):
+    walk_path, walk_cell, scale = WALK_SPECS[spec["name"]]
+    walk = Image.open(walk_path).convert("RGBA").crop((0, 0, walk_cell[0], walk_cell[1]))
+    sleep = Image.open(spec["output"]).convert("RGBA").crop((0, 0, spec["cell"][0], spec["cell"][1]))
+    walk_box, sleep_box = walk.getbbox(), sleep.getbbox()
+    walk_w, walk_h = walk_box[2] - walk_box[0], walk_box[3] - walk_box[1]
+    sleep_w, sleep_h = sleep_box[2] - sleep_box[0], sleep_box[3] - sleep_box[1]
+    width_ratio, height_ratio = sleep_w / walk_w, sleep_h / walk_h
+    if not 1.65 <= width_ratio <= 2.25 or not .68 <= height_ratio <= 1.40:
+        raise RuntimeError(f"physical sleep proportion drift: {spec['name']} "
+                           f"width={width_ratio:.2f} height={height_ratio:.2f}")
+    print(f"LOBBY_COMPANION_PROPORTION_OK {spec['name']} "
+          f"awake={walk_w*scale:.1f}x{walk_h*scale:.1f} "
+          f"sleep={sleep_w*scale:.1f}x{sleep_h*scale:.1f} same_scale={scale}")
+
+
 if __name__ == "__main__":
     transparent = remove_backdrop(Image.open(CONCEPT))
     for item in SPECS:
         build(transparent, item)
+        validate_display_proportions(item)

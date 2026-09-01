@@ -15,17 +15,22 @@ for name,size in pairs({micro=12,small=14,body=17,heading=21,big=28,title=36,dis
     fonts[name]=love.graphics.newFont("assets/font-korean-regular.ttf",size)
 end
 local traits=Traits.new(true)
-for id,value in pairs({
+local previewLevels=LOBBY_SCALE_MODE and{
+    fire_score_axe_crew=1,universal_mole_companion=1,universal_gray_cat=1,
+}or{
     fire_score_axe_crew=1,fire_score_rocket_crew=1,fire_score_popper_unlock=1,
     fire_score_popper_extra=1,universal_veteran_crew=1,
     universal_mole_companion=1,universal_mole_extra=2,universal_gray_cat=1,
-})do traits.data.levels[id]=value end
+}
+for id,value in pairs(previewLevels)do traits.data.levels[id]=value end
 traits.data.currency=1240
 local game={characterTraits=traits}
 local lobby=Lobby.new({},fonts)
 lobby.time=2.2;lobby.timeOfDayOverride=LOBBY_HOUR or 12
 lobby:update(.01,game)
-if LOBBY_INTERACTION_KIND then
+if LOBBY_SCALE_MODE then
+    assert(Companions.prepareScalePreview(lobby.lobbyCompanions,LOBBY_SCALE_MODE=="sleep"))
+elseif LOBBY_INTERACTION_KIND then
     assert(Companions.prepareInteractionPreview(lobby.lobbyCompanions,LOBBY_INTERACTION_KIND),
         "interaction preview unavailable: "..tostring(LOBBY_INTERACTION_KIND))
 else Companions.preparePreview(lobby.lobbyCompanions)end
@@ -35,10 +40,15 @@ while elapsed<previewTime do
     local dt=math.min(1/30,previewTime-elapsed)
     Companions.update(lobby.lobbyCompanions,dt);elapsed=elapsed+dt
 end
+lobby.backgroundParallax=math.max(-1,math.min(1,LOBBY_PARALLAX or 0))
 fixture.reset();lobby:draw(game)
 local hour=math.floor(LOBBY_HOUR or 12)
 local frameSuffix=LOBBY_PREVIEW_FRAME~=nil and string.format("-f%02d",LOBBY_PREVIEW_FRAME)or""
 local interactionSuffix=LOBBY_INTERACTION_KIND and("-"..LOBBY_INTERACTION_KIND)or""
-fixture.save(string.format("docs/previews/lobby-companions-draws-%d-h%02d%s%s.json",width,hour,interactionSuffix,frameSuffix))
+local scaleSuffix=LOBBY_SCALE_MODE and("-scale_"..LOBBY_SCALE_MODE)or""
+local parallax=math.floor((LOBBY_PARALLAX or 0)*100)
+local parallaxSuffix=LOBBY_PARALLAX and string.format("-p%+04d",parallax)or""
+fixture.save(string.format("docs/previews/lobby-companions-draws-%d-h%02d%s%s%s%s.json",
+    width,hour,interactionSuffix,scaleSuffix,parallaxSuffix,frameSuffix))
 print(string.format("LOBBY_COMPANIONS_CAPTURE_OK %dx%d hour=%02d animals=%d window=none",
     width,height,hour,#lobby.lobbyCompanions.animals))

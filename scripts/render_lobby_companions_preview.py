@@ -1,5 +1,6 @@
 """Render unlocked lobby animal life, interaction stories, and sleep detail."""
 from pathlib import Path
+import math
 
 from PIL import Image, ImageDraw
 
@@ -23,9 +24,9 @@ def render_lobby(width, height, hour, name):
 
 def sleep_board():
     specs = (
-        ("MONKEY", ROOT / "assets/characters/companions/lobby-monkey-sleep-atlas-pixel-v1.png", 128, 128),
-        ("MOLE", ROOT / "assets/characters/companions/lobby-mole-sleep-atlas-pixel-v1.png", 192, 384),
-        ("CAT", ROOT / "assets/characters/companions/lobby-cat-sleep-atlas-pixel-v1.png", 128, 128),
+        ("MONKEY", ROOT / "assets/characters/companions/lobby-monkey-sleep-atlas-pixel-v2.png", 192, 160),
+        ("MOLE", ROOT / "assets/characters/companions/lobby-mole-sleep-atlas-pixel-v2.png", 320, 384),
+        ("CAT", ROOT / "assets/characters/companions/lobby-cat-sleep-atlas-pixel-v2.png", 192, 160),
     )
     tiles = []
     for label, path, cell_w, cell_h in specs:
@@ -34,16 +35,67 @@ def sleep_board():
         bounds = frame.getbbox()
         frame = frame.crop(bounds) if bounds else frame
         tiles.append((label, frame))
-    board = Image.new("RGB", (1660, 650), (7, 20, 15))
+    board = Image.new("RGB", (2200, 750), (7, 20, 15))
     draw = ImageDraw.Draw(board)
     x = 24
     for label, tile in tiles:
         zoom = tile.resize((tile.width * 3, tile.height * 3), Image.Resampling.NEAREST)
-        y = 610 - zoom.height
+        y = 710 - zoom.height
         board.paste(zoom, (x, y), zoom)
-        draw.text((x, 625), label, fill=(177, 204, 170))
+        draw.text((x, 725), label, fill=(177, 204, 170))
         x += zoom.width + 42
-    target = OUT / "lobby-companions-v1-sleep-3x.png"
+    target = OUT / "lobby-companions-v3-sleep-3x.png"
+    board.save(target)
+    return target
+
+
+def scale_comparison_board():
+    strips = []
+    for mode in ("awake", "sleep"):
+        run(ROOT / "scripts/capture_lobby_companions.lua",
+            f'CAPTURE_W=1280;CAPTURE_H=720;LOBBY_HOUR=17;LOBBY_SCALE_MODE="{mode}"')
+        source = OUT / f"lobby-companions-draws-1280-h17-scale_{mode}.json"
+        strips.append(render_ui(source, (1280, 720)).crop((420, 430, 1160, 665)))
+    board = Image.new("RGB", (740, 510), (6, 18, 13))
+    draw = ImageDraw.Draw(board)
+    for index, (label, strip) in enumerate(zip(("AWAKE - SAME GROUND ANCHORS", "SLEEP - PHYSICAL VOLUME"), strips)):
+        y = index * 255
+        board.paste(strip, (0, y + 20))
+        draw.text((12, y + 4), label, fill=(190, 218, 170))
+    target = OUT / "lobby-companions-v3-scale-comparison.png"
+    board.save(target)
+    return target
+
+
+def ground_anchor_gif():
+    frames = []
+    for index in range(24):
+        parallax = math.sin(index / 23 * math.pi * 2)
+        parallax_code = math.floor(parallax * 100)
+        run(ROOT / "scripts/capture_lobby_companions.lua",
+            f"CAPTURE_W=1280;CAPTURE_H=720;LOBBY_HOUR=23;LOBBY_PARALLAX={parallax}")
+        source = OUT / f"lobby-companions-draws-1280-h23-p{parallax_code:+04d}.json"
+        full = render_ui(source, (1280, 720))
+        frames.append(full.crop((380, 370, 1270, 700)))
+    target = OUT / "lobby-companions-v3-ground-anchored.gif"
+    frames[0].save(target, save_all=True, append_images=frames[1:], duration=100,
+                   loop=0, disposal=2, optimize=False)
+    return target
+
+
+def ground_anchor_board():
+    board = Image.new("RGB", (890, 1050), (6, 18, 13))
+    draw = ImageDraw.Draw(board)
+    for index, parallax in enumerate((-1, 0, 1)):
+        code = math.floor(parallax * 100)
+        run(ROOT / "scripts/capture_lobby_companions.lua",
+            f"CAPTURE_W=1280;CAPTURE_H=720;LOBBY_HOUR=23;LOBBY_PARALLAX={parallax}")
+        source = OUT / f"lobby-companions-draws-1280-h23-p{code:+04d}.json"
+        strip = render_ui(source, (1280, 720)).crop((380, 370, 1270, 700))
+        y = index * 350
+        board.paste(strip, (0, y + 20))
+        draw.text((12, y + 4), f"GROUND PARALLAX {parallax:+d}", fill=(190, 218, 170))
+    target = OUT / "lobby-companions-v3-ground-anchor-positions.png"
     board.save(target)
     return target
 
@@ -113,9 +165,14 @@ def main():
     motion = life_gif()
     interactions = interaction_board()
     wand = cat_wand_gif()
+    scale = scale_comparison_board()
+    anchored = ground_anchor_gif()
+    anchor_board = ground_anchor_board()
     print(f"LOBBY_COMPANIONS_PREVIEW_OK {day.relative_to(ROOT)} {night.relative_to(ROOT)} "
           f"{zoom.relative_to(ROOT)} {motion.relative_to(ROOT)} "
-          f"{interactions.relative_to(ROOT)} {wand.relative_to(ROOT)} window=none")
+          f"{interactions.relative_to(ROOT)} {wand.relative_to(ROOT)} "
+          f"{scale.relative_to(ROOT)} {anchored.relative_to(ROOT)} "
+          f"{anchor_board.relative_to(ROOT)} window=none")
 
 
 if __name__ == "__main__":

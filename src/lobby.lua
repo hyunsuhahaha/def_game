@@ -168,10 +168,11 @@ function Lobby:drawBackground(w,h,showCompanions)
  drawRow(horizon+unit*8,-unit*3,14,h*.24,{.18+.40*light,.23+.41*light,.22+.27*light,.76},2,1,-parallax*unit*3,1)
  love.graphics.setColor(.08+.22*light,.15+.28*light,.10+.11*light,1);love.graphics.rectangle("fill",0,horizon,w,h-horizon)
  love.graphics.setColor(.12+.30*light,.19+.35*light,.13+.14*light,1);love.graphics.rectangle("fill",0,horizon,w,unit*5)
+ local groundOffset=-parallax*unit*7
  local floor,floorQuads=self.backgroundFloor,self.backgroundFloorQuads or{}
  local function drawFloor(index,x,y,scale,alpha,flip)
   if not floor or not floorQuads[index]then return end
-  love.graphics.setColor(.30+.70*light,.34+.66*light,.42+.58*light,alpha);love.graphics.draw(floor,floorQuads[index],math.floor(x-parallax*unit*5),math.floor(y),0,scale*(flip or 1),scale,64,48)
+  love.graphics.setColor(.30+.70*light,.34+.66*light,.42+.58*light,alpha);love.graphics.draw(floor,floorQuads[index],math.floor(x+groundOffset),math.floor(y),0,scale*(flip or 1),scale,64,48)
  end
  drawFloor(4,w*.67,h*.62,.80,.38);drawFloor(1,w*.68,h*.72,1.18,.42,-1);drawFloor(4,w*.70,h*.84,1.72,.48)
  drawFloor(8,w*.27,h*.72,1.38,.24,-1);drawFloor(4,w*.42,h*.84,1.50,.27);drawFloor(3,w*.35,h*.91,.76,.58,-1)
@@ -179,13 +180,13 @@ function Lobby:drawBackground(w,h,showCompanions)
  -- 동료는 뒤쪽 공터의 지면에 서고 전경 나무가 그 위를 덮는다. 그래서 나무
  -- 앞에 붙인 스티커가 아니라 실제 숲 사이를 돌아다니는 깊이로 읽힌다.
  local companionSplit=h*.82
- if showCompanions then LobbyCompanions.draw(self.lobbyCompanions,light,"behind",companionSplit)end
- drawRow(h*.93,w*.55,5,h*.43,{.24+.76*light,.29+.71*light,.38+.62*light,1},1,1,-parallax*unit*7,2)
- if showCompanions then LobbyCompanions.draw(self.lobbyCompanions,light,"front",companionSplit)end
+ if showCompanions then LobbyCompanions.draw(self.lobbyCompanions,light,"behind",companionSplit,groundOffset)end
+ drawRow(h*.93,w*.55,5,h*.43,{.24+.76*light,.29+.71*light,.38+.62*light,1},1,1,groundOffset,2)
+ if showCompanions then LobbyCompanions.draw(self.lobbyCompanions,light,"front",companionSplit,groundOffset)end
  local props=self.backgroundProps or{}
  local function drawProp(name,x,ground,targetH,tint)
   local image=props[name];if not image then return end
-  local iw,ih=image:getDimensions();local scale=targetH/ih;love.graphics.setColor(tint or{1,1,1,1});love.graphics.draw(image,math.floor(x-parallax*unit*8),math.floor(ground-targetH),0,scale,scale)
+  local iw,ih=image:getDimensions();local scale=targetH/ih;love.graphics.setColor(tint or{1,1,1,1});love.graphics.draw(image,math.floor(x+groundOffset),math.floor(ground-targetH),0,scale,scale)
  end
  local propTint={.28+.72*light,.31+.69*light,.40+.60*light,1}
  drawProp("rock",w*.50,h*.93,h*.10,propTint);drawProp("log",w*.73,h*.96,h*.11,propTint)
