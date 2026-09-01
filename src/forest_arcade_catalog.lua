@@ -11,5 +11,8 @@ return {
     planter_mangrove={file="assets/enemies/arcade/planter-mangrove-atlas-v4.png",cell=256,foot=248,width=70,bodyWidth=210,height=109,motion=0,facing=1,prism=true,prismRow=1,prismWidth=42,prismYOffset=43},
     planter_madagascar={file="assets/enemies/arcade/planter-madagascar-atlas-v4.png",cell=256,foot=248,width=72,bodyWidth=212,height=146,motion=0,facing=1,prism=true,prismRow=2,prismWidth=44,prismYOffset=44},
     planter_island={file="assets/enemies/arcade/planter-island-atlas-v4.png",cell=256,foot=248,width=74,bodyWidth=214,height=140,motion=0,facing=1,prism=true,prismRow=3,prismWidth=44,prismYOffset=43},
+    scoreWorldtreeYoung={file="assets/enemies/arcade/score-worldtree-young-atlas-v1.png",cell=512,foot=492,width=156,bodyWidth=274,height=360,motion=2,facing=1,worldtreeGrowth=true},
+    scoreWorldtreeAdolescent={file="assets/enemies/arcade/score-worldtree-adolescent-atlas-v1.png",cell=512,foot=492,width=258,bodyWidth=348,height=430,motion=2,facing=1,worldtreeGrowth=true},
+    scoreWorldtreePrecursor={file="assets/enemies/arcade/score-worldtree-precursor-atlas-v1.png",cell=512,foot=492,width=400,bodyWidth=430,height=470,motion=2,facing=1,worldtreeGrowth=true},
     worldtree={file="assets/enemies/arcade/worldtree-siege-atlas-v1.png",cell=1024,foot=992,width=1050,bodyWidth=639,height=960,motion=2,facing=1,siege=true},
 }

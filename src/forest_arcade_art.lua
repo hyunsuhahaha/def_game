@@ -67,10 +67,10 @@ function Art.pose(e, t)
     local moving = e.moving and e.def.speed > 0
     local cycle = clock * (moving and 11 or 4) + (e.seed or 0)
     local frame = moving and (math.floor(cycle)%6+1) or (spec.motion==2 and math.floor(cycle*.65)%6+1 or 1)
-    if spec.siege then
+    if spec.siege or spec.worldtreeGrowth then
         local pct=math.max(0,e.hp)/math.max(1,e.maxHp)
         local stage=pct>.75 and 0 or (pct>.50 and 1 or (pct>.25 and 2 or 3))
-        if e.worldTreeEmerging then
+        if spec.siege and e.worldTreeEmerging then
             local ep=math.max(0,math.min(1,e.worldTreeEmergenceProgress or 0))
             frame=1+(math.floor(ep*12)%3)
         else
@@ -100,10 +100,11 @@ function Art.pose(e, t)
     if spec.prism then frame=e.planterCasting and 7 or 1 end
     local facing = e.facing or spec.facing
     local flip = (e.kind == "squirrel" or spec.biome or spec.directional) and facing/spec.facing or 1
-    local scale = spec.width/spec.bodyWidth
+    local artScale=e.scoreWorldTreeArtScale or 1
+    local scale = spec.width/spec.bodyWidth*artScale
     local bob = moving and math.abs(math.sin(cycle*math.pi/3))*1.3 or 0
     local lean = moving and math.sin(cycle*math.pi/3)*.025 or 0
-    if spec.siege then bob,lean=0,0 end
+    if spec.siege or spec.worldtreeGrowth then bob,lean=0,0 end
     if e.reaperState == "dashing" then lean=-facing*.13 end
     local squash = spec.siege and 0 or recoil*.045
     local introX,introY=e.entranceOffsetX or 0,e.entranceOffsetY or 0
@@ -118,7 +119,7 @@ function Art.pose(e, t)
     return {spec=spec,frame=frame,flip=flip,scale=scale,
         x=e.x+introX,y=footY+groundSink-bob-(e.hopHeight or 0)+introY,footY=footY,groundSink=groundSink,emergenceCutoff=emergenceCutoff,angle=lean,
         sx=scale*flip*(1+squash)*introSX,sy=scale*(1-squash)*introSY,height=spec.height*scale*introSY,
-        alpha=e.entranceAlpha or 1,shadowScale=introSX}
+        alpha=e.entranceAlpha or 1,shadowScale=introSX*artScale,renderedWidth=spec.width*artScale}
 end
 
 local function drawPrism(e,pose,t)
@@ -203,11 +204,11 @@ function Art.drawSprout(x,y,grow,t)
 end
 
 function Art.drawHealth(e,t)
-    if e.worldTreeEmerging then return end
+    if e.worldTreeEmerging or e.scoreWorldTreeGrowing then return end
     local pose=Art.pose(e,t)
     local alpha=e.entranceAlpha or 1
     if alpha<=.05 then return end
-    local w=math.max(e.def.radius*2.2,pose.spec.width*.85)
+    local w=math.max(e.def.radius*2.2,(pose.renderedWidth or pose.spec.width)*.85)
     local x,y=math.floor(e.x-w/2),math.floor(pose.y-pose.height-9)
     local pct=math.max(0,math.min(1,e.hp/e.maxHp))
     love.graphics.setColor(.14,.10,.07,.95*alpha); love.graphics.rectangle("fill",x-1,y-1,w+2,6)

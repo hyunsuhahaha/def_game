@@ -48,8 +48,50 @@ assert(m.scoreWorldTree, "60초가 지나도 세계수가 등장하지 않았다
 
 -- 2. 세계수가 서 있는 동안에는 타이머가 멈춰 두 그루가 겹치지 않는다.
 local standing = m.scoreWorldTree
+
+-- 2-1. 1단계부터 거대 공성 세계수를 재사용하지 않는다. 성장형은 실제 그림뿐 아니라
+-- 충돌 반지름과 수관 높이도 작아야 주변 나무/공격 판정과 시각이 일치한다.
+local firstProfile=ScoreWorldTree.profile(1)
+assert(not firstProfile.giant and standing.artKey=="scoreWorldtreeYoung",
+    "1단계가 어린 세계수 전용 디자인을 쓰지 않는다")
+assert(standing.def.radius==firstProfile.radius and standing.def.radius<100,
+    "1단계 세계수 충돌 범위가 여전히 거대형이다")
+assert(standing.scoreWorldTreeCrownHeight==firstProfile.crownHeight and standing.scoreWorldTreeGrowing,
+    "1단계 세계수의 빠른 성장 연출/수관 높이가 연결되지 않았다")
+assert(not m.worldTreeEmergence, "1단계부터 6.75초 SKYVIEW 등장 컷이 발동했다")
 m:updateScoreWorldTree(120, g)
 assert(m.scoreWorldTree == standing, "세계수가 서 있는데 두 번째가 등장했다")
+
+-- 세 형태는 단순 배율이 아니라 서로 다른 아트 키로 성장하고, 10단계에서만 기존
+-- 거대 세계수로 교체된다.
+assert(ScoreWorldTree.profile(3).artKey=="scoreWorldtreeYoung", "3단계 성장형이 바뀌었다")
+assert(ScoreWorldTree.profile(4).artKey=="scoreWorldtreeAdolescent", "4단계 중간형이 없다")
+assert(ScoreWorldTree.profile(7).artKey=="scoreWorldtreePrecursor", "7단계 성목 전환이 없다")
+assert(not ScoreWorldTree.profile(9).giant and ScoreWorldTree.profile(9).radius<420,
+    "9단계부터 거대형이 조기 등장한다")
+assert(ScoreWorldTree.profile(10).giant and ScoreWorldTree.profile(10).artKey=="worldtree",
+    "10단계에서 기존 거대 세계수로 전환되지 않는다")
+
+-- 10단계부터는 기존 SKYVIEW+뿌리 상승 연출을 그대로 시작한다. 완료 뒤 기록 모드의
+-- 비공격 규칙이 풀리면 안 된다.
+do
+    local giantMode=mode();giantMode.scoreRegenTier=10
+    local camera={mode="default",skyviewBlend=0,trauma=0,
+        setMode=function(self,name) self.mode=name;self.skyviewBlend=name=="skyview" and 1 or 0 end,
+        focus=function(self,x,y) self.focusX,self.focusY=x,y end}
+    local giantGame=world();giantGame.camera=camera
+    assert(giantMode:spawnScoreWorldTree(giantGame), "10단계 거대 세계수를 생성하지 못했다")
+    local giant=giantMode.scoreWorldTree
+    assert(giant.scoreWorldTreeGiant and giant.artKey=="worldtree" and giant.def.radius==420,
+        "10단계가 기존 거대 세계수 외형/크기를 쓰지 않는다")
+    assert(giantMode.worldTreeEmergence and camera.mode=="skyview" and camera.scriptedSkyviewBoss,
+        "10단계 거대형의 기존 SKYVIEW 등장 연출이 시작되지 않았다")
+    for _=1,12 do giantMode:updateWorldTreeEmergence(.75,giantGame) end
+    assert(not giantMode.worldTreeEmergence and not giantMode.worldTreeCamera,
+        "거대형 등장 뒤 카메라 소유권이 기록 모드에 남았다")
+    assert(giant.slamTimer==math.huge and giant.summonTimer==math.huge,
+        "거대형 등장 종료 뒤 캠페인 공격 패턴이 켜졌다")
+end
 
 -- 3. 공격하지 않는다. 기록 모드에는 플레이어 HP가 없어 공격이 의미가 없다.
 assert(standing.slamTimer == math.huge and standing.summonTimer == math.huge,

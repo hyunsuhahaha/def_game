@@ -97,7 +97,13 @@ function Siege.updateEmergence(mode,dt,game)
     if state.phase=="return" and (state.cameraReturned or state.phaseT>=state.returnDuration+.2) then
         e.worldTreeEmerging=false;e.worldTreeEmergenceProgress=nil
         e.entranceAlpha,e.entranceOffsetY,e.entranceScaleX,e.entranceScaleY=nil,nil,nil,nil
-        e.slamTimer=e.def.slamInterval;e.summonTimer=e.def.summonInterval
+        if e.scoreWorldTree then
+            -- 기록 모드의 거대형은 외형과 등장 연출만 계승한다. HP 개념이 없는
+            -- 모드라 캠페인 공격 패턴은 등장 종료 뒤에도 절대 켜지지 않는다.
+            e.slamTimer,e.summonTimer,e.rootSpikeTimer,e.vineWhipTimer=math.huge,math.huge,math.huge,math.huge
+        else
+            e.slamTimer=e.def.slamInterval;e.summonTimer=e.def.summonInterval
+        end
         mode.worldTreeEmergence=nil
         return false
     end

@@ -28,6 +28,9 @@
 | 숲의 재생 성소 | `assets/enemies/arcade/planter-atlas-v2.png`, 256×256 | 너비 90, 고정 뿌리 기단·부유 수관·회전 목재 고리·중앙 씨앗 |
 | 엘더 트렌트 | 같은 폴더, 256×256 | 너비 108 |
 | 세계수 공성형 | `worldtree-siege-atlas-v1.png`, 1024×1024 | 너비 1050·판정 반경 420, HP별 4단 파괴, 전용 공격·낙하 FX 5종 |
+| 기록 모드 세계수 성장형 | `score-worldtree-{young,adolescent,precursor}-atlas-v1.png`, 512×512 | 1~9단계 세 실루엣, 단계별 너비·판정 성장, 각 HP 4단 파괴 × 수관 3프레임. 10단계부터 공성형으로 전환 |
+
+기록 모드 성장형 검수는 [세 실루엣·4단 파괴 보드](previews/score-worldtree-growth-v1-contact-sheet.png), [1·4·7·9단계 실제 표시 크기](previews/score-worldtree-growth-v1-display-scale.png), [성목 4배 픽셀 확대](previews/score-worldtree-growth-v1-pixel-zoom.png)를 기준으로 한다.
 
 적 아틀라스는 모두 6열×2행. 발선은 셀 높이−8, 투명 여백을 제외한 몸체 너비로 스케일을 계산한다. `src/forest_arcade_catalog.lua`가 단일 메타데이터 기준이다. 정예는 다람쥐/멧돼지의 동일 모델에 따뜻한 하이라이트와 기존 경고 표시를 적용한다.
 

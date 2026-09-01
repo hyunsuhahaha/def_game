@@ -2277,6 +2277,15 @@ function ClearcutMode:updateWorldTreeEmergence(dt,game)
     end
     self:updateWorldTreeCamera(dt,game)
     WorldTreeSiege.updateDebris(self,dt,game)
+    if not self.worldTreeEmergence and self.worldTreeCamera and self.worldTreeCamera.scoreAttack then
+        -- 캠페인 세계수는 처치까지 카메라 소유권을 유지하지만, 기록 모드 거대형은
+        -- 등장 컷이 끝나는 순간 일반 추적으로 완전히 돌려준다.
+        if game.camera then
+            game.camera.scriptedSkyviewBoss=nil
+            if game.camera.setMode then game.camera:setMode(self.worldTreeCamera.previousMode or "default",.15) end
+        end
+        self.worldTreeCamera=nil
+    end
     -- Freeze the completion frame too. Ordinary simulation resumes on the
     -- following update, after the camera has fully returned.
     return true
@@ -2300,6 +2309,19 @@ function ClearcutMode:updateScoreWorldTree(dt,game)
     if self.scoreWorldTree then
         local tree=self.scoreWorldTree
         if tree.hp and tree.hp>0 then
+            if tree.scoreWorldTreeGrowing then
+                tree.scoreWorldTreeGrowthT=(tree.scoreWorldTreeGrowthT or 0)+dt
+                local p=math.min(1,tree.scoreWorldTreeGrowthT/.82)
+                local smooth=p*p*(3-2*p)
+                tree.entranceAlpha=math.min(1,p*4)
+                tree.entranceOffsetY=(1-smooth)*72
+                tree.entranceScaleX=.70+smooth*.30
+                tree.entranceScaleY=.56+smooth*.44
+                if p>=1 then
+                    tree.scoreWorldTreeGrowing=nil
+                    tree.entranceAlpha,tree.entranceOffsetY,tree.entranceScaleX,tree.entranceScaleY=nil,nil,nil,nil
+                end
+            end
             -- 적 체력은 도끼·폭죽·기름·두더지·화염 등 여러 곳에서 직접 깎인다.
             -- 타격 지점마다 훅을 걸면 무기가 늘 때마다 빠뜨리므로, 체력이 줄었는지를
             -- 여기서 관찰해 한 곳에서 연출을 낸다. 같은 프레임의 여러 타격은 한 번으로
@@ -2332,7 +2354,7 @@ function ClearcutMode:spawnWorldTreeLumber(tree,damage,game)
     -- 수관 높이는 그려지는 스프라이트 높이를 그대로 쓴다. 눈에 보이는 꼭대기에서
     -- 나와야 "위에서 쏟아진다" 로 읽힌다.
     local catalog=require("src.forest_enemy_catalog")
-    local crown=(catalog.worldtree and catalog.worldtree.height or 300)
+    local crown=tree.scoreWorldTreeCrownHeight or (catalog.worldtree and catalog.worldtree.height or 300)
     local share=damage/math.max(1,tree.maxHp or damage)
     local count=math.max(1,math.min(6,1+math.floor(share*34)))
     local spread=(tree.def and tree.def.radius or 420)*.16
@@ -2395,16 +2417,17 @@ function ClearcutMode:drawWorldTreeLumber(game)
     love.graphics.setColor(1,1,1,1)
 end
 
--- 캠페인의 spawnWorldTree 는 존 코어 비활성화·토템 소환·6.75초 등장 연출을 함께
--- 한다. 1분 주기에는 그 연출이 런의 10%를 먹으므로 여기서는 쓰지 않는다.
--- 공격도 하지 않는다. 기록 모드에는 플레이어 HP가 없어 공격이 의미가 없다.
+-- 1~9단계는 빠른 성장형을, 10단계부터는 기존 거대형과 SKYVIEW 등장 연출을 쓴다.
+-- 캠페인의 존 코어 비활성화·토템·공격 패턴은 기록 모드로 가져오지 않는다.
 function ClearcutMode:spawnScoreWorldTree(game)
     local bounds=game.world.playBounds or {x=0,y=0,w=game.world.width,h=game.world.height}
     local px,py=game.player.x,game.player.y
+    local profile=ClearcutMode.ScoreWorldTree.profile(self)
+    local margin=math.min(profile.radius+56,math.min(bounds.w,bounds.h)*.26)
     local x,y
     for _=1,32 do
-        local cx=bounds.x+love.math.random()*bounds.w
-        local cy=bounds.y+love.math.random()*bounds.h
+        local cx=bounds.x+margin+love.math.random()*math.max(1,bounds.w-margin*2)
+        local cy=bounds.y+margin+love.math.random()*math.max(1,bounds.h-margin*2)
         local dx,dy=cx-px,cy-py
         if dx*dx+dy*dy>=ClearcutMode.ScoreWorldTree.MIN_DISTANCE^2 then x,y=cx,cy;break end
     end
@@ -2412,6 +2435,12 @@ function ClearcutMode:spawnScoreWorldTree(game)
     y=y or (bounds.y+bounds.h*.5)
     local tree=self:spawnEnemy("worldtree",x,y,{})
     if not tree then return false end
+    -- enemyDefs.worldtree 는 공유 테이블이므로 반지름을 직접 바꾸면 캠페인 거대형까지
+    -- 오염된다. 개체 전용 복사본에서만 성장 단계의 실제 충돌 크기를 쓴다.
+    local def={}
+    for key,value in pairs(tree.def) do def[key]=value end
+    def.radius=profile.radius
+    tree.def=def
     tree.hp=ClearcutMode.ScoreWorldTree.health(self)
     tree.maxHp=tree.hp
     tree.fixedX,tree.fixedY=tree.x,tree.y
@@ -2419,9 +2448,32 @@ function ClearcutMode:spawnScoreWorldTree(game)
     -- 공격 관련 타이머를 전부 밀어 두어 어떤 패턴도 발동하지 않게 한다.
     tree.slamTimer,tree.summonTimer,tree.rootSpikeTimer,tree.vineWhipTimer=math.huge,math.huge,math.huge,math.huge
     tree.scoreWorldTree=true
+    tree.scoreWorldTreeTier=profile.tier
+    tree.scoreWorldTreeGiant=profile.giant
+    tree.scoreWorldTreeCrownHeight=profile.crownHeight
+    tree.scoreWorldTreeArtScale=profile.artScale
+    tree.artKey=profile.artKey
     self.scoreWorldTree=tree
     self.scoreWorldTreeHp=tree.hp
-    game:setNotice("세계수가 솟아올랐다 — 쓰러뜨리면 보상을 고른다","food")
+    if profile.giant then
+        WorldTreeSiege.startEmergence(self,tree,game)
+        local camera=game.camera
+        if camera then
+            self.worldTreeCamera={previousMode=camera.mode or "default",skyReturnStarted=false,scoreAttack=true}
+            camera.scriptedSkyviewBoss=true
+            if camera.setMode then camera:setMode("skyview",.7) end
+            if camera.focus then camera:focus(tree.x,tree.y-80,7.2,.96) end
+        end
+        game:setNotice("거대 세계수가 하늘을 가른다 — 쓰러뜨리면 보상을 고른다","food")
+    else
+        tree.scoreWorldTreeGrowing=true
+        tree.scoreWorldTreeGrowthT=0
+        tree.entranceAlpha=0
+        tree.entranceOffsetY=72
+        tree.entranceScaleX,tree.entranceScaleY=.70,.56
+        if game.camera then game.camera.trauma=math.min(.22,(game.camera.trauma or 0)+.08) end
+        game:setNotice("어린 세계수가 자라났다 — 쓰러뜨리면 보상을 고른다","food")
+    end
     return true
 end
 

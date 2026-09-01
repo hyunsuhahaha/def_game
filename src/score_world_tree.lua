@@ -8,14 +8,44 @@
 -- 1분에 한 번이므로 그 사고가 구조적으로 재발할 수 없다.
 --
 -- 세계수는 공격하지 않는다. 기록 모드에는 플레이어 HP가 없어서 공격이 의미가
--- 없고, 캠페인의 공격 패턴·텔레그래프·등장 연출(6.75초)은 1분 주기에 맞지 않는다.
--- 여기서는 "치러 갈지 말지"를 고르게 하는 파괴 대상일 뿐이다.
+-- 없다. 1~9단계는 별도 성장형 세계수로 빠르게 솟고, 10단계부터만 완성형 거대
+-- 세계수와 캠페인의 SKYVIEW·6.75초 등장 연출을 사용한다.
 local ScoreWorldTree = {}
 
 ScoreWorldTree.INTERVAL = 60
 ScoreWorldTree.BASE_HP = 260
 ScoreWorldTree.TIER_HP = 1.18   -- 재생 단계마다 체력 배수
 ScoreWorldTree.MIN_DISTANCE = 420
+ScoreWorldTree.GIANT_TIER = 10
+
+-- 같은 그림을 단순 확대하지 않는다. 세 성장형은 서로 다른 가지·수관·뿌리 설계를
+-- 가지며, 각 형 안에서만 작은 크기 보간을 해 단계가 매번 자라는 느낌을 준다.
+local profiles = {
+    {artKey="scoreWorldtreeYoung",artScale=.85,radius=76,crownHeight=174},
+    {artKey="scoreWorldtreeYoung",artScale=1.00,radius=90,crownHeight=205},
+    {artKey="scoreWorldtreeYoung",artScale=1.15,radius=104,crownHeight=236},
+    {artKey="scoreWorldtreeAdolescent",artScale=.87,radius=126,crownHeight=278},
+    {artKey="scoreWorldtreeAdolescent",artScale=1.00,radius=147,crownHeight=319},
+    {artKey="scoreWorldtreeAdolescent",artScale=1.14,radius=168,crownHeight=364},
+    {artKey="scoreWorldtreePrecursor",artScale=.85,radius=192,crownHeight=372},
+    {artKey="scoreWorldtreePrecursor",artScale=1.00,radius=225,crownHeight=437},
+    {artKey="scoreWorldtreePrecursor",artScale=1.18,radius=258,crownHeight=516},
+}
+
+function ScoreWorldTree.tier(modeOrTier)
+    local value=type(modeOrTier)=="table" and modeOrTier.scoreRegenTier or modeOrTier
+    return math.max(1,math.floor(value or 1))
+end
+
+function ScoreWorldTree.profile(modeOrTier)
+    local tier=ScoreWorldTree.tier(modeOrTier)
+    if tier>=ScoreWorldTree.GIANT_TIER then
+        return {tier=tier,giant=true,artKey="worldtree",artScale=1,radius=420,crownHeight=960*1050/639}
+    end
+    local source=profiles[tier]
+    return {tier=tier,giant=false,artKey=source.artKey,artScale=source.artScale,
+        radius=source.radius,crownHeight=source.crownHeight}
+end
 
 -- 판 한정 보상. 영구 연구와 겹치는 +N 수치는 넣지 않는다. 판당 두세 번뿐인 선택이
 -- 로비에서 사는 것과 같은 종류면 멈춰 설 가치가 없다. 전부 규칙을 바꾼다.
@@ -147,7 +177,7 @@ function ScoreWorldTree.roll(mode, count)
 end
 
 function ScoreWorldTree.health(mode)
-    local tier = math.max(1, math.floor(mode.scoreRegenTier or 1))
+    local tier = ScoreWorldTree.tier(mode)
     return math.floor(ScoreWorldTree.BASE_HP * ScoreWorldTree.TIER_HP ^ (tier - 1) + .5)
 end
 
