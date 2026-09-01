@@ -28,6 +28,8 @@ assert(settings:find("musicVolume",1,true)and settings:find("sfxVolume",1,true)a
     settings:find("last_haul_settings_v1.txt",1,true),"persistent audio settings are undocumented")
 assert(frontend:find("LOBBY_COMPANIONS.md",1,true)and frontend:find("SETTINGS.md",1,true),
     "frontend guide is not linked to new lobby systems")
+assert(frontend:find("로비 종료 메뉴",1,true)and frontend:find("즉시 종료하지 않고",1,true),
+    "frontend guide does not describe the lobby exit confirmation")
 assert(companions:find("universal_mole_companion",1,true)and companions:find("universal_gray_cat",1,true),
     "lobby companion unlock documentation is incomplete")
 assert(meta:find("로비 `P` 연습장",1,true)and meta:find("영구 연구 빌드",1,true),
