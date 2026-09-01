@@ -4,7 +4,8 @@ local Lobby=require("src.lobby")
 local Traits=require("src.character_traits")
 local Companions=require("src.lobby_companions")
 
-local width,height=CAPTURE_W or 1280,CAPTURE_H or 720
+local finalWidth,finalHeight=CAPTURE_W or 1280,CAPTURE_H or 720
+local width,height=LOBBY_RESIZE_FROM_W or finalWidth,LOBBY_RESIZE_FROM_H or finalHeight
 love.graphics.getDimensions=function()return width,height end
 love.graphics.getWidth=function()return width end
 love.graphics.getHeight=function()return height end
@@ -30,6 +31,10 @@ local game={characterTraits=traits}
 local lobby=Lobby.new({},fonts)
 lobby.time=2.2;lobby.timeOfDayOverride=LOBBY_HOUR or 12
 lobby:update(.01,game)
+if LOBBY_RESIZE_FROM_W or LOBBY_RESIZE_FROM_H then
+    width,height=finalWidth,finalHeight
+    lobby:update(.01,game)
+end
 if LOBBY_DEPTH_PREVIEW then
     assert(Companions.prepareDepthPreview(lobby.lobbyCompanions))
 elseif LOBBY_SCALE_MODE then
@@ -37,7 +42,7 @@ elseif LOBBY_SCALE_MODE then
 elseif LOBBY_INTERACTION_KIND then
     assert(Companions.prepareInteractionPreview(lobby.lobbyCompanions,LOBBY_INTERACTION_KIND),
         "interaction preview unavailable: "..tostring(LOBBY_INTERACTION_KIND))
-else Companions.preparePreview(lobby.lobbyCompanions)end
+elseif not LOBBY_NATURAL_LAYOUT then Companions.preparePreview(lobby.lobbyCompanions)end
 local previewTime=math.max(0,LOBBY_PREVIEW_TIME or 0)
 local elapsed=0
 while elapsed<previewTime do
@@ -53,7 +58,8 @@ local scaleSuffix=LOBBY_SCALE_MODE and("-scale_"..LOBBY_SCALE_MODE)or""
 local depthSuffix=LOBBY_DEPTH_PREVIEW and"-depth"or""
 local parallax=math.floor((LOBBY_PARALLAX or 0)*100)
 local parallaxSuffix=LOBBY_PARALLAX and string.format("-p%+04d",parallax)or""
-fixture.save(string.format("docs/previews/lobby-companions-draws-%d-h%02d%s%s%s%s%s.json",
-    width,hour,interactionSuffix,scaleSuffix,depthSuffix,parallaxSuffix,frameSuffix))
+local resizeSuffix=(LOBBY_RESIZE_FROM_W or LOBBY_RESIZE_FROM_H)and"-resized"or""
+fixture.save(string.format("docs/previews/lobby-companions-draws-%d-h%02d%s%s%s%s%s%s.json",
+    width,hour,interactionSuffix,scaleSuffix,depthSuffix,parallaxSuffix,frameSuffix,resizeSuffix))
 print(string.format("LOBBY_COMPANIONS_CAPTURE_OK %dx%d hour=%02d animals=%d window=none",
     width,height,hour,#lobby.lobbyCompanions.animals))

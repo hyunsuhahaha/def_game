@@ -46,6 +46,42 @@ for _,actor in ipairs(state.animals)do kinds[actor.kind]=kinds[actor.kind]+1 end
 assert(kinds.monkey==6 and kinds.mole==3 and kinds.cat==1,
     "원숭이·두더지·고양이 해금 수가 잘못 반영됐다")
 
+local initialLeft,initialRight=0,0
+for _,actor in ipairs(state.animals)do
+    if actor.x<state.bounds.width*.42 then initialLeft=initialLeft+1 end
+    if actor.x>state.bounds.width*.62 then initialRight=initialRight+1 end
+end
+assert(initialLeft>=2 and initialRight>=2,
+    "실제 초기 동료 배치가 개체별 산책 구역 없이 한쪽에 몰렸다")
+
+local resized=Companions.new();Companions.sync(resized,fakeTraits(levels),1280,720)
+assert(Companions.prepareInteractionPreview(resized,"banana_toss"),"리사이즈 상호작용 준비 실패")
+local oldBounds=resized.bounds
+local actor=resized.animals[1]
+local actorNX=(actor.x-oldBounds.x1)/(oldBounds.x2-oldBounds.x1)
+local actorNY=(actor.y-oldBounds.y1)/(oldBounds.y2-oldBounds.y1)
+local targetNX=(actor.targetX-oldBounds.x1)/(oldBounds.x2-oldBounds.x1)
+local interactionNX=(resized.interaction.x-oldBounds.x1)/(oldBounds.x2-oldBounds.x1)
+Companions.sync(resized,fakeTraits(levels),2560,1440)
+local newBounds=resized.bounds
+local function normalized(value,low,high)return(value-low)/(high-low)end
+assert(math.abs(normalized(actor.x,newBounds.x1,newBounds.x2)-actorNX)<.001 and
+    math.abs(normalized(actor.y,newBounds.y1,newBounds.y2)-actorNY)<.001 and
+    math.abs(normalized(actor.targetX,newBounds.x1,newBounds.x2)-targetNX)<.001,
+    "창/전체 화면 전환 시 동료와 목적지의 정규화 좌표가 보존되지 않았다")
+assert(math.abs(normalized(resized.interaction.x,newBounds.x1,newBounds.x2)-interactionNX)<.001,
+    "화면 전환 시 진행 중인 동료 상호작용만 이전 절대 좌표에 남았다")
+
+local roaming=Companions.new();Companions.sync(roaming,fakeTraits(levels),1920,1080)
+roaming.nextInteraction=math.huge
+for checkpoint=1,6 do
+    for _=1,300 do Companions.update(roaming,1/30)end
+    local minX,maxX=math.huge,-math.huge
+    for _,candidate in ipairs(roaming.animals)do minX=math.min(minX,candidate.x);maxX=math.max(maxX,candidate.x)end
+    local occupied=(maxX-minX)/(roaming.bounds.x2-roaming.bounds.x1)
+    assert(occupied>.46,"장시간 산책 중 동료가 다시 한쪽 구역으로 수렴했다: "..checkpoint)
+end
+
 local tree={kind="tree",x=790,y=670,rx=38,ry=52}
 Companions.setScenery(state,{tree})
 assert(Companions.isSceneryBlocked(state,state.animals[1],tree.x,tree.y,true),

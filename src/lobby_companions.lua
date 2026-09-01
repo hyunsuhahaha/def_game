@@ -179,18 +179,37 @@ local function pushOffAmenities(actor,bounds,clearance)
     actor.x=math.max(bounds.x1,math.min(bounds.x2,actor.x));actor.y=math.max(bounds.y1,math.min(bounds.y2,actor.y))
 end
 
+local function roamBand(actor)
+    local count=math.max(1,math.min(5,actor.roamCount or 1))
+    -- 생활권은 개체마다 분산해 유지한다. 전원이 구역을 동시에 순환하면 서로
+    -- 반대편으로 건너는 순간 중앙에 다시 모이므로, 18%의 원거리 산책만 허용한다.
+    return((math.max(1,actor.roamSlot or 1)-1)%count)+1,count
+end
+
 local function point(actor,bounds,fromX,fromY)
-    local x,y
+    local x,y,fallbackX,fallbackY
     local clearance=bodyRadius(actor.kind,true)
+    local band,bandCount=roamBand(actor)
+    local span=bounds.x2-bounds.x1
     for _=1,24 do
-        x=bounds.x1+(bounds.x2-bounds.x1)*random(actor)
+        if random(actor)<.82 then
+            local bandPadding=span*.018
+            local bandX1=bounds.x1+span*(band-1)/bandCount+bandPadding
+            local bandX2=bounds.x1+span*band/bandCount-bandPadding
+            x=bandX1+math.max(1,bandX2-bandX1)*random(actor)
+        else
+            x=bounds.x1+span*random(actor)
+        end
         y=bounds.y1+(bounds.y2-bounds.y1)*random(actor)
-        if not blockedByGroundProp(x,y,bounds,clearance)and not blockedByAmenity(x,y,bounds,clearance)and
-            clearPath(actor,fromX,fromY,x,y,bounds)then
-            return x,y
+        if not blockedByGroundProp(x,y,bounds,clearance)and not blockedByAmenity(x,y,bounds,clearance)then
+            fallbackX,fallbackY=fallbackX or x,fallbackY or y
+            if clearPath(actor,fromX,fromY,x,y,bounds)then return x,y end
         end
     end
-    return bounds.x1+(bounds.x2-bounds.x1)*.18,bounds.y1+(bounds.y2-bounds.y1)*.25
+    -- 장애물이 많은 화면에서도 모두가 같은 왼쪽 좌표로 떨어지지 않는다. 직접
+    -- 경로가 없으면 개체별 순환 구역의 유효 지점을 다음 짧은 이동 목표로 쓴다.
+    if fallbackX then return fallbackX,fallbackY end
+    return bounds.x1+span*(band-.5)/bandCount,bounds.y1+(bounds.y2-bounds.y1)*.25
 end
 
 local function amenityFits(actor,amenity)
@@ -236,9 +255,9 @@ local function moveTo(actor,x,y,speed,dt)
     return distance-step<=1
 end
 
-local function makeActor(item,index,bounds)
+local function makeActor(item,index,count,bounds)
     local actor={id=item.id,kind=item.kind,seed=hash(item.id),clock=index*.43,
-        facing=index%2==0 and -1 or 1,stops=index}
+        facing=index%2==0 and -1 or 1,stops=index,roamSlot=index,roamCount=count}
     actor.x,actor.y=point(actor,bounds)
     actor.targetX,actor.targetY=point(actor,bounds,actor.x,actor.y)
     if index%3==0 then actor.state,actor.timer="sleep",6+random(actor)*4
@@ -265,7 +284,13 @@ function Companions.setAmenities(state,amenities)
     state.bounds.amenities=state.amenities
     for _,actor in ipairs(state.animals or{})do if actor.playAmenityRef then
         actor.playAmenityRef=newById[actor.playAmenityRef.id]
-        if not actor.playAmenityRef then clearAmenity(actor)end
+        if not actor.playAmenityRef then clearAmenity(actor)
+        else
+            local amenity=actor.playAmenityRef
+            local approachX=amenity.x+(amenity.kind=="cat_tower"and-30 or 0)
+            if actor.state=="play"then actor.x,actor.y=approachX,amenity.y
+            else actor.targetX,actor.targetY=approachX,amenity.y end
+        end
     end end
     local alive={};for _,actor in ipairs(state.animals or{})do alive[actor.id]=true end
     for _,amenity in ipairs(state.amenities)do
@@ -303,18 +328,42 @@ function Companions.isSceneryBlocked(state,actor,x,y,asleep)
 end
 
 local clearActorInteraction
+local function remap(value,oldMin,oldMax,newMin,newMax)
+    local ratio=(value-oldMin)/math.max(1,oldMax-oldMin)
+    return newMin+(newMax-newMin)*math.max(0,math.min(1,ratio))
+end
+
 function Companions.sync(state,traits,width,height)
     if not state then return 0 end
     local bounds=boundsFor(width or 1280,height or 720)
-    bounds.scenery=state.bounds and state.bounds.scenery or{}
+    local oldBounds=state.bounds
+    local resized=oldBounds and(oldBounds.width~=bounds.width or oldBounds.height~=bounds.height)
+    bounds.scenery=not resized and oldBounds and oldBounds.scenery or{}
+    if resized then
+        for _,actor in pairs(state.byId or{})do
+            local oldX,oldY=actor.x,actor.y
+            actor.x=remap(oldX,oldBounds.x1,oldBounds.x2,bounds.x1,bounds.x2)
+            actor.y=remap(oldY,oldBounds.y1,oldBounds.y2,bounds.y1,bounds.y2)
+            actor.targetX=remap(actor.targetX or oldX,oldBounds.x1,oldBounds.x2,bounds.x1,bounds.x2)
+            actor.targetY=remap(actor.targetY or oldY,oldBounds.y1,oldBounds.y2,bounds.y1,bounds.y2)
+        end
+        local interaction=state.interaction
+        if interaction then
+            local oldX,oldY=interaction.x,interaction.y
+            interaction.x=remap(oldX,oldBounds.x1,oldBounds.x2,bounds.x1,bounds.x2)
+            interaction.y=remap(oldY,oldBounds.y1,oldBounds.y2,bounds.y1,bounds.y2)
+            interaction.runX=remap(interaction.runX or oldX,oldBounds.x1,oldBounds.x2,bounds.x1,bounds.x2)
+        end
+    end
     state.bounds=bounds
     local wanted,keep=desiredAnimals(traits),{}
     for index,item in ipairs(wanted)do
         local actor=state.byId[item.id]
         if not actor then
-            actor=makeActor(item,index,bounds)
+            actor=makeActor(item,index,#wanted,bounds)
             state.byId[item.id]=actor
         end
+        actor.roamSlot,actor.roamCount=index,#wanted
         actor.x=math.max(bounds.x1,math.min(bounds.x2,actor.x))
         actor.y=math.max(bounds.y1,math.min(bounds.y2,actor.y))
         actor.targetX=math.max(bounds.x1,math.min(bounds.x2,actor.targetX or actor.x))

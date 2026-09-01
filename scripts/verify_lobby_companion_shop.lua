@@ -73,6 +73,8 @@ Companions.setAmenities(motion,{{id="cat_tower",kind="cat_tower",x=860,y=605},{i
 assert(Companions.prepareAmenityPreview(motion,"cat_tower"),"캣타워 동작 준비 실패")
 local cat
 for _,actor in ipairs(motion.animals)do if actor.kind=="cat"then cat=actor;break end end
+Companions.setAmenities(motion,{{id="cat_tower",kind="cat_tower",x=1060,y=690},{id="forest_swing",kind="swing",x=1010,y=570}})
+assert(cat.x==1030 and cat.y==690,"화면 전환 뒤 이용 중인 동료가 새 시설 앵커를 따라가지 않는다")
 fixture.reset();Companions.draw(motion,1)
 local scaleBefore
 for _,op in ipairs(fixture.commands)do if op.op=="draw"and op.file:find("gray%-oil%-cat")then scaleBefore=math.abs(op.args[4]);break end end
