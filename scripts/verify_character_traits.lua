@@ -69,6 +69,14 @@ local migratedMole=CharacterTraits.decode("universal_mole_companion=6\n")
 assert(migratedMole.levels.universal_mole_companion==1 and migratedMole.levels.universal_mole_damage==3 and
     migratedMole.levels.universal_mole_claw==2 and migratedMole.levels.universal_mole_dual==1 and
     migratedMole.levels.universal_mole_extra==1,"legacy six-rank mole purchase was not migrated into the split graph")
+local migratedGrowth=CharacterTraits.decode("universal_yard=7\nuniversal_stride=4\n")
+for _,id in ipairs({"universal_yard","fire_score_yard_2","universal_yard_3","fire_score_yard_4",
+    "universal_yard_5","fire_score_yard_6","fire_score_yard_7"})do
+    assert(migratedGrowth.levels[id]==1,"legacy yard rank was not migrated into split nodes: "..id)
+end
+for _,id in ipairs({"universal_stride","fire_score_stride_2","universal_stride_3","fire_score_stride_4"})do
+    assert(migratedGrowth.levels[id]==1,"legacy movement rank was not migrated into split nodes: "..id)
+end
 store.data.currency = 300
 local blocked = store:buy("physical_axe")
 assert(not blocked, "dependent character trait unlocked before its prerequisite")
@@ -78,7 +86,10 @@ local physical = store:effects("physical")
 local smoker = store:effects("fire")
 assert(physical.attackSpeed > 1 and physical.range == 14, "logger traits did not produce runtime effects")
 assert(smoker.attackSpeed == 1 and smoker.range == 0, "logger traits leaked into another character")
-store.data.levels.universal_yard=7
+for _,id in ipairs({"universal_yard","fire_score_yard_2","universal_yard_3","fire_score_yard_4",
+    "universal_yard_5","fire_score_yard_6","fire_score_yard_7"})do store.data.levels[id]=1 end
+for _,id in ipairs({"universal_stride","fire_score_stride_2","universal_stride_3","fire_score_stride_4"})do store.data.levels[id]=1 end
+for _,id in ipairs({"fire_score_view_1","universal_view_2","fire_score_view_3","universal_view_4"})do store.data.levels[id]=1 end
 store.data.levels.universal_robot_start=1
 store.data.levels.universal_robot_motor=5
 store.data.levels.universal_oil_drum=1
@@ -93,7 +104,16 @@ store.data.levels.universal_mole_companion=1
 store.data.levels.universal_mole_damage=3;store.data.levels.universal_mole_speed=3
 store.data.levels.universal_mole_attack_speed=3;store.data.levels.universal_mole_claw=2
 store.data.levels.universal_mole_dual=1;store.data.levels.universal_mole_extra=2
-assert(store:effects("fire").scoreTreeAllowance==28,"permanent logging-yard capacity did not reach +28 trees at max rank")
+local splitGrowth=store:scoreAttackEffects()
+assert(splitGrowth.scoreYardExpansion==7,"split logging-yard expansion did not reach seven nodes")
+assert(math.abs(splitGrowth.moveSpeed-1.24)<1e-9,"split movement upgrades did not preserve +24% total speed")
+assert(math.abs(splitGrowth.scoreViewExpansion-.10)<1e-9,"split camera-view upgrades did not reach +10% total view")
+for _,id in ipairs({"universal_stride","fire_score_stride_2","universal_stride_3","fire_score_stride_4",
+    "fire_score_view_1","universal_view_2","fire_score_view_3","universal_view_4",
+    "universal_yard","fire_score_yard_2","universal_yard_3","fire_score_yard_4",
+    "universal_yard_5","fire_score_yard_6","fire_score_yard_7"})do
+    assert(store:getNode(id).max==1,id.." merged distributed progression back into a multi-rank node")
+end
 for _,id in ipairs({"fire_score_prewarm","fire_score_filter","fire_score_lighter","fire_score_spark","fire_score_launch","fire_score_ash","fire_score_drag","fire_score_heat"})do store.data.levels[id]=5 end
 store.data.levels.fire_score_stock=1
 local scoreSmoker=store:effects("fire")
@@ -252,9 +272,10 @@ assert(flameMode.flameStream==nil,"비가 오는데 화염 기둥이 남아 있�
 -- + 도끼 4 + 도끼 상위 3(충격파·연속 벌목·나무꾼 고용) + 후반 해금 3(상시 흡연·자동 투척·폭죽)
 -- + 자동 투척 주기 1 + 폭죽 5. 탄약 관리 갈래는 startSmoking의 세 상수(개비 재장전 하한,
 -- 보루 재장전 하한, 보루 크기 20)를 각각 여는 노드이며 폭죽 시각 특성 3개가 추가된다.
--- universal 28 = 기존 24 + 이동속도 루트 1 + 재생 단계 게이트 후반 노드 3.
--- fire 41 = 기존 39 + 도끼 상위 2(충격파 연쇄·거목 특화).
-assert(#store:getScoreAttackNodes("fire")==41 and #store:getScoreAttackNodes("universal")==28,"active research board did not expose the split companion graphs and the weapon-slot branches")
+-- 이동·시야·작업 구역은 한 노드의 다단계가 아니라 기존 장비 갈래 사이에 놓인 별도
+-- 1레벨 노드다. fire 49 / universal 33에 분산돼 있어야 한곳에 다시 뭉치지 않는다.
+assert(#store:getScoreAttackNodes("fire")==49 and #store:getScoreAttackNodes("universal")==33,
+    "active research board did not expose the distributed movement, view and yard nodes")
 for _, job in ipairs({"physical","fire","toxic","developer"}) do
     assert(#store:getNodes(job) >= 30, job .. " character graph has too few trait nodes")
 end

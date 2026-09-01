@@ -537,7 +537,12 @@ function ClearcutMode:setup(game)
         self.scoreTierClearTimer,self.scoreTierClearLatch,self.scoreTierSpawned,self.scoreTierFx=0,false,0,nil
         ClearcutMode.ScoreWorldTree.reset(self)
     end
-    game.world.clearcutMapScale=self.scoreAttack and Maps.SCORE_MAP_SCALE or 1
+    if game.characterTraits then
+        self.permanentTraits=self.scoreAttack and game.characterTraits.scoreAttackEffects and game.characterTraits:scoreAttackEffects()or game.characterTraits:effects(self.job)
+    end
+    self.permanentTraits=self.permanentTraits or{}
+    local yardExpansion=math.max(0,math.floor(self.permanentTraits.scoreYardExpansion or 0))
+    game.world.clearcutMapScale=self.scoreAttack and math.min(.90,Maps.SCORE_MAP_SCALE+yardExpansion*.025)or 1
     Maps.configure(game.world,self.mapId)
     Maps.configureStage(game.world,self.stage)
     self.mapWorld=game.world
@@ -545,10 +550,7 @@ function ClearcutMode:setup(game)
     local w, h = game.world.width, game.world.height
     local spawnX, spawnY = w / 2, h / 2
     game.player.x, game.player.y = spawnX, spawnY
-    if game.characterTraits then
-        self.permanentTraits=self.scoreAttack and game.characterTraits.scoreAttackEffects and game.characterTraits:scoreAttackEffects()or game.characterTraits:effects(self.job)
-    end
-    self.scoreTreeAllowance=(self.scoreBaseTreeAllowance or 12)+(self.permanentTraits.scoreTreeAllowance or 0)
+    self.scoreTreeAllowance=(self.scoreBaseTreeAllowance or 12)+(self.permanentTraits.scoreTreeAllowance or 0)+yardExpansion*4
     self.scoreBaseAllowance=self.scoreTreeAllowance
     if self.scoreAttack then
         self.permanentTraits.range=(self.permanentTraits.range or 0)+(self.permanentTraits.scoreRange or 0)
@@ -583,7 +585,8 @@ function ClearcutMode:setup(game)
     end
     self.baseSpeed = 320 * (self.permanentTraits.moveSpeed or 1)
     game.player.speed, game.player.capacity, game.player.gather = self.baseSpeed, 99999, 1.15
-    game.camera.x, game.camera.y, game.camera.zoom = spawnX, spawnY, game.world.stageZoom or .84
+    local viewExpansion=math.max(0,self.permanentTraits.scoreViewExpansion or 0)
+    game.camera.x,game.camera.y,game.camera.zoom=spawnX,spawnY,(game.world.stageZoom or .84)/(1+viewExpansion)
     if game.world.overviewBounds and game.camera.update then game.camera:update(0,game.player,game.world) end
     self.maxHp = self.maxHp + (self.permanentTraits.maxHp or 0)
     self.hp = self.maxHp

@@ -197,6 +197,7 @@ local scoreFireNodes={
     -- 긴 재장전을 포함한 흡연 상태가 계속 진행된다.
     {id="fire_score_alwayssmoke",name="상시 흡연",short="상시 흡연",desc="근접 도끼질이나 폭죽 공격 중에도 담배 재장전이 계속됩니다.",effect="scoreAlwaysSmoking",value=1,max=1,costs={200},wx=2020,wy=760,icon="cigarette",color={.94,.72,.36},requires={{"fire_score_prewarm",1}}},
     {id="fire_score_filter",name="원거리 무기 사거리 상승",short="원거리 사거리",desc="원거리 무기 사거리 +16",effect="scoreRange",value=16,max=6,costs={18,32,50,74,104,142},wx=730,wy=520,icon="filter",color={.88,.66,.32},requires={{"fire_score_prewarm",1}}},
+    {id="fire_score_view_1",name="카메라 시야 확장",short="시야 +2.5%",desc="게임 화면에 보이는 월드 범위가 2.5% 넓어집니다.",effect="scoreViewExpansion",value=.025,max=1,costs={46},wx=1040,wy=780,icon="map",color={.48,.72,.66},requires={{"fire_score_filter",2}}},
     {id="fire_score_lighter",name="착화 범위 상승",short="착화 범위",desc="꽁초가 불씨를 옮기는 착화 반경 +12",effect="scoreArea",value=12,max=6,costs={18,32,50,74,104,142},wx=730,wy=900,icon="ember",color={.96,.43,.16},requires={{"fire_score_prewarm",1}}},
     {id="fire_score_spark",name="꽁초 착화 확률 상승",short="착화 확률",desc="꽁초의 착화 성공 확률 +1.2%p",effect="scoreIgnitionChance",value=.012,wx=1080,wy=380,icon="ember",color={1,.56,.16},requires={{"fire_score_filter",2}}},
     -- 탄약 관리 갈래. 흡연자는 한 보루(기본 20개비) 단위로 탄창을 굴리는데(startSmoking),
@@ -208,10 +209,12 @@ local scoreFireNodes={
     {id="fire_score_carton_size",name="보루 개비 수 증가",short="보루 용량",desc="보루 하나에 담기는 담배가 단계마다 6개비 늘어납니다. 보루를 다 피울 때만 오는 긴 재장전이 그만큼 드물어집니다. (기본 20개비)",effect="scoreCartonSize",value=6,max=5,costs={24,42,64,92,126},wx=400,wy=350,icon="pack",color={.90,.62,.30},requires={{"fire_score_reload",2}}},
     {id="fire_score_carton_reload",name="보루 교체 속도 상승",short="보루 교체",desc="보루를 다 피우고 새 보루를 뜯는 긴 재장전이 단계마다 12% 단축됩니다. (기본 4.4초, 하한 2.4초 — 하한도 함께 내려갑니다)",effect="scoreCartonReload",value=.12,max=4,costs={30,52,80,116},wx=750,wy=350,icon="cigarette",color={.78,.70,.46},requires={{"fire_score_carton_size",2}}},
     {id="fire_score_launch",name="꽁초 비행 속도 상승",short="비행 속도",desc="꽁초 비행 속도 +7%",effect="scoreProjectileSpeed",value=.07,wx=1080,wy=650,icon="wind",color={.82,.72,.42},requires={{"fire_score_prewarm",1}}},
+    {id="fire_score_stride_2",name="작업자 이동속도 상승",short="이동속도 +6%",desc="작업자 이동속도 +6%",effect="moveSpeed",value=.06,max=1,costs={54},wx=1450,wy=650,icon="road",color={.52,.74,.66},requires={{"fire_score_launch",2}}},
     -- 값은 초당 확률 단위로 저장하고 런타임이 기준 연소시간(3.6초)을 곱해 "옮겨붙는
     -- 기대 그루 수"로 쓴다. 0레벨 0.43그루 → 6레벨 1.45그루로, 만렙이 임계점 1.00을
     -- 확실히 넘겨 산불이 스스로 번지게 한다.
     {id="fire_score_ash",name="불 확산량 상승",short="확산량",desc="불붙은 나무가 옮겨붙이는 기대 그루 +0.17 (만렙 1.45그루 — 1.00을 넘으면 산불이 스스로 번집니다)",effect="scoreSpreadChance",value=.047,max=6,costs={18,32,50,74,104,142},wx=1080,wy=940,icon="ash",color={.72,.52,.36},requires={{"fire_score_lighter",2}}},
+    {id="fire_score_yard_2",name="작업 구역 확장",short="맵 +2.5%p",desc="이동 가능한 맵 크기가 2.5% 넓어지고 나무 허용량이 4그루 증가합니다.",effect="scoreYardExpansion",value=1,max=1,costs={58},wx=1780,wy=940,icon="map",color={.48,.72,.42},requires={{"fire_score_ash",2}}},
     {id="fire_score_drag",name="무기 공격속도 상승",short="공격속도",desc="무기 공격속도 +4%",effect="scoreAttackSpeed",value=.04,max=6,costs={18,32,50,74,104,142},wx=1430,wy=470,icon="clock",color={.78,.76,.67},requires={{"fire_score_launch",2}}},
     {id="fire_score_heat",name="연소속도 상승",short="연소 속도",desc="불이 나무를 태우는 주기 6% 단축 (기본 1초마다 4피해, 연소 3.6초)",effect="scoreBurnSpeed",value=.06,max=6,costs={18,32,50,74,104,142},wx=1430,wy=820,icon="warning",color={1,.34,.08},requires={{"fire_score_prewarm",1}}},
     {id="fire_score_stock",name="추가 꽁초 투척",short="추가 꽁초",desc="투척할 때 추가 꽁초 +1 (자동 투척에도 그대로 적용됩니다)",effect="scoreExtraFires",value=1,max=2,costs={180,310},wx=1780,wy=650,icon="pack",color={1,.30,.08},requires={{"fire_score_heat",3}},capstone=true},
@@ -231,6 +234,7 @@ local scoreFireNodes={
     {id="fire_score_axe_area",name="도끼 타격 범위 상승",short="도끼 범위",desc="도끼의 조준 포착 범위와 주변 타격 범위 +9",effect="scoreAxeArea",value=9,max=5,wx=730,wy=1320,icon="split",color={.72,.76,.80},requires={{"fire_score_edge",1}}},
     {id="fire_score_axe_speed",name="도끼 공격속도 상승",short="도끼 공속",desc="도끼 연속 타격 속도 +7%",effect="scoreAxeSpeed",value=.07,max=5,wx=730,wy=1640,icon="clock",color={.90,.72,.36},requires={{"fire_score_edge",1}}},
     {id="fire_score_axe_targets",name="도끼 동시 타격 나무 +1",short="동시 타격",desc="한 번의 도끼질이 조준 범위 안의 나무를 단계마다 1그루 더 때립니다",effect="scoreAxeTargets",value=1,max=2,costs={96,158},wx=380,wy=1470,icon="axe",color={.82,.52,.28},requires={{"fire_score_axe_area",3}}},
+    {id="fire_score_yard_4",name="작업 구역 확장",short="맵 +2.5%p",desc="이동 가능한 맵 크기가 2.5% 넓어지고 나무 허용량이 4그루 증가합니다.",effect="scoreYardExpansion",value=1,max=1,costs={126},wx=80,wy=1600,icon="map",color={.48,.72,.42},requires={{"fire_score_axe_area",3}}},
     {id="fire_score_axe_execute",name="도끼 밑동 절단 확률 상승",short="즉시 벌목",desc="도끼 타격이 단계마다 3% 확률로 나무를 체력과 무관하게 즉시 쓰러뜨립니다",effect="scoreAxeExecute",value=.03,max=4,costs={54,84,120,164},wx=380,wy=1790,icon="stump",color={.76,.33,.20},requires={{"fire_score_axe_speed",3}}},
 
     -- 폭죽 갈래. 폭발 반경도 담배용 scoreArea를 ×0.3으로 나눠 쓰고 있었고,
@@ -258,6 +262,8 @@ local scoreFireNodes={
     {id="fire_score_rocket_radius",name="폭죽 폭발 반경 상승",short="폭발 반경",desc="폭죽 로켓의 폭발 반경 +16",effect="scoreRocketRadius",value=16,max=5,wx=1700,wy=1300,icon="blast",color={1,.52,.18},requires={{"fire_score_rocket_unlock",1}}},
     {id="fire_score_rocket_damage",name="폭죽 폭발 피해 상승",short="폭발 피해",desc="폭죽 폭발이 나무에 주는 피해 +2",effect="scoreRocketDamage",value=2,max=5,wx=2050,wy=1350,icon="ember",color={1,.38,.14},requires={{"fire_score_rocket_unlock",1}}},
     {id="fire_score_rocket_speed",name="폭죽 비행 속도 상승",short="비행 속도",desc="폭죽 로켓이 목표까지 날아가는 속도 +12%",effect="scoreRocketSpeed",value=.12,max=4,costs={22,38,58,82},wx=1420,wy=1560,icon="wind",color={.82,.74,.46},requires={{"fire_score_rocket_radius",2}}},
+    {id="fire_score_view_3",name="카메라 시야 확장",short="시야 +2.5%",desc="게임 화면에 보이는 월드 범위가 2.5% 넓어집니다.",effect="scoreViewExpansion",value=.025,max=1,costs={146},wx=500,wy=2250,icon="map",color={.48,.72,.66},requires={{"fire_score_rocket_speed",2}}},
+    {id="fire_score_yard_6",name="작업 구역 확장",short="맵 +2.5%p",desc="이동 가능한 맵 크기가 2.5% 넓어지고 나무 허용량이 4그루 증가합니다.",effect="scoreYardExpansion",value=1,max=1,costs={196},wx=1250,wy=2250,icon="map",color={.48,.72,.42},requires={{"fire_score_rocket_radius",3}}},
     {id="fire_score_rocket_ignite",name="폭죽 착탄 점화 확률 상승",short="착탄 점화",desc="폭발로 쓰러지지 않은 나무에 불이 붙을 확률 +6%p (기본 38%)",effect="scoreRocketIgnite",value=.06,max=5,wx=1790,wy=1660,icon="ember",color={1,.62,.24},requires={{"fire_score_rocket_radius",3}}},
     {id="fire_score_rocket_cooldown",name="폭죽 발사 속도 상승",short="발사 속도",desc="폭죽 로켓 재발사 대기시간 단계마다 9% 감소",effect="scoreRocketCooldown",value=.09,max=5,wx=2130,wy=1400,icon="clock",color={.94,.58,.22},requires={{"fire_score_rocket_damage",3}}},
     {id="fire_score_rocket_twin",name="폭죽 쌍발 발사대",short="동시 2발",desc="폭죽을 조준점 좌우로 동시에 2발 발사합니다.",effect="scoreRocketTwin",value=1,max=1,costs={240},wx=1420,wy=1900,icon="blast",color={1,.72,.24},requires={{"fire_score_rocket_speed",4},{"fire_score_rocket_cooldown",3}}},
@@ -273,6 +279,8 @@ local scoreFireNodes={
     {id="fire_score_flame_damage",name="화염 피해 상승",short="화염 피해",desc="화염이 나무에 주는 초당 피해 +1 (기본 초당 3)",effect="scoreFlameDamage",value=1,max=5,costs={30,52,80,116,158},wx=750,wy=3100,icon="fist",color={1,.56,.20},requires={{"fire_score_flame_unlock",1}}},
     {id="fire_score_flame_range",name="화염 분사 거리 상승",short="분사 거리",desc="화염이 닿는 거리 +26 (기본 250)",effect="scoreFlameRange",value=26,max=5,costs={26,46,72,104,142},wx=1100,wy=3100,icon="wind",color={.94,.66,.28},requires={{"fire_score_flame_unlock",1}}},
     {id="fire_score_flame_width",name="화염 기둥 굵기 상승",short="기둥 굵기",desc="화염 기둥의 전체 폭 +28 (기본 폭 144)",effect="scoreFlameWidth",value=14,max=4,costs={34,58,88,126},wx=1450,wy=3100,icon="split",color={1,.50,.16},requires={{"fire_score_flame_unlock",1}}},
+    {id="fire_score_stride_4",name="작업자 이동속도 상승",short="이동속도 +6%",desc="작업자 이동속도 +6%",effect="moveSpeed",value=.06,max=1,costs={260},wx=750,wy=3600,icon="road",color={.52,.74,.66},requires={{"fire_score_flame_range",3}}},
+    {id="fire_score_yard_7",name="작업 구역 확장",short="맵 +2.5%p",desc="이동 가능한 맵 크기가 2.5% 넓어지고 나무 허용량이 4그루 증가합니다.",effect="scoreYardExpansion",value=1,max=1,costs={310},wx=1450,wy=3600,icon="map",color={.48,.72,.42},requires={{"fire_score_flame_width",3}}},
     {id="fire_score_flame_ignite",name="화염 착화 확률 상승",short="착화 확률",desc="화염에 닿아 있는 나무가 초당 불붙을 확률 +8%p (기본 18%)",effect="scoreFlameIgnite",value=.08,max=4,costs={38,64,98,140},wx=1100,wy=3350,icon="ember",color={1,.36,.10},requires={{"fire_score_flame_range",2},{"fire_score_flame_width",2}}},
 }
 for _,node in ipairs(scoreFireNodes)do node.job="fire";node.scoreMode=true;node.max=node.max or 5;node.costs=node.costs or{18,32,50,74,104};jobs.fire.nodes[#jobs.fire.nodes+1]=node end
@@ -396,19 +404,22 @@ expand("universal",{
     {id="universal_lumberbonus",name="목재 획득량 상승",short="목재 획득량",desc="목재 획득량 +12%",effect="woodYield",value=.12,requires={{"universal_shuttle",1}},icon="coins",color={.78,.62,.30}},
     {id="universal_afforestation",name="스테이지 시작 나무 증가",short="시작 나무 증가",desc="스테이지 진행마다 나무 +6그루(스테이지 배수)",effect="forestRestock",value=6,requires={{"universal_shuttle",1}},icon="map",color={.42,.68,.40}},
     {id="universal_seedbank",name="다수 수종 생성",short="다수 수종",desc="벌목지에 더 값나가는 수종이 함께 자란다",effect="treeVariety",value=1,max=1,requires={{"universal_afforestation",1}},icon="leaf",color={.55,.72,.35}},
-    {id="universal_yard",name="나무 허용량 증가",short="허용량 증가",desc="벌목 기록 모드의 나무 허용량 +4그루",effect="scoreTreeAllowance",value=4,max=7,costs={16,26,40,58,80,108,142},wx=520,wy=850,icon="map",color={.48,.72,.42},scoreMode=true},
+    {id="universal_yard",name="작업 구역 확장",short="맵 +2.5%p",desc="이동 가능한 맵 크기가 2.5% 넓어지고 나무 허용량이 4그루 증가합니다.",effect="scoreYardExpansion",value=1,max=1,costs={16},wx=520,wy=850,icon="map",color={.48,.72,.42},scoreMode=true},
     -- 루트 노드. 어떤 빌드든 즉시 체감되고 값이 싸서 첫 판의 선택지를 늘린다.
     -- 후반 목표. 코인을 다 모아도 재생 단계를 못 올리면 열리지 않는다. 19,637코인을
     -- 전부 찍은 뒤가 비어 있던 문제를 실력 축으로 채운다.
     {id="universal_veteran_yard",name="숙련 벌목장",short="허용량 대폭 증가",desc="나무 허용량이 단계마다 3그루 더 늘어납니다. 재생 6단계에 도달해야 열립니다.",effect="scoreTreeAllowance",value=3,max=4,costs={320,460,640,860},requiresTier=6,wx=3000,wy=550,icon="map",color={.42,.78,.52},scoreMode=true},
     {id="universal_veteran_crew",name="숙련 작업반",short="원숭이 추가",desc="졸업한 무기마다 원숭이가 한 마리씩 더 합류합니다. 재생 8단계에 도달해야 열립니다.",effect="scoreGraduateExtra",value=1,max=1,costs={1400},requiresTier=8,wx=3400,wy=550,icon="capstone",color={.94,.66,.28},scoreMode=true,capstone=true},
     {id="universal_wildfire",name="통제 불능 산불",short="확산량 대폭 증가",desc="불붙은 나무의 확산량이 단계마다 0.12 늘어납니다. 재생 10단계에 도달해야 열립니다.",effect="scoreSpreadChance",value=.0333,max=3,costs={900,1300,1800},requiresTier=10,wx=3800,wy=550,icon="ember",color={1,.42,.16},scoreMode=true,capstone=true},
-    {id="universal_stride",name="작업자 이동속도 상승",short="이동속도",desc="작업자 이동속도가 단계마다 6% 증가합니다.",effect="moveSpeed",value=.06,max=4,costs={14,24,38,56},wx=880,wy=1120,icon="road",color={.52,.74,.66},scoreMode=true},
+    {id="universal_stride",name="작업자 이동속도 상승",short="이동속도 +6%",desc="작업자 이동속도 +6%",effect="moveSpeed",value=.06,max=1,costs={14},wx=880,wy=1120,icon="road",color={.52,.74,.66},scoreMode=true},
     {id="universal_robot_start",name="아기 로봇 기본 지급",short="로봇 기본 지급",desc="벌목 기록 모드를 아기 운반 로봇 Lv.1로 시작",effect="scoreStartingBabyRobot",value=1,max=1,costs={42},wx=900,wy=680,icon="basket",color={.40,.86,1},scoreMode=true},
     {id="universal_robot_motor",name="아기 로봇 이동속도 상승",short="로봇 이동속도",desc="아기 운반 로봇 이동속도 +10%",effect="scoreRobotSpeed",value=.10,max=5,costs={22,38,58,82,112},wx=1260,wy=680,icon="clock",color={.55,.90,1},requires={{"universal_robot_start",1}},scoreMode=true},
+    {id="universal_yard_3",name="작업 구역 확장",short="맵 +2.5%p",desc="이동 가능한 맵 크기가 2.5% 넓어지고 나무 허용량이 4그루 증가합니다.",effect="scoreYardExpansion",value=1,max=1,costs={92},wx=3500,wy=620,icon="map",color={.48,.72,.42},requires={{"universal_robot_motor",2}},scoreMode=true},
+    {id="universal_stride_3",name="작업자 이동속도 상승",short="이동속도 +6%",desc="작업자 이동속도 +6%",effect="moveSpeed",value=.06,max=1,costs={118},wx=3650,wy=900,icon="road",color={.52,.74,.66},requires={{"universal_robot_motor",3}},scoreMode=true},
     {id="universal_mole_companion",name="두더지 동료 해금",short="두더지 해금",desc="벌목 기록 모드에 두더지 동료 1마리가 합류합니다.",effect="scoreMoleCompanion",value=1,max=1,costs={78},wx=1100,wy=1100,icon="fist",color={.78,.62,.30},requires={{"universal_robot_start",1}},scoreMode=true},
     {id="universal_mole_damage",name="두더지 피해 상승",short="피해 상승",desc="두더지 발톱 피해가 단계마다 1 증가합니다.",effect="scoreMoleDamage",value=1,max=3,costs={30,48,72},wx=700,wy=1320,icon="fist",color={.86,.48,.24},requires={{"universal_mole_companion",1}},scoreMode=true},
     {id="universal_mole_speed",name="두더지 이동속도 상승",short="이동속도 상승",desc="두더지 이동속도가 단계마다 10% 증가합니다.",effect="scoreMoleSpeed",value=.10,max=3,costs={26,44,66},wx=1100,wy=1370,icon="road",color={.48,.72,.82},requires={{"universal_mole_companion",1}},scoreMode=true},
+    {id="universal_view_2",name="카메라 시야 확장",short="시야 +2.5%",desc="게임 화면에 보이는 월드 범위가 2.5% 넓어집니다.",effect="scoreViewExpansion",value=.025,max=1,costs={104},wx=3200,wy=1650,icon="map",color={.48,.72,.66},requires={{"universal_mole_speed",2}},scoreMode=true},
     {id="universal_mole_attack_speed",name="두더지 공격속도 상승",short="공격속도 상승",desc="두더지 공격속도가 단계마다 12% 증가합니다.",effect="scoreMoleAttackSpeed",value=.12,max=3,costs={32,52,78},wx=1500,wy=1320,icon="clock",color={.82,.68,.30},requires={{"universal_mole_companion",1}},scoreMode=true},
     {id="universal_mole_claw",name="두더지 공격범위 상승",short="공격범위 상승",desc="두더지의 공격 가능 거리와 발톱 자국 크기가 단계마다 증가합니다.",effect="scoreMoleClawTier",value=1,max=2,costs={56,92},wx=500,wy=1570,icon="split",color={.92,.42,.22},requires={{"universal_mole_damage",2}},scoreMode=true},
     {id="universal_mole_dual",name="두더지 양손 공격",short="양손 공격",desc="두더지가 한 번의 공격에 양손 발톱 자국을 남깁니다.",effect="scoreMoleDualClaw",value=1,max=1,costs={125},wx=500,wy=1820,icon="capstone",color={1,.32,.16},requires={{"universal_mole_claw",2}},scoreMode=true},
@@ -416,10 +427,12 @@ expand("universal",{
     {id="universal_oil_drum",name="기름 드럼통 생성",short="드럼통 생성",desc="벌목 기록 모드에서 22초마다 기름 드럼통이 떨어집니다. 도끼로 두 번 타격하면 반경 180 안에 검은 기름 픽셀이 매번 다른 형태로 튑니다.",effect="scoreOilDrum",value=1,max=1,costs={64},wx=1740,wy=930,icon="oil_drum",color={.42,.50,.52},requires={{"universal_robot_start",1}},scoreMode=true},
     {id="universal_oil_interval",name="드럼통 등장 주기",short="등장 주기 감소",desc="단계마다 기름 드럼통 등장 주기가 2초 감소합니다.",effect="scoreOilDrumInterval",value=2,max=3,costs={38,64,96},wx=2050,wy=700,icon="clock",color={.48,.58,.60},requires={{"universal_oil_drum",1}},scoreMode=true},
     {id="universal_oil_radius",name="기름 살포 거리",short="살포 거리 상승",desc="기본 살포 반경은 180이며, 단계마다 기름 픽셀이 튀는 최대 거리가 30 증가합니다.",effect="scoreOilRadius",value=30,max=5,costs={28,46,70,100,138},wx=2350,wy=700,icon="split",color={.55,.45,.30},requires={{"universal_oil_interval",1}},scoreMode=true},
+    {id="universal_view_4",name="카메라 시야 확장",short="시야 +2.5%",desc="게임 화면에 보이는 월드 범위가 2.5% 넓어집니다.",effect="scoreViewExpansion",value=.025,max=1,costs={220},wx=4800,wy=520,icon="map",color={.48,.72,.66},requires={{"universal_oil_radius",3}},scoreMode=true},
     {id="universal_oil_splash_count",name="기름 튐 개수",short="기름 자국 증가",desc="단계마다 서로 다른 검은 기름 자국이 3개 더 생성되어 빈틈이 줄어듭니다.",effect="scoreOilSplashCount",value=3,max=4,costs={30,50,76,108},wx=2650,wy=700,icon="split",color={.31,.34,.38},requires={{"universal_oil_radius",1}},scoreMode=true},
     {id="universal_oil_patch_scale",name="기름 자국 크기",short="자국 크기 상승",desc="단계마다 개별 기름 자국의 픽셀 면적과 실제 타격 반경이 8% 증가합니다.",effect="scoreOilPatchScale",value=.08,max=4,costs={34,56,84,118},wx=2800,wy=1040,icon="oil_drum",color={.24,.27,.31},requires={{"universal_oil_splash_count",1}},scoreMode=true},
     {id="universal_oil_ignition_radius",name="기름 인화 범위 상승",short="인화 범위 상승",desc="단계마다 담배꽁초가 기름 자국에 불을 붙이는 거리가 16 증가합니다.",effect="scoreOilIgnitionRadius",value=16,max=4,costs={34,56,84,118},wx=2350,wy=470,icon="ember",color={.86,.54,.20},requires={{"universal_oil_radius",2}},scoreMode=true},
     {id="universal_oil_duration",name="기름 지속시간",short="지속시간 상승",desc="단계마다 검은 기름 자국의 지속시간이 3초 증가합니다.",effect="scoreOilDuration",value=3,max=4,costs={28,46,70,100},wx=2050,wy=930,icon="clock",color={.44,.40,.34},requires={{"universal_oil_drum",1}},scoreMode=true},
+    {id="universal_yard_5",name="작업 구역 확장",short="맵 +2.5%p",desc="이동 가능한 맵 크기가 2.5% 넓어지고 나무 허용량이 4그루 증가합니다.",effect="scoreYardExpansion",value=1,max=1,costs={160},wx=4450,wy=820,icon="map",color={.48,.72,.42},requires={{"universal_oil_duration",2}},scoreMode=true},
     {id="universal_oil_burn_duration",name="기름 발화 지속시간 상승",short="발화 지속시간",desc="단계마다 기름 자국 위에 생성된 불꽃 오브젝트의 유지시간이 1.5초 증가합니다.",effect="scoreOilBurnDuration",value=1.5,max=4,costs={40,66,98,138},wx=2350,wy=1160,icon="ember",color={.92,.38,.14},requires={{"universal_oil_duration",2}},scoreMode=true},
     {id="universal_oil_damage",name="기름 피해",short="기름 피해 상승",desc="단계마다 불붙은 기름의 나무 및 적 피해가 1 증가합니다.",effect="scoreOilDamage",value=1,max=5,costs={42,66,96,132,174},wx=2800,wy=1400,icon="ember",color={.78,.40,.20},requires={{"universal_oil_patch_scale",2},{"universal_oil_duration",2}},scoreMode=true},
     {id="universal_gray_cat",name="회색 고양이 동료",short="고양이 동료 해금",desc="드럼통마다 기본 35% 확률로 회색 고양이가 2.2초 뒤 출동해 드럼통을 밀어 넘어뜨립니다. 사용자가 먼저 부수면 출동을 취소합니다.",effect="scoreGrayCat",value=1,max=1,costs={92},wx=1740,wy=1270,icon="gray_cat",color={.56,.62,.68},requires={{"universal_oil_drum",1}},scoreMode=true},
@@ -452,10 +465,15 @@ end
 function CharacterTraits.decode(text)
     local data = defaults()
     local legacyMoleRank,seenNewMoleNode=0,false
+    local legacyYardRank,legacyStrideRank,seenSplitYard,seenSplitStride=0,0,false,false
     for key, value in (text or ""):gmatch("([%w_]+)=([%d]+)") do
         local number = math.max(0, math.floor(tonumber(value) or 0))
         if key=="universal_mole_companion"then legacyMoleRank=number end
         if key:match("^universal_mole_")and key~="universal_mole_companion"then seenNewMoleNode=true end
+        if key=="universal_yard"then legacyYardRank=number end
+        if key=="universal_stride"then legacyStrideRank=number end
+        if key:match("_yard_[234567]$")then seenSplitYard=true end
+        if key:match("_stride_[234]$")then seenSplitStride=true end
         if key == "currency" then data.currency = number
         elseif key == "regenTier" then data.regenTier = math.max(1,number)
         elseif key == "equipment_configured" then data.equipmentConfigured=number>0
@@ -477,11 +495,20 @@ function CharacterTraits.decode(text)
         data.levels.universal_mole_dual=legacyMoleRank>=6 and 1 or 0
         data.levels.universal_mole_extra=legacyMoleRank>=6 and 1 or 0
     end
+    if legacyYardRank>1 and not seenSplitYard then
+        local ids={"universal_yard","fire_score_yard_2","universal_yard_3","fire_score_yard_4",
+            "universal_yard_5","fire_score_yard_6","fire_score_yard_7"}
+        for index=1,math.min(#ids,legacyYardRank)do data.levels[ids[index]]=1 end
+    end
+    if legacyStrideRank>1 and not seenSplitStride then
+        local ids={"universal_stride","fire_score_stride_2","universal_stride_3","fire_score_stride_4"}
+        for index=1,math.min(#ids,legacyStrideRank)do data.levels[ids[index]]=1 end
+    end
     return data
 end
 
 function CharacterTraits.encode(data)
-    local lines = {"version=4", "currency=" .. math.floor(data.currency or 0),"regenTier="..math.max(1,math.floor(data.regenTier or 1)),
+    local lines = {"version=5", "currency=" .. math.floor(data.currency or 0),"regenTier="..math.max(1,math.floor(data.regenTier or 1)),
         "equipment_configured="..(data.equipmentConfigured and 1 or 0),
         "player_weapon_1="..math.max(0,math.min(3,math.floor((data.playerWeapons or{})[1]or 0))),
         "player_weapon_2="..math.max(0,math.min(3,math.floor((data.playerWeapons or{})[2]or 0)))}
@@ -610,7 +637,7 @@ function CharacterTraits:effects(job)
         biteDamage=0, plagueDuration=0,
         dashSpeed=1, sterileChance=0, aftershockRadius=0, cooldownRefund=0,
         moveSpeed=1, pickupRadius=0, hpRegen=0, reviveCharges=0,
-        woodYield=1, forestRestock=0, treeVariety=0, scoreTreeAllowance=0,
+        woodYield=1, forestRestock=0, treeVariety=0, scoreTreeAllowance=0,scoreYardExpansion=0,scoreViewExpansion=0,
         scoreRange=0,scoreArea=0,scoreAttackSpeed=0,scoreIgnitionChance=0,scoreSpreadChance=0,
         scoreProjectileSpeed=0,scoreBurnSpeed=0,scoreExtraFires=0,
         scoreInitialIgnitionReduction=0,scoreCigaretteImpact=0,scoreStartingBabyRobot=0,scoreRobotSpeed=0,scoreMoleCompanion=0,
@@ -638,7 +665,7 @@ function CharacterTraits:scoreAttackEffects()
         attackSpeed=1,range=0,area=0,maxHp=0,reward=1,extraTargets=0,treeDamage=0,
         healOnFell=0,executeChance=0,burnSpeed=1,extraFires=0,spreadChance=0,
         moveSpeed=1,pickupRadius=0,hpRegen=0,reviveCharges=0,woodYield=1,
-        scoreTreeAllowance=0,scoreRange=0,scoreArea=0,scoreAttackSpeed=0,
+        scoreTreeAllowance=0,scoreYardExpansion=0,scoreViewExpansion=0,scoreRange=0,scoreArea=0,scoreAttackSpeed=0,
         scoreIgnitionChance=0,scoreSpreadChance=0,scoreProjectileSpeed=0,
         scoreBurnSpeed=0,scoreExtraFires=0,scoreInitialIgnitionReduction=0,scoreCigaretteImpact=0,
         scoreStartingBabyRobot=0,scoreRobotSpeed=0,scoreMoleCompanion=0,

@@ -213,7 +213,10 @@ end
 assert(unattendedEnd and unattendedEnd>=18 and unattendedEnd<=26 and mode.scoreCollapseActive,
     "a losing tier-1 run did not trigger forest collapse and end quickly")
 
-Traits.data.levels.universal_yard=7
+for _,id in ipairs({"universal_yard","fire_score_yard_2","universal_yard_3","fire_score_yard_4",
+    "universal_yard_5","fire_score_yard_6","fire_score_yard_7"})do Traits.data.levels[id]=1 end
+for _,id in ipairs({"universal_stride","fire_score_stride_2","universal_stride_3","fire_score_stride_4"})do Traits.data.levels[id]=1 end
+for _,id in ipairs({"fire_score_view_1","universal_view_2","fire_score_view_3","universal_view_4"})do Traits.data.levels[id]=1 end
 Traits.data.levels.universal_robot_start=1
 Traits.data.levels.universal_robot_motor=5
 Traits.data.levels.universal_mole_companion=1
@@ -224,6 +227,10 @@ for _,id in ipairs({"fire_score_prewarm","fire_score_filter","fire_score_lighter
 Traits.data.levels.fire_score_stock=1
 game:startClearcutScoreAttack()
 assert(game.clearcut.scoreTreeAllowance==40,"max permanent yard expansion did not raise the runtime allowance to 40")
+assert(math.abs(game.world.clearcutMapScale-.875)<1e-9 and game.world.width==2800,
+    "distributed yard nodes did not expand the actual score map")
+assert(math.abs(game.clearcut.baseSpeed-396.8)<1e-9,"distributed movement nodes did not preserve +24% runtime speed")
+assert(math.abs(game.camera.zoom-(.84/1.1))<1e-9,"distributed view nodes did not expand the runtime camera view")
 assert(game.clearcut.permanentTraits.range==80 and game.clearcut.permanentTraits.area==60 and game.clearcut.permanentTraits.extraFires==1,"score-only permanent smoker traits were not applied at runtime")
 assert(game.clearcut.permanentTraits.attackSpeed==1.2 and game.clearcut.permanentTraits.burnSpeed==1.3 and game.clearcut.permanentTraits.cigaretteProjectileSpeed==1.35,"score-only pacing traits were not applied at runtime")
 assert(game.clearcut:levelOf("molotov")==0 and game.clearcut:levelOf("dry_forest")==0 and game.clearcut:levelOf("straw_bale")==0 and game.clearcut:levelOf("smoke_ring")==0 and game.clearcut:levelOf("oil_drum")==0,"permanent traits still injected whole in-game skill levels")

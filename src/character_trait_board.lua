@@ -329,11 +329,14 @@ function CharacterTraitBoard:nodeWorld(node)
         -- 움직이거나 삭제하지 않고 북서쪽의 독립 가지로 둔다.
         fire_score_impact={750,600},
         fire_score_filter={750,850},fire_score_spark={400,850},
+        fire_score_view_1={700,1050},
         fire_score_lighter={1450,850},fire_score_ash={1800,850},
+        fire_score_yard_2={2150,750},
         -- 탄약 관리 갈래는 루트 왼쪽 위로 세운다. 개비 회전 → 보루 용량 → 보루 교체 순의
         -- 한 줄기라 기존 착화/확산 갈래와 선이 겹치지 않는다.
         fire_score_reload={400,600},fire_score_carton_size={400,350},fire_score_carton_reload={750,350},
         fire_score_launch={1100,600},fire_score_drag={1100,350},
+        fire_score_stride_2={1450,500},
         -- 상시 흡연은 루트 바로 아래 두 번째 노드다. 자동 투척과 폭죽 해금은 그 아래로
         -- 이어지고, 기존 연소속도→추가 꽁초 갈래는 오른쪽으로 빼서 겹치지 않게 한다.
         fire_score_alwayssmoke={1100,1100},fire_score_autothrow={1100,1350},
@@ -344,6 +347,7 @@ function CharacterTraitBoard:nodeWorld(node)
         fire_score_edge={400,1100},
         fire_score_axe_area={400,1350},fire_score_axe_speed={750,1350},
         fire_score_axe_targets={400,1600},fire_score_axe_execute={750,1600},
+        fire_score_yard_4={50,1500},
         fire_score_axe_shock={400,1850},fire_score_axe_chain={750,1850},
         fire_score_axe_pierce={100,2100},fire_score_axe_heavy={1050,1850},
         fire_score_axe_crew={575,2100},
@@ -352,6 +356,7 @@ function CharacterTraitBoard:nodeWorld(node)
         fire_score_rocket_radius={750,1850},fire_score_rocket_damage={1450,1850},
         fire_score_rocket_speed={500,2100},fire_score_rocket_ignite={900,2100},
         fire_score_rocket_cooldown={1450,2100},
+        fire_score_view_3={350,2450},fire_score_yard_6={1100,2300},
         fire_score_rocket_cluster={700,2350},fire_score_rocket_twin={1500,2350},
         fire_score_rocket_finale={1100,2600},
         -- 폭죽 졸업과 화염방사기는 폭죽 줄 아래로 새 층을 쌓는다. 도끼가 원숭이로
@@ -359,9 +364,11 @@ function CharacterTraitBoard:nodeWorld(node)
         fire_score_rocket_crew={1100,2850},fire_score_flame_unlock={1100,3100},
         fire_score_flame_damage={750,3350},fire_score_flame_range={1100,3350},fire_score_flame_width={1450,3350},
         fire_score_flame_ignite={1100,3600},
+        fire_score_stride_4={750,3850},fire_score_yard_7={1450,3850},
         -- 공용 연구는 흡연자 갈래와 같은 좌표를 쓰고 있었다(각자 다른 탭이었으므로).
         -- 한 판으로 합치면서 흡연자 오른쪽으로 통째로 옮긴다.
         universal_yard={2600,850},universal_robot_start={3000,850},universal_robot_motor={3400,850},
+        universal_yard_3={3400,250},universal_stride_3={3700,1450},
         -- 이동속도는 선행 없는 루트라 공용 갈래 입구 옆에 둔다.
         universal_stride={2600,550},
         -- 드럼통 강화는 설비/고양이 선을 가로지르지 않도록 우측 상단에 독립 배치한다.
@@ -370,12 +377,14 @@ function CharacterTraitBoard:nodeWorld(node)
         universal_oil_interval={4200,250},universal_oil_radius={4600,250},
         universal_oil_splash_count={5000,250},universal_oil_patch_scale={5400,250},universal_oil_ignition_radius={5000,550},
         universal_oil_duration={4200,650},universal_oil_burn_duration={4600,650},universal_oil_damage={5400,650},
+        universal_view_4={4900,900},universal_yard_5={4700,1200},
         universal_gray_cat={3800,1100},
         universal_gray_cat_chance={4100,1000},universal_gray_cat_delay={4400,1000},
         universal_gray_cat_speed={4100,1200},universal_gray_cat_exit_speed={4400,1200},
         universal_mole_companion={3000,1100},
         universal_mole_damage={2600,1350},universal_mole_speed={3000,1350},universal_mole_attack_speed={3400,1350},
         universal_mole_claw={2600,1600},universal_mole_extra={3000,1600},universal_mole_dual={2600,1850},
+        universal_view_2={3400,1850},
     }
     local fixed=scoreLayout[node.id]
     if fixed then return fixed[1],fixed[2] end
