@@ -1612,6 +1612,7 @@ end
 
 function Game:mousemoved(x,y,dx,dy)
     if self.paused and self.pauseTiltDragging then local _,_,_,_,_,_,tiltBox=self:pauseButtons();self:setViewTilt(Frontend.sliderValueAt(tiltBox,x));return end
+    if self.mode=="lobby" then self.lobby:mousemoved(x,y,dx,dy);return end
     if self.mode=="settings" then
         if self.settingsMusicDragging then self:setMusicVolume(Frontend.sliderValueAt(self.settingsMusicBox,x));return
         elseif self.settingsSfxDragging then self:setSfxVolume(Frontend.sliderValueAt(self.settingsSfxBox,x));return
@@ -1621,6 +1622,7 @@ function Game:mousemoved(x,y,dx,dy)
 end
 
 function Game:mousereleased(x,y,button)
+    if self.mode=="lobby" then self.lobby:mousereleased(x,y,button);return end
     if button==1 then
         local changed=self.settingsTiltDragging or self.settingsMusicDragging or self.settingsSfxDragging
         local testSfx=self.settingsSfxDragging

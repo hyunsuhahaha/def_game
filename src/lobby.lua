@@ -66,8 +66,6 @@ end
 function Lobby:update(dt,game)
  self.time=self.time+dt
  local mx,my=love.mouse.getPosition()
- local target=mx>=0 and math.max(-1,math.min(1,(mx/love.graphics.getWidth()-.5)*2))or 0
- self.backgroundParallax=(self.backgroundParallax or 0)+(target-(self.backgroundParallax or 0))*math.min(1,dt*4)
  for i,box in ipairs(self.menuBoxes or {})do if inside(box,mx,my)then self.menuFocus=i end end
  CdArt.update(self.audioCd,dt,self.audioPlaying and true or false)
  CompanionShop.update(self.companionShop,dt)
@@ -143,6 +141,17 @@ function Lobby:mousepressed(x,y,button)
  elseif inside(self.achievementBox,x,y)then return "achievements"
  elseif inside(self.sandboxBox,x,y)then return "skill_sandbox"
  elseif inside(self.settingsBox,x,y)then return "settings" end
+ self.backgroundDragging=true
+end
+
+function Lobby:mousemoved(x,y,dx,dy)
+ if not self.backgroundDragging then return end
+ local width=math.max(1,love.graphics.getWidth())
+ self.backgroundParallax=math.max(-1,math.min(1,(self.backgroundParallax or 0)-dx/(width*.5)))
+end
+
+function Lobby:mousereleased(x,y,button)
+ if button==1 then self.backgroundDragging=false end
 end
 
 function Lobby:drawBackground(w,h,showCompanions)
