@@ -353,11 +353,14 @@ function CharacterTraitBoard:nodeWorld(node)
         fire_score_axe_crew={575,2100},
         -- 폭죽 가지는 단계별로 한 줄씩만 내린다. 같은 행을 가로질러 다른 노드를
         -- 관통하던 선만 풀고, 담배/도끼 등 기존 연구 배치는 그대로 둔다.
-        fire_score_rocket_radius={750,1850},fire_score_rocket_damage={1450,1850},
-        fire_score_rocket_speed={500,2100},fire_score_rocket_ignite={900,2100},
-        fire_score_rocket_cooldown={1450,2100},
-        fire_score_view_3={350,2450},fire_score_yard_6={1100,2300},
-        fire_score_rocket_cluster={700,2350},fire_score_rocket_twin={1500,2350},
+        -- 폭죽 가지는 해금 노드 오른쪽 아래로만 편다. 예전에는 반경/비행속도가
+        -- 왼쪽으로 흘러들어가 도끼 가지 자리를 침범했고, 반경 노드는 `연속 벌목`과
+        -- 좌표가 완전히 같아 한 노드가 통째로 가려져 클릭도 되지 않았다.
+        fire_score_rocket_radius={1400,1850},fire_score_rocket_damage={1800,1850},
+        fire_score_rocket_speed={1250,2100},fire_score_rocket_ignite={1650,2100},
+        fire_score_rocket_cooldown={2050,2100},
+        fire_score_view_3={800,2450},fire_score_yard_6={1100,2300},
+        fire_score_rocket_cluster={1450,2350},fire_score_rocket_twin={1850,2350},
         fire_score_rocket_finale={1100,2600},
         -- 폭죽 졸업과 화염방사기는 폭죽 줄 아래로 새 층을 쌓는다. 도끼가 원숭이로
         -- 졸업한 뒤 폭죽으로 넘어갔듯, 폭죽도 원숭이로 졸업하고 화염방사기로 넘어간다.
