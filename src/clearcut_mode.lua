@@ -48,6 +48,7 @@ local WoodEconomy = require("src.wood_economy")
 local WoodSettlementArt = require("src.wood_settlement_art")
 
 local ClearcutMode = {}
+ClearcutMode.SCORE_AXE_RANGE = 190
 ClearcutMode.__index = ClearcutMode
 -- Lua 5.1 은 main chunk 의 local 을 200개로 제한한다. 파일 상단 로컬이 이미 한계라
 -- 새 모듈은 GrayOilCatArt 선례대로 모듈 테이블에 건다.
@@ -3574,7 +3575,7 @@ end
 -- nearby axe target. Merely standing beside a tree must not steal a deliberate
 -- ranged shot aimed elsewhere.
 function ClearcutMode:scoreMeleeTargetAtAim(game)
-    local range=190+self.permanentTraits.range+ScoreOperations.weaponRange(self)
+    local range=ClearcutMode.SCORE_AXE_RANGE
     local axeArea=(self.permanentTraits.scoreAxeArea or 0)+ScoreOperations.weaponArea(self)
     local tx,ty=game.camera:screenToWorld(love.mouse.getPosition())
     local reach=82+axeArea
@@ -3688,7 +3689,7 @@ end
 function ClearcutMode:updateScoreAxeAttack(dt,game,heldOverride)
     local held=heldOverride
     if held==nil then held=love.mouse.isDown(1)end
-    local range=190+self.permanentTraits.range+ScoreOperations.weaponRange(self)
+    local range=ClearcutMode.SCORE_AXE_RANGE
     local axeArea=(self.permanentTraits.scoreAxeArea or 0)+ScoreOperations.weaponArea(self)
     local tx,ty=self:aimPoint(game,range)
     self.aimX,self.aimY,self.aimRadius=tx,ty,54+axeArea

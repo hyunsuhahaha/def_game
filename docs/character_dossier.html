@@ -506,7 +506,7 @@ const TRAITS = {
       {id:"fire_score_prewarm",name:"최초 흡연 준비시간 감소",short:"첫 불씨 단축",desc:"벌목 기록 모드 최초 흡연 준비시간 -0.08초",max:5,costs:[18,32,50,74,104]},
       {id:"fire_score_impact",name:"꽁초 즉시 타격 반응",short:"즉시 타격 반응",desc:"꽁초 착지 즉시 최근접 대상 1개를 점화하고 짧은 정지·반동·전용 타격음을 적용합니다.",max:1,costs:[32],requires:[["fire_score_prewarm",1]]},
       {id:"fire_score_alwayssmoke",name:"상시 흡연",short:"상시 흡연",desc:"근접 도끼질이나 폭죽 공격 중에도 담배 재장전이 계속됩니다.",max:1,costs:[200],requires:[["fire_score_prewarm",1]]},
-      {id:"fire_score_filter",name:"무기 사거리 상승",short:"무기 사거리",desc:"무기 사거리 +16",max:6,costs:[18,32,50,74,104,142],requires:[["fire_score_prewarm",1]]},
+      {id:"fire_score_filter",name:"원거리 무기 사거리 상승",short:"원거리 사거리",desc:"원거리 무기 사거리 +16",max:6,costs:[18,32,50,74,104,142],requires:[["fire_score_prewarm",1]]},
       {id:"fire_score_lighter",name:"착화 범위 상승",short:"착화 범위",desc:"꽁초가 불씨를 옮기는 착화 반경 +12",max:6,costs:[18,32,50,74,104,142],requires:[["fire_score_prewarm",1]]},
       {id:"fire_score_reload",name:"개비 재장전 속도 상승",short:"개비 재장전",desc:"담배 한 개비를 무는 재장전 시간이 단계마다 8% 단축됩니다. (기본 1.25초, 하한 0.75초 — 하한도 함께 내려갑니다)",max:5,costs:[20,34,54,78,108],requires:[["fire_score_prewarm",1]]},
       {id:"fire_score_carton_size",name:"보루 개비 수 증가",short:"보루 용량",desc:"보루 하나에 담기는 담배가 단계마다 6개비 늘어납니다. 보루를 다 피울 때만 오는 긴 재장전이 그만큼 드물어집니다. (기본 20개비)",max:5,costs:[24,42,64,92,126],requires:[["fire_score_reload",2]]},

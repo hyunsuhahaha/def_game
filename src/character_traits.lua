@@ -196,7 +196,7 @@ local scoreFireNodes={
     -- 루트 바로 다음 두 번째 노드. 도끼·폭죽을 들고 있는 동안에도 한 갑을 다 쓴
     -- 긴 재장전을 포함한 흡연 상태가 계속 진행된다.
     {id="fire_score_alwayssmoke",name="상시 흡연",short="상시 흡연",desc="근접 도끼질이나 폭죽 공격 중에도 담배 재장전이 계속됩니다.",effect="scoreAlwaysSmoking",value=1,max=1,costs={200},wx=2020,wy=760,icon="cigarette",color={.94,.72,.36},requires={{"fire_score_prewarm",1}}},
-    {id="fire_score_filter",name="무기 사거리 상승",short="무기 사거리",desc="무기 사거리 +16",effect="scoreRange",value=16,max=6,costs={18,32,50,74,104,142},wx=730,wy=520,icon="filter",color={.88,.66,.32},requires={{"fire_score_prewarm",1}}},
+    {id="fire_score_filter",name="원거리 무기 사거리 상승",short="원거리 사거리",desc="원거리 무기 사거리 +16",effect="scoreRange",value=16,max=6,costs={18,32,50,74,104,142},wx=730,wy=520,icon="filter",color={.88,.66,.32},requires={{"fire_score_prewarm",1}}},
     {id="fire_score_lighter",name="착화 범위 상승",short="착화 범위",desc="꽁초가 불씨를 옮기는 착화 반경 +12",effect="scoreArea",value=12,max=6,costs={18,32,50,74,104,142},wx=730,wy=900,icon="ember",color={.96,.43,.16},requires={{"fire_score_prewarm",1}}},
     {id="fire_score_spark",name="꽁초 착화 확률 상승",short="착화 확률",desc="꽁초의 착화 성공 확률 +1.2%p",effect="scoreIgnitionChance",value=.012,wx=1080,wy=380,icon="ember",color={1,.56,.16},requires={{"fire_score_filter",2}}},
     -- 탄약 관리 갈래. 흡연자는 한 보루(기본 20개비) 단위로 탄창을 굴리는데(startSmoking),

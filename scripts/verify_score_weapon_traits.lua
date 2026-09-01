@@ -40,7 +40,7 @@ assert(nodeOf("fire_score_edge").effect == "scoreTreeDamage", "공용 나무 피
 -- 2. 공용 수치의 설명에는 무기 이름을 나열하지 않는다. "담배·도끼·폭죽의 사거리"처럼
 -- 적으면 무기가 늘거나 바뀔 때마다 설명을 전부 고쳐야 하므로, "무기 사거리"처럼 공용
 -- 단어만 쓴다. 특정 무기에만 걸리는 수치는 그 무기 이름을 쓰는 게 맞으므로 제외한다.
-local sharedNodes = {"fire_score_filter", "fire_score_drag", "fire_score_edge"}
+local sharedNodes = {"fire_score_drag", "fire_score_edge"}
 for _, id in ipairs(sharedNodes) do
     local desc = nodeOf(id).desc
     for _, weapon in ipairs({"담배", "도끼", "폭죽", "꽁초", "로켓"}) do
@@ -49,6 +49,9 @@ for _, id in ipairs(sharedNodes) do
     end
     assert(desc:find("무기", 1, true), id .. " 공용 설명이 공용 단어 '무기'를 쓰지 않는다")
 end
+assert(nodeOf("fire_score_filter").desc:find("원거리 무기", 1, true)
+    and not nodeOf("fire_score_filter").desc:find("도끼", 1, true),
+    "사거리 특성이 근접 도끼에도 적용되는 것처럼 안내한다")
 
 -- 3. 만렙 효과가 실제 수치로 합산된다.
 for _, id in ipairs({"fire_score_edge", "fire_score_axe_area", "fire_score_axe_speed", "fire_score_axe_targets",
@@ -214,6 +217,19 @@ local function axeCooldownWith(cardLevel)
 end
 assert(axeCooldownWith(3) < axeCooldownWith(0),
     "공격속도 상승 카드가 도끼를 빠르게 하지 않는다 — 공용 이름인데 담배 전용이다")
+
+-- 사거리 성장은 원거리 무기만의 축이다. 도끼는 고정 근접 거리 안의 대상만 선택한다.
+local fixedRangeAxe = ClearcutMode.new()
+fixedRangeAxe.scoreAttack, fixedRangeAxe.sandbox, fixedRangeAxe.job, fixedRangeAxe.mapId = true, true, "fire", "forest"
+fixedRangeAxe.permanentTraits.range = 96
+fixedRangeAxe.levels.score_weapon_range = 3
+local farAxeGame = axeGame({tree(250)})
+farAxeGame.camera.screenToWorld = function() return 250, 0 end
+assert(not fixedRangeAxe:scoreMeleeTargetAtAim(farAxeGame),
+    "도끼가 영구/런 사거리 증가를 받아 190 밖의 나무를 근접 대상으로 잡는다")
+local nearAxeGame = axeGame({tree(180)})
+nearAxeGame.camera.screenToWorld = function() return 180, 0 end
+assert(fixedRangeAxe:scoreMeleeTargetAtAim(nearAxeGame), "고정 도끼 사거리 안의 나무를 잡지 못한다")
 
 local function rocketCooldownWith(cardLevel)
     local m = ClearcutMode.new()
