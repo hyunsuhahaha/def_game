@@ -1,5 +1,6 @@
 local BombMonkey={}
 local Maps=require("src.clearcut_maps")
+BombMonkey.FUSE_FRAMES=24
 
 local bombImage,monkeyImage,explosionImage,bombQuads,monkeyQuads,explosionQuads
 
@@ -11,7 +12,7 @@ local function load()
     if not okBomb or not okMonkey or not okExplosion then return false end
     bomb:setFilter("nearest","nearest");monkey:setFilter("nearest","nearest");explosion:setFilter("nearest","nearest")
     bombImage,monkeyImage,explosionImage=bomb,monkey,explosion;bombQuads={};monkeyQuads={};explosionQuads={}
-    for i=0,2 do bombQuads[i+1]=love.graphics.newQuad(i*128,0,128,128,bomb:getDimensions())end
+    for i=0,BombMonkey.FUSE_FRAMES do bombQuads[i+1]=love.graphics.newQuad(i*128,0,128,128,bomb:getDimensions())end
     for i=0,5 do monkeyQuads[i+1]=love.graphics.newQuad(i*128,0,128,128,monkey:getDimensions())end
     for i=0,7 do explosionQuads[i+1]=love.graphics.newQuad(i*256,0,256,256,explosion:getDimensions())end
     return true
@@ -144,9 +145,10 @@ function BombMonkey.queue(mode,queue)
         local frame=1
         if bomb.state=="lit"then
             local fuseTime=math.max(1,2.6-(mode.permanentTraits.scoreBombFuse or 0))
-            frame=bomb.fuse>=fuseTime*.65 and 3 or 2
+            local progress=math.min(.999,bomb.fuse/fuseTime)
+            frame=2+math.floor(progress*BombMonkey.FUSE_FRAMES)
         end
-        local pulse=frame==3 and(1+math.sin(bomb.life*18)*.06)or 1
+        local pulse=frame>1+math.floor(BombMonkey.FUSE_FRAMES*.72)and(1+math.sin(bomb.life*18)*.06)or 1
         love.graphics.setColor(0,0,0,.3);love.graphics.ellipse("fill",bomb.x,bomb.y+7,30,8)
         love.graphics.setColor(1,1,1,1);love.graphics.draw(bombImage,bombQuads[frame],bomb.x,bomb.y,0,.48*pulse,.48*pulse,64,58)
     end}end

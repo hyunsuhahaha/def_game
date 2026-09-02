@@ -11,6 +11,7 @@ local mode={scoreAttack=true,permanentTraits={scoreBombMonkey=1},bombMonkeys={},
 function mode.flameStreamCovers(ox,oy,nx,ny,reach,width,x,y)return x>=ox and x<=ox+reach and math.abs(y-oy)<=width end
 function mode:damageTreeWithSmokerWeapon(node,damage)node.rushHp=node.rushHp-damage;if node.rushHp<=0 then node.active=false;return true end return false end
 local game={world=world,player={x=0,y=0},feedback={play=function()end},camera={trauma=0}}
+assert(BombMonkey.FUSE_FRAMES==24,"fuse burn animation lost its progressive frames")
 
 BombMonkey.update(mode,.01,game)
 assert(#mode.bombMonkeys==1 and mode.bombMonkeys[1].carrying,"bomb carrier monkey did not spawn holding a bomb")

@@ -6,10 +6,27 @@ from PIL import Image, ImageDraw
 ROOT = Path(__file__).resolve().parents[1]
 OUT = ROOT / "assets" / "automation"
 PREVIEW = ROOT / "docs" / "previews"
-S, CELL = 2, 128
+S, CELL, FUSE_FRAMES = 2, 128, 24
 
 
-def bomb(state: int) -> Image.Image:
+def partial_fuse(points, remaining_ratio):
+    lengths = [math.dist(points[i], points[i + 1]) for i in range(len(points) - 1)]
+    target = sum(lengths) * remaining_ratio
+    result = [points[0]]
+    walked = 0
+    for index, length in enumerate(lengths):
+        if walked + length <= target:
+            result.append(points[index + 1]);walked += length
+        else:
+            ratio = max(0, (target - walked) / length)
+            x = points[index][0] + (points[index + 1][0] - points[index][0]) * ratio
+            y = points[index][1] + (points[index + 1][1] - points[index][1]) * ratio
+            result.append((round(x), round(y)))
+            break
+    return result
+
+
+def bomb(burn_progress=None, phase=0) -> Image.Image:
     im = Image.new("RGBA", (64, 64), (0, 0, 0, 0))
     d = ImageDraw.Draw(im)
     ink, black, mid, shine = (24, 20, 19, 255), (35, 35, 37, 255), (62, 62, 65, 255), (104, 103, 101, 255)
@@ -20,20 +37,23 @@ def bomb(state: int) -> Image.Image:
     d.polygon([(36, 17), (45, 16), (47, 20), (42, 24), (36, 22)], fill=mid)
     d.polygon([(17, 24), (23, 20), (34, 20), (38, 23), (31, 27), (21, 27)], fill=mid)
     d.rectangle((19, 23, 29, 25), fill=shine)
-    fuse = [(43, 18), (48, 14), (51, 10), (49, 6), (52, 3), (58, 4), (61, 1)]
-    d.line(fuse, fill=ink, width=6, joint="curve")
-    d.line(fuse, fill=rope, width=3, joint="curve")
-    d.line([(45, 16), (49, 13), (52, 9), (51, 6), (53, 4), (58, 5)], fill=rope_hi, width=1)
-    if state > 0:
+    fuse = [(42, 18), (48, 15), (54, 12), (56, 8), (53, 5), (56, 2), (61, 4)]
+    visible = fuse if burn_progress is None else partial_fuse(fuse, max(.03, 1-burn_progress))
+    d.line(visible, fill=ink, width=6, joint="curve")
+    d.line(visible, fill=rope, width=3, joint="curve")
+    if len(visible)>1:d.line(visible[:-1], fill=rope_hi, width=1, joint="curve")
+    if burn_progress is not None:
         spark = (255, 77, 18, 255)
         hot = (255, 226, 76, 255)
-        d.rectangle((59, 0, 62, 3), fill=hot)
-        rays = [((58, 1), (55, 0)), ((62, 3), (63, 6)), ((59, 4), (57, 7)), ((62, 0), (63, 0))]
-        for a, b in rays:
-            d.line([a, b], fill=spark, width=2 if state == 2 else 1)
-        if state == 2:
-            d.rectangle((57, 0, 63, 5), fill=(255, 130, 22, 180))
-            d.rectangle((59, 0, 62, 3), fill=hot)
+        x,y=visible[-1];jitter=(-1,0,1,0)[phase%4]
+        d.rectangle((x-2,y-2,x+2,y+2),fill=(255,130,22,220))
+        d.rectangle((x-1,y-1,x+1,y+1),fill=hot)
+        rays=[((x-3,y+jitter),(x-6,y+jitter-2)),((x+3,y),(x+5,y-3)),((x,y+3),(x+jitter,y+6))]
+        for a,b in rays:d.line([a,b],fill=spark,width=1)
+        # The burnt end leaves a tiny smoke pixel behind while the live rope
+        # visibly shortens toward the bomb neck.
+        d.rectangle((x+2,y-4,x+3,y-3),fill=(92,88,83,150))
+        if burn_progress>.72:
             d.ellipse((7, 14, 55, 62), outline=(255, 82, 20, 110), width=2)
     return im.resize((CELL, CELL), Image.Resampling.NEAREST)
 
@@ -89,9 +109,10 @@ def explosion(frame: int) -> Image.Image:
 def build() -> None:
     OUT.mkdir(parents=True, exist_ok=True)
     PREVIEW.mkdir(parents=True, exist_ok=True)
-    atlas = Image.new("RGBA", (CELL * 3, CELL), (0, 0, 0, 0))
-    for i in range(3):
-        atlas.alpha_composite(bomb(i), (i * CELL, 0))
+    atlas = Image.new("RGBA", (CELL * (FUSE_FRAMES + 1), CELL), (0, 0, 0, 0))
+    atlas.alpha_composite(bomb(), (0, 0))
+    for i in range(FUSE_FRAMES):
+        atlas.alpha_composite(bomb(i/(FUSE_FRAMES-1)*.96, i), ((i+1)*CELL, 0))
     path = OUT / "monkey-bomb-atlas-pixel-v1.png"
     atlas.save(path)
     fx_dir = ROOT / "assets" / "fx"
@@ -100,9 +121,10 @@ def build() -> None:
     for i in range(8):
         fx_atlas.alpha_composite(explosion(i), (i * 256, 0))
     fx_atlas.save(fx_dir / "monkey-bomb-explosion-atlas-pixel-v1.png")
-    board = Image.new("RGBA", atlas.size, (43, 55, 35, 255))
-    board.alpha_composite(atlas)
-    board.resize((atlas.width * 2, atlas.height * 2), Image.Resampling.NEAREST).save(PREVIEW / "monkey-bomb-v1-2x.png")
+    samples = [0, 1, 6, 12, 18, 24]
+    board = Image.new("RGBA", (CELL*len(samples), CELL), (43, 55, 35, 255))
+    for column,index in enumerate(samples):board.alpha_composite(atlas.crop((index*CELL,0,(index+1)*CELL,CELL)),(column*CELL,0))
+    board.resize((board.width * 2, board.height * 2), Image.Resampling.NEAREST).save(PREVIEW / "monkey-bomb-v1-2x.png")
     print(f"BOMB_MONKEY_ASSET_OK bomb={atlas.width}x{atlas.height} explosion={fx_atlas.width}x{fx_atlas.height}")
 
 
