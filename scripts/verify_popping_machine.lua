@@ -35,6 +35,28 @@ Popper.update(retargetMode,.01,{world=retargetWorld,player={x=0,y=0}})
 assert(#retargetMode.puffedRiceShots==1 and retargetMode.puffedRiceShots[1].target==farTree,
     "puffed rice vanished instead of retargeting after its target disappeared")
 
+-- Heating always produces a shot. With no target it flies to the play wall,
+-- bounces there, and only then acquires the next tree that became available.
+local emptyWorld={nodes={},width=400,height=400,playBounds={x=0,y=0,w=400,h=400}}
+function emptyWorld:impactNode()end
+local emptyMode={scoreAttack=true,permanentTraits={scorePopperUnlock=1},
+    poppingMachines={{x=100,y=200,state="heating",heat=2.19,life=0,facing=1}},poppingMachineSequence=1,
+    puffedRiceShots={},puffedRiceImpacts={},oilTrail={},cigaretteButts={}}
+function emptyMode:fellTree(node)node.active=false;return true end
+local emptyGame={world=emptyWorld,player={x=100,y=200}}
+Popper.update(emptyMode,.02,emptyGame)
+assert(#emptyMode.puffedRiceShots==1 and emptyMode.puffedRiceShots[1].freeFlight and emptyMode.poppingMachines[1].state=="recoil",
+    "targetless heating swallowed the puffed rice launch")
+local wallTarget=tree(60,20);wallTarget.y=200;emptyWorld.nodes={wallTarget}
+Popper.update(emptyMode,.10,emptyGame)
+assert(emptyMode.puffedRiceShots[1].freeFlight and not emptyMode.puffedRiceShots[1].target,
+    "targetless shot acquired a tree before touching the wall")
+for _=1,3 do Popper.update(emptyMode,.10,emptyGame)end
+assert(#emptyMode.puffedRiceShots==1 and emptyMode.puffedRiceShots[1].target==wallTarget and not emptyMode.puffedRiceShots[1].freeFlight,
+    "wall bounce did not acquire the next available tree")
+for _=1,4 do Popper.update(emptyMode,.06,emptyGame)end
+assert(wallTarget.rushHp==13,"wall-retargeted puffed rice did not hit its acquired tree")
+
 mode.permanentTraits.scorePopperDamage=10;mode.permanentTraits.scorePopperBounces=2
 cart.x,cart.y,cart.state,cart.heat=0,0,"heating",2.19
 for _=1,150 do Popper.update(mode,.02,game)end
@@ -72,4 +94,4 @@ end end
 assert(count==9 and ranks==16 and cost==2320,"popper research branch totals changed")
 assert(multi==5 and damage==10 and bounces==2 and math.abs(heat-.7)<.001,"popper upgrades are not distributed multi-rank nodes")
 fixture.reset();Popper.queue(mode,{});Popper.load()
-print("POPPING_MACHINE_OK persistent=true monkey_cart=true cooldown=7 ignition=butt+flame+oil+tree+firework base_damage=7 base_contacts=4 upgraded_damage=17 upgraded_contacts=6 survivor_chain=true nodes=9 ranks=16 distributed=true")
+print("POPPING_MACHINE_OK persistent=true monkey_cart=true cooldown=7 ignition=butt+flame+oil+tree+firework targetless_launch=wall_bounce_retarget base_damage=7 base_contacts=4 upgraded_damage=17 upgraded_contacts=6 survivor_chain=true nodes=9 ranks=16 distributed=true")

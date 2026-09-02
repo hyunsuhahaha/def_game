@@ -2,6 +2,9 @@ local Art={}
 local Maps=require("src.clearcut_maps")
 local machine,grain,impact,monkey,machineQuads,grainQuads,impactQuads,monkeyQuads
 local COOLDOWN=7
+local FREE_SHOT_SPEED=900
+local FREE_SHOT_LIFE=12
+local SHOT_WALL_MARGIN=25
 
 local function load()
     if machine then return end
@@ -90,16 +93,41 @@ end
 
 local function launch(mode,value)
     local first=target(mode,value.x,value.y,{},720)
-    if not first then value.state,value.cooldown,value.heat="cooldown",COOLDOWN,0;return false end
-    local dx=first.x-value.x;value.facing=dx<0 and-1 or 1;value.state,value.recoil="recoil",.28
+    if first then local dx=first.x-value.x;value.facing=dx<0 and-1 or 1 end
+    value.state,value.recoil="recoil",.28
     mode.puffedRiceShots[#mode.puffedRiceShots+1]={x=value.x+value.facing*75,y=value.y-65,fromX=value.x+value.facing*75,fromY=value.y-65,
-        target=first,t=0,dur=.30,used={},contacts=0,maxContacts=4+math.floor(mode.permanentTraits.scorePopperBounces or 0),
+        target=first,freeFlight=not first,vx=value.facing*FREE_SHOT_SPEED,vy=0,t=0,dur=.30,life=0,maxLife=FREE_SHOT_LIFE,
+        used={},contacts=0,maxContacts=4+math.floor(mode.permanentTraits.scorePopperBounces or 0),
         damage=7+(mode.permanentTraits.scorePopperDamage or 0),spin=0}
     if mode._popperGame and mode._popperGame.feedback then mode._popperGame.feedback:play("popper",true)end
     if mode._popperGame and mode._popperGame.camera then
         mode._popperGame.camera.trauma=math.min(1,(mode._popperGame.camera.trauma or 0)+.18)
     end
     return true
+end
+
+local function beginFreeFlight(p)
+    local dx,dy=p.x-(p.fromX or p.x),p.y-(p.fromY or p.y)
+    local length=math.sqrt(dx*dx+dy*dy)
+    if length<.001 then dx,dy,length=p.vx or FREE_SHOT_SPEED,p.vy or 0,math.sqrt((p.vx or FREE_SHOT_SPEED)^2+(p.vy or 0)^2)end
+    p.target,p.freeFlight=nil,true
+    p.vx,p.vy=dx/length*FREE_SHOT_SPEED,dy/length*FREE_SHOT_SPEED
+end
+
+local function updateFreeFlight(mode,p,dt,world)
+    p.x,p.y=p.x+(p.vx or FREE_SHOT_SPEED)*dt,p.y+(p.vy or 0)*dt
+    local b=world.playBounds or{x=0,y=0,w=world.width,h=world.height}
+    local left,right=b.x+SHOT_WALL_MARGIN,b.x+b.w-SHOT_WALL_MARGIN
+    local top,bottom=b.y+SHOT_WALL_MARGIN,b.y+b.h-SHOT_WALL_MARGIN
+    local bounced=false
+    if p.x<left then p.x,p.vx=left,math.abs(p.vx);bounced=true
+    elseif p.x>right then p.x,p.vx=right,-math.abs(p.vx);bounced=true end
+    if p.y<top then p.y,p.vy=top,math.abs(p.vy);bounced=true
+    elseif p.y>bottom then p.y,p.vy=bottom,-math.abs(p.vy);bounced=true end
+    if bounced then
+        local nextTarget=target(mode,p.x,p.y,p.used,math.huge)
+        if nextTarget then p.fromX,p.fromY,p.target,p.freeFlight,p.t,p.dur=p.x,p.y,nextTarget,false,0,.22 end
+    end
 end
 
 function Art.update(mode,dt,game)
@@ -120,12 +148,16 @@ function Art.update(mode,dt,game)
         elseif v.state=="recoil"and v.recoil<=0 then v.state,v.cooldown="cooldown",COOLDOWN end
     end
     for i=#mode.puffedRiceShots,1,-1 do local p=mode.puffedRiceShots[i]
-        if not p.target or not p.target.active then
+        p.life=(p.life or 0)+dt;p.spin=p.spin+dt*9
+        if p.target and not p.target.active then
             local replacement=target(mode,p.x,p.y,p.used,math.huge)
-            if replacement then p.fromX,p.fromY,p.target,p.t,p.dur=p.x,p.y,replacement,0,.22 else p.target=nil end
+            if replacement then p.fromX,p.fromY,p.target,p.t,p.dur=p.x,p.y,replacement,0,.22 else beginFreeFlight(p)end
         end
-        if not p.target then table.remove(mode.puffedRiceShots,i)else
-            p.t=math.min(p.dur,p.t+dt);p.spin=p.spin+dt*9;local u=p.t/p.dur
+        if p.freeFlight then
+            updateFreeFlight(mode,p,dt,game.world)
+            if p.life>=p.maxLife then table.remove(mode.puffedRiceShots,i)end
+        elseif p.target then
+            p.t=math.min(p.dur,p.t+dt);local u=p.t/p.dur
             p.x=p.fromX+(p.target.x-p.fromX)*u;p.y=p.fromY+(p.target.y-p.fromY)*u-math.sin(u*math.pi)*68
             if p.t>=p.dur then
                 local hit=p.target;p.x,p.y=hit.x,hit.y-28;p.used[hit]=true;p.contacts=p.contacts+1
