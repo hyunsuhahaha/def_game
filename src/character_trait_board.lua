@@ -328,9 +328,6 @@ function CharacterTraitBoard:nodeWorld(node)
         -- 대시 해금은 초반 상시 흡연 옆에 두되, 거리 상승은 폭죽 해금까지 진행한
         -- 약 5단계 지점에서 열리는 별도 후속 노드로 오른쪽에 내린다.
         fire_score_dash_unlock={2150,1100},fire_score_dash_distance={2150,1600},
-        -- 18코인 루트 뒤 32코인으로 열리는 초반 손맛 노드. 기존 네 방향 갈래는
-        -- 움직이거나 삭제하지 않고 북서쪽의 독립 가지로 둔다.
-        fire_score_impact={750,600},
         fire_score_filter={750,850},fire_score_spark={400,850},
         -- 초반 목재 흡수 범위를 기존 시야 노드 자리에 끼우고, 시야 노드는 같은
         -- 갈래의 왼쪽 빈 자리로 옮긴다. 둘 다 남아 있으며 연결 순서만 늘어난다.

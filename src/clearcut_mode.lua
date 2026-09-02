@@ -3673,16 +3673,13 @@ function ClearcutMode:updateMolotovImpacts(dt, game)
                         flight.hitSet[e] = true
                         e.hp = e.hp - dmg
                         self:igniteEnemy(e,game,0)
-                        local impactReady=not self.scoreAttack or(self.permanentTraits.scoreCigaretteImpact or 0)>0
-                        if impactReady then
-                            e.visualHit=math.max(e.visualHit or 0,.20)
-                            e.impactKick=math.max(e.impactKick or 0,.10)
-                            e.impactKickDir=(e.x-previousX)>=0 and 1 or -1
-                            self.emberArrivals[#self.emberArrivals+1]={x=e.x,y=e.y,startAt=self.smokerGroundTime,
-                                expiresAt=self.smokerGroundTime+.20,duration=.20,scale=.46,targetKind="enemy",instant=true}
-                            self.cigaretteHitStop=math.max(self.cigaretteHitStop or 0,.025)
-                            if game.feedback then game.feedback:play("butt_hit",true) end
-                        else e.visualHit=math.max(e.visualHit or 0,.14)end
+                        e.visualHit=math.max(e.visualHit or 0,.20)
+                        e.impactKick=math.max(e.impactKick or 0,.10)
+                        e.impactKickDir=(e.x-previousX)>=0 and 1 or -1
+                        self.emberArrivals[#self.emberArrivals+1]={x=e.x,y=e.y,startAt=self.smokerGroundTime,
+                            expiresAt=self.smokerGroundTime+.20,duration=.20,scale=.46,targetKind="enemy",instant=true}
+                        self.cigaretteHitStop=math.max(self.cigaretteHitStop or 0,.025)
+                        if game.feedback then game.feedback:play("butt_hit",true) end
                     end
                 end
             end

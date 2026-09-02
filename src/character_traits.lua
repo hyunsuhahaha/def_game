@@ -194,7 +194,6 @@ local scoreFireNodes={
     {id="fire_score_prewarm",name="최초 흡연 준비시간 감소",short="첫 불씨 단축",desc="벌목 기록 모드 최초 흡연 준비시간 -0.08초",effect="scoreInitialIgnitionReduction",value=.08,wx=390,wy=710,icon="ember",color={1,.48,.12}},
     {id="fire_score_dash_unlock",name="대시 해금",short="빠른 회피",desc="구매하면 이동 중 짧은 대시를 사용할 수 있습니다.",effect="scoreDashUnlock",value=1,max=1,costs={30},wx=2360,wy=760,icon="road",color={.42,.72,.86},requires={{"fire_score_alwayssmoke",1}}},
     {id="fire_score_dash_distance",name="대시 거리 상승",short="대시 거리 +130",desc="대시 이동거리가 130 증가합니다. 기본 이동거리는 190입니다.",effect="scoreDashDistance",value=130,max=1,costs={180},wx=2360,wy=1100,icon="road",color={.38,.78,.92},requires={{"fire_score_dash_unlock",1},{"fire_score_rocket_unlock",1}}},
-    {id="fire_score_impact",name="꽁초 즉시 타격 반응",short="즉시 타격 반응",desc="꽁초 착지 즉시 최근접 대상 1개를 점화하고 짧은 정지·반동·전용 타격음을 적용합니다.",effect="scoreCigaretteImpact",value=1,max=1,costs={32},wx=750,wy=600,icon="ember",color={1,.42,.10},requires={{"fire_score_prewarm",1}}},
     -- 루트 바로 다음 두 번째 노드. 도끼·폭죽을 들고 있는 동안에도 한 갑을 다 쓴
     -- 긴 재장전을 포함한 흡연 상태가 계속 진행된다.
     {id="fire_score_alwayssmoke",name="상시 흡연",short="상시 흡연",desc="근접 도끼질이나 폭죽 공격 중에도 담배 재장전이 계속됩니다.",effect="scoreAlwaysSmoking",value=1,max=1,costs={70},wx=2020,wy=760,icon="cigarette",color={.94,.72,.36},requires={{"fire_score_prewarm",1}}},

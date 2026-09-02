@@ -66,19 +66,11 @@ assert(#m.emberArrivals==1 and m.emberArrivals[1].instant and m.cigaretteHitStop
 assert(node.hitFlash>=.22 and node.hitShake>=.08 and math.abs(node.swayVel)>=1.85,
     "immediate ignition has no local tree recoil")
 
--- Active score mode starts deliberately restrained, then the early permanent
--- research node restores the complete contact package without changing spread.
-local lockedTree=tree(50);local locked,lockedGame=setup({lockedTree});locked.scoreAttack=true;throw(locked,0,0)
-advance(locked,lockedGame,.4)
-assert(not lockedTree.burning and locked.cigaretteHitStop==0 and #locked.emberArrivals==0,
-    "fresh score-mode save already has the researched cigarette impact")
-advance(locked,lockedGame,.16)
-assert(#locked.emberTransfers==1 and not lockedTree.burning,
-    "fresh score-mode save lost the slightly delayed visible ember path")
-local unlockedTree=tree(50);local unlocked,unlockedGame=setup({unlockedTree});unlocked.scoreAttack=true
-unlocked.permanentTraits.scoreCigaretteImpact=1;throw(unlocked,0,0);advance(unlocked,unlockedGame,.4)
-assert(unlockedTree.burning and unlocked.cigaretteHitStop==.03 and unlocked.emberArrivals[1].instant,
-    "early impact research did not restore the complete landing feedback")
+-- Active score mode receives the complete contact package without research.
+local scoreTree=tree(50);local scoreMode,scoreGame=setup({scoreTree});scoreMode.scoreAttack=true;throw(scoreMode,0,0)
+advance(scoreMode,scoreGame,.4)
+assert(scoreTree.burning and scoreMode.cigaretteHitStop==.03 and scoreMode.emberArrivals[1].instant,
+    "fresh score-mode save did not receive the base cigarette impact")
 
 -- The same butt still spreads after the warm-up using the visible spark path.
 local spread=tree(45);g.world.nodes[#g.world.nodes+1]=spread
@@ -201,6 +193,6 @@ for _,draw in ipairs(fixture.commands) do
     if draw.shader=="assets/shaders/cigarette-ground-fx.glsl" and draw.uniforms.fxKind==2 then smoke=true end
 end
 assert(nativeBody and smoke,"persistent butt/smoke not drawn through production paths")
-print("SMOKER_GROUND_EMBERS_OK base=delayed research=instant_first+.03_hitstop spread=delayed_chance expiry=7s rain=extinguish fps=independent")
+print("SMOKER_GROUND_EMBERS_OK base=instant_first+.03_hitstop spread=delayed_chance expiry=7s rain=extinguish fps=independent")
 
 if SMOKER_GROUND_CAPTURE then dofile("scripts/smoker_ground_capture.lua") end

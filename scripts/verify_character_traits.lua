@@ -219,8 +219,7 @@ assert(earlySmoking:getNode("fire_score_dash_unlock").desc:find("SPACE",1,true)=
     "locked dash node reveals the control before purchase")
 assert(earlySmoking:getNode("fire_score_alwayssmoke").costs[1]==70,
     "always-smoking node cost is not 70 research coins")
-assert(earlySmoking:buy("fire_score_impact"),"early cigarette-impact node is not purchasable directly after the root")
-assert(earlySmoking:scoreAttackEffects().scoreCigaretteImpact==1,"early impact purchase did not reach score runtime effects")
+assert(earlySmoking:getNode("fire_score_impact")==nil,"removed cigarette-impact research remains on the board")
 assert(earlySmoking:buy("fire_score_alwayssmoke"),"always-smoking node is not purchasable directly after the root")
 assert(earlySmoking:scoreAttackEffects().scoreAlwaysSmoking==1,"early always-smoking purchase did not reach score runtime effects")
 assert(earlySmoking:buy("fire_score_dash_unlock"),"dash unlock is not purchasable beside always-smoking")
@@ -378,8 +377,8 @@ assert(flameMode.flameStream==nil,"비가 오는데 화염 기둥이 남아 있�
 -- 보루 재장전 하한, 보루 크기 20)를 각각 여는 노드이며 폭죽 시각 특성 3개가 추가된다.
 -- 이동·시야·작업 구역과 화염방사기 강화 단계는 한 노드의 다단계가 아니라 기존 장비
 -- 갈래 사이에 놓인 별도 1레벨 노드다. 대시 해금·거리 2개, 초·후반 목재 흡수 범위 2개와 뻥튀기 9개,
--- 산림 수용 확장 3개를 포함해 fire 79이고, universal은 기존 구성에 산림 수용 확장 3개를 더한 59다.
-assert(#store:getScoreAttackNodes("fire")==79 and #store:getScoreAttackNodes("universal")==59,
+-- 꽁초 즉시 타격을 기본 동작으로 옮겨 fire 78이고, universal은 기존 59를 유지한다.
+assert(#store:getScoreAttackNodes("fire")==78 and #store:getScoreAttackNodes("universal")==59,
     "active research board did not expose the distributed one-rank nodes")
 local pickupStore=CharacterTraits.new(true)
 pickupStore.data.levels.fire_score_pickup_1=3
@@ -506,10 +505,7 @@ for i=1,#oilIds do for j=i+1,#oilIds do
 end end
 local root=store:getNode("fire_score_prewarm")
 local rx,ry=board:nodeWorld(root)
-local impact=store:getNode("fire_score_impact")
-local ix,iy=board:nodeWorld(impact)
-assert(root.costs[1]+impact.costs[1]==50 and impact.requires[1][1]=="fire_score_prewarm" and ix<rx and iy<ry,
-    "cigarette impact unlock is not a 2-3 run early branch beside the smoker root")
+assert(store:getNode("fire_score_impact")==nil,"removed cigarette-impact research still has a board position")
 local directions={left=false,right=false,up=false,down=false}
 for _,id in ipairs({"fire_score_filter","fire_score_lighter","fire_score_launch","fire_score_alwayssmoke"})do
     local nx,ny=board:nodeWorld(store:getNode(id));local dx,dy=nx-rx,ny-ry

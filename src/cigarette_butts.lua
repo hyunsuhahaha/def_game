@@ -2,10 +2,6 @@
 -- Absolute event times keep rolls and spark arrivals independent of render FPS.
 local Butts = {lifetime=7, firstAttempt=.15, interval=.55, coldLifetime=1.5, baseChance=.90}
 
-local function impactUnlocked(mode)
-    return not mode.scoreAttack or ((mode.permanentTraits and mode.permanentTraits.scoreCigaretteImpact)or 0)>0
-end
-
 -- The flight owns endpoints and elapsed time, not a mutable x/y pair. Keep the
 -- visible arc, billboard anchor and swept hit test on this single trajectory so
 -- a newly thrown cigarette is valid from its very first rendered frame.
@@ -118,7 +114,7 @@ local function land(mode,flight,at,game)
         x=butt.x,y=butt.y,startAt=at,expiresAt=at+.42,angle=butt.angle
     }
     if game and game.feedback then game.feedback:play("ember_land",false) end
-    if not mode.rainSuppressFire and impactUnlocked(mode) then
+    if not mode.rainSuppressFire then
         local target,targetKind=candidate(butt,mode,game.world.nodes)
         if target then igniteTarget(mode,butt,target,targetKind,at,game,true) end
     end
