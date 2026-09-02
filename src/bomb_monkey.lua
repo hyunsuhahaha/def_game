@@ -138,7 +138,7 @@ function BombMonkey.queue(mode,queue)
         love.graphics.setColor(0,0,0,.28);love.graphics.ellipse("fill",value.x,value.y+4,25,7)
         love.graphics.setColor(1,1,1,1);love.graphics.draw(monkeyImage,monkeyQuads[frame],value.x,value.y-bob,0,.46*value.facing,.46,64,118)
         if value.carrying then
-            love.graphics.draw(bombImage,bombQuads[1],value.x,value.y-70-bob,0,.30,.30,64,64)
+            love.graphics.draw(bombImage,bombQuads[1],value.x+value.facing*18,value.y-33-bob,0,.30*value.facing,.30,64,64)
         end
     end}end
     for _,entry in ipairs(mode.monkeyBombs or{})do local bomb=entry;queue[#queue+1]={x=bomb.x,y=bomb.y,anchorY=bomb.y,sortBias=.001,draw=function()

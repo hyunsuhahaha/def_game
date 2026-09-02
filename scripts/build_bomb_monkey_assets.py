@@ -125,6 +125,19 @@ def build() -> None:
     board = Image.new("RGBA", (CELL*len(samples), CELL), (43, 55, 35, 255))
     for column,index in enumerate(samples):board.alpha_composite(atlas.crop((index*CELL,0,(index+1)*CELL,CELL)),(column*CELL,0))
     board.resize((board.width * 2, board.height * 2), Image.Resampling.NEAREST).save(PREVIEW / "monkey-bomb-v1-2x.png")
+    gif_frames=[]
+    for index in [0]*4+list(range(1,FUSE_FRAMES+1)):
+        canvas=Image.new("RGB",(512,384),(34,66,29));draw=ImageDraw.Draw(canvas)
+        draw.rectangle((0,235,512,384),fill=(55,100,42));draw.ellipse((204,293,308,318),fill=(28,48,26))
+        cell=atlas.crop((index*CELL,0,(index+1)*CELL,CELL)).resize((192,192),Image.Resampling.NEAREST)
+        canvas.paste(cell,(160,126),cell);gif_frames.append(canvas)
+    for index in range(8):
+        canvas=Image.new("RGB",(512,384),(34,66,29));draw=ImageDraw.Draw(canvas)
+        draw.rectangle((0,235,512,384),fill=(55,100,42))
+        cell=fx_atlas.crop((index*256,0,(index+1)*256,256)).resize((390,390),Image.Resampling.NEAREST)
+        canvas.paste(cell,(61,-12),cell);gif_frames.append(canvas)
+    gif_frames.extend([gif_frames[-1]]*4)
+    gif_frames[0].save(PREVIEW/"bomb-fuse-explosion-v1.gif",save_all=True,append_images=gif_frames[1:],duration=100,loop=0,optimize=False)
     print(f"BOMB_MONKEY_ASSET_OK bomb={atlas.width}x{atlas.height} explosion={fx_atlas.width}x{fx_atlas.height}")
 
 
