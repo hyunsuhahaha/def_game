@@ -63,6 +63,9 @@ do
     local gated=esc:getNode("universal_veteran_crew")
     assert(gated.requiresTier==8 and esc:nodeCost(gated,0)==16000,
         "tier-gated research did not keep its authored stage price")
+    local targeted=esc:getNode("fire_score_flame_unlock")
+    assert(targeted.targetTier==8 and esc:nodeCost(targeted,0)==16000,
+        "stage-targeted weapon research picked up the global rank multiplier")
 
     -- 어느 시점에서든 후보 전체에 같은 배율이 걸리므로 "가장 싼 것부터"의 순서는
     -- 손으로 적어 둔 가격 순서와 항상 같아야 한다. 순서가 바뀌면 nextGoal 이 흔들린다.
@@ -371,8 +374,13 @@ pickupStore.data.levels.fire_score_pickup_1=3
 pickupStore.data.levels.fire_score_pickup_2=3
 assert(pickupStore:scoreAttackEffects().pickupRadius==405,
     "early and late wood pull-range nodes did not accumulate into score runtime pickup radius")
+local rocketNodeCount,rocketRanks,rocketCost=0,0,0
 local flameNodeCount,flameCost,flameRange=0,0,0
 for _,node in ipairs(store:getScoreAttackNodes("fire"))do
+    if node.id:match("^fire_score_rocket")then
+        rocketNodeCount=rocketNodeCount+1;rocketRanks=rocketRanks+node.max
+        for _,cost in ipairs(node.costs)do rocketCost=rocketCost+cost end
+    end
     if node.id:match("^fire_score_flame_damage")or node.id:match("^fire_score_flame_range")or
         node.id:match("^fire_score_flame_width")or node.id:match("^fire_score_flame_ignite")then
         flameNodeCount=flameNodeCount+1;flameCost=flameCost+node.costs[1]
@@ -380,7 +388,16 @@ for _,node in ipairs(store:getScoreAttackNodes("fire"))do
         assert(node.max==1 and #node.costs==1,"flamethrower upgrade still contains stacked ranks: "..node.id)
     end
 end
-assert(flameNodeCount==18 and flameCost==1472,"flamethrower split changed its rank count or total cost")
+assert(rocketNodeCount==10 and rocketRanks==29 and rocketCost==59000,
+    "firework stage pricing changed its node count, rank count, or total cost")
+assert(store:getNode("fire_score_rocket_unlock").targetTier==5 and
+    store:getNode("fire_score_rocket_finale").targetTier==7 and
+    store:getNode("fire_score_rocket_crew").targetTier==7,
+    "firework progression is not documented across regeneration tiers 5-7")
+assert(flameNodeCount==18 and flameCost==784000,"flamethrower split changed its rank count or total cost")
+assert(store:getNode("fire_score_flame_unlock").targetTier==8 and
+    store:getNode("fire_score_flame_damage_5").targetTier==10,
+    "flamethrower progression is not documented from regeneration tier 8 onward")
 assert(flameRange==250,"maxed flamethrower research does not extend reach from 250 to 500")
 local popperUnlock=store:getNode("fire_score_popper_unlock")
 assert(#popperUnlock.requires==1 and popperUnlock.requires[1][1]=="universal_mole_dual" and popperUnlock.requires[1][2]==1,

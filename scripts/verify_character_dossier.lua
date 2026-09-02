@@ -24,7 +24,7 @@ assert(dossier:find("활성 나무 0그루 달성 또는 40초 뒤 세계수 처
     "dossier score-mode opening pacing is stale")
 assert(dossier:find("인게임 XP·레벨업·강화 3택 없음 · 목재는 점수와 정산만",1,true),"dossier score-mode growth summary is stale")
 assert(dossier:find("없음 · 멧돼지·다람쥐 등 일반 몬스터 비활성",1,true),"dossier score-mode monster rule is stale")
-assert(dossier:find("재생 단계 제한 노드는 표의 고정 가격",1,true),"dossier research-price rule is stale")
+assert(dossier:find("재생 단계 제한 및 목표 단계 가격 노드는 표의 고정 가격",1,true),"dossier research-price rule is stale")
 assert(dossier:find("중앙 루트의 기존 상·하·좌·우 분기 + 초반 즉시 타격 대각선 가지 · 방향별 동일 단계 간격 · 기준 간격의 85~115% 줌 · 화면 해상도별 한글 폰트 재래스터",1,true),
     "dossier research-board summary is stale")
 assert(dossier:find("소량은 1개씩·대량은 묶음 단위로 코인 변환",1,true)and dossier:find("약 4초 상한",1,true),
@@ -33,6 +33,12 @@ assert(dossier:find("fire_score_prewarm",1,true)and dossier:find("fire_score_imp
     "dossier score-mode permanent traits are stale")
 assert(dossier:find('id:"fire_score_dash_distance"',1,true)and dossier:find("대시 이동거리가 130 증가",1,true),
     "dossier dash-distance research is stale")
+assert(dossier:find('id:"fire_score_rocket_unlock"',1,true)and dossier:find("costs:[900],targetTier:5",1,true)and
+    dossier:find('id:"fire_score_rocket_crew"',1,true)and dossier:find("costs:[7800],targetTier:7",1,true),
+    "dossier firework tier 5-7 pricing is stale")
+assert(dossier:find('id:"fire_score_flame_unlock"',1,true)and dossier:find("costs:[16000],targetTier:8",1,true)and
+    dossier:find('id:"fire_score_flame_ignite_4"',1,true)and dossier:find("costs:[110000],targetTier:10",1,true),
+    "dossier flamethrower tier 8+ pricing is stale")
 assert(dossier:find("universal_robot_start",1,true)and dossier:find("universal_robot_motor",1,true),
     "dossier baby robot permanent research is stale")
 for _,entry in ipairs({
