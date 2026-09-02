@@ -39,21 +39,9 @@ local function capture(w,h,path,job,zoomOut)
     end
     fixture.save(path)
 end
-local function captureCategory(w,h,path,categoryId)
-    love.graphics.getDimensions=function()return w,h end
-    love.graphics.getWidth=function()return w end
-    love.graphics.getHeight=function()return h end
-    local store=Store.new(true);store.data.currency=240;store.data.levels.fire_score_prewarm=1
-    local board=Board.new(store,fonts,sprites);board.time=1.2
-    fixture.reset();board:draw()
-    local spec=assert(board:researchLayout().categories[categoryId])
-    board.panX=spec.x+spec.dx*1450;board.panY=spec.y+spec.dy*1450;board.zoom=.22
-    fixture.reset();board:draw();fixture.save(path)
-end
 -- 연구판을 한 판으로 합쳤으므로 갈래별 시안은 더 이상 없다. 기본 배율과, 휠을
 -- 끝까지 내린 전체 조망 두 가지를 남긴다.
 capture(1280,720,"docs/previews/score-trait-board-draws.json")
 capture(1280,720,"docs/previews/score-trait-board-zoomout-draws.json",nil,true)
 capture(2048,1038,"docs/previews/score-trait-board-wide-draws.json")
-captureCategory(1280,720,"docs/previews/score-trait-board-category-draws.json","facilities")
-print("SCORE_TRAIT_BOARD_CAPTURE_OK 1280x720+2048x1038 overview, 1280x720 category detail, window=none")
+print("SCORE_TRAIT_BOARD_CAPTURE_OK 1280x720+2048x1038 universal=1280x720+2048x1038 window=none")
