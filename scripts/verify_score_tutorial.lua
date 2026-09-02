@@ -6,7 +6,8 @@ local Tutorial=require("src.score_tutorial")
 local function source(path)local f=assert(io.open(path,"rb"));local s=f:read("*a");f:close();return s end
 local gameSource,modeSource=source("src/game.lua"),source("src/clearcut_mode.lua")
 assert(gameSource:find("ScoreTutorial.start%(self.clearcut,self%)"),"score run start is not connected to tutorial")
-assert(modeSource:find("recordScoreRunCompleted",1,true)and modeSource:find("not self.scorePractice and not self.defenseMode",1,true),
+assert(modeSource:find("recordScoreRunCompleted",1,true)and modeSource:find("not self.scorePractice and not self.defenseMode",1,true)
+    and modeSource:find("not self.scoreTutorialTestRun",1,true),
     "ordinary score result is not connected to tutorial run count")
 
 local traits=Traits.new(true)
@@ -34,6 +35,13 @@ for _,variant in ipairs({{scoreAttack=true,scorePractice=true},{scoreAttack=true
     assert(not Tutorial.start(variant,{characterTraits=blockedTraits}),"tutorial leaked into excluded mode")
 end
 
+local replayTraits=Traits.new(true)
+local replay={scoreAttack=true,actionAudit={}}
+assert(Tutorial.forceStart(replay)and replay.scoreTutorial.persist==false,"developer replay did not start without persistence")
+replay.scoreTutorial.step=3
+Tutorial.update(replay,{characterTraits=replayTraits},Tutorial.FINAL_DURATION)
+assert(replay.scoreTutorial==nil and not replayTraits.data.scoreTutorialSeen,"developer replay changed the real tutorial save")
+
 local fixture=require("scripts.forest_render_fixture")
 local fonts={heading=love.graphics.newFont("assets/font-korean-bold.ttf",24),micro=love.graphics.newFont("assets/font-korean-pixel.ttf",14)}
 for step=1,3 do
@@ -41,4 +49,4 @@ for step=1,3 do
     assert(#fixture.commands>=5,"tutorial step did not draw its compact panel")
 end
 
-print("SCORE_TUTORIAL_OK first=free second=guided steps=axe+ranged+loss_meta persistent=true exclusions=practice+defense")
+print("SCORE_TUTORIAL_OK first=free second=guided steps=axe+ranged+loss_meta persistent=true dev_replay=no_save exclusions=practice+defense")

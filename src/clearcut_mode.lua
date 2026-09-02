@@ -6963,7 +6963,7 @@ function ClearcutMode:finish(game, victory)
         self.resultSettlement={rows=lumberRows or{},rowIndex=1,accumulator=0,rowPause=.32,elapsed=0,converted=0,total=lumberCoinTotal or 0,
             unitTotal=settlementUnits,batchSize=math.max(1,math.ceil(settlementUnits/90)),bursts={},saveCounter=0,complete=(lumberCoinTotal or 0)==0}
     end
-    if self.scoreAttack and not self.scorePractice and not self.defenseMode and game.characterTraits and game.characterTraits.recordScoreRunCompleted then
+    if self.scoreAttack and not self.scorePractice and not self.defenseMode and not self.scoreTutorialTestRun and game.characterTraits and game.characterTraits.recordScoreRunCompleted then
         game.characterTraits:recordScoreRunCompleted()
     end
     if game.achievements then game.achievements:recordRun(game.result) end

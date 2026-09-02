@@ -7,15 +7,26 @@ local function rangedCount(audit)
     return (audit.cigaretteFlick or 0)+(audit.fireworkShot or 0)+(audit.flameTick or 0)+(audit.vapeShot or 0)
 end
 
+local function begin(mode,persist)
+    mode.scoreTutorial={step=1,elapsed=0,axe=(mode.actionAudit or{}).scoreAxe or 0,
+        ranged=rangedCount(mode.actionAudit),persist=persist~=false}
+    return true
+end
+
 function Tutorial.start(mode,game)
     local traits=game and game.characterTraits
     if not mode or not mode.scoreAttack or mode.scorePractice or mode.defenseMode or
         not traits or not traits.shouldStartScoreTutorial or not traits:shouldStartScoreTutorial()then
         return false
     end
-    mode.scoreTutorial={step=1,elapsed=0,axe=(mode.actionAudit or{}).scoreAxe or 0,
-        ranged=rangedCount(mode.actionAudit)}
-    return true
+    return begin(mode,true)
+end
+
+-- Developer-tool replay. It deliberately ignores permanent onboarding state and
+-- never marks the real tutorial as seen.
+function Tutorial.forceStart(mode)
+    if not mode or not mode.scoreAttack or mode.scorePractice or mode.defenseMode then return false end
+    return begin(mode,false)
 end
 
 function Tutorial.update(mode,game,dt)
@@ -28,7 +39,7 @@ function Tutorial.update(mode,game,dt)
     elseif state.step==2 and rangedCount(audit)>state.ranged then
         state.step,state.elapsed=3,0
     elseif state.step==3 and state.elapsed>=FINAL_DURATION then
-        if game.characterTraits and game.characterTraits.markScoreTutorialSeen then
+        if state.persist and game.characterTraits and game.characterTraits.markScoreTutorialSeen then
             game.characterTraits:markScoreTutorialSeen()
         end
         mode.scoreTutorial=nil

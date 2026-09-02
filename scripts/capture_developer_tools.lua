@@ -22,8 +22,11 @@ local game=setmetatable({
 
 fixture.reset();game:drawTestOptions()
 local layout=game:testOptionLayout(width,height)
-assert(#layout.actions==15 and layout.actions[#layout.actions].index==4,"developer trait preset buttons are missing")
+local found={}
+for _,action in ipairs(layout.actions)do found[action.index]=true end
+assert(#layout.actions==13 and found[16]and not found[2]and not found[3]and not found[5]
+    and layout.actions[#layout.actions].index==4,"developer tutorial/tool buttons are wrong")
 local output=assert(rawget(_G,"DEVELOPER_TOOLS_CAPTURE_PATH")or os.getenv("DEVELOPER_TOOLS_CAPTURE"),
     "DEVELOPER_TOOLS_CAPTURE is required")
 fixture.save(output)
-print("DEVELOPER_TOOLS_CAPTURE_OK "..width.."x"..height.." actions=15")
+print("DEVELOPER_TOOLS_CAPTURE_OK "..width.."x"..height.." actions=13")

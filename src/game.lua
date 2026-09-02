@@ -395,7 +395,7 @@ function Game:closeTestOptions()
     end
 end
 
--- 960x540에서도 일곱 줄의 작업 버튼과 상태 문구가 잘리지 않는 조밀한 도구 배치.
+-- 960x540에서도 핵심 작업 버튼과 상태 문구가 잘리지 않는 조밀한 도구 배치.
 -- draw와 mousepressed가 같은 박스를 공유해 해상도별 클릭 좌표가 어긋나지 않는다.
 function Game:testOptionLayout(width,height)
     local w=width or love.graphics.getWidth()
@@ -409,7 +409,7 @@ function Game:testOptionLayout(width,height)
     local bw=panel.w-(compact and 64 or 140)
     local rowH,gap=compact and 36 or 48,compact and 4 or 10
     local firstY=panel.y+(compact and 112 or 130)
-    local order={1,2,3,5}
+    local order={1,16}
     local actions={}
     for row,index in ipairs(order)do
         actions[#actions+1]={index=index,x=bx,y=firstY+(row-1)*(rowH+gap),w=bw,h=rowH}
@@ -419,9 +419,9 @@ function Game:testOptionLayout(width,height)
     for slot=1,10 do
         local column=(slot-1)%5
         local row=math.floor((slot-1)/5)
-        actions[#actions+1]={index=slot+5,x=bx+column*(presetW+presetGap),y=firstY+(4+row)*(rowH+gap),w=presetW,h=rowH,preset=true}
+        actions[#actions+1]={index=slot+5,x=bx+column*(presetW+presetGap),y=firstY+(2+row)*(rowH+gap),w=presetW,h=rowH,preset=true}
     end
-    actions[#actions+1]={index=4,x=bx,y=firstY+6*(rowH+gap),w=bw,h=rowH}
+    actions[#actions+1]={index=4,x=bx,y=firstY+4*(rowH+gap),w=bw,h=rowH}
     local backH=compact and 36 or 46
     local back={x=bx,y=panel.y+panel.h-backH-(compact and 10 or 12),w=bw,h=backH}
     local actionBottom=actions[#actions].y+actions[#actions].h
@@ -433,20 +433,21 @@ function Game:useTestOption(index)
     local activeRun=self.testReturnMode=="playing" or self.testReturnMode=="upgrade" or self.testReturnMode=="rush_upgrade" or self.testReturnMode=="clearcut_upgrade"
     if index==1 then
         self.characterTraits:addCurrency(1000000); self.testMessage="연구 코인 1,000,000개를 지급했습니다."
-    elseif index==2 then
-        if activeRun then self:grantTestRunResources(); self.testMessage="현재 런 자원을 각각 1,000,000개 지급했습니다."
-        else self.testGrantNextRun=true; self.testMessage="다음 런 자원 1,000,000개 지급을 예약했습니다." end
-    elseif index==3 then
-        if activeRun and self.clearcut and self.clearcut.scoreAttack then self.testMessage="벌목 기록 모드는 인게임 레벨업을 사용하지 않습니다."
-        elseif activeRun then self:grantTestLevels(10); self.testMessage="현재 런 레벨 +10을 지급했습니다. 메뉴를 닫으면 3택이 시작됩니다."
-        else self.testLevelsNextRun,self.testLevelsNextRunManual=20,false; self.testMessage="다음 런 시작 레벨 +20을 예약했습니다. 강화는 무작위로 자동 선택됩니다." end
     elseif index==4 then
         if self.testResetArmed and self.testResetTime>0 then self.progression:reset();self.characterTraits:reset();self.achievements:reset();self.testResetArmed=false;self.testMessage="영구 재화·특성·업적 기록을 초기화했습니다."
         else self.testResetArmed,self.testResetTime=true,4; self.testMessage="초기화하려면 4초 안에 버튼을 한 번 더 누르세요." end
-    elseif index==5 then
-        if activeRun and self.clearcut and self.clearcut.scoreAttack then self.testMessage="벌목 기록 모드는 인게임 레벨업을 사용하지 않습니다."
-        else self.testLevelsNextRun,self.testLevelsNextRunManual=20,true
-            self.testMessage="다음 런 시작 레벨 +20을 예약했습니다. 강화를 직접 3택으로 고릅니다." end
+    elseif index==16 then
+        local currentScore=activeRun and self.clearcut and self.clearcut.scoreAttack and not self.clearcut.scorePractice and not self.clearcut.defenseMode
+        if currentScore then
+            self.mode="playing"
+            ClearcutMode.ScoreTutorial.forceStart(self.clearcut)
+        else
+            self:startClearcutScoreAttack(1)
+            self.clearcut.scoreTutorialTestRun=true
+            ClearcutMode.ScoreTutorial.forceStart(self.clearcut)
+        end
+        self.testReturnMode=nil
+        self.testMessage="튜토리얼을 저장 기록과 무관하게 실행했습니다."
     elseif index>=6 and index<=15 then
         local percent=(index-5)*10
         local ranks,total=self.characterTraits:setScoreProgress(percent)
@@ -1803,19 +1804,14 @@ function Game:drawTestOptions()
     love.graphics.printf("개발 중인 특성·생산·방어 시스템을 빠르게 확인하는 메뉴",panel.x+20,panel.y+(compact and 50 or 62),panel.w-40,"center")
     love.graphics.setColor(1,.72,.25)
     love.graphics.printf("보유 연구 코인  "..self.characterTraits.data.currency,panel.x+20,panel.y+(compact and 78 or 92),panel.w-40,"center")
-    local activeRun=self.testReturnMode=="playing" or self.testReturnMode=="upgrade" or self.testReturnMode=="rush_upgrade" or self.testReturnMode=="clearcut_upgrade"
-    local scoreRun=activeRun and self.clearcut and self.clearcut.scoreAttack
     local labels={
         [1]="연구 코인 +1,000,000",
-        [2]="런 자원 각 +1,000,000  (식량·광석·목재·돌)",
-        [3]=scoreRun and "벌목 기록 모드 · 인게임 레벨업 비활성"or(activeRun and "현재 런 레벨 +10  (강화 3택 테스트)"or"다음 런 시작 레벨 +20  (자동 선택)"),
-        [5]=scoreRun and "벌목 기록 모드 · 강화 3택 없음"or"다음 런 시작 레벨 +20  (수동 선택 · 직접 3택)",
+        [16]="튜토리얼 실행  (저장 상태 무시)",
         [4]=self.testResetArmed and "정말 초기화 — 다시 클릭"or"영구 재화·특성 초기화",
     }
     for index=6,15 do labels[index]=string.format("특성 %d%%",(index-5)*10)end
     for _,box in ipairs(layout.actions)do
-        local enabled=not scoreRun or(box.index~=3 and box.index~=5)
-        UI.button(box.x,box.y,box.w,box.h,labels[box.index],enabled,box.index==1 and f.heading or(box.preset and f.small or f.body))
+        UI.button(box.x,box.y,box.w,box.h,labels[box.index],true,box.index==1 and f.heading or(box.preset and f.small or f.body))
     end
     UI.button(layout.back.x,layout.back.y,layout.back.w,layout.back.h,"돌아가기  [F10 / ESC]",true,f.body)
     love.graphics.setFont(f.small)

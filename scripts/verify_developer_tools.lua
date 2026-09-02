@@ -23,7 +23,11 @@ assert(table.concat(game.characterTraits.progresses,",")=="10,20,30,40,50,60,70,
 
 for _,size in ipairs({{960,540},{1280,720}})do
     local layout=game:testOptionLayout(size[1],size[2])
-    assert(#layout.actions==15,"developer tool layout lost a trait preset action")
+    assert(#layout.actions==13,"developer tool layout action count is wrong")
+    local found={}
+    for _,action in ipairs(layout.actions)do found[action.index]=true end
+    assert(found[1]and found[4]and found[16]and not found[2]and not found[3]and not found[5],
+        "developer tool layout did not replace the unused resource/level actions")
     assert(layout.panel.x>=0 and layout.panel.y>=0 and layout.back.y+layout.back.h<=size[2],
         "developer tool panel clipped at "..size[1].."x"..size[2])
     for first=1,#layout.actions do for second=first+1,#layout.actions do
@@ -36,23 +40,10 @@ for _,size in ipairs({{960,540},{1280,720}})do
         "developer status message overlaps a control at "..size[1].."x"..size[2])
 end
 
-game:useTestOption(2)
-assert(game.testGrantNextRun,"next-run resource reservation failed")
-assert(game:consumeTestNextRunResources() and game.food==1000000 and game.ore==1000000 and game.wood==1000000 and game.stone==1000000 and game.seeds==1000000,
-    "next-run resource grant failed")
-assert(not game:consumeTestNextRunResources() and game.food==1000000,"next-run resources were consumed more than once")
-
-game:useTestOption(3)
-assert(game.testLevelsNextRun==20 and game.testMessage:find("+20",1,true),"next-run +20 reservation failed")
-assert(game:consumeTestNextRunLevels()==20 and game.runLevel==21 and game.pendingLevels==20 and game.testLevelsNextRun==0,
-    "standard run did not consume exactly twenty levels")
-assert(game:consumeTestNextRunLevels()==0 and game.runLevel==21,"next-run levels were consumed more than once")
-
 game.clearcut={level=1,pending=0,xpNext=10,openUpgradeChoices=function(self,g)g.mode="clearcut_upgrade";self.opened=true end}
 game.testLevelsNextRun,game.testLevelsNextRunManual=20,true
 assert(game:consumeTestNextRunLevels()==20 and game.clearcut.level==21 and game.clearcut.pending==20,"clearcut next-run levels failed")
-game.testReturnMode="playing";game:useTestOption(3)
-assert(game.clearcut.level==31 and game.clearcut.pending==30,"current clearcut +10 failed")
+game.testReturnMode="playing"
 game:useTestOption(13)
 assert(game.characterTraits.progresses[#game.characterTraits.progresses]==80 and game.testMessage:find("재시작 후 전체 적용",1,true),
     "active-run trait preset did not explain when spawn-time traits take effect")
@@ -70,5 +61,17 @@ assert(game.testResetArmed and game.testResetTime==4,"developer reset confirmati
 game:useTestOption(4)
 assert(resets.progression==1 and resets.traits==1 and resets.achievements==1 and not game.testResetArmed,"developer reset did not clear every permanent store")
 
-print("DEVELOPER_TOOLS_OK research_coin=1m traits=10..100_step10 resources=next_once levels=current10+next20 "..
-    "responsive=960x540+ modes=standard+rush+clearcut reset=confirmed")
+game.clearcut={scoreAttack=true,scorePractice=false,defenseMode=false,actionAudit={scoreAxe=0,cigaretteFlick=0}}
+game.testReturnMode="playing";game.mode="test_options";game:useTestOption(16)
+assert(game.mode=="playing"and game.clearcut.scoreTutorial and game.clearcut.scoreTutorial.step==1
+    and game.clearcut.scoreTutorial.persist==false,"developer tutorial replay failed in a current score run")
+
+game.startClearcutScoreAttack=function(self,tier)
+    self.startedTutorialTier=tier;self.clearcut={scoreAttack=true,scorePractice=false,defenseMode=false,actionAudit={}};self.mode="playing"
+end
+game.clearcut=nil;game.testReturnMode="lobby";game.mode="test_options";game:useTestOption(16)
+assert(game.startedTutorialTier==1 and game.clearcut.scoreTutorialTestRun and game.clearcut.scoreTutorial
+    and game.clearcut.scoreTutorial.persist==false,"developer tutorial replay did not create an isolated score run")
+
+print("DEVELOPER_TOOLS_OK research_coin=1m tutorial=replay_no_save traits=10..100_step10 "..
+    "responsive=960x540+ reset=confirmed removed=resources+levels")
