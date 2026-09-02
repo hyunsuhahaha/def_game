@@ -21,6 +21,20 @@ assert(trees[1].rushHp==16 and trees[2].rushHp==16 and trees[3].rushHp==16,"base
 assert(trees[1].active and trees[2].active and trees[3].active,"base puffed rice incorrectly one-shot a normal tree")
 assert(trees[4].rushHp==20,"base puffed rice exceeded its contact count")
 
+-- A shot whose target was felled by another weapon must retarget even when the
+-- next living tree is outside the normal bounce radius.
+local vanished,farTree=tree(0,20),tree(900,20);vanished.active=false
+local retargetWorld={nodes={vanished,farTree},width=1200,height=600}
+function retargetWorld:impactNode()end
+local retargetMode={scoreAttack=true,permanentTraits={scorePopperUnlock=1},
+    poppingMachines={{x=0,y=0,state="cooldown",cooldown=100,life=0,facing=1}},poppingMachineSequence=1,
+    puffedRiceShots={{x=0,y=0,fromX=0,fromY=0,target=vanished,t=0,dur=.3,used={},contacts=0,maxContacts=3,damage=4,spin=0}},
+    puffedRiceImpacts={},oilTrail={},cigaretteButts={}}
+function retargetMode:fellTree(node)node.active=false;return true end
+Popper.update(retargetMode,.01,{world=retargetWorld,player={x=0,y=0}})
+assert(#retargetMode.puffedRiceShots==1 and retargetMode.puffedRiceShots[1].target==farTree,
+    "puffed rice vanished instead of retargeting after its target disappeared")
+
 mode.permanentTraits.scorePopperDamage=10;mode.permanentTraits.scorePopperBounces=2
 cart.x,cart.y,cart.state,cart.heat=0,0,"heating",2.79
 for _=1,150 do Popper.update(mode,.02,game)end

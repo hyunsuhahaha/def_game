@@ -103,7 +103,7 @@ function Art.update(mode,dt,game)
     end
     for i=#mode.puffedRiceShots,1,-1 do local p=mode.puffedRiceShots[i]
         if not p.target or not p.target.active then
-            local replacement=target(mode,p.x,p.y,p.used,620)
+            local replacement=target(mode,p.x,p.y,p.used,math.huge)
             if replacement then p.fromX,p.fromY,p.target,p.t,p.dur=p.x,p.y,replacement,0,.22 else p.target=nil end
         end
         if not p.target then table.remove(mode.puffedRiceShots,i)else
