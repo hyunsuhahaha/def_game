@@ -345,6 +345,7 @@
 
   .node-name { font-weight: 600; }
   .node-short { display: block; font-size: 11.5px; color: var(--ink-dim); margin-top: 1px; }
+  .category-badge { display: inline-block; margin-right: 6px; padding: 1px 5px; border: 1px solid var(--line-strong); border-radius: 3px; color: var(--ink-dim); font-size: 9.5px; font-weight: 500; vertical-align: middle; }
   .capstone-badge, .signature-badge, .fusion-badge {
     display: inline-block;
     margin-left: 7px;
@@ -405,7 +406,7 @@
     <div class="score-rule"><span class="score-rule-label">재생 단계 승급</span><span class="score-rule-value">활성 나무 0그루 달성 또는 40초 뒤 세계수 처치 · 0.86초 연출 · 6그루 순차 발아 · 다음 단계 영구 해금</span></div>
     <div class="score-rule"><span class="score-rule-label">몬스터 투입</span><span class="score-rule-value">없음 · 멧돼지·다람쥐 등 일반 몬스터 비활성</span></div>
     <div class="score-rule"><span class="score-rule-label">런 성장</span><span class="score-rule-value">인게임 XP·레벨업·강화 3택 없음 · 목재는 점수와 정산만</span></div>
-    <div class="score-rule"><span class="score-rule-label">강화하기 화면</span><span class="score-rule-value">중앙 루트의 상·하·좌·우 분기 · 꽁초 즉시 타격은 기본 적용 · 방향별 동일 단계 간격 · 기준 간격의 85~115% 줌 · 화면 해상도별 한글 폰트 재래스터</span></div>
+    <div class="score-rule"><span class="score-rule-label">강화하기 화면</span><span class="score-rule-value">전체 노드 수 유지 · 하나의 통합 연구망 · 7개 카테고리별 구매 후보 최대 5개 · 꽁초 즉시 타격은 기본 적용</span></div>
     <div class="score-rule"><span class="score-rule-label">연구 비용</span><span class="score-rule-value">일반 노드는 기준가 × 1.008^(구매 랭크) · 재생 단계 제한 및 목표 단계 가격 노드는 표의 고정 가격</span></div>
     <div class="score-rule"><span class="score-rule-label">결과 화면</span><span class="score-rule-value">수종별 목재 집계 → 소량은 1개씩·대량은 묶음 단위로 코인 변환 → 강화하기/재도전 (약 4초 상한, 이동 시 잔여분 즉시 정산)</span></div>
   </section>
@@ -816,6 +817,17 @@ const MODE_META = {
 let mode = "traits";
 let active = "fire";
 
+function researchCategory(id) {
+  if (/^fire_score_axe_/.test(id) || id === "fire_score_edge") return "도끼";
+  if (/^fire_score_rocket_/.test(id)) return "폭죽";
+  if (/^fire_score_flame_/.test(id)) return "화염방사기";
+  if (/^fire_score_popper_/.test(id) || /^universal_oil_/.test(id) || /^universal_oven_/.test(id)) return "설비";
+  if (/^universal_(robot|mole|bomb)_/.test(id) || /^universal_gray_cat/.test(id)) return "동료";
+  if (/_yard(?:_|$)/.test(id) || /_stride(?:_|$)/.test(id) || /_(view|pickup|capacity)_/.test(id) ||
+      /^fire_score_dash_/.test(id) || /^universal_veteran_/.test(id) || id === "universal_wildfire") return "현장 운영";
+  return "담배 · 착화";
+}
+
 function depthOf(job, id, cache) {
   if (cache[id] !== undefined) return cache[id];
   const node = job.byId[id];
@@ -873,7 +885,7 @@ function renderTraitsPanel(job, q) {
         ? n.requires.map(r => `<span class="req-chip">${reqLabel(job, r)}</span>`).join("")
         : `<span class="req-none">—</span>`;
       return `<tr class="${matches ? "" : "is-hidden"}">
-        <td><span class="node-name">${n.name}${n.capstone ? '<span class="capstone-badge">캡스톤</span>' : ""}</span><span class="node-short">${n.short}</span></td>
+        <td><span class="node-name"><span class="category-badge">${researchCategory(n.id)}</span>${n.name}${n.capstone ? '<span class="capstone-badge">캡스톤</span>' : ""}</span><span class="node-short">${n.short}</span></td>
         <td>${n.desc}</td>
         <td class="num">${n.max}단계</td>
         <td class="cost-list">${n.costs.join(" · ")}</td>

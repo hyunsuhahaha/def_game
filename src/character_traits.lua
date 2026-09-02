@@ -503,6 +503,42 @@ local byId = {}
 for job, group in pairs(jobs) do
     for _, node in ipairs(group.nodes) do node.job = job; byId[node.id] = node end
 end
+
+-- 활성 연구판은 하나로 유지하되, 구매 가능한 끝점은 카테고리마다 최대 5개만
+-- 전진시킨다. 노드를 합치거나 삭제하는 규칙이 아니라 모든 활성 노드의 진행 순서를
+-- 읽기 쉽게 만드는 분류다. 카테고리 안의 앞선 끝점을 완료하면 다음 노드가 그 자리를
+-- 이어받는다.
+CharacterTraits.RESEARCH_FRONTIER_PER_CATEGORY=5
+CharacterTraits.RESEARCH_CATEGORIES={
+    {id="cigarette",name="담배 · 착화",detail="투척·재장전·불씨 확산과 자동 투척"},
+    {id="axe",name="도끼",detail="근접 피해·범위·연쇄 벌목과 졸업 동료"},
+    {id="firework",name="폭죽",detail="폭발·점화·다단 폭발과 졸업 동료"},
+    {id="flame",name="화염방사기",detail="화염 기둥의 피해·거리·굵기·착화"},
+    {id="companions",name="동료",detail="로봇·두더지·고양이·폭탄 원숭이"},
+    {id="facilities",name="설비",detail="기름 드럼통·화덕·뻥튀기차"},
+    {id="field",name="현장 운영",detail="이동·시야·작업 구역·산림 수용"},
+}
+local categoryById={}
+for _,category in ipairs(CharacterTraits.RESEARCH_CATEGORIES)do categoryById[category.id]=category end
+local function researchCategoryId(id)
+    if id:match("^fire_score_axe_")or id=="fire_score_edge"then return"axe"end
+    if id:match("^fire_score_rocket_")then return"firework"end
+    if id:match("^fire_score_flame_")then return"flame"end
+    if id:match("^fire_score_popper_")or id:match("^universal_oil_")or id:match("^universal_oven_")then return"facilities"end
+    if id:match("^universal_robot_")or id:match("^universal_mole_")or id:match("^universal_gray_cat")or id:match("^universal_bomb_")then return"companions"end
+    if id:match("_yard")or id:match("_yard_%d")or id:match("_stride")or id:match("_stride_%d")
+        or id:match("_view_")or id:match("_pickup_")or id:match("_capacity_")or id:match("^fire_score_dash_")
+        or id:match("^universal_veteran_")or id=="universal_wildfire"then return"field"end
+    return"cigarette"
+end
+local researchOrder=0
+for _,job in ipairs({"fire","universal"})do
+    for _,node in ipairs(jobs[job].nodes)do if node.scoreMode then
+        researchOrder=researchOrder+1
+        node.researchOrder=researchOrder
+        node.researchCategory=researchCategoryId(node.id)
+    end end
+end
 local orderedIds = {}
 for id in pairs(byId) do orderedIds[#orderedIds+1] = id end
 table.sort(orderedIds)
@@ -633,6 +669,11 @@ end
 function CharacterTraits:getNode(id) return byId[id] end
 function CharacterTraits:getLevel(id) return self.data.levels[id] or 0 end
 function CharacterTraits:getRegenTier()return math.max(1,math.floor(self.data.regenTier or 1))end
+function CharacterTraits:getResearchCategories()return CharacterTraits.RESEARCH_CATEGORIES end
+function CharacterTraits:getResearchCategory(id)
+    local node=type(id)=="table"and id or byId[id]
+    return node and categoryById[node.researchCategory]or nil
+end
 function CharacterTraits:getEquipmentState()
     return {configured=self.data.equipmentConfigured==true,
         player={unpack(self.data.playerWeapons or{1,2})},monkeys={unpack(self.data.monkeyWeapons or{2})}}
@@ -648,6 +689,7 @@ function CharacterTraits:unlockRegenTier(tier)
     tier=math.max(1,math.floor(tier or 1))
     if tier<=self:getRegenTier()then return false end
     self.data.regenTier=tier
+    self._categoryFrontier=nil
     self:save()
     return true
 end
@@ -656,6 +698,60 @@ local function requirementsOf(node)
     if not node or not node.requires then return {} end
     if type(node.requires[1]) == "string" then return {node.requires} end
     return node.requires
+end
+
+local function baseResearchReady(self,node)
+    if node.requiresTier and self:getRegenTier()<node.requiresTier then return false end
+    for _,requirement in ipairs(requirementsOf(node))do
+        if self:getLevel(requirement[1])<requirement[2]then return false end
+    end
+    return true
+end
+
+function CharacterTraits:categoryFrontier()
+    if self._categoryFrontier then return self._categoryFrontier end
+    local frontier,counts={},{}
+    for _,category in ipairs(CharacterTraits.RESEARCH_CATEGORIES)do
+        local candidates={}
+        for _,job in ipairs({"fire","universal"})do
+            for _,node in ipairs(self:getScoreAttackNodes(job))do
+                if node.researchCategory==category.id and self:getLevel(node.id)<node.max and baseResearchReady(self,node)then
+                    candidates[#candidates+1]=node
+                end
+            end
+        end
+        -- 이미 손댄 연구를 먼저 마무리할 수 있게 두고, 그 다음은 기존 연구판의
+        -- 안정적인 작성 순서로 전진한다. 어느 경우에도 한 카테고리에서 5개를 넘지 않는다.
+        table.sort(candidates,function(a,b)
+            local ao=self:getLevel(a.id)>0 and 0 or 1
+            local bo=self:getLevel(b.id)>0 and 0 or 1
+            if ao~=bo then return ao<bo end
+            return(a.researchOrder or 0)<(b.researchOrder or 0)
+        end)
+        local count=math.min(CharacterTraits.RESEARCH_FRONTIER_PER_CATEGORY,#candidates)
+        counts[category.id]={ready=#candidates,active=count,total=0,owned=0}
+        for index=1,count do frontier[candidates[index].id]=true end
+    end
+    for _,job in ipairs({"fire","universal"})do for _,node in ipairs(self:getScoreAttackNodes(job))do
+        local summary=counts[node.researchCategory]
+        if summary then
+            summary.total=summary.total+1
+            if self:getLevel(node.id)>0 then summary.owned=summary.owned+1 end
+        end
+    end end
+    self._categoryFrontier,self._categoryFrontierCounts=frontier,counts
+    return frontier
+end
+
+function CharacterTraits:categoryFrontierSummary(id)
+    self:categoryFrontier()
+    return self._categoryFrontierCounts[id]or{ready=0,active=0,total=0,owned=0}
+end
+
+function CharacterTraits:isInCategoryFrontier(id)
+    local node=type(id)=="table"and id or byId[id]
+    if not node or not node.scoreMode then return true end
+    return self:categoryFrontier()[node.id]==true
 end
 
 function CharacterTraits:getRequirements(id)
@@ -676,6 +772,10 @@ function CharacterTraits:status(id)
         if self:getLevel(requirement[1]) < requirement[2] then
             return false, byId[requirement[1]].name .. " " .. requirement[2] .. "단계 필요"
         end
+    end
+    if node.scoreMode and not self:isInCategoryFrontier(node)then
+        local category=self:getResearchCategory(node)
+        return false,(category and category.name or"카테고리").." 앞선 연구 완료 필요"
     end
     local cost = self:nodeCost(node, level)
     if self.data.currency < cost then return false, "연구 코인 " .. cost .. " 필요" end
@@ -727,6 +827,7 @@ function CharacterTraits:buy(id)
     self.data.currency = self.data.currency - cost
     self.data.levels[id] = self:getLevel(id) + 1
     self._scoreRanks = nil
+    self._categoryFrontier=nil
     self:save()
     return true, byId[id].name .. " " .. self:getLevel(id) .. "단계 해금"
 end
@@ -764,6 +865,7 @@ function CharacterTraits:maxAll()
         nodes,ranks=nodes+1,ranks+node.max
     end
     self._scoreRanks=nil
+    self._categoryFrontier=nil
     self:save()
     return nodes,ranks
 end
@@ -778,6 +880,7 @@ function CharacterTraits:setScoreProgress(percent)
         if node.scoreMode then self.data.levels[id]=0;total=total+node.max end
     end
     self._scoreRanks=nil
+    self._categoryFrontier=nil
     local target=math.floor(total*percent/100)
     for rank=1,target do
         local best,bestCost
@@ -796,6 +899,7 @@ function CharacterTraits:setScoreProgress(percent)
         assert(best,"score research graph cannot reach requested developer progress")
         self.data.levels[best.id]=self:getLevel(best.id)+1
         self._scoreRanks=nil
+        self._categoryFrontier=nil
     end
     self:save()
     return target,total
@@ -900,7 +1004,7 @@ function CharacterTraits:nextGoal()
                 for _,requirement in ipairs(self:getRequirements(node))do
                     if self:getLevel(requirement[1])<requirement[2] then ready=false end
                 end
-                if ready then
+                if ready and self:isInCategoryFrontier(node)then
                     local cost=self:nodeCost(node,level) or 0
                     if not best or cost<best.cost then
                         best={id=node.id,name=node.name,cost=cost,level=level,max=node.max,
@@ -916,6 +1020,7 @@ end
 function CharacterTraits:reset()
     self.data = defaults()
     self._scoreRanks = nil
+    self._categoryFrontier=nil
     self:save()
 end
 

@@ -630,7 +630,7 @@ function CharacterTraitBoard:draw()
     Frontend.button(self.backBox,"← 돌아가기",fonts.small,{accent=STRUCTURE})
     local titleX=184*textScale
     love.graphics.setFont(fonts.title); love.graphics.setColor(.18,.19,.17); love.graphics.print("강화하기",titleX,titleY)
-    love.graphics.setFont(fonts.small); love.graphics.setColor(.38,.40,.37); love.graphics.print("중앙 장비에서 여러 갈래로 연구를 확장합니다",titleX,subtitleY)
+    love.graphics.setFont(fonts.small); love.graphics.setColor(.38,.40,.37); love.graphics.print("하나의 연구망 · 카테고리마다 구매 가능한 연구 최대 5개",titleX,subtitleY)
     love.graphics.setFont(fonts.small);love.graphics.setColor(.38,.40,.37);love.graphics.printf("연구 코인",w-250*textScale,20*textScale,118*textScale,"right")
     love.graphics.setFont(fonts.big);love.graphics.setColor(.24,.54,.32);love.graphics.printf(tostring(self.store.data.currency),w-126*textScale,16*textScale,100*textScale,"right")
 
@@ -660,9 +660,16 @@ function CharacterTraitBoard:draw()
     love.graphics.setColor(.94,.95,.91,.98);love.graphics.rectangle("fill",infoX,infoY,infoW,infoH,3,3)
     love.graphics.setColor(.27,.29,.26,.82);love.graphics.setLineWidth(2);love.graphics.rectangle("line",infoX+.5,infoY+.5,infoW-1,infoH-1,3,3);love.graphics.setLineWidth(1)
     local level=self.store:getLevel(focus.id);local ok,reason,cost=self.store:status(focus.id)
-    love.graphics.setFont(fonts.body);love.graphics.setColor(.15,.16,.14);love.graphics.print(focus.name,infoX+22*textScale,infoY+11*textScale)
+    local category=self.store.getResearchCategory and self.store:getResearchCategory(focus)or nil
+    local categorySummary=category and self.store:categoryFrontierSummary(category.id)or nil
+    love.graphics.setFont(fonts.micro);love.graphics.setColor(.23,.55,.31)
+    local categoryText=category and category.name or"보존 연구"
+    love.graphics.print(categoryText,infoX+22*textScale,infoY+13*textScale)
+    love.graphics.setFont(fonts.body);love.graphics.setColor(.15,.16,.14);love.graphics.print(focus.name,infoX+150*textScale,infoY+11*textScale)
     love.graphics.setFont(fonts.micro or fonts.small);love.graphics.setColor(.34,.36,.33);love.graphics.print(focus.desc,infoX+22*textScale,infoY+39*textScale)
-    love.graphics.setColor(.23,.55,.31);love.graphics.print("단계 "..level.." / "..focus.max,infoX+22*textScale,infoY+64*textScale)
+    love.graphics.setColor(.23,.55,.31)
+    local frontierCopy=categorySummary and(" · 구매 가능 "..categorySummary.active.." / "..self.store.RESEARCH_FRONTIER_PER_CATEGORY)or""
+    love.graphics.print("단계 "..level.." / "..focus.max..frontierCopy,infoX+22*textScale,infoY+64*textScale)
     local actionW=190*textScale;local actionX=infoX+infoW-actionW-16*textScale
     if level>=focus.max then
         self.buyButtonBox=nil;love.graphics.setColor(.35,.39,.34);love.graphics.printf("연구 완료",actionX,infoY+57*textScale,actionW,"center")
@@ -740,7 +747,7 @@ function CharacterTraitBoard:draw()
     self.minimapBox=nil;self.resetViewBox=nil
     love.graphics.setColor(.27,.28,.26,.88);love.graphics.rectangle("fill",0,h-footerH,w,footerH)
     love.graphics.setFont(fonts.micro or fonts.small);love.graphics.setColor(.94,.95,.91,.88)
-    love.graphics.printf("◆ 구매 가능     ·     클릭  강화 선택     ·     드래그  트리 이동     ·     휠  확대/축소",0,h-footerH+(footerH-fonts.small:getHeight())/2,w,"center")
+    love.graphics.printf("◆ 구매 가능     ·     카테고리당 최대 5개     ·     클릭  강화 선택     ·     드래그  이동     ·     휠  확대/축소",0,h-footerH+(footerH-fonts.small:getHeight())/2,w,"center")
     if self.messageTime>0 then
         local width=math.min(520,w*.46)
         love.graphics.setColor(.94,.95,.91,.98); love.graphics.rectangle("fill",w/2-width/2,h-82,width,38,3,3)

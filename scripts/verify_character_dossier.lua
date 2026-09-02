@@ -25,8 +25,10 @@ assert(dossier:find("활성 나무 0그루 달성 또는 40초 뒤 세계수 처
 assert(dossier:find("인게임 XP·레벨업·강화 3택 없음 · 목재는 점수와 정산만",1,true),"dossier score-mode growth summary is stale")
 assert(dossier:find("없음 · 멧돼지·다람쥐 등 일반 몬스터 비활성",1,true),"dossier score-mode monster rule is stale")
 assert(dossier:find("재생 단계 제한 및 목표 단계 가격 노드는 표의 고정 가격",1,true),"dossier research-price rule is stale")
-assert(dossier:find("중앙 루트의 상·하·좌·우 분기 · 꽁초 즉시 타격은 기본 적용 · 방향별 동일 단계 간격 · 기준 간격의 85~115% 줌 · 화면 해상도별 한글 폰트 재래스터",1,true),
+assert(dossier:find("전체 노드 수 유지 · 하나의 통합 연구망 · 7개 카테고리별 구매 후보 최대 5개 · 꽁초 즉시 타격은 기본 적용",1,true),
     "dossier research-board summary is stale")
+assert(dossier:find("function researchCategory(id)",1,true)and dossier:find('class="category-badge"',1,true),
+    "dossier does not expose the integrated research categories")
 assert(dossier:find("소량은 1개씩·대량은 묶음 단위로 코인 변환",1,true)and dossier:find("약 4초 상한",1,true),
     "dossier result-screen summary is stale")
 assert(dossier:find("fire_score_prewarm",1,true)and not dossier:find("fire_score_impact",1,true)and dossier:find("fire_score_stock",1,true),
