@@ -358,15 +358,17 @@ pickupStore.data.levels.fire_score_pickup_1=3
 pickupStore.data.levels.fire_score_pickup_2=3
 assert(pickupStore:scoreAttackEffects().pickupRadius==405,
     "early and late wood pull-range nodes did not accumulate into score runtime pickup radius")
-local flameNodeCount,flameCost=0,0
+local flameNodeCount,flameCost,flameRange=0,0,0
 for _,node in ipairs(store:getScoreAttackNodes("fire"))do
     if node.id:match("^fire_score_flame_damage")or node.id:match("^fire_score_flame_range")or
         node.id:match("^fire_score_flame_width")or node.id:match("^fire_score_flame_ignite")then
         flameNodeCount=flameNodeCount+1;flameCost=flameCost+node.costs[1]
+        if node.effect=="scoreFlameRange"then flameRange=flameRange+node.value end
         assert(node.max==1 and #node.costs==1,"flamethrower upgrade still contains stacked ranks: "..node.id)
     end
 end
 assert(flameNodeCount==18 and flameCost==1472,"flamethrower split changed its rank count or total cost")
+assert(flameRange==250,"maxed flamethrower research does not extend reach from 250 to 500")
 local popperUnlock=store:getNode("fire_score_popper_unlock")
 assert(#popperUnlock.requires==1 and popperUnlock.requires[1][1]=="universal_mole_dual" and popperUnlock.requires[1][2]==1,
     "monkey popping cart is not attached directly below the mole branch")

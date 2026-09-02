@@ -1,5 +1,6 @@
 package.path="./?.lua;./?/init.lua;"..package.path
 local fixture=require("scripts.forest_render_fixture")
+love.mouse={getPosition=function()return 350,0 end}
 local Mode=require("src.clearcut_mode")
 local Art=require("src.flamethrower_art")
 
@@ -51,6 +52,10 @@ assert(fixture.commands[1]and fixture.commands[1].file=="assets/effects/smoker-f
 
 local mode=Mode.new();mode.scoreAttack=true;mode.job="fire";mode.permanentTraits.scoreFlameUnlock=1
 mode.flameVisualStyle="torch";mode.smokerGroundTime=.1;mode.flameStream=stream;local g=game()
+mode.permanentTraits.scoreFlameRange=250;mode.permanentTraits.scoreFlameWidth=56
+mode:updateFlamethrowerAttack(.13,g,true)
+assert(mode.flameStream.reach==500 and mode.flameStream.halfWidth==128,
+    "max flamethrower research did not extend reach to 500 while preserving its existing width")
 g.world.nodes={{rushTree=true,active=true,x=110,y=20,flameTorchImpactAt=0,flameTorchImpactPhase=1},
     {rushTree=true,active=true,x=210,y=30,flameTorchImpactAt=0,flameTorchImpactPhase=5}}
 mode:queueProjectedOverlay(g,.2)
