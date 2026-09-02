@@ -464,70 +464,37 @@ store.data.levels.fire_score_prewarm=0
 local board=CharacterTraitBoard.new(store,fonts,sprites)
 assert(pcall(board.draw,board), "character trait board draw contract failed")
 assert(board.researchBackground==nil,"research board restored the removed forest-photo backdrop")
-local molePositions={};local minMoleY,maxMoleY=math.huge,-math.huge
-for _,id in ipairs({"universal_mole_companion","universal_mole_damage","universal_mole_speed","universal_mole_attack_speed",
-    "universal_mole_claw","universal_mole_dual","universal_mole_extra","universal_mole_burrow",
-    "universal_mole_burrow_speed","universal_mole_burrow_damage","universal_mole_burrow_cooldown"})do
-    local mx,my=board:nodeWorld(store:getNode(id));local key=mx..":"..my
-    assert(not molePositions[key],"split mole research nodes overlap at "..key);molePositions[key]=true
-    minMoleY,maxMoleY=math.min(minMoleY,my),math.max(maxMoleY,my)
-end
-assert(maxMoleY-minMoleY>=700,"mole research graph is still compressed into one non-scrollable node cluster")
-local oilX,oilY=board:nodeWorld(store:getNode("universal_oil_drum"))
-local catX,catY=board:nodeWorld(store:getNode("universal_gray_cat"))
-local oilCatDistance=math.sqrt((oilX-catX)^2+(oilY-catY)^2)
-assert(oilY<catY and oilCatDistance>=500 and oilCatDistance<=750,
-    "oil drum root is not visibly separated above its connected gray-cat branch")
-local chanceX,chanceY=board:nodeWorld(store:getNode("universal_gray_cat_chance"))
-local delayX,delayY=board:nodeWorld(store:getNode("universal_gray_cat_delay"))
-local speedX,speedY=board:nodeWorld(store:getNode("universal_gray_cat_speed"))
-local exitX,exitY=board:nodeWorld(store:getNode("universal_gray_cat_exit_speed"))
-local function catDistance(ax,ay,bx,by)return math.sqrt((ax-bx)^2+(ay-by)^2)end
-assert(catDistance(catX,catY,chanceX,chanceY)<=320,
-    "gray cat chance upgrade is not attached to the cat unlock")
-assert(catDistance(chanceX,chanceY,delayX,delayY)<=320,
-    "gray cat delay upgrade is not the next node in the cat branch")
-assert(catDistance(catX,catY,speedX,speedY)<=430,
-    "gray cat speed upgrade is not visibly grouped with the cat unlock")
-local exitNode=store:getNode("universal_gray_cat_exit_speed")
-assert(exitNode.requires[1][1]=="universal_gray_cat_speed"and not(speedX==exitX and speedY==exitY),
-    "gray cat exit-speed upgrade is not a distinct child of the entry-speed node")
-assert(not(chanceX==delayX and chanceY==delayY)and not(chanceX==speedX and chanceY==speedY),
-    "gray cat upgrades overlap instead of forming visible branches")
-local oilIds={"universal_oil_drum","universal_oil_interval","universal_oil_radius","universal_oil_splash_count",
-    "universal_oil_patch_scale","universal_oil_radius_2","universal_oil_radius_3","universal_oil_splash_count_2",
-    "universal_oil_ignition_radius","universal_oil_duration","universal_oil_damage","universal_oil_burn_duration"}
-local oilPositions={}
-for _,id in ipairs(oilIds)do
-    local ox,oy=board:nodeWorld(store:getNode(id));oilPositions[id]={x=ox,y=oy}
-end
-assert(oilPositions.universal_oil_drum.y<catY and oilPositions.universal_oil_interval.y<oilPositions.universal_oil_drum.y,
-    "oil drum research branch was not moved above the cat and facility cluster")
-for i=1,#oilIds do for j=i+1,#oilIds do
-    local a,b=oilPositions[oilIds[i]],oilPositions[oilIds[j]]
-    local dx,dy=a.x-b.x,a.y-b.y
-    assert(dx*dx+dy*dy>=300*300,"oil drum research nodes are still packed too closely: "..oilIds[i].." / "..oilIds[j])
-end end
 local root=store:getNode("fire_score_prewarm")
 local rx,ry=board:nodeWorld(root)
 assert(store:getNode("fire_score_impact")==nil,"removed cigarette-impact research still has a board position")
-local directions={left=false,right=false,up=false,down=false}
-for _,id in ipairs({"fire_score_filter","fire_score_lighter","fire_score_launch","fire_score_alwayssmoke"})do
-    local nx,ny=board:nodeWorld(store:getNode(id));local dx,dy=nx-rx,ny-ry
-    if math.abs(dx)>math.abs(dy)then directions[dx<0 and"left"or"right"]=true else directions[dy<0 and"up"or"down"]=true end
+local layout=board:researchLayout()
+assert(rx==layout.center.x and ry==layout.center.y,"integrated research root is not at the map center")
+local allPositions,minX,maxX,minY,maxY={},math.huge,-math.huge,math.huge,-math.huge
+for _,node in ipairs(board:nodesFor("all"))do
+    local nx,ny=board:nodeWorld(node);local key=nx..":"..ny
+    assert(not allPositions[key],"research nodes overlap at world position "..key)
+    allPositions[key]=node.id;minX,maxX=math.min(minX,nx),math.max(maxX,nx);minY,maxY=math.min(minY,ny),math.max(maxY,ny)
 end
-assert(directions.left and directions.right and directions.up and directions.down,"smoker root does not place always-smoking as its downward second node")
+assert(maxX-minX>=6000 and maxY-minY>=5000,"research map was not expanded enough for readable category islands")
+for _,category in ipairs(store:getResearchCategories())do
+    local spec=assert(layout.categories[category.id],"missing category hub: "..category.id)
+    local hubDistance=math.sqrt((spec.x-rx)^2+(spec.y-ry)^2)
+    assert(hubDistance>=1200,"category hub is packed against the integrated root: "..category.id)
+    local roots=layout.categoryRoots[category.id]
+    assert(roots and #roots>0,"category has no visible branch entrance: "..category.id)
+    for _,node in ipairs(roots)do
+        local nx,ny=board:nodeWorld(node)
+        assert((nx-spec.x)*spec.dx+(ny-spec.y)*spec.dy>0,
+            "category branch does not grow outward from its hub: "..node.id)
+    end
+end
 for i=1,#board.nodeBoxes do for j=i+1,#board.nodeBoxes do
     local a,b=board.nodeBoxes[i],board.nodeBoxes[j]
     local separated=a.x+a.w<=b.x or b.x+b.w<=a.x or a.y+a.h<=b.y or b.y+b.h<=a.y
     assert(separated,"research nodes overlap at 1280x720: "..a.id.." / "..b.id)
 end end
-assert(board.viewInitialized and board.zoom==board.referenceZoom and board.referenceZoom>=.56 and board.referenceZoom<=.80,"research tree did not open at its authored reference spacing")
-local function distance(a,b)local ax,ay=board:nodeWorld(store:getNode(a));local bx,by=board:nodeWorld(store:getNode(b));return math.sqrt((ax-bx)^2+(ay-by)^2)end
-assert(distance("fire_score_prewarm","fire_score_filter")==distance("fire_score_filter","fire_score_spark"),"left branch step lengths differ")
-assert(distance("fire_score_prewarm","fire_score_lighter")==distance("fire_score_lighter","fire_score_ash"),"right branch step lengths differ")
-assert(distance("fire_score_prewarm","fire_score_launch")==distance("fire_score_launch","fire_score_drag"),"upper branch step lengths differ")
-assert(distance("fire_score_prewarm","fire_score_alwayssmoke")==distance("fire_score_alwayssmoke","fire_score_autothrow"),"always-smoking branch step lengths differ")
+assert(board.viewInitialized and board.zoom==board.referenceZoom and board.referenceZoom>=.04 and board.referenceZoom<=.24,
+    "research tree did not open on the integrated root and category entrances")
 store.data.currency=1000
 local rootBox
 for _,box in ipairs(board.nodeBoxes)do

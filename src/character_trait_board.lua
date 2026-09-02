@@ -1,6 +1,7 @@
 local UI = require("src.ui")
 local Frontend = require("src.frontend_ui")
 local TraitNodeArt = require("src.trait_node_art")
+local ResearchBoardLayout = require("src.research_board_layout")
 
 local CharacterTraitBoard = {}
 CharacterTraitBoard.__index = CharacterTraitBoard
@@ -124,7 +125,7 @@ function CharacterTraitBoard.new(store, fonts, sprites)
         tabBoxes={}, nodeBoxes={}, nodeHover={}, particles={}, time=0,
         message="", messageTime=0, messageKind="ok", unlockFx=nil,
         selectedNodeId=first and first.id or"fire_score_prewarm", blockedNode=nil, blockedTime=0, tabPulse=0,
-        canvasW=5400,canvasH=2650,panX=1100,panY=920,zoom=.80,referenceZoom=.80,panVX=0,panVY=0,drag=nil,viewport=nil,viewInitialized=false,crispFonts={},
+        canvasW=34000,canvasH=26000,panX=ResearchBoardLayout.CENTER.x,panY=ResearchBoardLayout.CENTER.y,zoom=.05,referenceZoom=.05,panVX=0,panVY=0,drag=nil,viewport=nil,viewInitialized=false,crispFonts={},
         minimapBox=nil,resetViewBox=nil
     }, CharacterTraitBoard)
 end
@@ -140,12 +141,18 @@ function CharacterTraitBoard:nodesFor(job)
     return self.store:getNodes(job)
 end
 
+function CharacterTraitBoard:researchLayout()
+    if not self._researchLayout then self._researchLayout=ResearchBoardLayout.build(self.store,self:nodesFor(self.selectedJob))end
+    return self._researchLayout
+end
+
 function CharacterTraitBoard:selectJob(job)
     if self.selectedJob == job then return end
     local nodes=self:nodesFor(job)
     self.selectedJob, self.selectedNodeId = job, nodes[1]and nodes[1].id or nil
     self.tabPulse, self.messageTime, self.blockedTime = 1, 0, 0
-    self.panX,self.panY,self.zoom,self.referenceZoom,self.panVX,self.panVY,self.viewInitialized=1100,job=="fire"and 920 or 850,.80,.80,0,0,false
+    self._researchLayout=nil
+    self.panX,self.panY,self.zoom,self.referenceZoom,self.panVX,self.panVY,self.viewInitialized=ResearchBoardLayout.CENTER.x,ResearchBoardLayout.CENTER.y,.05,.05,0,0,false
 end
 
 function CharacterTraitBoard:crispFont(size,bold)
@@ -162,11 +169,10 @@ function CharacterTraitBoard:fitResearchTree()
     local nodes=self:nodesFor(self.selectedJob);if #nodes==0 then return end
     local minX,maxX,minY,maxY=math.huge,-math.huge,math.huge,-math.huge
     for _,node in ipairs(nodes)do local x,y=self:nodeWorld(node);minX,maxX=math.min(minX,x),math.max(maxX,x);minY,maxY=math.min(minY,y),math.max(maxY,y)end
-    -- 합친 연구판의 정중앙은 흡연자 갈래와 공용 갈래 사이의 빈 곳이라, 열자마자
-    -- 어느 쪽 트리도 제대로 안 보인다. 진행이 시작되는 뿌리 노드에 시점을 맞춘다.
-    local root=self.store:getNode("fire_score_prewarm")
-    if root then self.panX,self.panY=self:nodeWorld(root)
-    else self.panX,self.panY=(minX+maxX)/2,(minY+maxY)/2 end
+    -- 첫 화면은 세부 노드 전체가 아니라 중앙 루트와 일곱 카테고리 입구가 먼저
+    -- 읽히는 배율이다. 각 갈래 내부는 확대·드래그해서 탐색한다.
+    local layout=self:researchLayout()
+    self.panX,self.panY=layout.center.x,layout.center.y
     -- 연구판을 한 판으로 합치면서 내용이 화면보다 훨씬 커졌다(1280x720에서 가로 64%,
     -- 세로 46%만 보인다). 전체를 한눈에 보려면 어디까지 물러날 수 있어야 하는지를
     -- 여기서 계산해 두고, 휠 축소 하한으로 쓴다.
@@ -174,7 +180,7 @@ function CharacterTraitBoard:fitResearchTree()
     self.contentCX,self.contentCY=(minX+maxX)/2,(minY+maxY)/2
     -- Reset returns to the authored reference spacing. Zoom stays a readability
     -- adjustment upward; downward it may pull back far enough to see the whole tree.
-    self.referenceZoom=clamp((self.viewport.w/1748)*.80,.56,.80)
+    self.referenceZoom=clamp(math.min(self.viewport.w/24000,self.viewport.h/14000),.04,.24)
     self.zoom=self.referenceZoom
     self.panVX,self.panVY,self.viewInitialized=0,0,true
     self:clampCamera()
@@ -321,6 +327,10 @@ function CharacterTraitBoard:wheelmoved(_,delta)
 end
 
 function CharacterTraitBoard:nodeWorld(node)
+    if self.activeDevelopmentMode=="score_attack"and self.store.getResearchCategory then
+        local position=self:researchLayout().positions[node.id]
+        if position then return position[1],position[2]end
+    end
     -- 기록전 연구는 수가 적어 한 화면에 전부 읽혀야 한다. 저장 데이터의 좌표를
     -- 바꾸지 않고 화면에서만 뿌리->가지 방향의 고정 배치를 사용한다.
     local scoreLayout={
@@ -449,6 +459,61 @@ function CharacterTraitBoard:drawConnection(bounds, from, to, active, available,
         love.graphics.circle("fill",x1+(x2-x1)*travel,y1+(y2-y1)*travel,math.max(1,5*z))
     end
     love.graphics.setLineWidth(1)
+end
+
+function CharacterTraitBoard:worldPosition(bounds,x,y)
+    return bounds.x+bounds.w/2+(x-self.panX)*self.zoom,bounds.y+bounds.h/2+(y-self.panY)*self.zoom
+end
+
+function CharacterTraitBoard:drawResearchSkeleton(bounds,fonts,nodeById)
+    local layout=self:researchLayout()
+    local root=nodeById[layout.rootId]
+    if not root then return end
+    local rootX,rootY=layout.center.x,layout.center.y
+    local categories=self.store:getResearchCategories()
+    for _,category in ipairs(categories)do
+        local spec=layout.categories[category.id]
+        if spec then
+            local x1,y1=self:worldPosition(bounds,rootX,rootY)
+            local x2,y2=self:worldPosition(bounds,spec.x,spec.y)
+            local z=self.zoom or .2
+            love.graphics.setLineWidth(math.max(1,12*z));love.graphics.setColor(.24,.52,.31,.24)
+            love.graphics.line(x1,y1,x2,y2)
+            love.graphics.setLineWidth(math.max(1,5*z));love.graphics.setColor(.24,.56,.33,.92)
+            love.graphics.line(x1,y1,x2,y2)
+
+            for _,node in ipairs(layout.categoryRoots[category.id]or{})do
+                local nx,ny=self:nodeWorld(node)
+                local sx,sy=self:worldPosition(bounds,nx,ny)
+                love.graphics.setLineWidth(math.max(1,4*z));love.graphics.setColor(.30,.58,.37,.66)
+                love.graphics.line(x2,y2,sx,sy)
+            end
+
+            local hubRadius=clamp(92*z,18,62)
+            love.graphics.setColor(0,0,0,.16);drawHex(x2+3,y2+5,hubRadius+5,"fill")
+            love.graphics.setColor(.88,.91,.84,1);drawHex(x2,y2,hubRadius,"fill")
+            love.graphics.setLineWidth(math.max(1,4*z));love.graphics.setColor(.21,.49,.29,1);drawHex(x2,y2,hubRadius,"line")
+            local summary=self.store:categoryFrontierSummary(category.id)
+            local labelW=clamp(330*z,116,260)
+            local labelFont=self:crispFont(clamp(42*z,11,22),true)
+            love.graphics.setColor(.88,.89,.85,.96)
+            love.graphics.rectangle("fill",x2-labelW/2,y2+hubRadius+7,labelW,labelFont:getHeight()+23,3,3)
+            love.graphics.setFont(labelFont);love.graphics.setColor(.15,.26,.17,1)
+            love.graphics.printf(category.name,x2-labelW/2+5,y2+hubRadius+10,labelW-10,"center")
+            local countFont=self:crispFont(clamp(30*z,10,15),false)
+            love.graphics.setFont(countFont);love.graphics.setColor(.27,.50,.31,1)
+            love.graphics.printf("구매 가능 "..summary.active.." / "..self.store.RESEARCH_FRONTIER_PER_CATEGORY,
+                x2-labelW/2+5,y2+hubRadius+10+labelFont:getHeight(),labelW-10,"center")
+        end
+    end
+    love.graphics.setLineWidth(1)
+
+    local rx,ry=self:worldPosition(bounds,rootX,rootY)
+    local rootFont=self:crispFont(clamp(46*(self.zoom or .2),12,24),true)
+    local rootW=clamp(390*(self.zoom or .2),130,280)
+    love.graphics.setColor(.88,.89,.85,.96);love.graphics.rectangle("fill",rx-rootW/2,ry-62*(self.zoom or .2)-rootFont:getHeight()-12,rootW,rootFont:getHeight()+8,3,3)
+    love.graphics.setFont(rootFont);love.graphics.setColor(.14,.24,.16,1)
+    love.graphics.printf("통합 연구 루트",rx-rootW/2+5,ry-62*(self.zoom or .2)-rootFont:getHeight()-8,rootW-10,"center")
 end
 
 function CharacterTraitBoard:drawNode(box, node, level, statusOk, requirementReady, hovered)
@@ -687,10 +752,15 @@ function CharacterTraitBoard:draw()
     love.graphics.setScissor(graph.x,graph.y,graph.w,graph.h)
     local nodeById={}
     for _,node in ipairs(nodes) do nodeById[node.id]=node end
+    self:drawResearchSkeleton(graph,fonts,nodeById)
     for _,node in ipairs(nodes) do
         for _,requirement in ipairs(self.store:getRequirements(node)) do
             local parent=nodeById[requirement[1]]
-            if parent then
+            local parentCategory=parent and self.store:getResearchCategory(parent)
+            local nodeCategory=self.store:getResearchCategory(node)
+            -- 카테고리 사이를 가로지르는 긴 선은 통합 루트 구조를 망가뜨리므로 생략한다.
+            -- 카테고리 내부 선행관계만 그리고, 각 카테고리의 시작점은 허브가 연결한다.
+            if parent and parent.id~=ResearchBoardLayout.ROOT_ID and parentCategory and nodeCategory and parentCategory.id==nodeCategory.id then
                 local parentReady=self.store:getLevel(parent.id)>=requirement[2]
                 self:drawConnection(graph,parent,node,parentReady and self.store:getLevel(node.id)>0,parentReady,node.color)
             end
@@ -712,7 +782,9 @@ function CharacterTraitBoard:draw()
     -- 라벨 폭은 96px 아래로 줄지 않는다. 전체 조망까지 축소하면 노드 간격이 그보다
     -- 좁아져 라벨이 서로 겹쳐 글자 죽이 된다. 조망 구간에서는 라벨을 빼고 아이콘과
     -- 연결선으로 구조만 읽게 한다 — 이름은 확대하거나 노드를 클릭하면 상단에 나온다.
-    local showLabels=(self.zoom or .8)>=(self.referenceZoom or .8)*.85-1e-6
+    -- 전체 조망에서는 개별 이름을 억지로 겹쳐 쓰지 않는다. 중앙 루트와 카테고리
+    -- 허브만 읽고, 카테고리 안으로 확대했을 때 실제 노드 이름이 나타난다.
+    local showLabels=(self.zoom or .8)>=.16
     for _,node in ipairs(nodes) do
         local cx,cy=self:nodePosition(graph,node)
         if cx>=graph.x-80 and cx<=graph.x+graph.w+80 and cy>=graph.y-80 and cy<=graph.y+graph.h+80 then
@@ -730,15 +802,13 @@ function CharacterTraitBoard:draw()
             local nodeR=(node.capstone and 38 or 32)*nodeScale
             if showLabels then
                 local labelW=clamp(178*(self.zoom or .8),96,178)
-                local wx=self:nodeWorld(node)
-                local vertical=math.abs(wx-1100)<8 and node.id~="fire_score_prewarm" and node.id~="universal_robot_start"
-                local labelX=vertical and (box.cx+nodeR+9) or (box.cx-labelW/2)
-                local labelY=vertical and (box.cy-10*uiScale) or (box.cy+nodeR+13*uiScale)
+                local labelX=box.cx-labelW/2
+                local labelY=box.cy+nodeR+13*uiScale
                 local labelH=labelFont:getHeight()+6
                 love.graphics.setColor(.88,.89,.85,(hovered or node.id==self.selectedNodeId)and .96 or .82)
                 love.graphics.rectangle("fill",labelX,labelY-3,labelW,labelH,2,2)
                 love.graphics.setFont(labelFont); love.graphics.setColor(hovered and {.12,.15,.12,1} or {.25,.27,.24,.94})
-                love.graphics.printf(node.short or self:nodeLabel(node),labelX+5,labelY+1,labelW-10,vertical and "left" or "center")
+                love.graphics.printf(node.short or self:nodeLabel(node),labelX+5,labelY+1,labelW-10,"center")
             end
         end
     end
