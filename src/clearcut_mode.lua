@@ -2306,6 +2306,7 @@ function ClearcutMode:extinguishAllFire(game)
         bale.primedAt=nil
         if bale.ignited then bale.ignited,bale.ignitedAt,bale.tickTimer=false,nil,nil end
     end
+    if self.pizzaOven then self.pizzaOven.fireworkBurnTimer=0 end
     for _,transfer in ipairs(self.emberTransfers or {}) do
         if transfer.target and transfer.target.cigaretteEmber==transfer then transfer.target.cigaretteEmber=nil end
     end
@@ -4590,14 +4591,46 @@ end
 
 function ClearcutMode:detonateFirework(projectile,game)
     local radius=projectile.radius;local felled=0
-    ClearcutMode.BombMonkey.igniteInRadius(self,projectile.x1,projectile.y1,radius)
-    for _,node in ipairs(game.world.nodes)do if node.rushTree and node.active and CombatGeometry.circleOverlapsTarget(projectile.x1,projectile.y1,radius,node,24)then
-        if self:damageTreeWithSmokerWeapon(node,projectile.damage,game)then felled=felled+1
-        elseif not self.rainSuppressFire and love.math.random()<.38+(self.permanentTraits.scoreRocketIgnite or 0) then self:beginTreeBurn(node,0) end
+    -- 직접 폭발 반경 안의 가연물은 확정 점화한다. 기존 `scoreRocketIgnite`는 확률을
+    -- 더하던 값이라 만렙에도 빗나갔고, 기름·설비에는 아예 쓰이지 않았다. 이제 같은
+    -- 값을 발화 반경 배율로 써서 기본 폭발은 확정적으로 붙고 연구는 주변까지 넓힌다.
+    local ignitionRadius=radius*(1+math.max(0,self.permanentTraits.scoreRocketIgnite or 0))
+    if not self.rainSuppressFire then
+        ClearcutMode.BombMonkey.igniteInRadius(self,projectile.x1,projectile.y1,ignitionRadius)
+        ClearcutMode.PoppingMachine.igniteInRadius(self,projectile.x1,projectile.y1,ignitionRadius)
+        ClearcutMode.PizzaOven.igniteInRadius(self,projectile.x1,projectile.y1,ignitionRadius)
+        for _,spot in ipairs(self.oilTrail or{})do
+            local hitRadius=spot.hitRadius or(spot.source=="drum"and 42 or 55)
+            if not spot.ignited and (spot.x-projectile.x1)^2+(spot.y-projectile.y1)^2<=(ignitionRadius+hitRadius)^2 then
+                self:igniteOilTrail(spot,game)
+            end
+        end
+        local now=self.smokerGroundTime or 0
+        for _,bale in ipairs(self.strawBales or{})do
+            local hitRadius=bale.triggerRadius or 110
+            if not bale.ignited and (bale.x-projectile.x1)^2+(bale.y-projectile.y1)^2<=(ignitionRadius+hitRadius)^2 then
+                bale.ignited,bale.ignitedAt,bale.tickTimer,bale.primedAt=true,now,0,nil
+            end
+        end
+    end
+    for _,node in ipairs(game.world.nodes)do if node.rushTree and node.active then
+        local damaged=CombatGeometry.circleOverlapsTarget(projectile.x1,projectile.y1,radius,node,24)
+        local ignited=not self.rainSuppressFire
+            and CombatGeometry.circleOverlapsTarget(projectile.x1,projectile.y1,ignitionRadius,node,24)
+        local fell=false
+        if damaged then fell=self:damageTreeWithSmokerWeapon(node,projectile.damage,game);if fell then felled=felled+1 end end
+        if ignited and not fell and node.active and not node.burning then
+            self:beginTreeBurn(node,0)
+            if game.world.igniteFx then game.world:igniteFx(node.x,node.y,false) end
+        end
     end end
-    for _,enemy in ipairs(self.enemies)do if enemy.hp>0 and CombatGeometry.circleOverlapsTarget(projectile.x1,projectile.y1,radius,enemy)then
-        enemy.hp=enemy.hp-(28+projectile.damage*1.5);enemy.visualHit=.18
-        if self:enemyHasCategory(enemy,"plant")then self:igniteEnemy(enemy,game,self.smokerGroundTime)end
+    for _,enemy in ipairs(self.enemies)do if enemy.hp>0 then
+        if CombatGeometry.circleOverlapsTarget(projectile.x1,projectile.y1,radius,enemy)then
+            enemy.hp=enemy.hp-(28+projectile.damage*1.5);enemy.visualHit=.18
+        end
+        if CombatGeometry.circleOverlapsTarget(projectile.x1,projectile.y1,ignitionRadius,enemy)then
+            self:igniteEnemy(enemy,game,self.smokerGroundTime)
+        end
     end end
     self.maxChain=math.max(self.maxChain,felled)
     self.smokerWeaponProjectiles[#self.smokerWeaponProjectiles+1]={kind="firework_burst",x=projectile.x1,y=projectile.y1,age=0,life=1,radius=radius}

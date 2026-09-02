@@ -39,6 +39,7 @@ Oven.BASE_CALL=520          -- 이 거리 안의 동료만 먹으러 온다
 Oven.BASE_DURATION=30       -- 버프 지속
 Oven.EAT_TIME=.8            -- 앉아서 먹는 시간
 Oven.ARRIVE=64              -- 화덕 앞으로 인정하는 거리
+Oven.FIREWORK_BURN_DURATION=4 -- 폭죽 직격 뒤 화실이 직접 타는 시간
 
 local function traits(mode)return mode.permanentTraits or{} end
 
@@ -91,6 +92,21 @@ function Oven.spawn(mode,game)
     local x,y=Maps.constrain(world,(world.width or 3200)*.5,(world.height or 2000)*.5,90)
     mode.pizzaOven={x=x,y=y,heat=0,heatRate=0,slices=0,life=0,fire=0,flare=0,bakedTotal=0,servedTotal=0}
     return mode.pizzaOven
+end
+
+-- 폭죽이 화덕 본체를 맞히면 주변 불목이 없어도 화실이 직접 붙는다. 한 번의 직격은
+-- 타는 나무 한 그루와 같은 화력을 4초만 보태므로 화덕의 핵심인 불목 운영을 대체하지
+-- 않지만, 전용 화실 불꽃과 실제 열 생산이 함께 켜져 "맞았는데 무반응"인 상태는 없다.
+function Oven.igniteInRadius(mode,x,y,radius)
+    if mode.rainSuppressFire then return false end
+    local oven=mode.pizzaOven
+    if not oven then return false end
+    local bodyRadius=72
+    if (oven.x-x)^2+(oven.y-y)^2>(radius+bodyRadius)^2 then return false end
+    oven.fireworkBurnTimer=math.max(oven.fireworkBurnTimer or 0,Oven.FIREWORK_BURN_DURATION)
+    oven.fireworkIgnitedAt=mode.smokerGroundTime or 0
+    oven.flare=math.max(.55,oven.flare or 0)
+    return true
 end
 
 -- 반경 안에서 실제로 타고 있는 나무 수. 화덕의 유일한 연료다.
@@ -202,12 +218,16 @@ function Oven.update(mode,dt,game)
     oven.life=oven.life+dt
     oven.flare=math.max(0,(oven.flare or 0)-dt)
 
+    if mode.rainSuppressFire then oven.fireworkBurnTimer=0 end
+    local directFire=(oven.fireworkBurnTimer or 0)>0
+    if directFire then oven.fireworkBurnTimer=math.max(0,oven.fireworkBurnTimer-dt) end
     local burning=Oven.burningNearby(mode,oven,game)
-    local rate=burning*Oven.heatPerTree(mode)
+    local heatSources=burning+(directFire and 1 or 0)
+    local rate=heatSources*Oven.heatPerTree(mode)
     if mode.rainSuppressFire then rate=rate*Oven.rainKeep(mode) end
     -- 아궁이 그림도 비가 적용된 실제 유효 화력을 따른다. 주변 나무가 시각적으로
     -- burning 상태여도 빗속에서 rate가 0이면 화덕만 활활 타는 모순이 생기면 안 된다.
-    local fireTarget=rate>0 and math.min(1,burning/4) or 0
+    local fireTarget=rate>0 and math.min(1,heatSources/4) or 0
     oven.fire=oven.fire+(fireTarget-oven.fire)*math.min(1,dt*2.4)
     oven.heatRate=rate
     oven.heat=oven.heat+rate*dt

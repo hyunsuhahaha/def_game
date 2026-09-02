@@ -5,7 +5,7 @@
 --     노드가 하나도 없어 두 무기의 피해가 영구히 고정이었고,
 --   * 도끼/폭죽 범위는 담배용 착화 범위(area)를 ×0.2, ×0.3으로 얻어 써서
 --     담배 특성을 사야 다른 무기가 자라는 기묘한 의존이 있었으며,
---   * 폭죽 비행 속도(820)와 착탄 점화 확률(0.38)은 상수로 박혀 성장이 불가능했다.
+--   * 폭죽 비행 속도(820)와 가연물 발화 범위는 전용 성장축이 없었다.
 --
 -- 이 검사는 세 무기가 각자의 성장 경로를 갖고, 서로의 수치를 훔쳐 쓰지 않는지 고정한다.
 package.path = "./?.lua;./?/init.lua;" .. package.path
@@ -164,6 +164,44 @@ local burstAfterEcho=0
 for _,projectile in ipairs(spectacle.smokerWeaponProjectiles)do if projectile.kind=="firework_burst"then burstAfterEcho=burstAfterEcho+1 end end
 assert(burstAfterEcho>=2,"삼단 대단원의 첫 지연 폭발이 보이는 버스트로 이어지지 않는다")
 
+-- 폭죽의 불은 나무 확률 판정 하나가 아니라 같은 발화 반경을 쓰는 공통 접점이다.
+-- 직접 맞은 나무는 확정 점화되고, 기름·건초·폭탄·뻥튀기차·화덕도 각자의 기존
+-- 화염 상태로 들어가야 한다. 발화 범위 연구는 피해 범위 밖의 가연물까지 넓힌다.
+do
+    local ignitionTree=tree(125)
+    local ignitionWorld={nodes={ignitionTree},width=600,height=400,
+        impactNode=function()end,igniteFx=function()end,addParticle=function()end}
+    local ignitionGame={world=ignitionWorld,player={x=0,y=0},feedback={play=function()end}}
+    local ignition=ClearcutMode.new()
+    ignition.scoreAttack,ignition.sandbox,ignition.job,ignition.mapId=true,true,"fire","forest"
+    ignition.permanentTraits.scoreRocketIgnite=.30
+    ignition.oilTrail={{x=125,y=0,spawnedAt=0,lifetime=20,hitRadius=10,ignited=false}}
+    ignition.strawBales={{x=125,y=0,age=0,triggerRadius=10,duration=6,ignited=false}}
+    ignition.poppingMachines={{x=125,y=0,state="cooldown",cooldown=5,heat=0,shake=0}}
+    ignition.pizzaOven={x=125,y=0,heat=0,heatRate=0,fire=0,flare=0,slices=0,life=0}
+    ignition.monkeyBombs={{x=125,y=0,state="unlit",fuse=0}}
+    ignition:detonateFirework({x1=0,y1=0,radius=100,damage=1},ignitionGame)
+    assert(ignitionTree.burning,"폭죽 발화 범위 안의 생존 나무가 확정 점화되지 않았다")
+    assert(ignition.oilTrail[1].ignited,"폭죽이 기름 자국을 점화하지 않았다")
+    assert(ignition.strawBales[1].ignited,"폭죽이 건초더미를 점화하지 않았다")
+    assert(ignition.poppingMachines[1].state=="heating","폭죽이 뻥튀기차를 예열하지 않았다")
+    assert((ignition.pizzaOven.fireworkBurnTimer or 0)>0,"폭죽이 화덕 화실을 점화하지 않았다")
+    assert(ignition.monkeyBombs[1].state=="lit","폭죽이 원숭이 폭탄 도화선을 점화하지 않았다")
+
+    local rainTree=tree(0)
+    local rain=ClearcutMode.new();rain.scoreAttack,rain.sandbox,rain.job,rain.mapId=true,true,"fire","forest"
+    rain.rainSuppressFire=true
+    rain.oilTrail={{x=0,y=0,spawnedAt=0,lifetime=20,ignited=false}}
+    rain.poppingMachines={{x=0,y=0,state="ready",heat=0}}
+    rain.pizzaOven={x=0,y=0,heat=0,heatRate=0,fire=0,flare=0,slices=0,life=0}
+    rain.monkeyBombs={{x=0,y=0,state="unlit",fuse=0}}
+    rain:detonateFirework({x1=0,y1=0,radius=100,damage=1},
+        {world={nodes={rainTree},impactNode=function()end,igniteFx=function()end,addParticle=function()end},player={x=0,y=0}})
+    assert(not rainTree.burning and not rain.oilTrail[1].ignited and rain.poppingMachines[1].state=="ready"
+        and not rain.pizzaOven.fireworkBurnTimer and rain.monkeyBombs[1].state=="unlit",
+        "비가 오는데 폭죽 발화가 가연물에 남았다")
+end
+
 -- 7. 상시 흡연은 루트 직후, 그 뒤 자동 투척 → 폭죽 순서로 이어진다.
 assert(nodeOf("fire_score_alwayssmoke").requires[1][1] == "fire_score_prewarm",
     "상시 흡연이 루트 바로 다음 두 번째 노드가 아니다")
@@ -174,6 +212,9 @@ assert(nodeOf("fire_score_rocket_unlock").requires[1][1] == "fire_score_autothro
 for _, id in ipairs({"fire_score_rocket_radius", "fire_score_rocket_damage"}) do
     assert(nodeOf(id).requires[1][1] == "fire_score_rocket_unlock", id .. "가 폭죽 해금 뒤에 있지 않다")
 end
+assert(nodeOf("fire_score_rocket_ignite").name=="폭죽 발화 범위 상승"
+    and nodeOf("fire_score_rocket_ignite").desc:find("기름",1,true),
+    "폭죽 발화 범위 연구가 확정 점화 대상들을 설명하지 않는다")
 
 -- 8. 폭죽은 해금 전에는 원거리 문맥을 차지하지 않는다.
 local locked = ClearcutMode.new()
@@ -370,4 +411,4 @@ local function crewSize(extra)
 end
 assert(crewSize(0) == 2 and crewSize(1) == 4, "숙련 작업반이 졸업 무기마다 원숭이를 늘리지 않는다")
 
-print("SCORE_WEAPON_TRAITS_OK shared=tree_damage axe=area+speed+targets+execute rocket=radius+damage+speed+ignite+cooldown")
+print("SCORE_WEAPON_TRAITS_OK shared=tree_damage axe=area+speed+targets+execute rocket=radius+damage+speed+guaranteed_multi_ignite+cooldown")

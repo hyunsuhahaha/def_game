@@ -51,6 +51,13 @@ assert(cart.state=="heating","burning oil did not ignite the ready cart")
 cart.state,cart.heat="ready",0;mode.oilTrail={};mode.flameStream={x=-100,y=0,nx=1,ny=0,reach=220,halfWidth=45}
 function mode.flameStreamCovers(x,y,nx,ny,reach,halfWidth,px,py)return px>=x and px<=x+reach and math.abs(py-y)<=halfWidth end
 Popper.update(mode,.01,game);assert(cart.state=="heating","flamethrower did not ignite the ready cart")
+cart.state,cart.heat="cooldown",0;cart.cooldown=5
+assert(Popper.igniteInRadius(mode,0,0,10)==1 and cart.state=="heating",
+    "firework direct hit did not ignite the popping cart")
+cart.state,mode.rainSuppressFire="ready",true
+assert(Popper.igniteInRadius(mode,0,0,10)==0 and cart.state=="ready",
+    "rain did not block firework ignition on the popping cart")
+mode.rainSuppressFire=false
 mode.flameStream=nil;mode.permanentTraits.scorePopperExtra=1;Popper.update(mode,.01,game)
 assert(#mode.poppingMachines==2,"extra permanent monkey cart did not remain on the map")
 
@@ -65,4 +72,4 @@ end end
 assert(count==9 and ranks==16 and cost==2320,"popper research branch totals changed")
 assert(multi==5 and damage==10 and bounces==2 and math.abs(heat-.7)<.001,"popper upgrades are not distributed multi-rank nodes")
 fixture.reset();Popper.queue(mode,{});Popper.load()
-print("POPPING_MACHINE_OK persistent=true monkey_cart=true cooldown=7 ignition=butt+flame+oil+tree base_damage=7 base_contacts=4 upgraded_damage=17 upgraded_contacts=6 survivor_chain=true nodes=9 ranks=16 distributed=true")
+print("POPPING_MACHINE_OK persistent=true monkey_cart=true cooldown=7 ignition=butt+flame+oil+tree+firework base_damage=7 base_contacts=4 upgraded_damage=17 upgraded_contacts=6 survivor_chain=true nodes=9 ranks=16 distributed=true")

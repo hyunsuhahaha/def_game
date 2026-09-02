@@ -57,6 +57,24 @@ function Art.spawn(mode,game)
     mode.poppingMachines[#mode.poppingMachines+1]=value;return value
 end
 
+-- 폭죽은 화면에 보이는 폭발 원과 실제 발화 판정을 공유한다. 기존에는 꽁초·불타는
+-- 나무·기름·화염방사기만 매 프레임 근접 감지해서, 폭죽이 차체를 정면으로 맞혀도
+-- 아무 반응이 없었다. 직접 맞은 차는 현재 냉각 상태를 끊고 즉시 예열에 들어간다.
+function Art.igniteInRadius(mode,x,y,radius)
+    if mode.rainSuppressFire then return 0 end
+    local count=0
+    for _,value in ipairs(mode.poppingMachines or{})do
+        local bodyRadius=70
+        if (value.x-x)^2+(value.y-y)^2<=(radius+bodyRadius)^2 then
+            if value.state~="heating"then count=count+1 end
+            value.state,value.cooldown="heating",0
+            value.heat=math.max(0,value.heat or 0)
+            value.shake=math.max(.12,value.shake or 0)
+        end
+    end
+    return count
+end
+
 local function move(mode,value,dt,game)
     local dx,dy=(value.targetX or value.x)-value.x,(value.targetY or value.y)-value.y
     if not value.targetX or dx*dx+dy*dy<22^2 then

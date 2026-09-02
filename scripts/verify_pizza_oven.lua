@@ -23,6 +23,23 @@ end
 
 local CENTER_X,CENTER_Y=1600,1000
 
+-- 폭죽 직격은 주변 불목이 없어도 전용 화실 불꽃과 실제 열을 짧게 켠다.
+do
+    local mode=newMode({scoreOvenUnlock=1})
+    local game={world=newWorld({}),player={x=0,y=0}}
+    Oven.update(mode,.001,game)
+    local oven=mode.pizzaOven
+    assert(Oven.igniteInRadius(mode,oven.x,oven.y,1),"firework did not ignite the oven on direct hit")
+    Oven.update(mode,.1,game)
+    local visible,_,active=Oven.fireVisualState(mode)
+    assert(visible and active and oven.heat>0 and oven.heatRate>0,
+        "firework-lit oven did not show active hearth fire and produce heat")
+    for _=1,50 do Oven.update(mode,.1,game)end
+    assert((oven.fireworkBurnTimer or 0)==0,"firework oven ignition did not expire")
+    mode.rainSuppressFire=true
+    assert(not Oven.igniteInRadius(mode,oven.x,oven.y,1),"rain did not block firework oven ignition")
+end
+
 -- 1. 잠긴 상태에서는 아무것도 서지 않는다.
 do
     local mode=newMode({})
@@ -31,7 +48,7 @@ do
     assert(mode.pizzaOven==nil,"locked oven still placed itself on the map")
 end
 
--- 2. 화덕은 맵 한가운데에 서고, 불이 없으면 화력이 전혀 오르지 않는다.
+-- 2. 화덕은 맵 한가운데에 서고, 불목이나 폭죽 직격이 없으면 화력이 전혀 오르지 않는다.
 --    목재가 아무리 쌓여도 굽지 않는다는 것이 이 설비의 핵심 규칙이다.
 do
     local mode=newMode({scoreOvenUnlock=1})
@@ -261,6 +278,6 @@ end
 fixture.reset()
 Oven.queue({pizzaOven={x=0,y=0,slices=3,life=1,fire=.5,flare=0}},{})
 Oven.load()
-print("PIZZA_OVEN_OK fuel=burning_trees_only center_placed=true radius=260 slice_cost=75 tray=6 "..
+print("PIZZA_OVEN_OK fuel=burning_trees+firework_direct_4s center_placed=true radius=260 slice_cost=75 tray=6 "..
       "call=520 reservation=no_wasted_trips feast=30s_x2 feast_visual=persistent_yellow_aura+scale "..
-      "hearth_visual=8frame_active_fire+stored_embers+no_interior_pizza rain_stops=true stacking_capstone=true nodes=10 ranks=29")
+      "hearth_visual=8frame_active_fire+stored_embers+firework_direct_4s+no_interior_pizza rain_stops=true stacking_capstone=true nodes=10 ranks=29")

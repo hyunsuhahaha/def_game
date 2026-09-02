@@ -241,7 +241,7 @@ local scoreFireNodes={
     {id="fire_score_axe_execute",name="도끼 밑동 절단 확률 상승",short="즉시 벌목",desc="도끼 타격이 단계마다 3% 확률로 나무를 체력과 무관하게 즉시 쓰러뜨립니다",effect="scoreAxeExecute",value=.03,max=4,costs={54,84,120,164},wx=380,wy=1790,icon="stump",color={.76,.33,.20},requires={{"fire_score_axe_speed",3}}},
 
     -- 폭죽 갈래. 폭발 반경도 담배용 scoreArea를 ×0.3으로 나눠 쓰고 있었고,
-    -- 비행 속도(820)와 착탄 점화 확률(0.38)은 상수로 박혀 성장 자체가 불가능했다.
+    -- 비행 속도(820)와 폭발 밖 추가 발화 반경은 전용 성장축으로 둔다.
     -- 담배 갈래의 종착점. 여기서부터 손이 비고, 그 빈손이 폭죽 해금으로 이어진다.
     -- 자동 투척 루프 자체는 updateFire에 이미 있고(캠페인의 molotov 레벨용), 이 노드가
     -- 기록 모드에서 그 루프를 깨운다.
@@ -268,7 +268,7 @@ local scoreFireNodes={
     {id="fire_score_view_3",name="카메라 시야 확장",short="시야 +2.5%",desc="게임 화면에 보이는 월드 범위가 2.5% 넓어집니다.",effect="scoreViewExpansion",value=.025,max=1,costs={146},wx=500,wy=2250,icon="map",color={.48,.72,.66},requires={{"fire_score_rocket_speed",2}}},
     {id="fire_score_yard_6",name="작업 구역 확장",short="맵 +2.5%p",desc="이동 가능한 맵 크기가 2.5% 넓어지고 나무 허용량이 4그루 증가합니다.",effect="scoreYardExpansion",value=1,max=1,costs={196},wx=1250,wy=2250,icon="map",color={.48,.72,.42},requires={{"fire_score_rocket_radius",3}}},
     {id="fire_score_capacity_6",name="산림 수용 확장 III",short="허용량 +8",desc="나무 허용량이 8그루 증가합니다. 재생 6단계부터 연구할 수 있습니다.",effect="scoreTreeAllowance",value=8,max=1,costs={3000},requiresTier=6,wx=750,wy=2550,icon="map",color={.42,.78,.52},requires={{"fire_score_yard_6",1}}},
-    {id="fire_score_rocket_ignite",name="폭죽 착탄 점화 확률 상승",short="착탄 점화",desc="폭발로 쓰러지지 않은 나무에 불이 붙을 확률 +6%p (기본 38%)",effect="scoreRocketIgnite",value=.06,max=5,costs={900,1200,1800,2400,3000},rankTiers={5,5,6,6,6},wx=1790,wy=1660,icon="ember",color={1,.62,.24},requires={{"fire_score_rocket_radius",3}}},
+    {id="fire_score_rocket_ignite",name="폭죽 발화 범위 상승",short="발화 범위",desc="폭죽이 나무·기름·설비에 불을 붙이는 범위 +6%",effect="scoreRocketIgnite",value=.06,max=5,costs={900,1200,1800,2400,3000},rankTiers={5,5,6,6,6},wx=1790,wy=1660,icon="ember",color={1,.62,.24},requires={{"fire_score_rocket_radius",3}}},
     {id="fire_score_rocket_cooldown",name="폭죽 발사 속도 상승",short="발사 속도",desc="폭죽 로켓 재발사 대기시간 단계마다 9% 감소",effect="scoreRocketCooldown",value=.09,max=5,costs={900,1200,1800,2400,3000},rankTiers={5,5,6,6,6},wx=2130,wy=1400,icon="clock",color={.94,.58,.22},requires={{"fire_score_rocket_damage",3}}},
     {id="fire_score_rocket_twin",name="폭죽 쌍발 발사대",short="동시 2발",desc="폭죽을 조준점 좌우로 동시에 2발 발사합니다.",effect="scoreRocketTwin",value=1,max=1,costs={2400},targetTier=6,wx=1420,wy=1900,icon="blast",color={1,.72,.24},requires={{"fire_score_rocket_speed",4},{"fire_score_rocket_cooldown",3}}},
     {id="fire_score_rocket_cluster",name="폭죽 자탄 불꽃",short="자탄 5발",desc="주 폭발에서 소형 폭죽 5발이 별 모양으로 퍼진 뒤 다시 폭발합니다.",effect="scoreRocketCluster",value=1,max=1,costs={3000},targetTier=6,wx=1810,wy=1980,icon="ember",color={1,.46,.16},requires={{"fire_score_rocket_radius",5},{"fire_score_rocket_ignite",3}}},
@@ -486,7 +486,7 @@ expand("universal",{
     {id="universal_gray_cat_chance",name="고양이 출현 확률",short="고양이 출현 확률",desc="단계마다 고양이 출현 확률이 20% 증가합니다.",effect="scoreGrayCatChance",value=.20,max=3,costs={40,68,104},wx=2050,wy=1210,icon="gray_cat",color={.62,.66,.70},requires={{"universal_gray_cat",1}},scoreMode=true},
     {id="universal_gray_cat_delay",name="고양이 출동 대기시간",short="고양이 대기시간",desc="단계마다 고양이 출동 대기시간이 0.45초 감소합니다.",effect="scoreGrayCatDelay",value=.45,max=3,costs={34,58,88},wx=2350,wy=1210,icon="clock",color={.50,.66,.72},requires={{"universal_gray_cat_chance",1}},scoreMode=true},
     {id="universal_gray_cat_speed",name="고양이 등장 속도",short="빠른 등장",desc="단계마다 고양이가 화면 밖에서 드럼통까지 달려오는 속도가 20% 증가합니다.",effect="scoreGrayCatSpeed",value=.20,max=4,costs={28,46,70,100},wx=2050,wy=1470,icon="road",color={.52,.64,.68},requires={{"universal_gray_cat",1}},scoreMode=true},
-    {id="universal_oven_unlock",name="화덕 피자 설치",short="화덕 해금",desc="작업장 한가운데에 화덕이 섭니다. 반경 안에서 타고 있는 나무의 열로 피자를 굽고, 구워진 조각은 두더지와 졸업 원숭이가 직접 와서 먹습니다.",effect="scoreOvenUnlock",value=1,max=1,costs={210},wx=3800,wy=2100,icon="pizza_oven",color={.94,.60,.28},requires={{"universal_mole_damage",2},{"universal_mole_attack_speed",2},{"universal_mole_extra",1}},scoreMode=true},
+    {id="universal_oven_unlock",name="화덕 피자 설치",short="화덕 해금",desc="작업장 한가운데에 화덕이 섭니다. 타는 나무의 열을 모으고, 폭죽에 직접 맞으면 4초간 화실이 붙어 피자를 굽습니다. 구운 조각은 두더지와 졸업 원숭이가 직접 와서 먹습니다.",effect="scoreOvenUnlock",value=1,max=1,costs={210},wx=3800,wy=2100,icon="pizza_oven",color={.94,.60,.28},requires={{"universal_mole_damage",2},{"universal_mole_attack_speed",2},{"universal_mole_extra",1}},scoreMode=true},
     {id="universal_oven_heat",name="불목 확장",short="화력 상승",desc="타고 있는 나무 한 그루가 올리는 화력이 단계마다 0.25 증가합니다. 기본은 그루당 초당 1입니다.",effect="scoreOvenHeat",value=.25,max=4,costs={34,56,84,118},wx=3400,wy=2350,icon="ember",color={1,.52,.18},requires={{"universal_oven_unlock",1}},scoreMode=true},
     {id="universal_oven_radius",name="굴뚝 개조",short="수집 반경",desc="열을 걷어오는 반경이 단계마다 50 증가합니다. 기본 반경은 260입니다.",effect="scoreOvenRadius",value=50,max=4,costs={30,50,76,108},wx=3800,wy=2350,icon="map",color={.88,.66,.34},requires={{"universal_oven_unlock",1}},scoreMode=true},
     {id="universal_oven_slice_cost",name="얇은 도우",short="필요 화력 감소",desc="조각 하나에 필요한 화력이 단계마다 7 줄어듭니다. 기본은 75입니다.",effect="scoreOvenSliceCost",value=7,max=3,costs={48,78,120},wx=4200,wy=2350,icon="clock",color={.96,.82,.58},requires={{"universal_oven_unlock",1}},scoreMode=true},
