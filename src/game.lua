@@ -383,7 +383,7 @@ function Game:closeTestOptions()
     end
 end
 
--- 960x540에서도 여섯 개의 작업 버튼과 상태 문구가 잘리지 않는 조밀한 도구 배치.
+-- 960x540에서도 여섯 줄의 작업 버튼과 상태 문구가 잘리지 않는 조밀한 도구 배치.
 -- draw와 mousepressed가 같은 박스를 공유해 해상도별 클릭 좌표가 어긋나지 않는다.
 function Game:testOptionLayout(width,height)
     local w=width or love.graphics.getWidth()
@@ -397,11 +397,17 @@ function Game:testOptionLayout(width,height)
     local bw=panel.w-(compact and 64 or 140)
     local rowH,gap=compact and 40 or 48,compact and 6 or 10
     local firstY=panel.y+(compact and 112 or 130)
-    local order={1,2,3,5,6,4}
+    local order={1,2,3,5}
     local actions={}
     for row,index in ipairs(order)do
         actions[#actions+1]={index=index,x=bx,y=firstY+(row-1)*(rowH+gap),w=bw,h=rowH}
     end
+    local presetGap=compact and 4 or 6
+    local presetW=(bw-presetGap*3)/4
+    for column,index in ipairs({7,8,9,6})do
+        actions[#actions+1]={index=index,x=bx+(column-1)*(presetW+presetGap),y=firstY+4*(rowH+gap),w=presetW,h=rowH,preset=true}
+    end
+    actions[#actions+1]={index=4,x=bx,y=firstY+5*(rowH+gap),w=bw,h=rowH}
     local backH=compact and 36 or 46
     local back={x=bx,y=panel.y+panel.h-backH-(compact and 10 or 12),w=bw,h=backH}
     local actionBottom=actions[#actions].y+actions[#actions].h
@@ -427,9 +433,10 @@ function Game:useTestOption(index)
         if activeRun and self.clearcut and self.clearcut.scoreAttack then self.testMessage="벌목 기록 모드는 인게임 레벨업을 사용하지 않습니다."
         else self.testLevelsNextRun,self.testLevelsNextRunManual=20,true
             self.testMessage="다음 런 시작 레벨 +20을 예약했습니다. 강화를 직접 3택으로 고릅니다." end
-    elseif index==6 then
-        local nodes,ranks=self.characterTraits:maxAll()
-        self.testMessage=string.format("모든 영구 특성 만렙 완료 · %d개 노드 / %d단계 저장%s",nodes,ranks,
+    elseif index>=6 and index<=9 then
+        local percent=({[6]=100,[7]=70,[8]=80,[9]=90})[index]
+        local ranks,total=self.characterTraits:setScoreProgress(percent)
+        self.testMessage=string.format("영구 특성 %d%% 프리셋 완료 · 저가 순 %d/%d단계 저장%s",percent,ranks,total,
             activeRun and " · 진행 중인 판은 재시작 후 전체 적용"or"")
     end
 end
@@ -1741,12 +1748,12 @@ function Game:drawTestOptions()
         [2]="런 자원 각 +1,000,000  (식량·광석·목재·돌)",
         [3]=scoreRun and "벌목 기록 모드 · 인게임 레벨업 비활성"or(activeRun and "현재 런 레벨 +10  (강화 3택 테스트)"or"다음 런 시작 레벨 +20  (자동 선택)"),
         [5]=scoreRun and "벌목 기록 모드 · 강화 3택 없음"or"다음 런 시작 레벨 +20  (수동 선택 · 직접 3택)",
-        [6]="모든 영구 특성 만렙",
+        [6]="특성 100%",[7]="특성 70%",[8]="특성 80%",[9]="특성 90%",
         [4]=self.testResetArmed and "정말 초기화 — 다시 클릭"or"영구 재화·특성 초기화",
     }
     for _,box in ipairs(layout.actions)do
         local enabled=not scoreRun or(box.index~=3 and box.index~=5)
-        UI.button(box.x,box.y,box.w,box.h,labels[box.index],enabled,box.index==1 and f.heading or f.body)
+        UI.button(box.x,box.y,box.w,box.h,labels[box.index],enabled,box.index==1 and f.heading or(box.preset and f.small or f.body))
     end
     UI.button(layout.back.x,layout.back.y,layout.back.w,layout.back.h,"돌아가기  [F10 / ESC]",true,f.body)
     love.graphics.setFont(f.small)

@@ -13,15 +13,17 @@ local Game=require("src.game")
 local CharacterTraits=require("src.character_traits")
 local function font(size)return love.graphics.newFont("assets/font-korean-pixel.ttf",size)end
 local traits=CharacterTraits.new(true);traits.data.currency=1000000
-local nodes,ranks=traits:maxAll()
+local ranks,total=traits:setScoreProgress(80)
 local game=setmetatable({
     fonts={title=font(34),heading=font(24),body=font(18),small=font(14)},
     characterTraits=traits,testReturnMode="lobby",testResetArmed=false,
-    testMessage=string.format("모든 영구 특성 만렙 완료 · %d개 노드 / %d단계 저장",nodes,ranks),
+    testMessage=string.format("영구 특성 80%% 프리셋 완료 · 저가 순 %d/%d단계 저장",ranks,total),
 },Game)
 
 fixture.reset();game:drawTestOptions()
+local layout=game:testOptionLayout(width,height)
+assert(#layout.actions==9 and layout.actions[#layout.actions].index==4,"developer trait preset buttons are missing")
 local output=assert(rawget(_G,"DEVELOPER_TOOLS_CAPTURE_PATH")or os.getenv("DEVELOPER_TOOLS_CAPTURE"),
     "DEVELOPER_TOOLS_CAPTURE is required")
 fixture.save(output)
-print("DEVELOPER_TOOLS_CAPTURE_OK "..width.."x"..height.." actions=6")
+print("DEVELOPER_TOOLS_CAPTURE_OK "..width.."x"..height.." actions=9")

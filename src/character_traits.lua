@@ -752,6 +752,39 @@ function CharacterTraits:maxAll()
     return nodes,ranks
 end
 
+-- 활성 기록 모드 연구를 실제 구매 가격이 싼 순서로 채우는 개발자 프리셋.
+-- 매 선택마다 선행 조건을 다시 확인하므로 중간 퍼센트도 정상적인 연구망 상태다.
+function CharacterTraits:setScoreProgress(percent)
+    percent=math.max(0,math.min(100,math.floor(percent or 0)))
+    local total=0
+    for _,id in ipairs(orderedIds)do
+        local node=byId[id]
+        if node.scoreMode then self.data.levels[id]=0;total=total+node.max end
+    end
+    self._scoreRanks=nil
+    local target=math.floor(total*percent/100)
+    for rank=1,target do
+        local best,bestCost
+        for _,id in ipairs(orderedIds)do
+            local node=byId[id]
+            local level=self:getLevel(id)
+            if node.scoreMode and level<node.max then
+                local ready=true
+                for _,requirement in ipairs(requirementsOf(node))do
+                    if self:getLevel(requirement[1])<requirement[2]then ready=false;break end
+                end
+                local cost=ready and self:nodeCost(node,level)
+                if cost and(not bestCost or cost<bestCost)then best,bestCost=node,cost end
+            end
+        end
+        assert(best,"score research graph cannot reach requested developer progress")
+        self.data.levels[best.id]=self:getLevel(best.id)+1
+        self._scoreRanks=nil
+    end
+    self:save()
+    return target,total
+end
+
 function CharacterTraits:hasSeenStory(jobId)
     return self.data.storySeen[jobId] == true
 end

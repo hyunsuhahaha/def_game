@@ -525,4 +525,29 @@ assert(maxStore.data.currency==4321 and maxStore:getRegenTier()==4
     and maxStore.data.equipmentConfigured and maxStore.data.playerWeapons[2]==3,
     "developer max-all changed currency, regen tier, or equipment state")
 
+-- 70/80/90/100% 프리셋은 활성 기록 연구만 초기화해, 실제 가격이 싼 해금 가능
+-- 단계부터 정확한 비율만큼 채운다. 보존된 일반 작전 특성 및 다른 저장 상태는 유지한다.
+local presetStore=CharacterTraits.new(true)
+presetStore.data.currency=4321;presetStore.data.regenTier=4
+presetStore.data.levels.physical_quota=2
+local previous={}
+for _,percent in ipairs({70,80,90,100})do
+    local filled,total=presetStore:setScoreProgress(percent)
+    assert(filled==math.floor(total*percent/100),"developer trait preset filled the wrong percentage")
+    local counted=0
+    for _,group in pairs(presetStore:getJobs())do for _,node in ipairs(group.nodes)do
+        if node.scoreMode then
+            local level=presetStore:getLevel(node.id);counted=counted+level
+            assert(level>=(previous[node.id]or 0),"higher developer preset removed a selected research rank")
+            if level>0 then for _,requirement in ipairs(presetStore:getRequirements(node))do
+                assert(presetStore:getLevel(requirement[1])>=requirement[2],"developer trait preset broke a prerequisite: "..node.id)
+            end end
+            previous[node.id]=level
+        end
+    end end
+    assert(counted==filled,"developer trait preset reported the wrong rank count")
+end
+assert(presetStore.data.levels.physical_quota==2 and presetStore.data.currency==4321 and presetStore:getRegenTier()==4,
+    "developer trait preset changed legacy traits, currency, or regen tier")
+
 print("CHARACTER_TRAITS_OK")
