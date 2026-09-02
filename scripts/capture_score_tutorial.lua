@@ -9,7 +9,7 @@ for step=1,3 do
     fixture.reset()
     local bw,bh=background:getDimensions()
     love.graphics.setColor(1,1,1,1);love.graphics.draw(background,0,0,0,1280/bw,720/bh)
-    Tutorial.draw({scoreTutorial={step=step}},fonts,1280,720)
+    Tutorial.draw({scoreTutorial={step=step,elapsed=step==3 and .35 or 0}},fonts,1280,720)
     fixture.save("docs/previews/score-tutorial-step"..step.."-draws.json")
 end
 fixture.reset()

@@ -559,6 +559,14 @@ function Game:update(dt)
         elseif self.runType~="clearcut" then self:finishRun(true) end
         return
     end
+    if self.clearcut and self.clearcut.scoreTutorialGameOver then
+        local tutorialMode=self.clearcut
+        tutorialMode:update(dt,self)
+        if self.clearcut==tutorialMode then
+            self.world:update(dt,self);self.camera:update(dt,self.player,self.world)
+        end
+        return
+    end
     self.player:update(dt, self.world, self)
     self.nearTurret = self:getNearbyTurret()
     self.upgrades:update(dt, self)

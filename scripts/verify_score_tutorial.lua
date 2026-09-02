@@ -44,8 +44,18 @@ local neutral=replayTraits:scoreAttackEffects(true)
 assert(neutral.scoreTreeDamage==0 and neutral.scoreAxeCrew==0 and neutral.scoreRocketUnlock==0
     and neutral.scoreMoleCompanion==0 and neutral.scoreOvenUnlock==0,"tutorial inherited permanent research")
 local replay={scoreAttack=true,actionAudit={}}
+local lessonGame
+function replay:scoreActiveTreeCount()
+    local count=0;for _,node in ipairs(lessonGame and lessonGame.world.nodes or{})do if node.rushTree and node.active then count=count+1 end end
+    self.remainingTrees=count;return count
+end
+function replay:spawnScoreTree(game)
+    local node={rushTree=true,active=true,x=500+#game.world.nodes*22,y=420,rushHp=12,rushMaxHp=12,
+        treeEmergence={t=0,duration=1.05,source="score_growth"}}
+    game.world.nodes[#game.world.nodes+1]=node;self.remainingTrees=(self.remainingTrees or 0)+1;return true,node
+end
 assert(Tutorial.forceStart(replay)and replay.scoreTutorial.persist==false,"developer replay did not start without persistence")
-local lessonGame={characterTraits=replayTraits,player={x=500,y=400},world={nodes={
+lessonGame={characterTraits=replayTraits,player={x=500,y=400},world={nodes={
     {rushTree=true,active=true,x=50,y=50,rushHp=7,rushMaxHp=7},
     {rushTree=true,active=true,x=70,y=70,rushHp=9,rushMaxHp=9},
 }}}
@@ -56,7 +66,8 @@ replay.actionAudit.scoreAxe=1;Tutorial.update(replay,lessonGame,.016)
 assert(replay.scoreTutorial.step==2 and lessonGame.world.nodes[1].x==780,
     "ranged lesson did not move the single tree outside axe range")
 replay.actionAudit.cigaretteFlick=1;Tutorial.update(replay,lessonGame,.016)
-replay.scoreTutorial.step=3
+assert(replay.scoreTutorial.step==3 and replay.scoreTutorialGameOver and replay.remainingTrees==12
+    and replay.failureReason=="score_overcrowded","tutorial did not stage a real full-forest game over")
 Tutorial.update(replay,{characterTraits=replayTraits},Tutorial.FINAL_DURATION)
 assert(replay.scoreTutorial==nil and not replayTraits.data.scoreTutorialSeen,"developer replay changed the real tutorial save")
 
@@ -67,4 +78,4 @@ for step=1,3 do
     assert(#fixture.commands>=5,"tutorial step did not draw its compact panel")
 end
 
-print("SCORE_TUTORIAL_OK first=free second=isolated_zero_upgrades tree=near_axe_then_far_cigarette persistent=true dev_replay=no_save exclusions=practice+defense")
+print("SCORE_TUTORIAL_OK first=free second=isolated_zero_upgrades tree=near_axe+far_cigarette overcrowd=12/12_gameover_2s persistent=true dev_replay=no_save")
