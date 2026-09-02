@@ -377,10 +377,12 @@ function CharacterTraitBoard:nodeWorld(node)
         fire_score_flame_damage_5={650,4350},fire_score_flame_range_5={1000,4350},fire_score_flame_ignite_4={1350,4350},
         -- 후반도 기존 작업 구역 자리에 흡수 범위를 넣고 작업 구역은 다음 행으로 내린다.
         fire_score_stride_4={100,4100},fire_score_pickup_2={1850,4100},fire_score_yard_7={1850,4350},
-        fire_score_popper_unlock={1000,4650},
-        fire_score_popper_damage_1={650,4900},fire_score_popper_bounce_1={1000,4900},fire_score_popper_heat_1={1350,4900},
-        fire_score_popper_damage_2={500,5150},fire_score_popper_bounce_2={850,5150},
-        fire_score_popper_damage_3={1150,5150},fire_score_popper_heat_2={1500,5150},fire_score_popper_extra={1000,5400},
+        -- 뻥튀기차는 무기 졸업물이 아니라 자동 동료 설비다. 두더지 양손 공격에서
+        -- 바로 이어지도록 두더지 갈래 아래의 빈 공간에 전용 가지를 둔다.
+        fire_score_popper_unlock={2600,2100},
+        fire_score_popper_damage_1={2300,2350},fire_score_popper_bounce_1={2600,2350},fire_score_popper_heat_1={2900,2350},
+        fire_score_popper_damage_2={2050,2600},fire_score_popper_bounce_2={2300,2600},
+        fire_score_popper_damage_3={2550,2600},fire_score_popper_heat_2={2800,2600},fire_score_popper_extra={2425,2850},
         -- 공용 연구는 흡연자 갈래와 같은 좌표를 쓰고 있었다(각자 다른 탭이었으므로).
         -- 한 판으로 합치면서 흡연자 오른쪽으로 통째로 옮긴다.
         universal_yard={2600,850},universal_robot_start={3000,850},universal_robot_motor={3400,850},

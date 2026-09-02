@@ -368,8 +368,8 @@ for _,node in ipairs(store:getScoreAttackNodes("fire"))do
 end
 assert(flameNodeCount==18 and flameCost==1472,"flamethrower split changed its rank count or total cost")
 local popperUnlock=store:getNode("fire_score_popper_unlock")
-assert(#popperUnlock.requires==1 and popperUnlock.requires[1][1]=="fire_score_autothrow" and popperUnlock.requires[1][2]==1,
-    "monkey popping cart is not attached directly to the automation branch")
+assert(#popperUnlock.requires==1 and popperUnlock.requires[1][1]=="universal_mole_dual" and popperUnlock.requires[1][2]==1,
+    "monkey popping cart is not attached directly below the mole branch")
 for _, job in ipairs({"physical","fire","toxic","developer"}) do
     assert(#store:getNodes(job) >= 30, job .. " character graph has too few trait nodes")
 end
