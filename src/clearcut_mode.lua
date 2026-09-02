@@ -203,7 +203,7 @@ function ClearcutMode.new()
         sandbox=false,
         levels={}, choices={}, level=1, xp=0, xpNext=10, pending=0,
         skillBranches={},smokerEvolution=nil,branchChoiceSkill=nil,branchChoices={},
-        totalWood=0, treesFelled=0, elapsed=0, initialTrees=0, remainingTrees=0,lumberInventory={},resultSettlement=nil,
+        totalWood=0, treesFelled=0, elapsed=0, initialTrees=0, remainingTrees=0,lumberInventory={},lumberInventoryByTier={},resultSettlement=nil,
         maxMulti=1, maxChain=0, axeCooldown=0, axeRange=150, milestoneFired={},
         regrowTimer=0, regrowGrace=35, regrowInterval=12, regrowPulses=0, treesRevived=0, regrowFlash=0,
         forestZones={},zonesSecured=0,
@@ -534,6 +534,7 @@ function ClearcutMode:setup(game)
     local Maps=require("src.clearcut_maps")
     self.mapId=Maps.get(self.mapId).id
     self.lumberInventory={}
+    self.lumberInventoryByTier={}
     self.worldTreeLumber={}
     self.scoreWorldTreeHp=nil
     self.resultSettlement=nil
@@ -6768,6 +6769,11 @@ function ClearcutMode:fellTree(node, game, axeImpact)
         -- 노다지: 정산 재고에만 붙는다. 화면의 목재 드롭은 그대로라 눈이 헷갈리지 않는다.
         local yield=(self:scoreReward("windfall")and love.math.random()<.12)and 2 or 1
         self.lumberInventory[lumber.id]=(self.lumberInventory[lumber.id]or 0)+yield
+        local tier=math.max(1,math.floor(self.scoreRegenTier or self.scoreStartingRegenTier or 1))
+        self.lumberInventoryByTier=self.lumberInventoryByTier or{}
+        self.lumberInventoryByTier[tier]=self.lumberInventoryByTier[tier]or{}
+        local tierInventory=self.lumberInventoryByTier[tier]
+        tierInventory[lumber.id]=(tierInventory[lumber.id]or 0)+yield
     end
     if self.scoreAttack then
         self.scoreFellTimes=self.scoreFellTimes or{}
@@ -6918,12 +6924,18 @@ function ClearcutMode:finish(game, victory)
     local traitReward = math.max(1, math.floor(baseReward * (self.permanentTraits.reward or 1) + .5))
     local lumberRows,lumberCoinTotal,tierMultiplier
     if self.scoreAttack then
-        lumberRows,lumberCoinTotal,tierMultiplier=WoodEconomy.settlement(self.mapId,self.lumberInventory,self.scoreStartingRegenTier,self.scoreHighestRegenTier,self:scoreSettlementBonus())
+        if self.lumberInventoryByTier and next(self.lumberInventoryByTier)then
+            lumberRows,lumberCoinTotal,tierMultiplier=WoodEconomy.settlementByTier(self.mapId,self.lumberInventoryByTier,self.scoreRegenTier,self:scoreSettlementBonus())
+        else
+            lumberRows,lumberCoinTotal,tierMultiplier=WoodEconomy.settlement(self.mapId,self.lumberInventory,self.scoreStartingRegenTier,self.scoreHighestRegenTier,self:scoreSettlementBonus())
+        end
         -- Results from older fixtures/runs still settle instead of opening an empty panel.
         if #lumberRows==0 and self.treesFelled>0 then
             local fallback=WoodEconomy.forTree(self.mapId,1)
             self.lumberInventory={[fallback.id]=self.treesFelled}
-            lumberRows,lumberCoinTotal,tierMultiplier=WoodEconomy.settlement(self.mapId,self.lumberInventory,self.scoreStartingRegenTier,self.scoreHighestRegenTier,self:scoreSettlementBonus())
+            local tier=math.max(1,math.floor(self.scoreRegenTier or self.scoreHighestRegenTier or self.scoreStartingRegenTier or 1))
+            self.lumberInventoryByTier={[tier]=self.lumberInventory}
+            lumberRows,lumberCoinTotal,tierMultiplier=WoodEconomy.settlementByTier(self.mapId,self.lumberInventoryByTier,tier,self:scoreSettlementBonus())
         end
         traitReward=0
     elseif game.characterTraits then game.characterTraits:addCurrency(traitReward) end

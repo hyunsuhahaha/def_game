@@ -58,6 +58,12 @@ do
         "escalation did not apply owned-rank scaling, got "..esc:nodeCost(node,0).." want "..expected)
     assert(k>1,"research escalation must actually escalate")
 
+    -- 재생 단계 제한 노드는 해당 단계의 한 판 수입대에 직접 맞춘 고정 가격이다.
+    -- 전역 보유 랭크 배율까지 다시 곱하면 가격이 이중으로 뛴다.
+    local gated=esc:getNode("universal_veteran_crew")
+    assert(gated.requiresTier==8 and esc:nodeCost(gated,0)==16000,
+        "tier-gated research did not keep its authored stage price")
+
     -- 어느 시점에서든 후보 전체에 같은 배율이 걸리므로 "가장 싼 것부터"의 순서는
     -- 손으로 적어 둔 가격 순서와 항상 같아야 한다. 순서가 바뀌면 nextGoal 이 흔들린다.
     local ordered=CharacterTraits.new(true)

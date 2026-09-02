@@ -23,6 +23,7 @@ assert(dossier:find('id="score-mode-summary"',1,true),"dossier is missing the vi
 assert(dossier:find("활성 나무 0그루 달성 또는 40초 뒤 세계수 처치 · 0.86초 연출 · 6그루 순차 발아 · 다음 단계 영구 해금",1,true),
     "dossier score-mode opening pacing is stale")
 assert(dossier:find("인게임 XP·레벨업·강화 3택 없음 · 목재는 점수와 정산만",1,true),"dossier score-mode growth summary is stale")
+assert(dossier:find("재생 단계 제한 노드는 표의 고정 가격",1,true),"dossier research-price rule is stale")
 assert(dossier:find("중앙 루트의 기존 상·하·좌·우 분기 + 초반 즉시 타격 대각선 가지 · 방향별 동일 단계 간격 · 기준 간격의 85~115% 줌 · 화면 해상도별 한글 폰트 재래스터",1,true),
     "dossier research-board summary is stale")
 assert(dossier:find("소량은 1개씩·대량은 묶음 단위로 코인 변환",1,true)and dossier:find("약 4초 상한",1,true),
@@ -31,6 +32,14 @@ assert(dossier:find("fire_score_prewarm",1,true)and dossier:find("fire_score_imp
     "dossier score-mode permanent traits are stale")
 assert(dossier:find("universal_robot_start",1,true)and dossier:find("universal_robot_motor",1,true),
     "dossier baby robot permanent research is stale")
+for _,entry in ipairs({
+    {'id:"universal_veteran_yard"','costs:[1800,2200,2600,3000]'},
+    {'id:"universal_veteran_crew"','costs:[16000]'},
+    {'id:"universal_wildfire"','costs:[80000,100000,120000]'}
+})do
+    local from=assert(dossier:find(entry[1],1,true),"dossier tier-gated research is missing: "..entry[1])
+    assert(dossier:find(entry[2],from,true),"dossier tier-gated research cost is stale: "..entry[1])
+end
 for _,id in ipairs({
     "universal_mole_companion","universal_mole_damage","universal_mole_speed","universal_mole_attack_speed",
     "universal_mole_claw","universal_mole_dual","universal_mole_extra","universal_mole_burrow",

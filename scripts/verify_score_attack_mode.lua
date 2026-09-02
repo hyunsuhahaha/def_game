@@ -397,7 +397,9 @@ local settleMode=require("src.clearcut_mode").new();settleMode.scoreAttack=true;
 local speciesTree={active=true,rushTree=true,treeVariant=3,x=game.player.x+20,y=game.player.y,rushHp=0}
 settleMode:fellTree(speciesTree,game)
 assert(settleMode.lumberInventory.birch==1,"felled tree variant did not enter its species lumber inventory")
+assert(settleMode.lumberInventoryByTier[1].birch==1,"felled tree did not remember the regeneration tier where it was earned")
 settleMode.lumberInventory={broadleaf=2,birch=3};settleMode.treesFelled=5;settleMode.initialTrees=6
+settleMode.lumberInventoryByTier={[1]={broadleaf=2,birch=3}}
 settleMode.scoreStartingRegenTier=1;settleMode.scoreRegenTier=1;settleMode.scoreHighestRegenTier=1
 game.result=nil;game.ended=false;game.achievements=nil
 local coinsBefore=Traits.data.currency
@@ -417,6 +419,7 @@ assert(settleMode.resultSettlement.elapsed>completedVisualTime and #settleMode.r
 -- 대량 목재는 한 개씩 수백 번 세지 않고 묶음 단위로 정산해 몇 초 안에 끝낸다.
 local bulkMode=require("src.clearcut_mode").new();bulkMode.scoreAttack=true;bulkMode.mapId="forest"
 bulkMode.lumberInventory={broadleaf=130,pine=110,birch=125,maple=132};bulkMode.treesFelled=497
+bulkMode.lumberInventoryByTier={[1]=bulkMode.lumberInventory}
 bulkMode.scoreStartingRegenTier=1;bulkMode.scoreRegenTier=1;bulkMode.scoreHighestRegenTier=1
 game.result=nil;game.ended=false
 local bulkCoinsBefore=Traits.data.currency
@@ -425,15 +428,15 @@ local bulkExpected=130*2+110*2+125*4+132*4
 for _=1,240 do bulkMode:updateResults(1/60,game)end
 assert(bulkMode.resultSettlement.complete and game.result.traitEarned==bulkExpected and Traits.data.currency==bulkCoinsBefore+bulkExpected,
     "bulk lumber settlement did not finish within four seconds or lost coins")
--- 재생 단계는 난이도만 올리고 보상이 없었다. 프레스티지의 절반만 있던 셈이라
--- 단계를 올릴 이유가 없었다. 이제 시작 단계와 이번 판 상승분이 수입 배수가 된다.
-assert(math.abs(WoodEconomy.tierMultiplier(1,1)-1)<1e-9,"1단계 배수가 1이 아니다 - 초반 밸런스가 바뀐다")
-assert(math.abs(WoodEconomy.tierMultiplier(6,6)-1.75)<1e-9,"6단계 시작 배수가 1.75가 아니다")
-assert(math.abs(WoodEconomy.tierMultiplier(10,10)-2.35)<1e-9,"10단계 시작 배수가 2.35가 아니다")
-assert(WoodEconomy.tierMultiplier(3,6)>WoodEconomy.tierMultiplier(3,3),"이번 판에 단계를 올려도 보상이 늘지 않는다")
+-- 실측 공급량 증가와 합쳐 판당 총수입이 단계마다 약 2.6배가 되도록, 목재 단가는
+-- 획득 당시 재생 단계마다 1.44배씩 오른다.
+assert(math.abs(WoodEconomy.tierMultiplier(1)-1)<1e-9,"1단계 배수가 1이 아니다 - 초반 밸런스가 바뀐다")
+assert(math.abs(WoodEconomy.tierMultiplier(6)-1.44^5)<1e-9,"6단계 목재 배수가 기하급수로 오르지 않는다")
+assert(math.abs(WoodEconomy.tierMultiplier(8)-1.44^7)<1e-9,"8단계 목재 배수가 실측 1.6만 목표와 맞지 않는다")
+assert(math.abs(WoodEconomy.tierMultiplier(10)-1.44^9)<1e-9,"10단계 목재 배수가 기하급수로 오르지 않는다")
 local plainRows,plainTotal=WoodEconomy.settlement("forest",{broadleaf=10},1,1)
 local richRows,richTotal,richMul=WoodEconomy.settlement("forest",{broadleaf=10},10,10)
-assert(richTotal>plainTotal and math.abs(richMul-2.35)<1e-9,"높은 단계에서 목재 수입이 오르지 않는다")
+assert(richTotal>plainTotal and math.abs(richMul-WoodEconomy.tierMultiplier(10))<.06,"높은 단계에서 목재 수입이 오르지 않는다")
 local rowSum=0
 for _,row in ipairs(richRows)do rowSum=rowSum+row.count*row.coin end
 assert(rowSum==richTotal,"행 단가 합계와 총액이 어긋난다 - 정산 연출이 총액과 맞지 않는다")
@@ -442,5 +445,13 @@ assert(#richRows==#plainRows+1 and richRows[#richRows].bonus,"재생 단계 보�
 local _,t1=WoodEconomy.settlement("forest",{broadleaf=100},1,1)
 local _,t2=WoodEconomy.settlement("forest",{broadleaf=100},2,2)
 assert(t2>t1,"2단계 수입이 1단계와 같다 - 배수가 반올림에 먹히고 있다")
+
+-- 시작 단계를 가격에 섞지 않는다. 같은 8단계 목재는 1단계에서 밀고 올라왔든
+-- 8단계에서 시작했든 같은 금액이고, 일찍 번 목재는 나중 단계 가격으로 소급되지 않는다.
+local _,pushedTier8=WoodEconomy.settlementByTier("forest",{[8]={broadleaf=100}},8)
+local _,startedTier8=WoodEconomy.settlement("forest",{broadleaf=100},8,8)
+assert(pushedTier8==startedTier8,"같은 8단계 목재가 시작 단계에 따라 다른 가격을 받는다")
+local _,mixedTotal=WoodEconomy.settlementByTier("forest",{[1]={broadleaf=100},[8]={broadleaf=100}},8)
+assert(mixedTotal==t1+startedTier8,"초반에 번 목재가 최고 도달 단계 가격으로 소급 정산됐다")
 
 print("SCORE_ATTACK_MODE_OK start=6 persistent_regen_tier run_upgrades=disabled combat=permanent companions=spaced")

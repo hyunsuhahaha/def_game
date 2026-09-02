@@ -406,7 +406,7 @@
     <div class="score-rule"><span class="score-rule-label">몬스터 투입</span><span class="score-rule-value">첫 45초 없음 · 이후 동시 1→2→3→4마리</span></div>
     <div class="score-rule"><span class="score-rule-label">런 성장</span><span class="score-rule-value">인게임 XP·레벨업·강화 3택 없음 · 목재는 점수와 정산만</span></div>
     <div class="score-rule"><span class="score-rule-label">강화하기 화면</span><span class="score-rule-value">중앙 루트의 기존 상·하·좌·우 분기 + 초반 즉시 타격 대각선 가지 · 방향별 동일 단계 간격 · 기준 간격의 85~115% 줌 · 화면 해상도별 한글 폰트 재래스터</span></div>
-    <div class="score-rule"><span class="score-rule-label">연구 비용</span><span class="score-rule-value">표의 값은 기준가 · 실제 가격 = 기준가 × 1.008^(이미 구매한 기록 모드 랭크 수)</span></div>
+    <div class="score-rule"><span class="score-rule-label">연구 비용</span><span class="score-rule-value">일반 노드는 기준가 × 1.008^(구매 랭크) · 재생 단계 제한 노드는 표의 고정 가격</span></div>
     <div class="score-rule"><span class="score-rule-label">결과 화면</span><span class="score-rule-value">수종별 목재 집계 → 소량은 1개씩·대량은 묶음 단위로 코인 변환 → 강화하기/재도전 (약 4초 상한, 이동 시 잔여분 즉시 정산)</span></div>
   </section>
   <div class="toolbar">
@@ -747,6 +747,9 @@ const TRAITS = {
       {id:"universal_afforestation",name:"스테이지 시작 나무 증가",short:"시작 나무 증가",desc:"스테이지 진행마다 나무 +6그루(스테이지 배수)",max:3,costs:[36,62,94],requires:[["universal_shuttle",1]]},
       {id:"universal_seedbank",name:"다수 수종 생성",short:"다수 수종",desc:"벌목지에 더 값나가는 수종이 함께 자란다",max:1,costs:[135],requires:[["universal_afforestation",1]]},
       {id:"universal_yard",name:"작업 구역 확장",short:"맵 +2.5%p",desc:"이동 가능한 맵 크기가 2.5% 넓어지고 나무 허용량이 4그루 증가합니다.",max:1,costs:[16]},
+      {id:"universal_veteran_yard",name:"숙련 벌목장",short:"허용량 대폭 증가",desc:"나무 허용량이 단계마다 3그루 더 늘어납니다. 재생 6단계에 도달해야 열립니다.",max:4,costs:[1800,2200,2600,3000],requiresTier:6},
+      {id:"universal_veteran_crew",name:"숙련 작업반",short:"원숭이 추가",desc:"졸업한 무기마다 원숭이가 한 마리씩 더 합류합니다. 재생 8단계에 도달해야 열립니다.",max:1,costs:[16000],requiresTier:8,capstone:true},
+      {id:"universal_wildfire",name:"통제 불능 산불",short:"확산량 대폭 증가",desc:"불붙은 나무의 확산량이 단계마다 0.12 늘어납니다. 재생 10단계에 도달해야 열립니다.",max:3,costs:[80000,100000,120000],requiresTier:10,capstone:true},
       {id:"universal_stride",name:"작업자 이동속도 상승",short:"이동속도 +6%",desc:"작업자 이동속도 +6%",max:1,costs:[14]},
       {id:"universal_robot_start",name:"아기 로봇 기본 지급",short:"로봇 기본 지급",desc:"벌목 기록 모드를 아기 운반 로봇 Lv.1로 시작",max:1,costs:[42]},
       {id:"universal_robot_motor",name:"아기 로봇 이동속도 상승",short:"로봇 이동속도",desc:"아기 운반 로봇 이동속도 +10%",max:5,costs:[22,38,58,82,112],requires:[["universal_robot_start",1]]},

@@ -434,11 +434,11 @@ expand("universal",{
     {id="universal_seedbank",name="다수 수종 생성",short="다수 수종",desc="벌목지에 더 값나가는 수종이 함께 자란다",effect="treeVariety",value=1,max=1,requires={{"universal_afforestation",1}},icon="leaf",color={.55,.72,.35}},
     {id="universal_yard",name="작업 구역 확장",short="맵 +2.5%p",desc="이동 가능한 맵 크기가 2.5% 넓어지고 나무 허용량이 4그루 증가합니다.",effect="scoreYardExpansion",value=1,max=1,costs={16},wx=520,wy=850,icon="map",color={.48,.72,.42},scoreMode=true},
     -- 루트 노드. 어떤 빌드든 즉시 체감되고 값이 싸서 첫 판의 선택지를 늘린다.
-    -- 후반 목표. 코인을 다 모아도 재생 단계를 못 올리면 열리지 않는다. 19,637코인을
-    -- 전부 찍은 뒤가 비어 있던 문제를 실력 축으로 채운다.
-    {id="universal_veteran_yard",name="숙련 벌목장",short="허용량 대폭 증가",desc="나무 허용량이 단계마다 3그루 더 늘어납니다. 재생 6단계에 도달해야 열립니다.",effect="scoreTreeAllowance",value=3,max=4,costs={320,460,640,860},requiresTier=6,wx=3000,wy=550,icon="map",color={.42,.78,.52},scoreMode=true},
-    {id="universal_veteran_crew",name="숙련 작업반",short="원숭이 추가",desc="졸업한 무기마다 원숭이가 한 마리씩 더 합류합니다. 재생 8단계에 도달해야 열립니다.",effect="scoreGraduateExtra",value=1,max=1,costs={1400},requiresTier=8,wx=3400,wy=550,icon="capstone",color={.94,.66,.28},scoreMode=true,capstone=true},
-    {id="universal_wildfire",name="통제 불능 산불",short="확산량 대폭 증가",desc="불붙은 나무의 확산량이 단계마다 0.12 늘어납니다. 재생 10단계에 도달해야 열립니다.",effect="scoreSpreadChance",value=.0333,max=3,costs={900,1300,1800},requiresTier=10,wx=3800,wy=550,icon="ember",color={1,.42,.16},scoreMode=true,capstone=true},
+    -- 후반 목표. 코인을 다 모아도 재생 단계를 못 올리면 열리지 않는다. 각 가격은
+    -- 해당 재생 단계의 한 판 목표 수입대에 맞추고 전역 랭크 배율은 다시 적용하지 않는다.
+    {id="universal_veteran_yard",name="숙련 벌목장",short="허용량 대폭 증가",desc="나무 허용량이 단계마다 3그루 더 늘어납니다. 재생 6단계에 도달해야 열립니다.",effect="scoreTreeAllowance",value=3,max=4,costs={1800,2200,2600,3000},requiresTier=6,wx=3000,wy=550,icon="map",color={.42,.78,.52},scoreMode=true},
+    {id="universal_veteran_crew",name="숙련 작업반",short="원숭이 추가",desc="졸업한 무기마다 원숭이가 한 마리씩 더 합류합니다. 재생 8단계에 도달해야 열립니다.",effect="scoreGraduateExtra",value=1,max=1,costs={16000},requiresTier=8,wx=3400,wy=550,icon="capstone",color={.94,.66,.28},scoreMode=true,capstone=true},
+    {id="universal_wildfire",name="통제 불능 산불",short="확산량 대폭 증가",desc="불붙은 나무의 확산량이 단계마다 0.12 늘어납니다. 재생 10단계에 도달해야 열립니다.",effect="scoreSpreadChance",value=.0333,max=3,costs={80000,100000,120000},requiresTier=10,wx=3800,wy=550,icon="ember",color={1,.42,.16},scoreMode=true,capstone=true},
     {id="universal_stride",name="작업자 이동속도 상승",short="이동속도 +6%",desc="작업자 이동속도 +6%",effect="moveSpeed",value=.06,max=1,costs={14},wx=880,wy=1120,icon="road",color={.52,.74,.66},scoreMode=true},
     {id="universal_robot_start",name="아기 로봇 기본 지급",short="로봇 기본 지급",desc="벌목 기록 모드를 아기 운반 로봇 Lv.1로 시작",effect="scoreStartingBabyRobot",value=1,max=1,costs={42},wx=900,wy=680,icon="basket",color={.40,.86,1},scoreMode=true},
     {id="universal_robot_motor",name="아기 로봇 이동속도 상승",short="로봇 이동속도",desc="아기 운반 로봇 이동속도 +10%",effect="scoreRobotSpeed",value=.10,max=5,costs={22,38,58,82,112},wx=1260,wy=680,icon="clock",color={.55,.90,1},requires={{"universal_robot_start",1}},scoreMode=true},
@@ -702,6 +702,7 @@ function CharacterTraits:nodeCost(node, level)
     local base = node.costs[(level or 0) + 1]
     if not base then return nil end
     if not node.scoreMode then return base end
+    if node.requiresTier then return base end
     return math.max(1, math.floor(base * CharacterTraits.RESEARCH_ESCALATION ^ self:ownedScoreRanks() + .5))
 end
 
