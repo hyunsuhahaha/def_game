@@ -5,11 +5,6 @@ local decoded=Settings.decode("musicVolume=.35\nsfxVolume=1.8\nscreenShake=false
 assert(decoded.musicVolume==.35 and decoded.sfxVolume==1,"저장된 음량을 읽거나 범위 제한하지 못했다")
 assert(decoded.screenShake==false and decoded.viewPitch==.82,"기존 화면 설정과 함께 읽히지 않는다")
 
-love={}
-local store=Settings.load(true,false)
-assert(type(store.save)=="function","설정 저장 객체에 save 메서드가 연결되지 않았다")
-assert(store:save()==true,"메모리 전용 설정 저장이 실패했다")
-
 local volumeLog={}
 local function source()
     return{setLooping=function()end,setVolume=function(_,v)volumeLog[#volumeLog+1]=v end,

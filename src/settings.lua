@@ -21,7 +21,7 @@ function Settings.decode(text,fullscreen)
 end
 
 function Settings.load(memoryOnly,fullscreen)
-    local self=setmetatable({file="last_haul_settings_v1.txt",memoryOnly=memoryOnly==true},{__index=Settings})
+    local self={file="last_haul_settings_v1.txt",memoryOnly=memoryOnly==true}
     local text
     if not self.memoryOnly and love.filesystem and love.filesystem.getInfo and
         love.filesystem.getInfo(self.file)then text=love.filesystem.read(self.file)end
