@@ -6633,19 +6633,27 @@ function ClearcutMode:fellTree(node, game, axeImpact)
     -- 연쇄 발화: 쓰러지는 자리에서 주변으로 불이 옮겨붙는다. 좌표를 먼저 잡아 두는
     -- 이유는 아래에서 node 가 비활성 처리되기 때문이다.
     local chainX,chainY=node.x,node.y
-    local chainIgnite=self.scoreAttack and self:scoreReward("chain_ignition")
+    local chainIgnite=not self.defenseMode and self.scoreAttack and self:scoreReward("chain_ignition")
     node.active, node.respawn, node.rushHp = false, math.huge, 0
-    -- 기본 수종보다 값나가는(=해금이 필요한) 수종은 더 많은 목재를 준다.
-    local amount = (node.treeVariant and node.treeVariant > 1) and 6 or 4
-    amount = math.floor(amount * (self.permanentTraits.woodYield or 1) + .5)
-    game.world:harvestBurst(node, game, amount, "목재", axeImpact)
-    game.world:spawnDrop("wood", amount, node.x, node.y - 10, 42, 30, 1.5)
     self.treesFelled = self.treesFelled + 1
-    local lumber=WoodEconomy.forTree(self.mapId,node.treeVariant or 1)
-    self.lumberInventory=self.lumberInventory or{}
-    -- 노다지: 정산 재고에만 붙는다. 화면의 목재 드롭은 그대로라 눈이 헷갈리지 않는다.
-    local yield=(self:scoreReward("windfall") and love.math.random()<.12) and 2 or 1
-    self.lumberInventory[lumber.id]=(self.lumberInventory[lumber.id]or 0)+yield
+    if self.defenseMode then
+        -- 디펜스 재화는 드롭을 줍는 양이 아니라 실제로 벤 나무 수와 항상 같다.
+        game.world:harvestBurst(node,game,0,nil,axeImpact)
+        self.totalWood=self.treesFelled
+        self.scoreWoodEarned=self.treesFelled
+        game.wood=self.totalWood
+    else
+        -- 기본 수종보다 값나가는(=해금이 필요한) 수종은 더 많은 목재를 준다.
+        local amount=(node.treeVariant and node.treeVariant>1)and 6 or 4
+        amount=math.floor(amount*(self.permanentTraits.woodYield or 1)+.5)
+        game.world:harvestBurst(node,game,amount,"목재",axeImpact)
+        game.world:spawnDrop("wood",amount,node.x,node.y-10,42,30,1.5)
+        local lumber=WoodEconomy.forTree(self.mapId,node.treeVariant or 1)
+        self.lumberInventory=self.lumberInventory or{}
+        -- 노다지: 정산 재고에만 붙는다. 화면의 목재 드롭은 그대로라 눈이 헷갈리지 않는다.
+        local yield=(self:scoreReward("windfall")and love.math.random()<.12)and 2 or 1
+        self.lumberInventory[lumber.id]=(self.lumberInventory[lumber.id]or 0)+yield
+    end
     if self.scoreAttack then
         self.scoreFellTimes=self.scoreFellTimes or{}
         self.scoreFellTimes[#self.scoreFellTimes+1]=self.stageElapsed or self.elapsed or 0
@@ -8565,7 +8573,7 @@ function ClearcutMode:drawHUD(game,fonts)
     local timeText=self.scorePractice and"∞"or(self.scoreAttack and formatTime(self.stageElapsed or 0)or formatTime(remaining))
     love.graphics.setFont(fonts.big);love.graphics.setColor(urgent and {1,.30,.18} or {1,.96,.82});love.graphics.print(timeText,18,16)
     love.graphics.setFont(fonts.micro or fonts.small);love.graphics.setColor(urgent and {1,.55,.30} or {.82,.84,.76});love.graphics.print(self.defenseMode and"무한 디펜스"or(self.scorePractice and"무한 스킬 연습"or(self.scoreAttack and"벌목 기록"or("제한 시간 · "..Maps.stageCode(self.mapId,self.stage).." · "..(jobNames[self.job]or"벌목꾼")))),20,51)
-    love.graphics.setColor(.92,.90,.72);love.graphics.print(self.scoreAttack and string.format("목재 %d   벌목 %d   생성 %d",self.totalWood,self.treesFelled,self.totalTreesSpawned or 0)or string.format("목재 %d   벌목 %d/%d",self.totalWood,self.treesFelled,self.initialTrees),20,71)
+    love.graphics.setColor(.92,.90,.72);love.graphics.print(self.defenseMode and string.format("처치 재화 %d   벌목 %d   생성 %d",self.totalWood,self.treesFelled,self.totalTreesSpawned or 0)or(self.scoreAttack and string.format("목재 %d   벌목 %d   생성 %d",self.totalWood,self.treesFelled,self.totalTreesSpawned or 0)or string.format("목재 %d   벌목 %d/%d",self.totalWood,self.treesFelled,self.initialTrees)),20,71)
     local statusColor = (self.rootedTimer > 0 or self.beeSlow) and {1,.6,.35} or {.6,.72,.66}
     love.graphics.setColor(statusColor)
     local secured,totalZones=ForestZones.status(self)

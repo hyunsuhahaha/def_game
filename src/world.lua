@@ -262,10 +262,12 @@ function World:harvestBurst(node, game, amount, label, axeImpact)
         if game.feedback then game.feedback:play("harvest", true) end
         if game.camera then game.camera.trauma = math.min(1, game.camera.trauma + .2) end
     end
-    for _ = 1, math.min(12, amount + 3) do self:addParticle(x, y, color, true, true) end
-    self.harvestChain = self.harvestChainTime > 0 and math.min(99, self.harvestChain + 1) or 1
-    self.harvestChainTime = 2.4
-    self.popups[#self.popups + 1] = {x = x, y = y - 78, life = 1.05, maxLife = 1.05, text = "+" .. amount .. " " .. label, color = color, chain = self.harvestChain}
+    if label then
+        for _ = 1, math.min(12, amount + 3) do self:addParticle(x, y, color, true, true) end
+        self.harvestChain = self.harvestChainTime > 0 and math.min(99, self.harvestChain + 1) or 1
+        self.harvestChainTime = 2.4
+        self.popups[#self.popups + 1] = {x = x, y = y - 78, life = 1.05, maxLife = 1.05, text = "+" .. amount .. " " .. label, color = color, chain = self.harvestChain}
+    end
     if node.rushTree then
         local sway = node.swayAngle or 0
         local profile=TreeDestruction.fallProfile(node.rushMaxHp,node.giantTree)

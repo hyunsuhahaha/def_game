@@ -1,5 +1,6 @@
-local Defense={visibleStages=4,ringCount=4,coreRadius=110,speed=20,ringSpacing=60,
-    firstRadius=840,spawnRadius=1080,mapScale=1.6,treesPerStage=96,healthPerStage=.12,spawnInterval=2.5}
+local Defense={visibleStages=4,ringCount=4,coreRadius=110,speed=48,ringSpacing=60,
+    firstRadius=840,spawnRadius=1080,mapScale=1.6,treesPerStage=96,
+    baseHealthMultiplier=2,healthPerStage=.25,spawnInterval=1.25}
 
 function Defense.centerX(world)return world.width*.5 end
 function Defense.centerY(world)return world.height*.5 end
@@ -7,7 +8,7 @@ function Defense.radiusForSlot(slot)return Defense.firstRadius+(slot-1)*Defense.
 function Defense.treeCount()return Defense.visibleStages*Defense.treesPerStage end
 
 local function baseHealth(variant)return({12,9,7,16})[variant]end
-local function stageHealth(variant,stage)return math.ceil(baseHealth(variant)*(1+(stage-1)*Defense.healthPerStage))end
+local function stageHealth(variant,stage)return math.ceil(baseHealth(variant)*Defense.baseHealthMultiplier*(1+(stage-1)*Defense.healthPerStage))end
 local function newTree(index)
     local variant=(index-1)%4+1
     return {kind="tree",work=0,workTime=1,active=false,respawn=0,rushTree=true,
