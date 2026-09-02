@@ -1,7 +1,7 @@
 -- 벌목 기록 모드의 40초 주기 세계수와 처치 보상.
 --
 -- 인게임 3택은 원래 목재 경험치로 열렸는데, 요구량이 선형(5+레벨*3)인데 수입은
--- 지수(재생 단계 1.75^n x 시간 압력 2^(초/30))로 늘어서 후반에 선택 창이 연달아
+-- 지수(재생 단계 1.75^n x 시간 압력 2^(초/20))로 늘어서 후반에 선택 창이 연달아
 -- 떠 진행이 멈췄다. 그래서 통째로 제거됐다.
 --
 -- 여기서는 트리거를 목재가 아니라 **시간**으로 바꾼다. 수입이 아무리 폭증해도
@@ -13,8 +13,8 @@
 local ScoreWorldTree = {}
 
 ScoreWorldTree.INTERVAL = 40
-ScoreWorldTree.BASE_HP = 260
-ScoreWorldTree.TIER_HP = 1.18   -- 재생 단계마다 체력 배수
+ScoreWorldTree.HP_BY_TIER = {260,270,660,1480,3230,3890,6500,17820,24510,40950}
+ScoreWorldTree.ENDLESS_HP_GROWTH = 1.44
 -- 보상 코드와 검증 자산은 복구 가능하게 보존하되 현재 기록 모드에서는 열지 않는다.
 ScoreWorldTree.REWARDS_ENABLED = false
 -- 세계수는 항상 이동 가능 구역의 정중앙에 선다. 매번 다른 자리에 무작위로
@@ -183,7 +183,10 @@ end
 
 function ScoreWorldTree.health(mode)
     local tier = ScoreWorldTree.tier(mode)
-    return math.floor(ScoreWorldTree.BASE_HP * ScoreWorldTree.TIER_HP ^ (tier - 1) + .5)
+    local fixed=ScoreWorldTree.HP_BY_TIER[tier]
+    if fixed then return fixed end
+    return math.floor(ScoreWorldTree.HP_BY_TIER[#ScoreWorldTree.HP_BY_TIER]
+        *ScoreWorldTree.ENDLESS_HP_GROWTH^(tier-#ScoreWorldTree.HP_BY_TIER)+.5)
 end
 
 return ScoreWorldTree

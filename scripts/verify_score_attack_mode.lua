@@ -17,7 +17,7 @@ local Player=require("src.player")
 local Camera=require("src.camera")
 local Traits=require("src.character_traits").new(true)
 local WoodEconomy=require("src.wood_economy")
-local function expectedSpawn(tier,seconds)return .14*1.75^(tier-1)*2^(seconds/30)end
+local function expectedSpawn(tier,seconds)return .14*1.75^(tier-1)*2^(seconds/20)end
 
 assert(WoodEconomy.researchCoinMultiplier==2,"global research-coin reward multiplier drifted")
 for _,mapId in ipairs({"forest","mangrove","madagascar","island"})do
@@ -183,11 +183,12 @@ for _=1,5 do mode.scoreFellTimes[#mode.scoreFellTimes+1]=90 end
 mode.scoreFellHead=1
 mode:scoreProductionRate()
 assert(mode.currentTreesPerSecond==5 and math.abs(mode:scoreTreeSpawnRate()-expectedSpawn(1,90))<.001,"elapsed-time pressure did not raise regeneration independently of recent logging output")
-assert(mode.SCORE_TIME_DOUBLING_SECONDS==30 and math.abs(mode:scoreTimePressureMultiplier()-8)<.001,
-    "time pressure did not double every 30 seconds")
+mode.stageElapsed=20
+assert(mode.SCORE_TIME_DOUBLING_SECONDS==20 and math.abs(mode:scoreTimePressureMultiplier()-2)<.001,
+    "time pressure did not double every 20 seconds")
 mode.stageElapsed=60
-assert(math.abs(mode:scoreTimePressureMultiplier()-4)<.001,
-    "new one-minute time pressure does not match the former two-minute multiplier")
+assert(math.abs(mode:scoreTimePressureMultiplier()-8)<.001,
+    "one-minute time pressure is not eight times the starting rate")
 mode.stageElapsed=90
 
 game.mode="test"

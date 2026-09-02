@@ -1,7 +1,7 @@
 -- 40초 주기 세계수와 처치 보상 회귀 검사.
 --
 -- 인게임 3택은 원래 목재 경험치로 열렸는데 요구량이 선형(5+레벨*3)인 반면 수입은
--- 지수(재생 단계 1.75^n x 시간 압력 2^(초/30))라, 후반에 선택 창이 연달아 떠서
+-- 지수(재생 단계 1.75^n x 시간 압력 2^(초/20))라, 후반에 선택 창이 연달아 떠서
 -- 진행이 멈췄고 그래서 제거됐다. 이 검사는 트리거가 다시 목재로 돌아가지 않는지,
 -- 즉 빈도가 수입과 무관한지를 고정한다.
 package.path = "./?.lua;./?/init.lua;" .. package.path
@@ -20,6 +20,9 @@ local ClearcutMode = require("src.clearcut_mode")
 local ScoreWorldTree = require("src.score_world_tree")
 
 assert(ScoreWorldTree.INTERVAL == 40, "세계수 주기가 40초가 아니다")
+assert(ScoreWorldTree.health(1)==260 and ScoreWorldTree.health(8)==17820
+    and ScoreWorldTree.health(10)==40950 and ScoreWorldTree.health(11)==58968,
+    "세계수 체력이 누적 빌드 DPS 기반 곡선과 다르다")
 assert(ScoreWorldTree.REWARDS_ENABLED == false, "운영 모드에서 세계수 보상이 다시 활성화됐다")
 
 local function mode()

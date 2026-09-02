@@ -14,7 +14,7 @@ local meta=read("docs/SCORE_ATTACK_META_LOOP.md")
 assert(readme:find("40초 뒤 세계수 처치",1,true)and
     not readme:find("60초 뒤 세계수 처치",1,true),
     "README world-tree interval is stale")
-assert(active:find("/30초",1,true)and active:find("40초 뒤 세계수 처치",1,true),
+assert(active:find("/20초",1,true)and active:find("40초 뒤 세계수 처치",1,true),
     "active-mode pressure or world-tree timing is stale")
 assert(system:find("과거의 트라우마를 불태우려고 꿈속의 숲에서 싸우고 있다",1,true)and
     system:find("해금 단계와 결말은 아직 미정",1,true)and
@@ -34,4 +34,4 @@ assert(companions:find("universal_mole_companion",1,true)and companions:find("un
     "lobby companion unlock documentation is incomplete")
 assert(meta:find("로비 `P` 연습장",1,true)and meta:find("영구 연구 빌드",1,true),
     "meta-loop documentation still describes the archived practice panel")
-print("DOCUMENTATION_SYNC_OK narrative=bounded timing=40s/30s practice=current settings=persistent lobby_companions=linked")
+print("DOCUMENTATION_SYNC_OK narrative=bounded timing=40s/20s practice=current settings=persistent lobby_companions=linked")
