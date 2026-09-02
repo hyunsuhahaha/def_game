@@ -39,6 +39,12 @@ local store=Traits.new(true);local count,ranks,cost=0,0,0
 for _,node in ipairs(store:getScoreAttackNodes("universal"))do if node.id:match("^universal_bomb")then
     count=count+1;ranks=ranks+node.max;for _,value in ipairs(node.costs)do cost=cost+value end
 end end
-assert(count==6 and ranks==17 and cost==4375,"bomb-monkey research branch totals changed")
+assert(count==6 and ranks==17 and cost==548000,"bomb-monkey research branch totals changed")
+for _,spec in ipairs({{"universal_bomb_monkey",7,6000},{"universal_bomb_interval",8,12000},
+    {"universal_bomb_fuse",8,12000},{"universal_bomb_radius",9,30000},
+    {"universal_bomb_damage",9,30000},{"universal_bomb_extra",9,70000}})do
+    local node=store:getNode(spec[1])
+    assert(node.requiresTier==spec[2]and store:nodeCost(node,0)==spec[3],spec[1].." is not priced directly to its regeneration-tier income")
+end
 fixture.reset();BombMonkey.queue(mode,{});BombMonkey.load()
-print("BOMB_MONKEY_OK carry=drop ignition=butt+flame+oil+tree+firework fuse=2.6 radius=180 damage=14 nodes=6 ranks=17")
+print("BOMB_MONKEY_OK carry=drop ignition=butt+flame+oil+tree+firework fuse=2.6 radius=180 damage=14 nodes=6 ranks=17 cost=548000 tiers=7+8+9")
