@@ -107,11 +107,10 @@ mode:updateTimeSpawner(44,game)
 assert(#mode.enemies==0,"score mode spawned monsters during the 45-second opening grace")
 mode.stageElapsed=45
 mode:updateTimeSpawner(1.1,game)
-assert(#mode.enemies==1,"score mode did not introduce exactly one sparse monster after the grace")
-assert(mode.enemies[1].kind=="boar","score mode spawned the removed squirrel roaming enemy")
-mode.scoreEnemyTimer=0
-mode:updateTimeSpawner(.1,game)
-assert(#mode.enemies==1,"score mode exceeded its opening one-monster cap")
+assert(#mode.enemies==0,"score mode spawned a roaming monster after the opening grace")
+mode.stageElapsed=600
+mode:updateTimeSpawner(600,game)
+assert(#mode.enemies==0,"score mode spawned a roaming monster during a long run")
 local berserkBefore,vinesBefore=mode.berserkTimer,mode.vinePlantTimer
 mode:updateBerserk(999,game);mode:updateVinePlants(999,game)
 assert(mode.berserkTimer==berserkBefore and mode.vinePlantTimer==vinesBefore,"normal-stage threat systems remained active in score mode")

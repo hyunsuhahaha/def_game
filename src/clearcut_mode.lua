@@ -231,7 +231,7 @@ function ClearcutMode.new()
         hp=100, maxHp=100, invulnTimer=0, dead=false,
         enemies={}, projectiles={}, bossTelegraphs={}, resinPuddles={}, waveFired={}, worldTreeSpawned=false, readyToFinish=false, activeBoss=nil,operationFinalBoss=false,operationBossName=nil,kills=0,
         chests={}, bossMagnetPickups={}, worldTreeDebris={}, chestPending=false, molotovShots=0, wildburstTimer=10, plagued={}, dodges=0,
-        timeSpawnTimer=35, scoreEnemyTimer=45, eliteTimer=200, reaperSpawned=false,
+        timeSpawnTimer=35, eliteTimer=200, reaperSpawned=false,
         stage=1, stageBossHpMul=1, stageElapsed=0, stageTimeLimit=stageTimeLimit(1), failureReason=nil,
         scoreAttack=false,scoreHardCap=720,scoreStartingTrees=6,scoreBaseTreeAllowance=12,scoreTreeAllowance=12,scoreRegenTier=1,scoreTierFx=nil,
         scoreWoodEarned=0,scoreActiveWeapon="cigarette",scoreMeleeEnabled=true,scoreAttackSuppressed=false,
@@ -544,9 +544,6 @@ function ClearcutMode:setup(game)
         self.scoreFellTimes,self.scoreFellHead={},1
         self.currentTreesPerSecond,self.peakTreesPerSecond=0,0
         self.scoreWoodEarned=0
-        -- 기록 모드는 첫 수십 초 동안 직접 착화와 영구 연구 빌드로 버틴다.
-        -- 일반 스테이지의 파괴율 웨이브와 별도로, 45초 뒤부터 소수만 투입한다.
-        self.scoreEnemyTimer=45
         self.scoreRegenTier=self.scorePractice and 1
             or(game.characterTraits and game.characterTraits.getRegenTier and game.characterTraits:getRegenTier()or 1)
         self.scoreStartingRegenTier=self.scoreRegenTier
@@ -2068,33 +2065,7 @@ function ClearcutMode:timeSpawnPool()
 end
 
 function ClearcutMode:updateTimeSpawner(dt, game)
-    if self.sandbox or self.defenseMode then return end
-    if self.scoreAttack then
-        local elapsed=self.stageElapsed or 0
-        self.scoreEnemyTimer=(self.scoreEnemyTimer or 45)-dt
-        if self.scoreEnemyTimer>0 then return end
-
-        -- 기록전의 적은 주 난이도가 아니라 벌목 동선을 조금 흔드는 방해물이다.
-        -- 살아 있는 수를 제한해 타이머 한 번에 한 마리만 보충한다.
-        local limit=elapsed<120 and 1 or(elapsed<240 and 2 or(elapsed<360 and 3 or 4))
-        local alive=0
-        for _,enemy in ipairs(self.enemies)do
-            if not enemy.dead and(enemy.hp or 0)>0 then alive=alive+1 end
-        end
-        local interval=elapsed<120 and 32 or(elapsed<240 and 26 or(elapsed<360 and 22 or 18))
-        if alive>=limit then
-            self.scoreEnemyTimer=4
-            return
-        end
-        self.scoreEnemyTimer=interval
-        -- The active score-attack mode intentionally uses boars as its only
-        -- roaming animal so the squirrel sprite never appears in-game.
-        local kind="boar"
-        local a=love.math.random()*math.pi*2
-        local r=560+love.math.random()*120
-        self:spawnEnemy(kind,game.player.x+math.cos(a)*r,game.player.y+math.sin(a)*r)
-        return
-    end
+    if self.sandbox or self.defenseMode or self.scoreAttack then return end
     self.timeSpawnTimer = self.timeSpawnTimer - dt
     if self.timeSpawnTimer > 0 then return end
     local curse = self:curseLevel()

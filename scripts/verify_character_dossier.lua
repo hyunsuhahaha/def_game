@@ -23,6 +23,7 @@ assert(dossier:find('id="score-mode-summary"',1,true),"dossier is missing the vi
 assert(dossier:find("활성 나무 0그루 달성 또는 40초 뒤 세계수 처치 · 0.86초 연출 · 6그루 순차 발아 · 다음 단계 영구 해금",1,true),
     "dossier score-mode opening pacing is stale")
 assert(dossier:find("인게임 XP·레벨업·강화 3택 없음 · 목재는 점수와 정산만",1,true),"dossier score-mode growth summary is stale")
+assert(dossier:find("없음 · 멧돼지·다람쥐 등 일반 몬스터 비활성",1,true),"dossier score-mode monster rule is stale")
 assert(dossier:find("재생 단계 제한 노드는 표의 고정 가격",1,true),"dossier research-price rule is stale")
 assert(dossier:find("중앙 루트의 기존 상·하·좌·우 분기 + 초반 즉시 타격 대각선 가지 · 방향별 동일 단계 간격 · 기준 간격의 85~115% 줌 · 화면 해상도별 한글 폰트 재래스터",1,true),
     "dossier research-board summary is stale")
