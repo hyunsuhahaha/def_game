@@ -90,6 +90,11 @@ mode:updateSmokerDash(.25,game)
 assert(not mode.smokerDash and game.player.x>dashStartX+180 and mode.smokerDashCooldown>0,
     "smoker dash did not travel its full distance or start cooldown")
 assert(not mode:activateSmokerDash(game),"smoker dash ignored its cooldown")
+mode.smokerDashCooldown=0
+mode.permanentTraits.scoreDashDistance=130
+assert(mode:activateSmokerDash(game)and mode.smokerDash.remaining==320,
+    "dash-distance research did not extend the runtime dash from 190 to 320")
+mode:updateSmokerDash(.4,game)
 heldKeys.d=nil
 mode.currentTreesPerSecond=0
 

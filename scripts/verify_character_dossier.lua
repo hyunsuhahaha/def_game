@@ -31,6 +31,8 @@ assert(dossier:find("소량은 1개씩·대량은 묶음 단위로 코인 변환
     "dossier result-screen summary is stale")
 assert(dossier:find("fire_score_prewarm",1,true)and dossier:find("fire_score_impact",1,true)and dossier:find("fire_score_stock",1,true),
     "dossier score-mode permanent traits are stale")
+assert(dossier:find('id:"fire_score_dash_distance"',1,true)and dossier:find("대시 이동거리가 130 증가",1,true),
+    "dossier dash-distance research is stale")
 assert(dossier:find("universal_robot_start",1,true)and dossier:find("universal_robot_motor",1,true),
     "dossier baby robot permanent research is stale")
 for _,entry in ipairs({

@@ -253,7 +253,7 @@ function ClearcutMode.new()
             scoreInitialIgnitionReduction=0,scoreCigaretteImpact=0,scoreMoleCompanion=0,scoreMoleDamage=0,scoreMoleSpeed=0,
             scoreMoleAttackSpeed=0,scoreMoleClawTier=0,scoreMoleDualClaw=0,scoreMoleExtraCompanions=0,
             scoreMoleBurrow=0,scoreMoleBurrowSpeed=0,scoreMoleBurrowDamage=0,scoreMoleBurrowCooldown=0,
-            scoreOilDrum=0,scoreOilDrumInterval=0,scoreOilRadius=0,scoreOilIgnitionRadius=0,
+            scoreDashDistance=0,scoreOilDrum=0,scoreOilDrumInterval=0,scoreOilRadius=0,scoreOilIgnitionRadius=0,
             scoreOilDuration=0,scoreOilBurnDuration=0,scoreOilDamage=0,scoreOilSplashCount=0,scoreOilPatchScale=0,
             scoreGrayCat=0,scoreGrayCatChance=0,scoreGrayCatDelay=0,scoreGrayCatSpeed=0,scoreGrayCatExitSpeed=0,
             scoreReloadSpeed=0,scoreCartonSize=0,scoreCartonReload=0,scoreAutoThrowRate=0,
@@ -3970,7 +3970,7 @@ function ClearcutMode:activateSmokerDash(game)
     local length=math.sqrt(dx*dx+dy*dy)
     if length<.01 then dx,dy,length=game.player.facing or 1,0,1 end
     dx,dy=dx/length,dy/length
-    self.smokerDash={dx=dx,dy=dy,remaining=190}
+    self.smokerDash={dx=dx,dy=dy,remaining=190+math.max(0,self.permanentTraits.scoreDashDistance or 0)}
     self.smokerDashCooldown=1.25
     self.invulnTimer=math.max(self.invulnTimer or 0,.22)
     game.player.facing=dx<0 and-1 or dx>0 and 1 or game.player.facing

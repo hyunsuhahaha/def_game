@@ -506,6 +506,7 @@ const TRAITS = {
       {id:"fire_redsky",name:"하늘이 붉은 건 노을",short:"최종 산불",desc:"착화 범위 +42",max:1,costs:[190],requires:[["fire_claim",1]],capstone:true},
       {id:"fire_score_prewarm",name:"최초 흡연 준비시간 감소",short:"첫 불씨 단축",desc:"벌목 기록 모드 최초 흡연 준비시간 -0.08초",max:5,costs:[18,32,50,74,104]},
       {id:"fire_score_dash_unlock",name:"대시 해금",short:"빠른 회피",desc:"구매하면 이동 중 짧은 대시를 사용할 수 있습니다.",max:1,costs:[30],requires:[["fire_score_alwayssmoke",1]]},
+      {id:"fire_score_dash_distance",name:"대시 거리 상승",short:"대시 거리 +130",desc:"대시 이동거리가 130 증가합니다. 기본 이동거리는 190입니다.",max:1,costs:[180],requires:[["fire_score_dash_unlock",1],["fire_score_rocket_unlock",1]]},
       {id:"fire_score_impact",name:"꽁초 즉시 타격 반응",short:"즉시 타격 반응",desc:"꽁초 착지 즉시 최근접 대상 1개를 점화하고 짧은 정지·반동·전용 타격음을 적용합니다.",max:1,costs:[32],requires:[["fire_score_prewarm",1]]},
       {id:"fire_score_alwayssmoke",name:"상시 흡연",short:"상시 흡연",desc:"근접 도끼질이나 폭죽 공격 중에도 담배 재장전이 계속됩니다.",max:1,costs:[70],requires:[["fire_score_prewarm",1]]},
       {id:"fire_score_filter",name:"원거리 무기 사거리 상승",short:"원거리 사거리",desc:"원거리 무기 사거리 +16",max:6,costs:[18,32,50,74,104,142],requires:[["fire_score_prewarm",1]]},
