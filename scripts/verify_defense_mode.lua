@@ -25,7 +25,7 @@ local first=world.nodes[1];local before=math.sqrt((first.x-Defense.centerX(world
 Defense.update(mode,game,1)
 local after=math.sqrt((first.x-Defense.centerX(world))^2+(first.y-Defense.centerY(world))^2)
 assert(math.abs((before-after)-Defense.speed)<.01,"stage ring did not advance inward")
-assert(type(first.swayAngle)=="number"and math.abs(first.swayAngle)>0,"moving trees did not receive visible inward sway")
+assert(first.swayAngle==0 and first.swayVel==0,"defense movement added per-tree sway effects")
 
 -- Stage 5 must arrive on time even while every tree from stages 1..4 is alive.
 Defense.update(mode,game,Defense.spawnInterval-1)

@@ -38,6 +38,7 @@ local function spawnStage(mode,game,stage,radius,nodes)
         node.rushHp,node.rushMaxHp,node.scoreHpMultiplier=hp,hp,hp/baseHealth(variant)
         node.beehive,node.giantTree,node.treeEmergence=nil,nil,nil
         node.burning,node.burnTimer,node.fallT,node.uprooted,node.damageStage=nil,nil,nil,nil,nil
+        node.swayAngle,node.swayVel=0,0
     end
     mode.defenseStageGroups[#mode.defenseStageGroups+1]={stage=stage,nodes=nodes}
     mode.totalTreesSpawned=(mode.totalTreesSpawned or 0)+#nodes
@@ -70,14 +71,11 @@ end
 
 function Defense.update(mode,game,dt)
     if game.result then return true end
-    mode.defenseMotionClock=(mode.defenseMotionClock or 0)+dt
     local world=game.world;local cx,cy=Defense.centerX(world),Defense.centerY(world);local active=0
     for _,node in ipairs(world.nodes)do if node.active and node.rushTree and node.defenseStage then
         active=active+1;local dx,dy=node.x-cx,node.y-cy;local radius=math.sqrt(dx*dx+dy*dy)
         local nextRadius=math.max(0,radius-Defense.speed*dt)
         if radius>0 then node.x,node.y=cx+dx/radius*nextRadius,cy+dy/radius*nextRadius end
-        local inwardLean=node.x>cx and -.018 or(node.x<cx and .018 or 0)
-        node.swayAngle=inwardLean+math.sin(mode.defenseMotionClock*5+(node.defenseAngle or 0)*3)*.032
         if nextRadius<=Defense.coreRadius then mode.failureReason="defense_core_breached";mode:finish(game,false);return true end
     end end
     for _,group in ipairs(mode.defenseStageGroups or{})do
@@ -106,18 +104,6 @@ function Defense.drawGround(mode,world)
     love.graphics.setColor(.06,.19,.12,.72);love.graphics.polygon("fill",polygonPoints(cx,cy,Defense.coreRadius,16))
     love.graphics.setLineWidth(5);love.graphics.setColor(1,.36,.14,.82+pulse*.18);love.graphics.polygon("line",polygonPoints(cx,cy,Defense.coreRadius,16))
     love.graphics.setLineWidth(2);love.graphics.setColor(.48,.82,.42,.28);love.graphics.polygon("line",polygonPoints(cx,cy,Defense.spawnRadius,32))
-    local clock=mode.defenseMotionClock or 0
-    for index,node in ipairs(world.nodes)do if node.active and node.defenseStage and index%6==0 then
-        local dx,dy=node.x-cx,node.y-cy;local radius=math.sqrt(dx*dx+dy*dy)
-        if radius>0 then
-            local nx,ny=dx/radius,dy/radius;local flow=(clock*22+index*5)%18
-            for dash=0,1 do
-                local distance=24+flow+dash*22;local x=node.x+nx*distance;local y=node.y+ny*distance
-                love.graphics.setLineWidth(dash==0 and 3 or 2);love.graphics.setColor(.31,.20,.08,dash==0 and .42 or .24)
-                love.graphics.line(math.floor(x+.5),math.floor(y+.5),math.floor(x+nx*10+.5),math.floor(y+ny*10+.5))
-            end
-        end
-    end end
     love.graphics.setLineWidth(1)
 end
 function Defense.queue(mode,queue,world)if mode.defenseMode then queue[#queue+1]={y=-300000,ground=true,draw=function()Defense.drawGround(mode,world)end}end end
