@@ -2,7 +2,7 @@ package.path="./?.lua;./?/init.lua;"..package.path
 
 local Settings=require("src.settings")
 local defaults=Settings.decode(nil,false)
-assert(defaults.musicVolume==.98,"기본 배경음악 음량이 98%가 아니다")
+assert(defaults.musicVolume==.70,"기본 배경음악 음량이 70%가 아니다")
 local decoded=Settings.decode("musicVolume=.35\nsfxVolume=1.8\nscreenShake=false\nviewPitch=.82\n",false)
 assert(decoded.musicVolume==.35 and decoded.sfxVolume==1,"저장된 음량을 읽거나 범위 제한하지 못했다")
 assert(decoded.screenShake==false and decoded.viewPitch==.82,"기존 화면 설정과 함께 읽히지 않는다")
@@ -26,9 +26,9 @@ love={
 
 local LobbyAudio=require("src.lobby_audio")
 local music=LobbyAudio.new();music:setVolume(.4);music:source(1)
-assert(math.abs(volumeLog[#volumeLog]-.22)<.0001,"새 배경음 소스에 설정 음량이 적용되지 않았다")
+assert(math.abs(volumeLog[#volumeLog]-.308)<.0001,"새 배경음 소스에 상향된 출력 게인이 적용되지 않았다")
 music:setVolume(.2)
-assert(math.abs(volumeLog[#volumeLog]-.11)<.0001,"이미 캐시된 배경음의 음량이 즉시 바뀌지 않는다")
+assert(math.abs(volumeLog[#volumeLog]-.154)<.0001,"이미 캐시된 배경음의 상향된 출력 게인이 즉시 적용되지 않는다")
 
 local Feedback=require("src.feedback")
 local feedback=Feedback.new(.25);feedback:play("tree",false)

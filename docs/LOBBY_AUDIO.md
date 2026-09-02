@@ -89,7 +89,7 @@ python scripts/render_lobby_cd_tracks.py       # 3곡·넓은/좁은 실제 로�
 | 멜로디 | `TRACKS[n].lead` — `{박, 반음, 길이(박)}` |
 | 템포·루프 길이 | `TRACKS[n].bpm` / `.beats` |
 | 곡별 음량 | `TRACKS[n].gain` (봉우리 기준) |
-| 전체 음량 | `LobbyAudio:source` 의 `setVolume` |
+| 전체 음량 | `OUTPUT_GAIN` — 현재 `.77`이며 기존 `.55` 대비 1.4배 |
 | 음색 | `square3`/`warm` 의 배음 비율, `addNote` 의 엔벨로프 |
 | CD 회전 속도·관성 | `src/lobby_cd_art.lua` 의 `SPIN_SPEED`/`SPIN_UP`/`SPIN_DOWN` |
 | CD 광택 폭·곡별 색 | `scripts/build_lobby_cd_art.py` 의 `SHEEN_ARC`/`PALETTES` (바꾼 뒤 재빌드) |

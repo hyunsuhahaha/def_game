@@ -11,6 +11,7 @@ LobbyAudio.__index=LobbyAudio
 local RATE=22050
 local TAU=math.pi*2
 local A1=55  -- 모든 음을 A1 기준 반음 오프셋으로 적어 화음표를 읽을 수 있게 한다
+local OUTPUT_GAIN=.77 -- 기존 .55보다 40% 높되 UI/저장 볼륨 값은 그대로 유지한다
 
 local function pitch(semitones) return A1*2^(semitones/12) end
 
@@ -264,7 +265,7 @@ function LobbyAudio:setVolume(volume)
     if self.volume==volume then return end
     self.volume=volume
     for _,source in pairs(self.sources)do
-        if source then pcall(function()source:setVolume(.55*self.volume)end)end
+        if source then pcall(function()source:setVolume(OUTPUT_GAIN*self.volume)end)end
     end
 end
 
@@ -282,7 +283,7 @@ function LobbyAudio:source(index)
         for i=0,count-1 do data:setSample(i,buffer[i]) end
         local made=love.audio.newSource(data,"static")
         made:setLooping(true)
-        made:setVolume(.55*self.volume)
+        made:setVolume(OUTPUT_GAIN*self.volume)
         return made
     end)
     if not ok or not source then self.sources[index]=false;return nil end
