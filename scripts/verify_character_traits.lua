@@ -291,15 +291,10 @@ assert(ammoMode.smoking.newCarton and math.abs(ammoMode.smoking.dur-2.4/1.48)<1e
 -- 자동 투척 주기. 손이 도끼·폭죽으로 넘어간 뒤의 담배 화력은 오직 이 간격으로만 자란다.
 local throwStore=CharacterTraits.new(true)
 throwStore.data.currency=400000
-throwStore.data.levels.fire_score_prewarm=throwStore:getNode("fire_score_prewarm").max
+throwStore.data.levels.fire_score_prewarm=1
 throwStore.data.levels.fire_score_alwayssmoke=1
 throwStore.data.levels.fire_score_autothrow=1
-throwStore.data.levels.fire_score_filter=throwStore:getNode("fire_score_filter").max
-throwStore.data.levels.fire_score_spark=throwStore:getNode("fire_score_spark").max
-for _=1,4 do
-    local bought,reason=throwStore:buy("fire_score_autothrow_rate")
-    assert(bought,"auto-throw rate rank purchase failed: "..tostring(reason))
-end
+for _=1,4 do assert(throwStore:buy("fire_score_autothrow_rate"),"auto-throw rate rank purchase failed") end
 local throwEffects=throwStore:scoreAttackEffects()
 assert(math.abs(throwEffects.scoreAutoThrowRate-.36)<1e-9,"auto-throw rate research did not reach score runtime effects")
 assert(math.abs(2.6/(1+throwEffects.scoreAutoThrowRate)-2.6/1.36)<1e-9,"auto-throw interval formula drifted from the runtime")
