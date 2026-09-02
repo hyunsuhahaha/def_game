@@ -222,6 +222,7 @@ function ClearcutMode.new()
         job=nil, attackCooldown=0, dashing=nil, dashTrail={}, smoking=nil,
         minerClawAction=nil, minerClawFx={}, minerClawMarks={}, minerBurrow=nil, minerBurrowCooldown=0, thrownTrees={}, burrowTracks={}, burrowTrackSequence=0,moleCompanion=nil,moleCompanions={},
         smokeRing=nil, smokeRingCooldown=0, smokeRingCharge=nil, smokeRingChargeDuration=1.5,
+        smokerDash=nil,smokerDashCooldown=0,
         salivaGauge=100, salivaGaugeMax=100, salivaDrainRate=30, salivaRegenRate=25, salivaExhausted=false,
         revivalTimer=0, revivalCooldown=0, eternalFields={},
         revivalChorusTimer=0, revivalChorusSequence=0, revivalChorusShots={}, revivalChorusImpacts={},
@@ -296,7 +297,8 @@ end
 function ClearcutMode:sandboxSkillList()
     local list = {}
     for _, def in ipairs(definitions) do
-        if (not def.scoreOperation or def.id=="baby_robot")and(not def.job or def.job==self.job)then list[#list+1]=def end
+        if def.id~="smoke_ring"and(not def.scoreOperation or def.id=="baby_robot")
+            and(not def.job or def.job==self.job)then list[#list+1]=def end
     end
     return list
 end
@@ -1758,7 +1760,7 @@ function ClearcutMode:update(dt, game)
     self:updateFire(dt, game)
     self:updateMolotovs(dt, game)
     self:updateSmokerWeaponProjectiles(dt,game)
-    self:updateSmokeRing(dt, game)
+    self:updateSmokerDash(dt, game)
     self:updateRevival(dt, game)
     VeganForkArt.update(self,dt)
     -- 연습장(sandbox)에서는 이 함수들이 자기 안에서 바로 return 하므로(각 함수 상단의
@@ -3981,6 +3983,35 @@ function ClearcutMode:updateSmokeRing(dt, game)
         end
     end
     if ring.traveled >= ring.maxRange then self.smokeRing = nil end
+end
+
+function ClearcutMode:activateSmokerDash(game)
+    if self.job~="fire"or self.dead or(self.permanentTraits.scoreDashUnlock or 0)<=0
+        or self.smokerDash or(self.smokerDashCooldown or 0)>0 then return false end
+    local dx,dy=0,0
+    if love.keyboard.isDown("a","left")then dx=dx-1 end
+    if love.keyboard.isDown("d","right")then dx=dx+1 end
+    if love.keyboard.isDown("w","up")then dy=dy-1 end
+    if love.keyboard.isDown("s","down")then dy=dy+1 end
+    local length=math.sqrt(dx*dx+dy*dy)
+    if length<.01 then dx,dy,length=game.player.facing or 1,0,1 end
+    dx,dy=dx/length,dy/length
+    self.smokerDash={dx=dx,dy=dy,remaining=190}
+    self.smokerDashCooldown=1.25
+    self.invulnTimer=math.max(self.invulnTimer or 0,.22)
+    game.player.facing=dx<0 and-1 or dx>0 and 1 or game.player.facing
+    return true
+end
+
+function ClearcutMode:updateSmokerDash(dt,game)
+    self.smokerDashCooldown=math.max(0,(self.smokerDashCooldown or 0)-dt)
+    local dash=self.smokerDash;if not dash then return end
+    local distance=math.min(dash.remaining,1000*dt)
+    local x,y=game.player.x,game.player.y
+    game.player.x,game.player.y=Maps.constrain(game.world,x+dash.dx*distance,y+dash.dy*distance,75)
+    dash.remaining=dash.remaining-distance
+    self.traitFx:emit("dash",x,y,{angle=math.atan2(dash.dy,dash.dx),radius=34,particles=3})
+    if dash.remaining<=0 then self.smokerDash=nil end
 end
 
 -- 도넛 모양이 확실히 보이도록: 원 둘레를 촘촘한 부드러운 연기 뭉치들로 채워 하나의
@@ -8750,9 +8781,9 @@ function ClearcutMode:drawHUD(game,fonts)
         love.graphics.setColor(ready and {.94,.76,.28,1} or {.72,.65,.52,1})
         love.graphics.printf(text,w/2-146,h-45,292,"center")
     end
-    if self.job=="fire" then
-        local ready=(self.smokeRingCooldown or 0)<=0 and not self.smokeRing
-        local text=self.smokeRing and "도넛 연기 — 후우..." or ready and "SPACE  도넛 연기 준비" or string.format("도넛 연기 재사용 %.1f초",self.smokeRingCooldown)
+    if self.job=="fire"and(self.permanentTraits.scoreDashUnlock or 0)>0 then
+        local ready=(self.smokerDashCooldown or 0)<=0 and not self.smokerDash
+        local text=self.smokerDash and "대시 중" or ready and "SPACE  대시" or string.format("대시 재사용 %.1f초",self.smokerDashCooldown)
         love.graphics.setFont(fonts.small)
         love.graphics.setColor(.035,.045,.035,.9); love.graphics.rectangle("fill",w/2-150,h-52,300,30,7,7)
         love.graphics.setColor(ready and {.94,.76,.28,1} or {.72,.65,.52,1})

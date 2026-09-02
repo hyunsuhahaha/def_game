@@ -17,6 +17,7 @@ function UI.drawTitle(game,intro,def,alpha)
 end
 function UI.drawHint(game,intro,alpha,bh)
     if alpha<=0 then return end;local w,h=love.graphics.getDimensions()
-    centered(game.fonts.micro,"SPACE / 클릭  건너뛰기",h-bh-24,w,{.65,.70,.64},alpha*.75)
+    local dashUnlocked=game.clearcut and(game.clearcut.permanentTraits.scoreDashUnlock or 0)>0
+    centered(game.fonts.micro,dashUnlocked and"SPACE / 클릭  건너뛰기"or"클릭  건너뛰기",h-bh-24,w,{.65,.70,.64},alpha*.75)
 end
 return UI

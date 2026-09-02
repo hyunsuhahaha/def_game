@@ -119,10 +119,12 @@ function Player:update(dt, world, game)
         end
     end
     local dx, dy = 0, 0
-    if love.keyboard.isDown("a", "left") then dx = dx - 1 end
-    if love.keyboard.isDown("d", "right") then dx = dx + 1 end
-    if love.keyboard.isDown("w", "up") then dy = dy - 1 end
-    if love.keyboard.isDown("s", "down") then dy = dy + 1 end
+    if not(game.clearcut and game.clearcut.smokerDash)then
+        if love.keyboard.isDown("a", "left") then dx = dx - 1 end
+        if love.keyboard.isDown("d", "right") then dx = dx + 1 end
+        if love.keyboard.isDown("w", "up") then dy = dy - 1 end
+        if love.keyboard.isDown("s", "down") then dy = dy + 1 end
+    end
     local len = math.sqrt(dx * dx + dy * dy)
     self.isMoving = len > 0
     if self.isMoving then

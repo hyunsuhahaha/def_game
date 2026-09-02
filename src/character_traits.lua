@@ -192,6 +192,7 @@ expand("fire",{
 -- 일반 흡연자 연구는 삭제하지 않고 저장 호환을 위해 위에 그대로 보존한다.
 local scoreFireNodes={
     {id="fire_score_prewarm",name="최초 흡연 준비시간 감소",short="첫 불씨 단축",desc="벌목 기록 모드 최초 흡연 준비시간 -0.08초",effect="scoreInitialIgnitionReduction",value=.08,wx=390,wy=710,icon="ember",color={1,.48,.12}},
+    {id="fire_score_dash_unlock",name="대시 해금",short="빠른 회피",desc="구매하면 이동 중 짧은 대시를 사용할 수 있습니다.",effect="scoreDashUnlock",value=1,max=1,costs={30},wx=2360,wy=760,icon="road",color={.42,.72,.86},requires={{"fire_score_alwayssmoke",1}}},
     {id="fire_score_impact",name="꽁초 즉시 타격 반응",short="즉시 타격 반응",desc="꽁초 착지 즉시 최근접 대상 1개를 점화하고 짧은 정지·반동·전용 타격음을 적용합니다.",effect="scoreCigaretteImpact",value=1,max=1,costs={32},wx=750,wy=600,icon="ember",color={1,.42,.10},requires={{"fire_score_prewarm",1}}},
     -- 루트 바로 다음 두 번째 노드. 도끼·폭죽을 들고 있는 동안에도 한 갑을 다 쓴
     -- 긴 재장전을 포함한 흡연 상태가 계속 진행된다.
@@ -803,7 +804,7 @@ function CharacterTraits:scoreAttackEffects()
         moveSpeed=1,pickupRadius=0,hpRegen=0,reviveCharges=0,woodYield=1,
         scoreTreeAllowance=0,scoreYardExpansion=0,scoreViewExpansion=0,scoreRange=0,scoreArea=0,scoreAttackSpeed=0,
         scoreIgnitionChance=0,scoreSpreadChance=0,scoreProjectileSpeed=0,
-        scoreBurnSpeed=0,scoreExtraFires=0,scoreInitialIgnitionReduction=0,scoreCigaretteImpact=0,
+        scoreBurnSpeed=0,scoreExtraFires=0,scoreInitialIgnitionReduction=0,scoreCigaretteImpact=0,scoreDashUnlock=0,
         scoreStartingBabyRobot=0,scoreRobotSpeed=0,scoreMoleCompanion=0,
         scoreMoleDamage=0,scoreMoleSpeed=0,scoreMoleAttackSpeed=0,scoreMoleClawTier=0,scoreMoleDualClaw=0,scoreMoleExtraCompanions=0,
         scoreMoleBurrow=0,scoreMoleBurrowSpeed=0,scoreMoleBurrowDamage=0,scoreMoleBurrowCooldown=0,

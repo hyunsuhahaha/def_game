@@ -685,7 +685,7 @@ function Game:keypressed(key)
     if self.runType=="clearcut" then
         if key=="space" and self.clearcut then
             self.clearcut:activateMinerBurrow(self)
-            self.clearcut:beginSmokeRingCharge(self)
+            self.clearcut:activateSmokerDash(self)
             self.clearcut:activateRevival(self)
         end
         return
@@ -703,9 +703,6 @@ end
 function Game:keyreleased(key)
     if ClearcutIntro.active(self) then return end
     if self.clearcut and self.clearcut.worldTreeEmergence then return end
-    if key=="space" and self.runType=="clearcut" and self.clearcut then
-        self.clearcut:releaseSmokeRingCharge(self)
-    end
 end
 
 function Game:useAbility(index)

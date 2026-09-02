@@ -5,7 +5,11 @@ love.graphics.getDimensions=function()return 1280,720 end
 love.graphics.getWidth=function()return 1280 end
 love.graphics.getHeight=function()return 720 end
 love.mouse={getPosition=function()return -100,-100 end,isDown=function()return false end}
-love.keyboard={isDown=function()return false end}
+local heldKeys={}
+love.keyboard={isDown=function(...)
+    for index=1,select("#",...)do if heldKeys[select(index,...)]then return true end end
+    return false
+end}
 
 local Game=require("src.game")
 local World=require("src.world")
@@ -60,6 +64,21 @@ assert(not mode:checkWorldTreeSpawn(game),"opening score field incorrectly summo
 assert(mode.scoreRegenTier==1 and math.abs(mode:scoreTreeSpawnRate()-.14)<.001,"opening forest did not use saved regeneration tier 1")
 assert(mode:scoreTimePressureMultiplier()==1,"time pressure was not neutral at run start")
 assert(mode:scoreTreeHealth(7)==7,"tier 1 altered ordinary tree health")
+local fonts={big=love.graphics.newFont(30),micro=love.graphics.newFont(11),small=love.graphics.newFont(14),body=love.graphics.newFont(18),display=love.graphics.newFont(34)}
+fixture.reset();mode:drawHUD(game,fonts)
+for _,command in ipairs(fixture.commands)do
+    assert(command.op~="text"or not command.text:find("SPACE",1,true),"locked dash leaked a SPACE hint into the score HUD")
+end
+assert(not mode:activateSmokerDash(game),"smoker dashed before buying the research node")
+mode.permanentTraits.scoreDashUnlock=1
+heldKeys.d=true
+local dashStartX=game.player.x
+assert(mode:activateSmokerDash(game),"unlocked smoker dash did not start")
+mode:updateSmokerDash(.25,game)
+assert(not mode.smokerDash and game.player.x>dashStartX+180 and mode.smokerDashCooldown>0,
+    "smoker dash did not travel its full distance or start cooldown")
+assert(not mode:activateSmokerDash(game),"smoker dash ignored its cooldown")
+heldKeys.d=nil
 mode.currentTreesPerSecond=0
 
 local openingTrees=#game.world.nodes

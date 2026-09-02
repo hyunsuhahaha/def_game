@@ -401,15 +401,9 @@ function SelfTest.run(game)
     assert(#game.clearcut.enemies == 0, "연습장에서 자동 스폰(시간/정예)이 꺼지지 않음")
     local sandboxDrawOk, sandboxDrawErr = pcall(game.draw, game)
     assert(sandboxDrawOk, "스킬 연습장 렌더 실패: " .. tostring(sandboxDrawErr))
-    local smokePlus
-    for _,box in ipairs(game.sandboxSkillBoxes or {})do if box.id=="smoke_ring"then smokePlus=box.plus end end
-    assert(smokePlus,"연습장 도넛 강화 + 버튼 생성 실패")
-    game.ended=true
-    game.clearcut.worldTreeEmergence={t=0}
-    game:mousepressed(smokePlus.x+smokePlus.w/2,smokePlus.y+smokePlus.h/2,1)
-    assert(game.clearcut:levelOf("smoke_ring")==1,"연습장 + 버튼이 실제 마우스 입력 또는 gameplay guard에 막힘")
-    game.ended=false
-    game.clearcut.worldTreeEmergence=nil
+    for _,box in ipairs(game.sandboxSkillBoxes or {})do
+        assert(box.id~="smoke_ring","제거한 도넛 연기가 연습장에 다시 노출됨")
+    end
     assert(game.sandboxSkyviewBox,"연습장 SKYVIEW 버튼이 없음")
     game:sandboxPanelClick(game.sandboxSkyviewBox.x+1,game.sandboxSkyviewBox.y+1)
     assert(game.camera.mode=="skyview" and game.camera.skyviewTarget==1,"연습장 SKYVIEW 버튼이 카메라를 켜지 못함")
@@ -422,55 +416,6 @@ function SelfTest.run(game)
     game:sandboxPanelClick(game.sandboxMobBox.x + 1, game.sandboxMobBox.y + 1)
     assert(#game.clearcut.enemies > 0, "몹 소환 버튼으로 적 생성 실패")
     game.clearcut.enemies = {}
-
-    -- 흡연자 SPACE 액션: 도넛 연기 — 입에서 조준 방향으로 날아가는 고리에 닿는 적에게
-    -- 피해+넉백을 준다(자기 자리에서 팽창하는 게 아니라 실제로 날아가는 투사체).
-    assert(game.clearcut:activateSmokeRing(game), "도넛 연기 발동 실패")
-    assert(game.clearcut.smokeRingCooldown > 0, "도넛 연기 쿨다운 시작 실패")
-    -- 조준(마우스) 방향은 헤드리스 환경에서 예측 불가하므로, 테스트에서는 +x 방향으로
-    -- 고정해 결정론적으로 검증한다.
-    local ring = game.clearcut.smokeRing
-    ring.vx, ring.vy = 480, 0
-    local smokeTarget = game.clearcut:spawnEnemy("squirrel", ring.x + 120, ring.y)
-    smokeTarget.hp = 50
-    local smokeXBefore = smokeTarget.x
-    local smokeTreeNode = {kind="tree", x=ring.x + 300, y=ring.y, active=true, rushTree=true, rushHp=999, rushMaxHp=999, work=0, workTime=1, respawn=0}
-    game.world.nodes[#game.world.nodes+1] = smokeTreeNode
-    game.mode = "playing"
-    local smokeDrawOk, smokeDrawErr = pcall(game.draw, game)
-    assert(smokeDrawOk, "도넛 연기 비행 중 렌더 실패: " .. tostring(smokeDrawErr))
-    for _ = 1, 60 do game.clearcut:updateSmokeRing(1 / 60, game) end
-    assert(smokeTarget.hp < 50, "도넛 연기가 적에게 피해를 주지 않음")
-    assert((smokeTarget.knockTimer or 0) > 0, "도넛 연기가 적을 넉백 상태로 만들지 않음")
-    assert(smokeTreeNode.rushHp < 999, "도넛 연기가 나무에게 피해를 주지 않음")
-    game.clearcut:updateEnemies(.05, game)
-    assert(smokeTarget.x ~= smokeXBefore, "도넛 연기 넉백이 실제로 이동에 반영되지 않음")
-    assert(game.clearcut.smokeRing == nil, "도넛 연기가 최대 사거리 도달 후 소멸하지 않음")
-    assert(not game.clearcut:activateSmokeRing(game), "쿨다운 중에도 도넛 연기가 재발동됨")
-    game.clearcut.enemies = {}
-
-    -- 도넛 강화(smoke_ring) 스킬을 레벨업하면 실제로 재사용시간/피해/크기가 좋아져야 한다.
-    game.clearcut.smokeRingCooldown = 0
-    game.clearcut.levels.smoke_ring = 6
-    assert(game.clearcut:activateSmokeRing(game), "도넛 강화 만렙 상태에서 도넛 연기 재발동 실패")
-    assert(game.clearcut.smokeRingCooldown < 8, "도넛 강화가 재사용 대기시간을 줄이지 않음")
-    assert(game.clearcut.smokeRing.dmg > 10, "도넛 강화가 피해를 늘리지 않음")
-    assert(game.clearcut.smokeRing.maxRadius > 52, "도넛 강화가 크기를 늘리지 않음")
-    local normalMaxDmg, normalMaxRadius = game.clearcut.smokeRing.dmg, game.clearcut.smokeRing.maxRadius
-    -- 만렙 SPACE 차지는 완충했을 때만 강화된다. 중간 해제는 같은 만렙 일반 도넛이다.
-    game.clearcut.smokeRing, game.clearcut.smokeRingCooldown = nil, 0
-    assert(game.clearcut:beginSmokeRingCharge(game), "만렙 도넛 차지 시작 실패")
-    game.clearcut:updateSmokeRing(.5, game)
-    assert(game.clearcut:releaseSmokeRingCharge(game), "미완충 도넛 해제 발사 실패")
-    assert(not game.clearcut.smokeRing.charged, "미완충 도넛이 차지 판정됨")
-    assert(game.clearcut.smokeRing.dmg == normalMaxDmg and game.clearcut.smokeRing.maxRadius == normalMaxRadius, "미완충 도넛이 일반 만렙 수치와 다름")
-    game.clearcut.smokeRing, game.clearcut.smokeRingCooldown = nil, 0
-    assert(game.clearcut:beginSmokeRingCharge(game), "초농축 도넛 차지 재시작 실패")
-    game.clearcut:updateSmokeRing(game.clearcut.smokeRingChargeDuration, game)
-    assert(game.clearcut.smokeRing and game.clearcut.smokeRing.charged, "완충 시 초농축 도넛 자동 발사 실패")
-    assert(game.clearcut.smokeRing.dmg > normalMaxDmg * 2 and game.clearcut.smokeRing.maxRadius > normalMaxRadius * 1.5, "초농축 도넛 강화 폭이 부족함")
-    game.clearcut.levels.smoke_ring = 0
-    game.clearcut.smokeRing, game.clearcut.smokeRingCooldown = nil, 0
 
     -- 융합 스킬: 재료를 만렙 찍을 필요 없이 목록에서 바로 켜고 끌 수 있어야 한다.
     local sandboxFusions = game.clearcut:sandboxFusionList()

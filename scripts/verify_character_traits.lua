@@ -191,12 +191,16 @@ assert(math.abs(scoreSmoker.scoreAttackSpeed-.20)<1e-9 and math.abs(scoreSmoker.
 local earlySmoking=CharacterTraits.new(true)
 earlySmoking.data.currency=50000
 assert(earlySmoking:buy("fire_score_prewarm"),"smoker root purchase failed")
+assert(earlySmoking:getNode("fire_score_dash_unlock").desc:find("SPACE",1,true)==nil,
+    "locked dash node reveals the control before purchase")
 assert(earlySmoking:getNode("fire_score_alwayssmoke").costs[1]==70,
     "always-smoking node cost is not 70 research coins")
 assert(earlySmoking:buy("fire_score_impact"),"early cigarette-impact node is not purchasable directly after the root")
 assert(earlySmoking:scoreAttackEffects().scoreCigaretteImpact==1,"early impact purchase did not reach score runtime effects")
 assert(earlySmoking:buy("fire_score_alwayssmoke"),"always-smoking node is not purchasable directly after the root")
 assert(earlySmoking:scoreAttackEffects().scoreAlwaysSmoking==1,"early always-smoking purchase did not reach score runtime effects")
+assert(earlySmoking:buy("fire_score_dash_unlock"),"dash unlock is not purchasable beside always-smoking")
+assert(earlySmoking:scoreAttackEffects().scoreDashUnlock==1,"dash purchase did not reach score runtime effects")
 local activeScore=store:scoreAttackEffects()
 assert(activeScore.scoreInitialIgnitionReduction==.4,"score-mode opening ignition trait is not active")
 assert(activeScore.scoreStartingBabyRobot==1 and activeScore.scoreRobotSpeed==.5,"score-mode baby robot permanent research is not active")
@@ -345,9 +349,9 @@ assert(flameMode.flameStream==nil,"비가 오는데 화염 기둥이 남아 있�
 -- + 자동 투척 주기 1 + 폭죽 5. 탄약 관리 갈래는 startSmoking의 세 상수(개비 재장전 하한,
 -- 보루 재장전 하한, 보루 크기 20)를 각각 여는 노드이며 폭죽 시각 특성 3개가 추가된다.
 -- 이동·시야·작업 구역과 화염방사기 강화 단계는 한 노드의 다단계가 아니라 기존 장비
--- 갈래 사이에 놓인 별도 1레벨 노드다. 초·후반 목재 흡수 범위 2개와 뻥튀기 9개를 포함해 fire 74이고, universal 은
+-- 갈래 사이에 놓인 별도 1레벨 노드다. 초반 대시 1개, 초·후반 목재 흡수 범위 2개와 뻥튀기 9개를 포함해 fire 75이고, universal 은
 -- 기존 33에 화덕 피자 10개와 두더지 땅굴 4개를 더한 47이다.
-assert(#store:getScoreAttackNodes("fire")==74 and #store:getScoreAttackNodes("universal")==47,
+assert(#store:getScoreAttackNodes("fire")==75 and #store:getScoreAttackNodes("universal")==47,
     "active research board did not expose the distributed one-rank nodes")
 local pickupStore=CharacterTraits.new(true)
 pickupStore.data.levels.fire_score_pickup_1=3
