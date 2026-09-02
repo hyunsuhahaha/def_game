@@ -20,7 +20,7 @@ local function capture(frame,style,path)
     love.graphics.draw(smoker,smokerQuad,214,610,0,.61,.61,48,190)
     local mode=Mode.new();mode.scoreAttack=true;mode.job="fire";mode.permanentTraits.scoreFlameUnlock=1
     mode.flameVisualStyle=style
-    mode.flameStream={x=248,y=552,nx=1,ny=0,reach=500,halfWidth=100,t=fixture.time,visualStyle=style}
+    mode.flameStream={x=248,y=552,nx=1,ny=0,reach=550,halfWidth=100,t=fixture.time,visualStyle=style}
     Art.drawHeld(mode,{player={x=214,y=610,facing=1}})
     Art.drawStream(mode.flameStream)
     if style=="torch"then

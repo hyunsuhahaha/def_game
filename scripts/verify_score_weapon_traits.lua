@@ -131,7 +131,9 @@ rocket.smokerWeaponCooldown = 0
 assert(rocket:updateHeldAxe(1, rocketGame, true), "원거리 문맥이 폭죽을 발사하지 않았다")
 local shot = rocket.smokerWeaponProjectiles[1]
 assert(shot.radius == 260, "폭죽 폭발 반경이 전용 수치를 쓰지 않는다 (" .. shot.radius .. ")")
-assert(math.abs(shot.damage - (8 + 5 * 1.1 + 10)) < 1e-9, "폭죽 폭발 피해가 전용 수치를 더하지 않는다")
+assert(math.abs(shot.damage - (7 + 5 * 1.1 + 10)) < 1e-9, "폭죽 폭발 피해가 전용 수치를 더하지 않는다")
+assert(math.abs(rocket.smokerWeaponCooldown - .92) < 1e-9,
+    "폭죽 기본 재발사 시간이 0.92초 기준을 쓰지 않는다")
 
 local slowRocket = ClearcutMode.new()
 slowRocket.scoreAttack, slowRocket.sandbox, slowRocket.job, slowRocket.mapId = true, true, "fire", "forest"
@@ -296,6 +298,15 @@ local function rocketCooldownWith(cardLevel)
 end
 assert(rocketCooldownWith(3) < rocketCooldownWith(0),
     "공격속도 상승 카드가 폭죽을 빠르게 하지 않는다")
+
+local baseFlame = ClearcutMode.new()
+baseFlame.scoreAttack, baseFlame.sandbox, baseFlame.job, baseFlame.mapId = true, true, "fire", "forest"
+baseFlame.permanentTraits.scoreFlameUnlock = 1
+local flameGame = axeGame({})
+flameGame.camera = {screenToWorld = function() return 300, 0 end}
+baseFlame:updateHeldAxe(0, flameGame, true)
+assert(baseFlame.flameStream and baseFlame.flameStream.reach == 300,
+    "강화하지 않은 화염방사기 분사 거리가 300이 아니다")
 
 -- `무기 피해`도 공용 이름이므로 불의 타격 피해에도 더해져야 한다.
 local function burnTotalWith(treeDamage)

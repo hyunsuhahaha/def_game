@@ -56,8 +56,8 @@ mode.flameVisualStyle="torch";mode.smokerGroundTime=.1;mode.flameStream=stream;l
 mode.permanentTraits.scoreFlameRange=250;mode.permanentTraits.scoreFlameWidth=56
 g.world.nodes={{rushTree=true,active=true,burning=true,x=110,y=0,rushHp=10,rushMaxHp=10}}
 mode:updateFlamethrowerAttack(.13,g,true)
-assert(mode.flameStream.reach==500 and mode.flameStream.halfWidth==128,
-    "max flamethrower research did not extend reach to 500 while preserving its existing width")
+assert(mode.flameStream.reach==550 and mode.flameStream.halfWidth==128,
+    "max flamethrower research did not extend reach to 550 while preserving its existing width")
 assert(g.world.nodes[1].hitFlash==0,"flamethrower left the generic solid tree-hit circle visible")
 g.world.nodes={{rushTree=true,active=true,x=110,y=20,flameTorchImpactAt=0,flameTorchImpactPhase=1},
     {rushTree=true,active=true,x=210,y=30,flameTorchImpactAt=0,flameTorchImpactPhase=5}}

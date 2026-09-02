@@ -4487,6 +4487,9 @@ end
 -- 틱 간격을 줄여 초당 피해와 착화 기회를 함께 올린다. 이 파일은 Lua 5.1의 청크당
 -- 지역변수 200개 한도에 닿아 있어 새 상수는 모듈 테이블에 붙인다.
 ClearcutMode.FLAME_TICK=.12
+ClearcutMode.FLAME_BASE_REACH=300
+ClearcutMode.FIREWORK_BASE_DAMAGE=7
+ClearcutMode.FIREWORK_BASE_COOLDOWN=.92
 
 function ClearcutMode:updateFlamethrowerAttack(dt,game,held)
     -- 화염방사기는 직접 피해까지 전부 화염이다. 비가 오면 기둥도 안 나가고 피해도
@@ -4499,7 +4502,7 @@ function ClearcutMode:updateFlamethrowerAttack(dt,game,held)
     local traits=self.permanentTraits
     self.smokerWeaponCooldown=math.max(0,(self.smokerWeaponCooldown or 0)-dt)
     local wall=self:scoreReward("flame_wall")
-    local reach=(250+(traits.scoreFlameRange or 0)+ScoreOperations.weaponRange(self)*.4)*(wall and 1.35 or 1)
+    local reach=(ClearcutMode.FLAME_BASE_REACH+(traits.scoreFlameRange or 0)+ScoreOperations.weaponRange(self)*.4)*(wall and 1.35 or 1)
     local halfWidth=(72+(traits.scoreFlameWidth or 0)+ScoreOperations.weaponArea(self)*.35)*(wall and 1.8 or 1)
     local tx,ty,nx,ny=smokerAim(self,game,reach)
     self.aimX,self.aimY,self.aimRadius=tx,ty,reach*.5
@@ -4568,7 +4571,7 @@ function ClearcutMode:updateFireworkAttack(dt,game,held)
     game.player.facing=nx<0 and -1 or 1
     local x0,y0=game.player.x+nx*46,game.player.y-64+ny*8
     local flightSpeed=820*(1+(self.permanentTraits.scoreRocketSpeed or 0))
-    local damage=8+self.permanentTraits.treeDamage*1.1+(self.permanentTraits.scoreRocketDamage or 0)+ScoreOperations.weaponDamage(self)
+    local damage=ClearcutMode.FIREWORK_BASE_DAMAGE+self.permanentTraits.treeDamage*1.1+(self.permanentTraits.scoreRocketDamage or 0)+ScoreOperations.weaponDamage(self)
     local px,py=-ny,nx
     local lanes=(self.permanentTraits.scoreRocketTwin or 0)>0 and{-1,1}or{0}
     for _,lane in ipairs(lanes)do
@@ -4583,7 +4586,7 @@ function ClearcutMode:updateFireworkAttack(dt,game,held)
         }
     end
     self.actionAudit.fireworkShot=(self.actionAudit.fireworkShot or 0)+1
-    self.smokerWeaponCooldown=.86
+    self.smokerWeaponCooldown=ClearcutMode.FIREWORK_BASE_COOLDOWN
         /((game.tools.axe.speed or 1)*game.player.gather*self.permanentTraits.attackSpeed
             *ScoreOperations.attackSpeedMultiplier(self)*(1+(self.permanentTraits.scoreRocketCooldown or 0)))
     return true

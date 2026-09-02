@@ -284,7 +284,7 @@ local scoreFireNodes={
     -- 한 칸에서 4~5번 사는 대신 매 단계가 보드의 실제 선택지가 되도록 전부 1단계로 분리한다.
     -- 기존 ID는 1단계에 남겨 구버전 저장을 복구할 수 있게 한다.
     {id="fire_score_flame_damage",name="화염 피해 상승",short="화염 피해 +1",desc="화염이 나무에 주는 초당 피해 +1 (기본 초당 3)",effect="scoreFlameDamage",value=1,max=1,costs={12000},targetTier=8,wx=650,wy=3350,icon="fist",color={1,.56,.20},requires={{"fire_score_flame_unlock",1}}},
-    {id="fire_score_flame_range",name="화염 분사 거리 상승",short="분사 거리 +50",desc="화염이 닿는 거리 +50 (기본 250)",effect="scoreFlameRange",value=50,max=1,costs={14000},targetTier=8,wx=1000,wy=3350,icon="wind",color={.94,.66,.28},requires={{"fire_score_flame_unlock",1}}},
+    {id="fire_score_flame_range",name="화염 분사 거리 상승",short="분사 거리 +50",desc="화염이 닿는 거리 +50 (기본 300)",effect="scoreFlameRange",value=50,max=1,costs={14000},targetTier=8,wx=1000,wy=3350,icon="wind",color={.94,.66,.28},requires={{"fire_score_flame_unlock",1}}},
     {id="fire_score_flame_width",name="화염 기둥 굵기 상승",short="기둥 폭 +28",desc="화염 기둥의 전체 폭 +28 (기본 폭 144)",effect="scoreFlameWidth",value=14,max=1,costs={16000},targetTier=8,wx=1350,wy=3350,icon="split",color={1,.50,.16},requires={{"fire_score_flame_unlock",1}}},
     {id="fire_score_flame_ignite",name="화염 착화 확률 상승",short="착화 +8%p",desc="화염에 닿아 있는 나무가 초당 불붙을 확률 +8%p (기본 18%)",effect="scoreFlameIgnite",value=.08,max=1,costs={18000},targetTier=8,wx=450,wy=3600,icon="ember",color={1,.36,.10},requires={{"fire_score_flame_range",1},{"fire_score_flame_width",1}}},
     {id="fire_score_flame_damage_2",name="화염 피해 상승",short="화염 피해 +1",desc="화염이 나무에 주는 초당 피해 +1",effect="scoreFlameDamage",value=1,max=1,costs={20000},targetTier=8,wx=800,wy=3600,icon="fist",color={1,.56,.20},requires={{"fire_score_flame_damage",1}}},
