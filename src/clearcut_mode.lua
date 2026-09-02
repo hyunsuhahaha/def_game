@@ -2897,6 +2897,7 @@ end
 
 -- 세계수 종합 AI: 기존 슬램·소환에 더해 뿌리 폭발/덩굴 채찍을 번갈아 쓰고, 체력 35% 이하부터는 격노해서 더 자주 공격한다
 function ClearcutMode:updateWorldTreeAI(e, dt, game)
+    if e.scoreWorldTree then return end
     WorldTreeSiege.updateBoss(self,e,dt,game)
     e.rootSpikeTimer = (e.rootSpikeTimer or 3) - dt
     e.vineWhipTimer = (e.vineWhipTimer or 5.5) - dt

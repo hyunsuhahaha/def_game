@@ -196,6 +196,28 @@ end
 assert(standing.slamTimer == math.huge and standing.summonTimer == math.huge,
     "세계수 공격 타이머가 살아 있다")
 
+-- 공격 타이머만 막아서는 부족하다. 체력 구간을 넘을 때 캠페인용 낙하 가지와
+-- 경고 파편이 따로 생성되면 기록 모드에서도 세계수가 공격하는 것처럼 보인다.
+do
+    local WorldTreeSiege = require("src.worldtree_siege")
+    m.worldTreeDebris = {}
+    standing.worldTreeDamageStage = 0
+    standing.hp = standing.maxHp * .2
+    WorldTreeSiege.updateBoss(m, standing, 1 / 60, g)
+    assert(#m.worldTreeDebris == 0,
+        "기록 모드 세계수가 체력 구간 변화로 공격 파편/낙하 가지를 생성했다")
+
+    local notices = 0
+    local quietGame = world()
+    quietGame.camera = {trauma = 0}
+    quietGame.setNotice = function() notices = notices + 1 end
+    standing.enraged, standing.enrageAnnounced = nil, nil
+    m.bossTelegraphs = {}
+    m:updateWorldTreeAI(standing, 1 / 60, quietGame)
+    assert(notices == 0 and quietGame.camera.trauma == 0 and #m.bossTelegraphs == 0,
+        "기록 모드 세계수의 격노 알림/화면 흔들림/공격 경고가 살아 있다")
+end
+
 -- 4. 체력은 재생 단계에 비례한다. 단계가 오를수록 치러 갈지 판단이 어려워져야 한다.
 local low, high = mode(), mode()
 low.scoreRegenTier, high.scoreRegenTier = 1, 8

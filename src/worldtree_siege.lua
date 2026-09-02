@@ -146,6 +146,12 @@ function Siege.updateBoss(mode,e,dt,game)
     local emerging=Siege.updateEmergence(mode,dt,game)
     if emerging then e.hp=e.maxHp;return true end
     local stage=Siege.damageStage(e)
+    if e.scoreWorldTree then
+        -- 기록 모드는 외형과 등장 연출만 재사용한다. 체력 구간 파편에는 플레이어를
+        -- 겨냥하는 낙하 가지까지 섞여 있으므로 공격 타이머와 별도로 차단해야 한다.
+        e.worldTreeDamageStage=stage
+        return false
+    end
     if stage>(e.worldTreeDamageStage or 0) then
         for s=(e.worldTreeDamageStage or 0)+1,stage do Siege.spawnDamageDebris(mode,e,s,game) end
     end
