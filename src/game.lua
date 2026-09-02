@@ -245,6 +245,7 @@ function Game:startClearcutScoreAttack(startTier)
     local avatar=fireSprite.avatarVariants and fireSprite.avatarVariants[self.scoreAvatarId]
     self.player:setClearcutSprite(avatar or fireSprite,"fire")
     self.clearcut:setup(self)
+    ClearcutMode.ScoreTutorial.start(self.clearcut,self)
     self:consumeTestNextRunLevels()
     self:enableClearcutPerspective()
     self.mode="playing"

@@ -513,7 +513,7 @@ local storyJobs = {"physical", "fire", "toxic", "developer", "miner", "philosoph
 
 local function defaults()
     local data = {currency=0, regenTier=1, levels={}, storySeen={},equipmentConfigured=false,
-        playerWeapons={1,2},monkeyWeapons={2},lobbyItems={}}
+        playerWeapons={1,2},monkeyWeapons={2},lobbyItems={},scoreRunsCompleted=0,scoreTutorialSeen=false}
     for id in pairs(byId) do data.levels[id] = 0 end
     for _, job in ipairs(storyJobs) do data.storySeen[job] = false end
     return data
@@ -528,6 +528,7 @@ local splitFlameNodes={
 
 function CharacterTraits.decode(text)
     local data = defaults()
+    local savedVersion=tonumber((text or ""):match("version=(%d+)"))or 0
     local legacyMoleRank,seenNewMoleNode=0,false
     local legacyYardRank,legacyStrideRank,seenSplitYard,seenSplitStride=0,0,false,false
     local legacyFlameRanks,seenSplitFlame={},{}
@@ -545,6 +546,8 @@ function CharacterTraits.decode(text)
         end
         if key == "currency" then data.currency = number
         elseif key == "regenTier" then data.regenTier = math.max(1,number)
+        elseif key == "score_runs_completed" then data.scoreRunsCompleted=number
+        elseif key == "score_tutorial_seen" then data.scoreTutorialSeen=number>0
         elseif key == "equipment_configured" then data.equipmentConfigured=number>0
         elseif key == "player_weapon_1" then data.playerWeapons[1]=math.min(3,number)
         elseif key == "player_weapon_2" then data.playerWeapons[2]=math.min(3,number)
@@ -582,11 +585,16 @@ function CharacterTraits.decode(text)
     end
     -- 초기 시안의 통나무 정글짐 구매는 완성형 캣타워로 승계한다.
     if data.lobbyItems.log_jungle then data.lobbyItems.log_jungle=nil;data.lobbyItems.cat_tower=true end
+    -- 기존 개발 세이브에는 새 튜토리얼을 갑자기 띄우지 않는다. 실제 진행 흔적이
+    -- 없는 새 세이브만 첫 판을 자유롭게 치른 뒤 두 번째 판에서 안내를 받는다.
+    if savedVersion<7 and(data.currency>0 or data.regenTier>1)then data.scoreTutorialSeen=true end
     return data
 end
 
 function CharacterTraits.encode(data)
-    local lines = {"version=6", "currency=" .. math.floor(data.currency or 0),"regenTier="..math.max(1,math.floor(data.regenTier or 1)),
+    local lines = {"version=7", "currency=" .. math.floor(data.currency or 0),"regenTier="..math.max(1,math.floor(data.regenTier or 1)),
+        "score_runs_completed="..math.max(0,math.floor(data.scoreRunsCompleted or 0)),
+        "score_tutorial_seen="..(data.scoreTutorialSeen and 1 or 0),
         "equipment_configured="..(data.equipmentConfigured and 1 or 0),
         "player_weapon_1="..math.max(0,math.min(3,math.floor((data.playerWeapons or{})[1]or 0))),
         "player_weapon_2="..math.max(0,math.min(3,math.floor((data.playerWeapons or{})[2]or 0)))}
@@ -633,6 +641,20 @@ end
 function CharacterTraits:getNode(id) return byId[id] end
 function CharacterTraits:getLevel(id) return self.data.levels[id] or 0 end
 function CharacterTraits:getRegenTier()return math.max(1,math.floor(self.data.regenTier or 1))end
+function CharacterTraits:recordScoreRunCompleted()
+    self.data.scoreRunsCompleted=math.max(0,math.floor(self.data.scoreRunsCompleted or 0))+1
+    self:save()
+    return self.data.scoreRunsCompleted
+end
+function CharacterTraits:shouldStartScoreTutorial()
+    return not self.data.scoreTutorialSeen and math.max(0,math.floor(self.data.scoreRunsCompleted or 0))==1
+end
+function CharacterTraits:markScoreTutorialSeen()
+    if self.data.scoreTutorialSeen then return false end
+    self.data.scoreTutorialSeen=true
+    self:save()
+    return true
+end
 function CharacterTraits:getEquipmentState()
     return {configured=self.data.equipmentConfigured==true,
         player={unpack(self.data.playerWeapons or{1,2})},monkeys={unpack(self.data.monkeyWeapons or{2})}}

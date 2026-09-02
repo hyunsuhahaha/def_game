@@ -60,6 +60,7 @@ ClearcutMode.OilDrumSpillArt = require("src.oil_drum_spill_art")
 ClearcutMode.PoppingMachine = require("src.popping_machine")
 ClearcutMode.PizzaOven = require("src.pizza_oven")
 ClearcutMode.BombMonkey = require("src.bomb_monkey")
+ClearcutMode.ScoreTutorial = require("src.score_tutorial")
 ClearcutMode.OIL_BASE_RADIUS=180
 
 ClearcutMode.scoreWeaponDefinitions = {
@@ -1801,6 +1802,7 @@ function ClearcutMode:update(dt, game)
     if self.permanentTraits.hpRegen and self.permanentTraits.hpRegen > 0 then
         self.hp = math.min(self.maxHp, self.hp + self.permanentTraits.hpRegen * dt)
     end
+    ClearcutMode.ScoreTutorial.update(self,game,dt)
 end
 
 function ClearcutMode:updateBossEntrance(dt,game)
@@ -6961,6 +6963,9 @@ function ClearcutMode:finish(game, victory)
         self.resultSettlement={rows=lumberRows or{},rowIndex=1,accumulator=0,rowPause=.32,elapsed=0,converted=0,total=lumberCoinTotal or 0,
             unitTotal=settlementUnits,batchSize=math.max(1,math.ceil(settlementUnits/90)),bursts={},saveCounter=0,complete=(lumberCoinTotal or 0)==0}
     end
+    if self.scoreAttack and not self.scorePractice and not self.defenseMode and game.characterTraits and game.characterTraits.recordScoreRunCompleted then
+        game.characterTraits:recordScoreRunCompleted()
+    end
     if game.achievements then game.achievements:recordRun(game.result) end
     game.mode="clearcut_results"
 end
@@ -8904,6 +8909,7 @@ function ClearcutMode:drawHUD(game,fonts)
         love.graphics.printf(text,w/2-146,h-45,292,"center")
     end
     ScoreTierUpArt.draw(self.scoreTierFx,fonts,w,h)
+    ClearcutMode.ScoreTutorial.draw(self,fonts,w,h)
 end
 
 local function octagonPoints(cx, cy, r, rot)
