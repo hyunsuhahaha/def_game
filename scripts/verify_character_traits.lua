@@ -363,8 +363,8 @@ assert(flameMode.flameStream==nil,"비가 오는데 화염 기둥이 남아 있�
 -- 보루 재장전 하한, 보루 크기 20)를 각각 여는 노드이며 폭죽 시각 특성 3개가 추가된다.
 -- 이동·시야·작업 구역과 화염방사기 강화 단계는 한 노드의 다단계가 아니라 기존 장비
 -- 갈래 사이에 놓인 별도 1레벨 노드다. 대시 해금·거리 2개, 초·후반 목재 흡수 범위 2개와 뻥튀기 9개를 포함해 fire 76이고, universal 은
--- 기존 33에 화덕 피자 10개와 두더지 땅굴 4개, 드럼통 후속 3개를 더한 50이다.
-assert(#store:getScoreAttackNodes("fire")==76 and #store:getScoreAttackNodes("universal")==50,
+-- 기존 33에 화덕 피자 10개와 두더지 땅굴 4개, 드럼통 후속 3개, 폭탄 원숭이 6개를 더한 56이다.
+assert(#store:getScoreAttackNodes("fire")==76 and #store:getScoreAttackNodes("universal")==56,
     "active research board did not expose the distributed one-rank nodes")
 local pickupStore=CharacterTraits.new(true)
 pickupStore.data.levels.fire_score_pickup_1=3

@@ -59,6 +59,7 @@ ClearcutMode.GrayOilCatArt = require("src.gray_oil_cat_art")
 ClearcutMode.OilDrumSpillArt = require("src.oil_drum_spill_art")
 ClearcutMode.PoppingMachine = require("src.popping_machine")
 ClearcutMode.PizzaOven = require("src.pizza_oven")
+ClearcutMode.BombMonkey = require("src.bomb_monkey")
 ClearcutMode.OIL_BASE_RADIUS=180
 
 ClearcutMode.scoreWeaponDefinitions = {
@@ -218,6 +219,7 @@ function ClearcutMode.new()
         oilFireLinks={},oilFireLinkTickTimer=0,oilFireLinksDirty=true,
         oilDrums={},oilDrumSpills={},oilDrumTimer=0,oilDrumSequence=0,oilPuddleGroups={},grayOilCat=nil,
         poppingMachines={},puffedRiceShots={},puffedRiceImpacts={},poppingMachineSequence=0,pizzaOven=nil,
+        bombMonkeys={},monkeyBombs={},bombExplosions={},bombMonkeySequence=0,monkeyBombSequence=0,
         worldTreeLumber={},
         job=nil, attackCooldown=0, dashing=nil, dashTrail={}, smoking=nil,
         minerClawAction=nil, minerClawFx={}, minerClawMarks={}, minerBurrow=nil, minerBurrowCooldown=0, thrownTrees={}, burrowTracks={}, burrowTrackSequence=0,moleCompanion=nil,moleCompanions={},
@@ -253,6 +255,7 @@ function ClearcutMode.new()
             scoreInitialIgnitionReduction=0,scoreCigaretteImpact=0,scoreMoleCompanion=0,scoreMoleDamage=0,scoreMoleSpeed=0,
             scoreMoleAttackSpeed=0,scoreMoleClawTier=0,scoreMoleDualClaw=0,scoreMoleExtraCompanions=0,
             scoreMoleBurrow=0,scoreMoleBurrowSpeed=0,scoreMoleBurrowDamage=0,scoreMoleBurrowCooldown=0,
+            scoreBombMonkey=0,scoreBombInterval=0,scoreBombFuse=0,scoreBombRadius=0,scoreBombDamage=0,scoreBombExtra=0,
             scoreDashDistance=0,scoreOilDrum=0,scoreOilDrumInterval=0,scoreOilRadius=0,scoreOilIgnitionRadius=0,
             scoreOilDuration=0,scoreOilBurnDuration=0,scoreOilDamage=0,scoreOilSplashCount=0,scoreOilPatchScale=0,
             scoreGrayCat=0,scoreGrayCatChance=0,scoreGrayCatDelay=0,scoreGrayCatSpeed=0,scoreGrayCatExitSpeed=0,
@@ -649,6 +652,7 @@ function ClearcutMode:setup(game)
     end
     if self.scoreAttack and (self.permanentTraits.scorePopperUnlock or 0)>0 then ClearcutMode.PoppingMachine.load()end
     if self.scoreAttack and (self.permanentTraits.scoreOvenUnlock or 0)>0 then ClearcutMode.PizzaOven.load()end
+    if self.scoreAttack and (self.permanentTraits.scoreBombMonkey or 0)>0 then ClearcutMode.BombMonkey.load()end
     local notice=self.defenseMode and "디펜스 — 원형 숲을 베어 중앙 방어선을 지키세요"
         or self.scorePractice and "현재 모드 연습 — 무제한 시간 · 과밀 종료 없음 · 나무 계속 생성"
         or(self.scoreAttack and string.format("벌목 기록 — 활성 나무가 %d그루에 닿으면 종료",self.scoreTreeAllowance)
@@ -1750,6 +1754,7 @@ function ClearcutMode:update(dt, game)
     self:updateOilDrums(dt,game)
     ClearcutMode.PoppingMachine.update(self,dt,game)
     ClearcutMode.PizzaOven.update(self,dt,game)
+    ClearcutMode.BombMonkey.update(self,dt,game)
     ScoreAxeArt.update(self,dt)
     self:updateHeldAxe(dt, game)
     self:updateThrownTrees(dt, game)
@@ -4587,6 +4592,7 @@ end
 
 function ClearcutMode:detonateFirework(projectile,game)
     local radius=projectile.radius;local felled=0
+    ClearcutMode.BombMonkey.igniteInRadius(self,projectile.x1,projectile.y1,radius)
     for _,node in ipairs(game.world.nodes)do if node.rushTree and node.active and CombatGeometry.circleOverlapsTarget(projectile.x1,projectile.y1,radius,node,24)then
         if self:damageTreeWithSmokerWeapon(node,projectile.damage,game)then felled=felled+1
         elseif not self.rainSuppressFire and love.math.random()<.38+(self.permanentTraits.scoreRocketIgnite or 0) then self:beginTreeBurn(node,0) end
@@ -7873,6 +7879,7 @@ function ClearcutMode:queueWorldActors(queue,t)
     end
     ClearcutMode.PoppingMachine.queue(self,queue)
     ClearcutMode.PizzaOven.queue(self,queue)
+    ClearcutMode.BombMonkey.queue(self,queue)
     for _,value in ipairs(self.scoreAxeImpacts or{})do local impact=value
         queue[#queue+1]={x=impact.x,y=impact.y+48,anchorY=impact.y+48,sortBias=.004,
             draw=function()ScoreAxeArt.drawImpact(impact)end}

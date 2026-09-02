@@ -409,6 +409,8 @@ function CharacterTraitBoard:nodeWorld(node)
         universal_mole_burrow={3400,1600},universal_mole_burrow_speed={3100,1850},
         universal_mole_burrow_damage={3400,1850},universal_mole_burrow_cooldown={3250,2100},
         universal_view_2={3700,1850},
+        universal_bomb_monkey={5000,1550},universal_bomb_interval={5350,1400},universal_bomb_fuse={5350,1700},
+        universal_bomb_radius={5700,1400},universal_bomb_damage={5700,1700},universal_bomb_extra={6050,1550},
         -- 화덕은 동료 급식 설비라 두더지 해금 아래로 새 층을 쌓는다. 기름/고양이
         -- 줄과 겹치지 않도록 y=2100 아래를 통째로 쓴다.
         universal_oven_unlock={3800,2100},
