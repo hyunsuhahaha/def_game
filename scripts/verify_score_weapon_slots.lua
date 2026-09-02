@@ -87,6 +87,42 @@ mode.smokerWeaponCooldown=0
 assert(mode:updateHeldAxe(1,game,true),"re-arm shot for the burst path failed")
 assert(mode.smokerWeaponProjectiles[1]and mode.smokerWeaponProjectiles[1].kind=="firework",
     "contextual ranged attack did not launch the real firework projectile")
+
+-- A held flamethrower stream owns that press. Sweeping the cursor back across a
+-- nearby tree must not context-switch to the axe for a frame and cut the flame.
+local flameMode=Mode.new();flameMode.scoreAttack=true;flameMode.job="fire"
+flameMode.permanentTraits.scoreFlameUnlock=1
+aimX=600
+flameMode:updateHeldAxe(1/60,game,true)
+assert(flameMode.scoreActiveWeapon=="flamethrower"and flameMode.flameStream,
+    "far held click did not start the flamethrower stream")
+local flameTime=flameMode.flameStream.t
+aimX=110
+flameMode:updateHeldAxe(1/60,game,true)
+assert(flameMode.scoreActiveWeapon=="flamethrower"and flameMode.flameStream
+        and flameMode.flameStream.t>flameTime and not flameMode.scoreAxeAction,
+    "crossing the nearby axe target interrupted a held flamethrower stream")
+flameMode:updateHeldAxe(0,game,false)
+assert(not flameMode.flameStream,"releasing the held flamethrower did not clear its stream")
+flameMode:updateHeldAxe(0,game,true)
+assert(flameMode.scoreActiveWeapon=="axe"and flameMode.scoreAxeAction,
+    "a fresh click on a nearby tree did not restore contextual axe selection")
+
+-- The HUD axe switch can disable contextual melee without removing its tree or
+-- upgrades. Its own click is consumed until release, then ranged fire resumes.
+flameMode:toggleScoreMelee(game)
+assert(flameMode.scoreMeleeEnabled==false and not flameMode.scoreAxeAction,
+    "melee toggle did not cancel and disable the contextual axe")
+flameMode:updateHeldAxe(1/60,game,true)
+assert(not flameMode.flameStream,"melee toggle click leaked through as a flamethrower attack")
+flameMode:updateHeldAxe(0,game,false)
+flameMode:updateHeldAxe(1/60,game,true)
+assert(flameMode.scoreActiveWeapon=="flamethrower"and flameMode.flameStream,
+    "disabled melee still stole a fresh nearby click from the flamethrower")
+local toggleBox=flameMode:scoreMeleeToggleRect(1280,720)
+assert(flameMode:scoreMeleeToggleAt(toggleBox.x+toggleBox.w/2,toggleBox.y+toggleBox.h/2),
+    "melee toggle hitbox does not match its HUD rectangle")
+
 mode:updateSmokerWeaponProjectiles(2,game)
 assert(farTree.rushHp<100,"contextual firework did not detonate against its target area")
 

@@ -234,7 +234,8 @@ function ClearcutMode.new()
         timeSpawnTimer=35, scoreEnemyTimer=45, eliteTimer=200, reaperSpawned=false,
         stage=1, stageBossHpMul=1, stageElapsed=0, stageTimeLimit=stageTimeLimit(1), failureReason=nil,
         scoreAttack=false,scoreHardCap=720,scoreStartingTrees=6,scoreBaseTreeAllowance=12,scoreTreeAllowance=12,scoreRegenTier=1,scoreTierFx=nil,
-        scoreWoodEarned=0,scoreActiveWeapon="cigarette",scoreAxeAction=nil,scoreAxeImpacts={},savedMonkeyWeapons={"axe"},
+        scoreWoodEarned=0,scoreActiveWeapon="cigarette",scoreMeleeEnabled=true,scoreAttackSuppressed=false,
+        scoreAxeAction=nil,scoreAxeImpacts={},savedMonkeyWeapons={"axe"},
         scoreFellTimes={},scoreFellHead=1,currentTreesPerSecond=0,peakTreesPerSecond=0,scoreDeficitTimer=0,scoreCollapseActive=false,
         treeSpawnRate=.55,scoreSpawnRateMultiplier=1,treeSpawnAccumulator=0,
         totalTreesSpawned=0,peakActiveTrees=0,scoreActiveTreeCap=180,scoreGrowthPulses=0,
@@ -4132,11 +4133,21 @@ function ClearcutMode:updateHeldAxe(dt, game, heldOverride)
     if self.scoreAttack and self.job=="fire" then
         local held=heldOverride
         if held==nil then held=love.mouse.isDown(1)end
+        -- HUD 토글을 누른 클릭은 월드 공격으로 새지 않는다. 버튼을 놓은 다음 클릭부터
+        -- 새 설정으로 공격한다.
+        if self.scoreAttackSuppressed then
+            if held then held=false else self.scoreAttackSuppressed=false end
+        end
         -- Once the cigarette flick has begun it owns the hand until the motion
         -- finishes. Entering axe range mid-flick must not cancel the throw.
         local rangedWeapon=self:scoreRangedWeaponId()
         local cigaretteThrowActive=rangedWeapon=="cigarette"and self.smoking and self.smoking.phase=="flick"and not self.smoking.fired
-        local weapon=cigaretteThrowActive and"cigarette"or((self.scoreAxeAction or(held and self:scoreMeleeTargetAtAim(game)))and"axe"or rangedWeapon)
+        -- 화염은 연속 무기다. 원거리에서 누르기 시작한 뒤 커서가 캐릭터 주변 나무를
+        -- 스쳐도 그 클릭을 놓기 전에는 도끼로 갈아타지 않는다.
+        local flameOwnsPress=held and rangedWeapon=="flamethrower"and self.flameStream~=nil
+        local meleeTarget=(self.scoreMeleeEnabled~=false)and held and self:scoreMeleeTargetAtAim(game)
+        local weapon=cigaretteThrowActive and"cigarette"or(flameOwnsPress and"flamethrower"
+            or(((self.scoreMeleeEnabled~=false and self.scoreAxeAction)or meleeTarget)and"axe"or rangedWeapon))
         self.scoreActiveWeapon=weapon
         game.player.scoreAxeEquipped=weapon=="axe"
         game.player.hideAxeRange=weapon=="axe"
@@ -4156,6 +4167,32 @@ end
 
 function ClearcutMode:scoreWeaponId()
     return self.scoreActiveWeapon or self:scoreRangedWeaponId()
+end
+
+function ClearcutMode:scoreMeleeToggleRect(screenW,screenH)
+    return{x=18,y=(screenH or love.graphics.getHeight())-64,w=66,h=46}
+end
+
+function ClearcutMode:scoreMeleeToggleAt(x,y)
+    if not(self.scoreAttack and self.job=="fire")then return false end
+    local box=self:scoreMeleeToggleRect(love.graphics.getWidth(),love.graphics.getHeight())
+    return x>=box.x and x<=box.x+box.w and y>=box.y and y<=box.y+box.h
+end
+
+function ClearcutMode:toggleScoreMelee(game)
+    self.scoreMeleeEnabled=self.scoreMeleeEnabled==false
+    self.scoreAttackSuppressed=true
+    if not self.scoreMeleeEnabled then
+        self.scoreAxeAction=nil
+        self.scoreActiveWeapon=self:scoreRangedWeaponId()
+        if game and game.player then
+            game.player.scoreAxeEquipped=false
+            game.player.hideAxeRange=false
+            game.player.axeHolding=false
+            game.player.autoAxeClock,game.player.autoAxeTargetX,game.player.autoAxeTargetY=nil,nil,nil
+        end
+    end
+    return self.scoreMeleeEnabled
 end
 
 function ClearcutMode:scoreRangedWeaponId()
@@ -8648,6 +8685,24 @@ local function drawOffscreenIndicators(self, game, fonts, w, h, t)
     end
 end
 
+function ClearcutMode:drawScoreMeleeToggle(fonts,w,h)
+    if not(self.scoreAttack and self.job=="fire")then return end
+    local box=self:scoreMeleeToggleRect(w,h)
+    local enabled=self.scoreMeleeEnabled~=false
+    love.graphics.setColor(.025,.04,.035,.92);love.graphics.rectangle("fill",box.x,box.y,box.w,box.h,7,7)
+    love.graphics.setColor(enabled and{1,.58,.20,1}or{.32,.38,.37,1})
+    love.graphics.setLineWidth(2);love.graphics.rectangle("line",box.x+.5,box.y+.5,box.w-1,box.h-1,7,7)
+    drawPixelGrid(axeIconRows,enabled and axeIconPalette or darkenPalette(axeIconPalette,.35,.72),box.x+22,box.y+23,2)
+    love.graphics.setFont(fonts.micro or fonts.small)
+    love.graphics.setColor(enabled and{1,.78,.40,1}or{.62,.68,.66,1})
+    love.graphics.printf(enabled and"ON"or"OFF",box.x+36,box.y+18,28,"center")
+    if not enabled then
+        love.graphics.setColor(1,.28,.20,.95);love.graphics.setLineWidth(3)
+        love.graphics.line(box.x+10,box.y+37,box.x+45,box.y+9)
+    end
+    love.graphics.setColor(1,1,1,1)
+end
+
 function ClearcutMode:drawHUD(game,fonts)
     local w,h=love.graphics.getDimensions()
     local t = love.timer.getTime()
@@ -8792,6 +8847,7 @@ function ClearcutMode:drawHUD(game,fonts)
         drawPixelGrid(icon.rows,ready and icon.palette or darkenPalette(icon.palette,.4,.75),cx,cy,3)
         love.graphics.setColor(1,1,1,1)
     end
+    self:drawScoreMeleeToggle(fonts,w,h)
     if self.job=="fire"then
         -- 보루 잔량: 화면 오른쪽 가장자리에 남은 개비 수만큼 아이콘을 하나씩 세로로 쌓아 보여준다.
         -- 배경 패널 없이 아이콘만 떠 있게 해서 화면을 가리지 않는다.

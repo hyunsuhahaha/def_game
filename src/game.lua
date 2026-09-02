@@ -895,6 +895,11 @@ function Game:mousepressed(x, y, button)
     if self.runType=="rush" or self.runType=="clearcut" then
         -- 벌목 러시/숲 전멸 모드는 개별 나무를 클릭하지 않는다. 버튼을 누르는 동안
         -- 해당 모드가 플레이어 주변의 나무를 자동 포착한다.
+        if self.runType=="clearcut" and button==1 and self.clearcut
+            and self.clearcut:scoreMeleeToggleAt(x,y)then
+            self.clearcut:toggleScoreMelee(self)
+            return
+        end
         if self.runType=="clearcut" and button==2 and self.clearcut then self.clearcut:activateMinerBurrow(self) end
         return
     end
