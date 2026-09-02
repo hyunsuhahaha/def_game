@@ -100,7 +100,8 @@ moleUpgradeStore.data.levels.universal_robot_start=1
 assert(moleUpgradeStore:buy("universal_mole_companion")and not moleUpgradeStore:buy("universal_mole_companion"),"mole hire root was not a one-rank node")
 assert(moleUpgradeStore:buy("universal_oil_drum")and moleUpgradeStore:buy("universal_gray_cat"),"gray oil-cat research chain was not purchasable")
 for _,spec in ipairs({{"universal_oil_interval",3},{"universal_oil_radius",5},{"universal_oil_splash_count",4},
-    {"universal_oil_patch_scale",4},{"universal_oil_ignition_radius",4},{"universal_oil_duration",4},
+    {"universal_oil_patch_scale",4},{"universal_oil_radius_2",4},{"universal_oil_radius_3",3},
+    {"universal_oil_splash_count_2",4},{"universal_oil_ignition_radius",4},{"universal_oil_duration",4},
     {"universal_oil_burn_duration",4},{"universal_oil_damage",5},{"universal_gray_cat_chance",3},
     {"universal_gray_cat_delay",3},{"universal_gray_cat_speed",4},{"universal_gray_cat_exit_speed",4}})do
     for rank=1,spec[2]do assert(moleUpgradeStore:buy(spec[1]),spec[1].." rank "..rank.." was not purchasable")end
@@ -117,7 +118,7 @@ assert(moleEffects.scoreMoleCompanion==1 and moleEffects.scoreMoleDamage==3 and 
     math.abs(moleEffects.scoreMoleBurrowSpeed-.36)<1e-9 and moleEffects.scoreMoleBurrowDamage==6 and
     moleEffects.scoreMoleBurrowCooldown==4.5,"split mole research nodes did not accumulate independently")
 assert(moleEffects.scoreOilDrum==1 and moleEffects.scoreGrayCat==1,"gray oil-cat research effects were not accumulated")
-assert(moleEffects.scoreOilDrumInterval==6 and moleEffects.scoreOilRadius==150 and moleEffects.scoreOilSplashCount==12 and
+assert(moleEffects.scoreOilDrumInterval==6 and moleEffects.scoreOilRadius==590 and moleEffects.scoreOilSplashCount==32 and
     math.abs(moleEffects.scoreOilPatchScale-.32)<1e-9 and moleEffects.scoreOilIgnitionRadius==64 and
     moleEffects.scoreOilDuration==12 and moleEffects.scoreOilBurnDuration==6 and moleEffects.scoreOilDamage==5 and
     math.abs(moleEffects.scoreGrayCatChance-.6)<1e-9 and math.abs(moleEffects.scoreGrayCatDelay-1.35)<1e-9 and
@@ -166,6 +167,8 @@ store.data.levels.universal_oil_drum=1
 store.data.levels.universal_gray_cat=1
 store.data.levels.universal_oil_interval=3;store.data.levels.universal_oil_radius=5
 store.data.levels.universal_oil_splash_count=4;store.data.levels.universal_oil_patch_scale=4
+store.data.levels.universal_oil_radius_2=4;store.data.levels.universal_oil_radius_3=3
+store.data.levels.universal_oil_splash_count_2=4
 store.data.levels.universal_oil_ignition_radius=4;store.data.levels.universal_oil_duration=4
 store.data.levels.universal_oil_burn_duration=4;store.data.levels.universal_oil_damage=5
 store.data.levels.universal_gray_cat_chance=3;store.data.levels.universal_gray_cat_delay=3
@@ -223,7 +226,7 @@ local linkedDrum={id=77,x=400,y=300,state="settled",hp=8,maxHp=8,angle=0}
 assert(linkedOilMode:spillOilDrum(linkedDrum,"axe"),"lobby oil research did not reach the runtime spill path")
 local linkedGroup=assert(linkedOilMode.oilPuddleGroups.drum_77,"runtime did not register the lobby-upgraded oil group")
 local linkedSpill=assert(linkedOilMode.oilDrumSpills[1],"runtime did not create the lobby-upgraded visible oil spill")
-assert(linkedGroup.radius==330 and #linkedOilMode.oilTrail==28 and linkedOilMode.oilTrail[1].visualScale>=.95,
+assert(linkedGroup.radius==770 and #linkedOilMode.oilTrail==48 and linkedOilMode.oilTrail[1].visualScale>=.95,
     "lobby oil range/count/patch ranks did not enlarge the generated stain geometry")
 assert(linkedSpill.lifetime==32 and linkedGroup.damage==6 and linkedOilMode.oilTrail[1].damage==9,
     "lobby oil duration or damage ranks did not reach the runtime puddle")
@@ -356,8 +359,8 @@ assert(flameMode.flameStream==nil,"비가 오는데 화염 기둥이 남아 있�
 -- 보루 재장전 하한, 보루 크기 20)를 각각 여는 노드이며 폭죽 시각 특성 3개가 추가된다.
 -- 이동·시야·작업 구역과 화염방사기 강화 단계는 한 노드의 다단계가 아니라 기존 장비
 -- 갈래 사이에 놓인 별도 1레벨 노드다. 초반 대시 1개, 초·후반 목재 흡수 범위 2개와 뻥튀기 9개를 포함해 fire 75이고, universal 은
--- 기존 33에 화덕 피자 10개와 두더지 땅굴 4개를 더한 47이다.
-assert(#store:getScoreAttackNodes("fire")==75 and #store:getScoreAttackNodes("universal")==47,
+-- 기존 33에 화덕 피자 10개와 두더지 땅굴 4개, 드럼통 후속 3개를 더한 50이다.
+assert(#store:getScoreAttackNodes("fire")==75 and #store:getScoreAttackNodes("universal")==50,
     "active research board did not expose the distributed one-rank nodes")
 local pickupStore=CharacterTraits.new(true)
 pickupStore.data.levels.fire_score_pickup_1=3
@@ -455,7 +458,8 @@ assert(exitNode.requires[1][1]=="universal_gray_cat_speed"and not(speedX==exitX 
 assert(not(chanceX==delayX and chanceY==delayY)and not(chanceX==speedX and chanceY==speedY),
     "gray cat upgrades overlap instead of forming visible branches")
 local oilIds={"universal_oil_drum","universal_oil_interval","universal_oil_radius","universal_oil_splash_count",
-    "universal_oil_patch_scale","universal_oil_ignition_radius","universal_oil_duration","universal_oil_damage","universal_oil_burn_duration"}
+    "universal_oil_patch_scale","universal_oil_radius_2","universal_oil_radius_3","universal_oil_splash_count_2",
+    "universal_oil_ignition_radius","universal_oil_duration","universal_oil_damage","universal_oil_burn_duration"}
 local oilPositions={}
 for _,id in ipairs(oilIds)do
     local ox,oy=board:nodeWorld(store:getNode(id));oilPositions[id]={x=ox,y=oy}

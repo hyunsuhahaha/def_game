@@ -394,6 +394,7 @@ function CharacterTraitBoard:nodeWorld(node)
         universal_oil_drum={3800,425},
         universal_oil_interval={4200,250},universal_oil_radius={4600,250},
         universal_oil_splash_count={5000,250},universal_oil_patch_scale={5400,250},universal_oil_ignition_radius={5000,550},
+        universal_oil_radius_2={5800,250},universal_oil_radius_3={6200,250},universal_oil_splash_count_2={6600,250},
         universal_oil_duration={4200,650},universal_oil_burn_duration={4600,650},universal_oil_damage={5400,650},
         universal_view_4={4900,900},universal_yard_5={4700,1200},
         universal_gray_cat={3800,1100},
