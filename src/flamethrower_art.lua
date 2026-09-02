@@ -6,7 +6,7 @@ local SOURCE_REACH,SOURCE_HALF=1480,220
 
 local function load()
     if streamImage then return end
-    streamImage=love.graphics.newImage("assets/effects/smoker-flamethrower-stream-atlas-v4.png")
+    streamImage=love.graphics.newImage("assets/effects/smoker-flamethrower-stream-atlas-v5.png")
     equipmentImage=love.graphics.newImage("assets/effects/smoker-flamethrower-equipment-v1.png")
     streamImage:setFilter("nearest","nearest");equipmentImage:setFilter("nearest","nearest")
     streamQuads={}

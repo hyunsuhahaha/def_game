@@ -22,6 +22,6 @@ for frame=0,7 do
     mode.flameStream={x=248,y=552,nx=1,ny=0,reach=430,halfWidth=100,t=fixture.time}
     Art.drawHeld(mode,{player={x=214,y=610,facing=1}})
     Art.drawStream(mode.flameStream)
-    fixture.save("docs/previews/flamethrower-fx-v4-draws-"..frame..".json")
+    fixture.save("docs/previews/flamethrower-fx-v5-draws-"..frame..".json")
 end
-print("FLAMETHROWER_FX_V4_CAPTURE_OK frames=8 reach=430 width=200 window=none")
+print("FLAMETHROWER_FX_V5_CAPTURE_OK frames=8 reach=430 width=200 window=none")
