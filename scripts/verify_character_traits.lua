@@ -568,13 +568,13 @@ assert(maxStore.data.currency==4321 and maxStore:getRegenTier()==4
     and maxStore.data.equipmentConfigured and maxStore.data.playerWeapons[2]==3,
     "developer max-all changed currency, regen tier, or equipment state")
 
--- 70/80/90/100% 프리셋은 활성 기록 연구만 초기화해, 실제 가격이 싼 해금 가능
+-- 10~100% 프리셋은 활성 기록 연구만 초기화해, 실제 가격이 싼 해금 가능
 -- 단계부터 정확한 비율만큼 채운다. 보존된 일반 작전 특성 및 다른 저장 상태는 유지한다.
 local presetStore=CharacterTraits.new(true)
 presetStore.data.currency=4321;presetStore.data.regenTier=4
 presetStore.data.levels.physical_quota=2
 local previous={}
-for _,percent in ipairs({70,80,90,100})do
+for percent=10,100,10 do
     local filled,total=presetStore:setScoreProgress(percent)
     assert(filled==math.floor(total*percent/100),"developer trait preset filled the wrong percentage")
     local counted=0
