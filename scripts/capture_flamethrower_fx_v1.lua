@@ -8,7 +8,7 @@ local tree=love.graphics.newImage("assets/trees/broadleaf-tree-cartoon-v3.png")
 local smokerQuad=love.graphics.newQuad(0,0,96,192,smoker:getDimensions())
 local bw,bh=bg:getDimensions()
 
-for frame=0,7 do
+local function capture(frame,style,path)
     fixture.reset();fixture.time=frame/16
     love.graphics.setColor(1,1,1,.86);love.graphics.draw(bg,0,0,0,1280/bw,720/bh)
     love.graphics.setColor(.015,.035,.025,.48);love.graphics.rectangle("fill",0,0,1280,720)
@@ -19,9 +19,17 @@ for frame=0,7 do
     love.graphics.draw(tree,835,515,0,.56,.56,tree:getWidth()/2,tree:getHeight()*.91)
     love.graphics.draw(smoker,smokerQuad,214,610,0,.61,.61,48,190)
     local mode=Mode.new();mode.scoreAttack=true;mode.job="fire";mode.permanentTraits.scoreFlameUnlock=1
-    mode.flameStream={x=248,y=552,nx=1,ny=0,reach=430,halfWidth=100,t=fixture.time}
+    mode.flameVisualStyle=style
+    mode.flameStream={x=248,y=552,nx=1,ny=0,reach=430,halfWidth=100,t=fixture.time,visualStyle=style}
     Art.drawHeld(mode,{player={x=214,y=610,facing=1}})
     Art.drawStream(mode.flameStream)
-    fixture.save("docs/previews/flamethrower-fx-v5-draws-"..frame..".json")
+    if style=="torch"then
+        Art.drawImpact(660,538,fixture.time,1);Art.drawImpact(835,463,fixture.time,5)
+    end
+    fixture.save(path..frame..".json")
 end
-print("FLAMETHROWER_FX_V5_CAPTURE_OK frames=8 reach=430 width=200 window=none")
+for frame=0,7 do
+    capture(frame,"classic","docs/previews/flamethrower-fx-v5-draws-")
+    capture(frame,"torch","docs/previews/flamethrower-torch-v1-draws-")
+end
+print("FLAMETHROWER_FX_COMPARE_CAPTURE_OK styles=classic+torch frames=8 impacts=2 window=none")

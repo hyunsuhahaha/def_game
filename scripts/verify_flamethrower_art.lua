@@ -30,15 +30,33 @@ end
 local frameCount=0;for _ in pairs(frameKeys)do frameCount=frameCount+1 end
 assert(frameCount==8,"runtime did not expose all eight coherent stream frames")
 
+stream.visualStyle="torch";local torchFrames={}
+for index=0,7 do
+    fixture.reset();stream.t=index/16;Art.drawStream(stream)
+    local command=fixture.commands[1]
+    assert(command and command.file=="assets/effects/smoker-flamethrower-torch-atlas-v1.png","torch atlas draw disappeared")
+    torchFrames[(command.quad[1]or 0)..":"..(command.quad[2]or 0)]=true
+end
+local torchCount=0;for _ in pairs(torchFrames)do torchCount=torchCount+1 end
+assert(torchCount==8,"torch runtime did not expose all eight frames")
+fixture.reset();Art.drawImpact(20,30,.1,2)
+assert(fixture.commands[1]and fixture.commands[1].file=="assets/effects/smoker-flamethrower-torch-impact-atlas-v1.png",
+    "tree-contact torch impact atlas disappeared")
+
 local mode=Mode.new();mode.scoreAttack=true;mode.job="fire";mode.permanentTraits.scoreFlameUnlock=1
-mode.flameStream=stream;local g=game();mode:queueProjectedOverlay(g,.2)
-local queued=false
+mode.flameVisualStyle="torch";mode.smokerGroundTime=.1;mode.flameStream=stream;local g=game()
+g.world.nodes={{rushTree=true,active=true,x=110,y=20,flameTorchImpactAt=0,flameTorchImpactPhase=1},
+    {rushTree=true,active=true,x=210,y=30,flameTorchImpactAt=0,flameTorchImpactPhase=5}}
+mode:queueProjectedOverlay(g,.2)
+local queued,impactCount=false,0
 for _,entry in ipairs(g.world.billboardQueue)do
     if entry.draw then fixture.reset();entry.draw()
         for _,command in ipairs(fixture.commands)do
-            if command.op=="draw"and command.file=="assets/effects/smoker-flamethrower-stream-atlas-v5.png"then queued=true end
+            if command.op=="draw"and command.file=="assets/effects/smoker-flamethrower-torch-atlas-v1.png"then queued=true end
+            if command.op=="draw"and command.file=="assets/effects/smoker-flamethrower-torch-impact-atlas-v1.png"then impactCount=impactCount+1 end
         end
     end
 end
 assert(queued,"flamethrower stream did not enter the upright 2.5D billboard pass")
-print("FLAMETHROWER_ART_OK atlas=v5:1536x768x8 equipment=384x128 nearest=true billboard=upright source=8-authored-moments")
+assert(impactCount==2,"torch impact was not queued independently for every damaged tree")
+print("FLAMETHROWER_ART_OK styles=classic+torch frames=8 impacts=per-tree billboard=upright")

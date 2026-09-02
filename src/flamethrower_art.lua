@@ -1,17 +1,24 @@
 -- Authored, upright-safe pixel art for the score-mode flamethrower.
 local Art={}
-local streamImage,equipmentImage,streamQuads
+local streamImage,torchImage,impactImage,equipmentImage,streamQuads,torchQuads,impactQuads
 local CELL_W,CELL_H,FRAMES=1536,768,8
+local IMPACT_CELL=256
 local SOURCE_REACH,SOURCE_HALF=1480,220
 
 local function load()
     if streamImage then return end
     streamImage=love.graphics.newImage("assets/effects/smoker-flamethrower-stream-atlas-v5.png")
+    torchImage=love.graphics.newImage("assets/effects/smoker-flamethrower-torch-atlas-v1.png")
+    impactImage=love.graphics.newImage("assets/effects/smoker-flamethrower-torch-impact-atlas-v1.png")
     equipmentImage=love.graphics.newImage("assets/effects/smoker-flamethrower-equipment-v1.png")
-    streamImage:setFilter("nearest","nearest");equipmentImage:setFilter("nearest","nearest")
-    streamQuads={}
+    streamImage:setFilter("nearest","nearest");torchImage:setFilter("nearest","nearest")
+    impactImage:setFilter("nearest","nearest");equipmentImage:setFilter("nearest","nearest")
+    streamQuads={};torchQuads={};impactQuads={}
     for index=0,FRAMES-1 do
         streamQuads[index+1]=love.graphics.newQuad((index%4)*CELL_W,math.floor(index/4)*CELL_H,CELL_W,CELL_H,CELL_W*4,CELL_H*2)
+        torchQuads[index+1]=love.graphics.newQuad((index%4)*CELL_W,math.floor(index/4)*CELL_H,CELL_W,CELL_H,CELL_W*4,CELL_H*2)
+        impactQuads[index+1]=love.graphics.newQuad((index%4)*IMPACT_CELL,math.floor(index/4)*IMPACT_CELL,
+            IMPACT_CELL,IMPACT_CELL,IMPACT_CELL*4,IMPACT_CELL*2)
     end
 end
 
@@ -41,6 +48,7 @@ function Art.drawStream(stream)
     load()
     local time=stream.t or 0
     local frame=math.floor(time*16)%FRAMES+1
+    local torch=stream.visualStyle=="torch"
     -- The gameplay stream lives on the ground plane. Upright FX compensate for
     -- camera pitch while preserving the authored pressured forward jet.
     local angle=atan2((stream.ny or 0)*.62,stream.nx or 1)
@@ -48,17 +56,26 @@ function Art.drawStream(stream)
     local visualReach=stream.visualReach or stream.reach or 250
     local scaleX=visualReach/SOURCE_REACH
     local pressure=1+math.sin(time*38)*.035
-    local scaleY=math.max(.24,halfWidth/SOURCE_HALF*1.25)*pressure
+    local scaleY=math.max(.24,halfWidth/SOURCE_HALF*(torch and 1.05 or 1.25))*pressure
     love.graphics.setBlendMode("alpha")
     love.graphics.setColor(1,1,1,1)
-    love.graphics.draw(streamImage,streamQuads[frame],stream.x,stream.y,angle,scaleX,scaleY,30,410)
+    love.graphics.draw(torch and torchImage or streamImage,
+        (torch and torchQuads or streamQuads)[frame],stream.x,stream.y,angle,scaleX,scaleY,30,410)
     love.graphics.setColor(1,1,1,1)
     love.graphics.setBlendMode("alpha")
     return true
 end
 
+function Art.drawImpact(x,y,age,phase)
+    load()
+    local frame=(math.floor((age or 0)*24+(phase or 0))%FRAMES)+1
+    love.graphics.setBlendMode("alpha");love.graphics.setColor(1,1,1,1)
+    love.graphics.draw(impactImage,impactQuads[frame],x,y,0,.44,.44,128,145)
+    love.graphics.setColor(1,1,1,1);love.graphics.setBlendMode("alpha")
+end
+
 function Art.assets()
-    load();return{stream=streamImage,equipment=equipmentImage}
+    load();return{stream=streamImage,torch=torchImage,impact=impactImage,equipment=equipmentImage}
 end
 
 return Art

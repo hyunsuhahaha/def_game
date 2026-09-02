@@ -211,7 +211,8 @@ function ClearcutMode.new()
         bees={}, beeSlow=false, beeSwarmsTriggered=0, beehiveTotal=0,
         streak=0, lastHitAt=-10, molotovTimer=0, evolutions={}, molotovs={},
         cigaretteButts={}, emberTransfers={}, emberArrivals={}, cigaretteLandingImpacts={}, smokerGroundTime=0,cigaretteHitStop=0, secondhandSmokeClouds={},
-        smokerWeaponProjectiles={},smokerWeaponCooldown=0,vapeCharge=0,vapeKick=0,vapeWindLeaves={},flameStream=nil,
+        smokerWeaponProjectiles={},smokerWeaponCooldown=0,vapeCharge=0,vapeKick=0,vapeWindLeaves={},
+        flameStream=nil,flameVisualStyle="classic",
         treeSparks={}, treeSparkArrivals={}, strawTimer=0, strawBales={}, strawBaleSequence=0,
         oilTrail={}, oilTrailTimer=0, oilTrailLastX=nil, oilTrailLastY=nil, oilTrailSequence=0,
         oilFireLinks={},oilFireLinkTickTimer=0,oilFireLinksDirty=true,
@@ -4466,6 +4467,7 @@ function ClearcutMode:updateFlamethrowerAttack(dt,game,held)
     local originX,originY=game.player.x+nx*34,game.player.y-58+ny*10
     local flameTime=(self.flameStream and self.flameStream.t or 0)+dt
     self.flameStream={x=originX,y=originY,nx=nx,ny=ny,reach=reach,halfWidth=halfWidth,
+        visualStyle=self.flameVisualStyle or"classic",
         angle=(math.atan2 and math.atan2(ny,nx)or math.atan(ny/(nx==0 and 1e-6 or nx))),
         t=flameTime}
     if game.player.setClearcutAction then game.player:setClearcutAction(.5+math.sin(self.flameStream.t*22)*.16)end
@@ -4483,6 +4485,10 @@ function ClearcutMode:updateFlamethrowerAttack(dt,game,held)
         if node.rushTree and node.active and not node.treeEmergence
             and ClearcutMode.flameStreamCovers(originX,originY,nx,ny,reach,halfWidth,node.x,node.y)then
             hit=true
+            if self.flameVisualStyle=="torch"then
+                node.flameTorchImpactAt=self.smokerGroundTime or 0
+                node.flameTorchImpactPhase=node.flameTorchImpactPhase or math.floor(math.abs(node.x*7+node.y*11))%8
+            end
             local felled=self:damageTreeWithSmokerWeapon(node,damage,game)
             if not felled and not self.rainSuppressFire and not node.burning
                 and love.math.random()<igniteChance then
@@ -5057,7 +5063,7 @@ function ClearcutMode:activateMinerBurrow(game)
     self.minerClawAction = nil
     self.attackCooldown = 0
     self.minerBurrow = {
-        state="enter", t=0, duration=3.2+self:power("burrow_uproot")*.22,
+        state="enter", t=0, duration=2.2+self:power("burrow_uproot")*.15,
         lastX=game.player.x,lastY=game.player.y,trackX=game.player.x,trackY=game.player.y,side=1,launched=0,
         cowardTimer=0,cowardSequence=0
     }
@@ -5225,7 +5231,7 @@ function ClearcutMode:updateMinerBurrow(dt, game)
     end
     if burrow.t>=.2 then
         self.minerBurrow=nil
-        self.minerBurrowCooldown=math.max(3.4,7-self:power("burrow_uproot")*.55)
+        self.minerBurrowCooldown=math.max(6,14-self:power("burrow_uproot")*.55)
         if game.player.clearClearcutAction then game.player:clearClearcutAction() end
     end
 end
@@ -8046,6 +8052,19 @@ function ClearcutMode:queueProjectedOverlay(game,t)
         local stream=self.flameStream
         queueUpright(queue,stream.x+stream.nx*stream.reach*.5,stream.y+stream.ny*stream.reach*.5,
             function()FlamethrowerArt.drawStream(stream)end)
+    end
+    -- Torch B applies one overlay to every tree actually damaged by the shared
+    -- flame column. Existing impactNode recoil and ignition art remain intact.
+    if self.flameVisualStyle=="torch"then
+        for _,value in ipairs(game.world.nodes)do local node=value
+            local age=groundTime-(node.flameTorchImpactAt or -999)
+            if node.rushTree and node.active and age>=0 and age<=.34 then
+                local phase=node.flameTorchImpactPhase or 0
+                queueUpright(queue,node.x,node.y,function()
+                    FlamethrowerArt.drawImpact(node.x,node.y-52,age,phase)
+                end,node.y+.06,node.y)
+            end
+        end
     end
     for _,value in ipairs(self.smokerWeaponProjectiles or {})do local projectile=value
         -- 삼단 대단원의 `firework_echo`는 착탄 지점만 들고 시간을 세는 예약 항목이라

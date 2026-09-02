@@ -316,16 +316,19 @@ assert(stream(0,0,1,0,250,128,200,118),"thickness research did not widen the col
 -- 점화 확률 0으로 이걸 확인한다. (예전에는 rainSuppressFire 로 점화를 껐는데,
 -- 이제 비는 화염방사기를 통째로 멎게 하므로 그 수단은 쓸 수 없다 —
 -- 비 중 화염 차단은 verify_score_rain.lua 가 본다.)
-local flameMode=ClearcutMode.new();flameMode.scoreAttack=true
+local flameMode=ClearcutMode.new();flameMode.scoreAttack=true;flameMode.flameVisualStyle="torch"
 flameMode.permanentTraits.scoreFlameUnlock=1;flameMode.permanentTraits.scoreFlameIgnite=-99
 local flameTree={rushTree=true,active=true,x=120,y=-30,rushHp=100,rushMaxHp=100,burning=false}
-local flameWorld={nodes={flameTree}}
+local flameTree2={rushTree=true,active=true,x=220,y=0,rushHp=100,rushMaxHp=100,burning=false}
+local flameWorld={nodes={flameTree,flameTree2}}
 function flameWorld:impactNode()end
 local flamePlayer={x=0,y=0,facing=1,gather=1}
 function flamePlayer:setClearcutAction(value)self.clearcutActionProgress=value end
 function flamePlayer:clearClearcutAction()self.clearcutActionProgress=nil end
 local flameGame={player=flamePlayer,world=flameWorld,tools={axe={speed=1}},camera={screenToWorld=function()return 300,0 end}}
 assert(flameMode:updateFlamethrowerAttack(.13,flameGame,true),"first continuous flame tick missed")
+assert(flameTree.flameTorchImpactAt~=nil and flameTree2.flameTorchImpactAt~=nil,
+    "torch impact was not attached independently to every damaged tree")
 local afterFirstTick=flameTree.rushHp
 assert(flameMode:updateFlamethrowerAttack(.13,flameGame,true),"second continuous flame tick missed")
 assert(flameTree.rushHp<afterFirstTick and not flameTree.burning,

@@ -129,6 +129,18 @@
   `flamethrower-fx-v5-pixel-board.png`, 실제 배율 검수는
   `flamethrower-fx-v5-runtime-sheet.png`와 8프레임 GIF를 사용한다.
 
+### 비교용 적색 토치 B안
+
+- 기존 v5를 삭제하거나 교체하지 않는다. `flameVisualStyle="classic"`이 기본이며,
+  비교용 `"torch"`는 `smoker-flamethrower-torch-atlas-v1.png`의 8프레임을 사용한다.
+  백색 압축핵은 작게 유지하고 주황 내부 제트와 단계별 반투명 적색 외피를 길게 겹쳐
+  대형 가스 토치처럼 보이게 한다.
+- 토치 판정은 기존 화염 기둥을 그대로 공유한다. 한 틱에 여러 나무가 맞으면 각 나무의
+  줄기 접점에 `smoker-flamethrower-torch-impact-atlas-v1.png`를 서로 다른 위상으로 하나씩
+  얹는다. 기존 `impactNode` 반동·타격음·착화 불꽃은 제거하지 않는다.
+- A/B 실제 배율 비교는 `flamethrower-ab-comparison-v1.gif`를 사용한다. B안은 비교용으로
+  함께 구현했지만 기본 런타임 스타일을 임의로 바꾸지 않는다.
+
 ## 기름 드럼통 바닥·화염 FX (런타임 픽셀 방식)
 
 - 드럼통 기름은 고정 웅덩이 아틀라스를 그리지 않는다. `spillOilDrum`이 드럼통 ID와 유출 순번을 시드로 삼아 기본 16개의 자국 위치·크기·가로세로 비율·픽셀 밀도를 만들고, `oil_trail_art.lua`가 각 자국을 2px 그리드의 검은 픽셀 덩어리로 직접 칠한다.
