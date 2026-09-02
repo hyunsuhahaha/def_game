@@ -23,10 +23,15 @@ local lobby=Lobby.new({},fonts);lobby.time=1.4;lobby.timeOfDayOverride=LOBBY_HOU
 lobby.audioTrack=LOBBY_TRACK or 1
 if LOBBY_EXIT_MENU then lobby.exitMenuOpen=true;lobby.exitMenuFocus=LOBBY_EXIT_FOCUS or 1 end
 if LOBBY_CD_ANGLE~=nil then lobby.audioCd.angle=LOBBY_CD_ANGLE end
-lobby:draw(game)
+if SCORE_TIER_SELECT then
+    local Game=require("src.game");setmetatable(game,Game);game.fonts,game.lobby=fonts,lobby
+    game.scoreTierMax,game.scoreTierChoice=8,SCORE_TIER_CHOICE or 6
+    game:drawScoreTierSelect()
+else lobby:draw(game)end
 local suffix=captureW==1280 and "" or "-"..captureW
 if LOBBY_HOUR~=nil then suffix=suffix..string.format("-h%02d",math.floor(LOBBY_HOUR))end
 if LOBBY_TRACK~=nil then suffix=suffix..string.format("-track%d",math.floor(LOBBY_TRACK))end
 if LOBBY_EXIT_MENU then suffix=suffix.."-exit-menu"end
+if SCORE_TIER_SELECT then suffix=suffix.."-tier-select"end
 fixture.save("docs/previews/score-attack-lobby-draws"..suffix..".json")
 print(string.format("SCORE_ATTACK_LOBBY_CAPTURE_OK %dx%d progress=shown window=none",captureW,captureH))

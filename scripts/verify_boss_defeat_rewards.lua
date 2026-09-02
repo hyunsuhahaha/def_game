@@ -42,6 +42,18 @@ assert(delayedDrop.x==startX,"boss magnet pulled drops before its anticipation d
 for _=1,7 do World.updateDrops(game.world,.1,game) end
 assert(delayedDrop.x<startX and delayedDrop.x>game.player.x+30,"boss magnet pull was invisible or teleported the drop")
 
+local originalRandom=love.math.random
+love.math.random=function()return .009 end
+local woodMode={bossMagnetPickups={}}
+assert(Reward.rollWoodMagnet(woodMode,100,120)and woodMode.bossMagnetPickups[1].woodOnly,"one-percent wood magnet did not drop")
+love.math.random=function()return .01 end
+assert(not Reward.rollWoodMagnet(woodMode,100,120)and#woodMode.bossMagnetPickups==1,"wood magnet probability exceeded one percent")
+love.math.random=originalRandom
+local woodDrop={kind="wood",x=800,y=500};local stoneDrop={kind="stone",x=700,y=500}
+local woodGame={mode="playing",player={x=100,y=120},world={drops={woodDrop,stoneDrop}},setNotice=function()end}
+Reward.update(woodMode,woodGame)
+assert(woodDrop.magnet and woodDrop.bossMagnet and not stoneDrop.magnet,"wood magnet did not exclusively collect every dropped lumber")
+
 mode.bossMagnetPickups={{x=400,y=400,collected=false}}
 local originalGenerate=mode.generateForest;mode.generateForest=function()end;mode.initForestZones=function()end
 game.world.width,game.world.height,game.world.nodes,game.world.drops=3200,2000,{},{}

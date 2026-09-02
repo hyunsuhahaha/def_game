@@ -1,6 +1,7 @@
 local BombMonkey={}
 local Maps=require("src.clearcut_maps")
 BombMonkey.FUSE_FRAMES=24
+BombMonkey.EXPLOSION_FRAMES=24
 
 local bombImage,monkeyImage,explosionImage,bombQuads,monkeyQuads,explosionQuads
 
@@ -14,7 +15,7 @@ local function load()
     bombImage,monkeyImage,explosionImage=bomb,monkey,explosion;bombQuads={};monkeyQuads={};explosionQuads={}
     for i=0,BombMonkey.FUSE_FRAMES do bombQuads[i+1]=love.graphics.newQuad(i*128,0,128,128,bomb:getDimensions())end
     for i=0,5 do monkeyQuads[i+1]=love.graphics.newQuad(i*128,0,128,128,monkey:getDimensions())end
-    for i=0,7 do explosionQuads[i+1]=love.graphics.newQuad(i*256,0,256,256,explosion:getDimensions())end
+    for i=0,BombMonkey.EXPLOSION_FRAMES-1 do explosionQuads[i+1]=love.graphics.newQuad(i*256,0,256,256,explosion:getDimensions())end
     return true
 end
 
@@ -154,7 +155,7 @@ function BombMonkey.queue(mode,queue)
     end}end
     for _,entry in ipairs(mode.bombExplosions or{})do local value=entry;queue[#queue+1]={x=value.x,y=value.y,anchorY=value.y,sortBias=.08,draw=function()
         local progress=math.min(.999,value.age/value.life)
-        local frame=math.min(8,math.floor(progress*8)+1)
+        local frame=math.min(BombMonkey.EXPLOSION_FRAMES,math.floor(progress*BombMonkey.EXPLOSION_FRAMES)+1)
         local scale=(value.radius or 180)/118
         love.graphics.setColor(1,1,1,1);love.graphics.draw(explosionImage,explosionQuads[frame],value.x,value.y-18,0,scale,scale,128,128)
     end}end

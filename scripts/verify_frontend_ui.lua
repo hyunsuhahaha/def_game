@@ -33,6 +33,10 @@ for _,label in ipairs({"게임 시작","강화","연습","업적","설정"})do a
 assert(not lobby:find("목재 경험치 · 운영 3택",1,true),"stale score growth rules returned")
 assert(not game:find("automationKeys",1,true)and not game:find("automationClick",1,true),"removed score automation input is still wired")
 assert(game:find("function Game:startClearcutScoreAttack",1,true),"score attack entry point missing")
+assert(game:find("function Game:openScoreTierSelect",1,true)and game:find("function Game:drawScoreTierSelect",1,true),
+    "cleared regeneration-tier selector is missing from score entry")
+assert(game:find('self.mode="score_tier_select"',1,true)and game:find('tier.."단계 시작"',1,true),
+    "score start still skips the selected regeneration tier")
 assert(game:find('self.mode="clearcut_briefing"',1,true),"map selection still skips briefing")
 assert(game:find('self:startClearcut(self.pendingClearcutCharacter,self.selectedClearcutMap,self.selectedClearcutStage)',1,true),"briefing cannot start the selected stage")
 assert(maps:find("진입 구역",1,true) and maps:find("Maps.stageCode",1,true) and maps:find("clearcutStageBoxes",1,true),"map stage selector missing")

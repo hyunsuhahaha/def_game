@@ -162,6 +162,9 @@ assert(physical.attackSpeed > 1 and physical.range == 14, "logger traits did not
 assert(smoker.attackSpeed == 1 and smoker.range == 0, "logger traits leaked into another character")
 for _,id in ipairs({"universal_yard","fire_score_yard_2","universal_yard_3","fire_score_yard_4",
     "universal_yard_5","fire_score_yard_6","fire_score_yard_7"})do store.data.levels[id]=1 end
+for _,id in ipairs({"fire_score_capacity_4","universal_capacity_5","fire_score_capacity_6",
+    "universal_capacity_7","fire_score_capacity_8","universal_capacity_9"})do store.data.levels[id]=1 end
+store.data.levels.universal_veteran_yard=4
 for _,id in ipairs({"universal_stride","fire_score_stride_2","universal_stride_3","fire_score_stride_4"})do store.data.levels[id]=1 end
 for _,id in ipairs({"fire_score_view_1","universal_view_2","fire_score_view_3","universal_view_4"})do store.data.levels[id]=1 end
 store.data.levels.universal_robot_start=1
@@ -184,6 +187,15 @@ store.data.levels.universal_mole_burrow=1;store.data.levels.universal_mole_burro
 store.data.levels.universal_mole_burrow_damage=3;store.data.levels.universal_mole_burrow_cooldown=3
 local splitGrowth=store:scoreAttackEffects()
 assert(splitGrowth.scoreYardExpansion==7,"split logging-yard expansion did not reach seven nodes")
+assert(splitGrowth.scoreTreeAllowance==60,"forest-capacity research did not reach the 100-tree runtime target")
+local allowanceCost=0
+for _,id in ipairs({"universal_yard","fire_score_yard_2","universal_yard_3","fire_score_yard_4",
+    "universal_yard_5","fire_score_yard_6","fire_score_yard_7","universal_veteran_yard",
+    "fire_score_capacity_4","universal_capacity_5","fire_score_capacity_6","universal_capacity_7",
+    "fire_score_capacity_8","universal_capacity_9"})do
+    local node=store:getNode(id);for _,cost in ipairs(node.costs)do allowanceCost=allowanceCost+cost end
+end
+assert(allowanceCost==100258,"forest-capacity research base cost drifted away from about 100,000 coins")
 assert(math.abs(splitGrowth.moveSpeed-1.24)<1e-9,"split movement upgrades did not preserve +24% total speed")
 assert(math.abs(splitGrowth.scoreViewExpansion-.10)<1e-9,"split camera-view upgrades did not reach +10% total view")
 for _,id in ipairs({"universal_stride","fire_score_stride_2","universal_stride_3","fire_score_stride_4",
@@ -365,9 +377,9 @@ assert(flameMode.flameStream==nil,"비가 오는데 화염 기둥이 남아 있�
 -- + 자동 투척 주기 1 + 폭죽 5. 탄약 관리 갈래는 startSmoking의 세 상수(개비 재장전 하한,
 -- 보루 재장전 하한, 보루 크기 20)를 각각 여는 노드이며 폭죽 시각 특성 3개가 추가된다.
 -- 이동·시야·작업 구역과 화염방사기 강화 단계는 한 노드의 다단계가 아니라 기존 장비
--- 갈래 사이에 놓인 별도 1레벨 노드다. 대시 해금·거리 2개, 초·후반 목재 흡수 범위 2개와 뻥튀기 9개를 포함해 fire 76이고, universal 은
--- 기존 33에 화덕 피자 10개와 두더지 땅굴 4개, 드럼통 후속 3개, 폭탄 원숭이 6개를 더한 56이다.
-assert(#store:getScoreAttackNodes("fire")==76 and #store:getScoreAttackNodes("universal")==56,
+-- 갈래 사이에 놓인 별도 1레벨 노드다. 대시 해금·거리 2개, 초·후반 목재 흡수 범위 2개와 뻥튀기 9개,
+-- 산림 수용 확장 3개를 포함해 fire 79이고, universal은 기존 구성에 산림 수용 확장 3개를 더한 59다.
+assert(#store:getScoreAttackNodes("fire")==79 and #store:getScoreAttackNodes("universal")==59,
     "active research board did not expose the distributed one-rank nodes")
 local pickupStore=CharacterTraits.new(true)
 pickupStore.data.levels.fire_score_pickup_1=3

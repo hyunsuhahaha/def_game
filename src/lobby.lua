@@ -35,7 +35,7 @@ for _,track in ipairs(LobbyAudio.TRACKS)do TRACKS[#TRACKS+1]=track.name end
 
 -- 배경음이 계속 흐르는 화면들. 로비 배경 위에 겹쳐 그리는 메뉴는 같은 곡을
 -- 이어 듣는 편이 자연스럽고, 작전에 들어가면 멎어야 한다.
-local AUDIO_MODES={lobby=true,settings=true,achievements=true,character_traits=true}
+local AUDIO_MODES={lobby=true,score_tier_select=true,settings=true,achievements=true,character_traits=true}
 local MENU={
  {label="게임 시작",key="ENT",action="score_attack"},
  {label="디펜스",key="D",action="defense"},

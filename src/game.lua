@@ -219,7 +219,17 @@ function Game:startClearcut(characterId, mapId, stage)
     ClearcutIntro.begin(self)
     if self.clearcut.pending>0 then self.clearcut:openUpgradeChoices(self) end
 end
-function Game:startClearcutScoreAttack()
+function Game:openScoreTierSelect()
+    self.scoreTierMax=math.max(1,self.characterTraits and self.characterTraits:getRegenTier()or 1)
+    self.scoreTierChoice=self.scoreTierMax
+    self.mode="score_tier_select"
+end
+function Game:setScoreTierChoice(tier)
+    self.scoreTierChoice=math.max(1,math.min(self.scoreTierMax or 1,math.floor(tier or 1)))
+end
+function Game:startClearcutScoreAttack(startTier)
+    local unlocked=math.max(1,self.characterTraits and self.characterTraits:getRegenTier()or 1)
+    startTier=math.max(1,math.min(unlocked,math.floor(startTier or unlocked)))
     self:resetRun()
     self.clearcut=ClearcutMode.new()
     -- "fire" is the archived runtime loadout id used by the current weapon set.
@@ -228,6 +238,7 @@ function Game:startClearcutScoreAttack()
     self.clearcut.mapId="forest"
     self.clearcut.stage=1
     self.clearcut.scoreAttack=true
+    self.clearcut.scoreSelectedRegenTier=startTier
     self.selectedClearcutMap="forest"
     self.selectedClearcutStage=1
     local fireSprite=self.clearcutSprites.fire or self.clearcutSprites.physical
@@ -258,7 +269,7 @@ function Game:startClearcutDefense()
 end
 function Game:retryClearcut()
     if self.clearcut and self.clearcut.defenseMode then self:startClearcutDefense()
-    elseif self.clearcut and self.clearcut.scoreAttack then self:startClearcutScoreAttack()
+    elseif self.clearcut and self.clearcut.scoreAttack then self:startClearcutScoreAttack(self.clearcut.scoreStartingRegenTier)
     else self:startClearcut(self.clearcut and self.clearcut.job)end
 end
 function Game:setScoreAvatar(id)
@@ -505,7 +516,7 @@ function Game:update(dt)
     -- or skill cut-in temporarily freezes ordinary world/camera tracking.
     self.camera:updateMode(dt)
     if self.mode == "lobby" then self.lobby:update(dt,self); return end
-    if self.mode == "settings" then self.lobby:update(dt,self); return end
+    if self.mode == "settings" or self.mode=="score_tier_select" then self.lobby:update(dt,self); return end
     if self.mode == "clearcut_map_select" then require("src.clearcut_map_select").update(self,dt);return end
     if self.mode == "clearcut_select" or self.mode == "clearcut_briefing" or self.mode == "character_story" or self.mode == "character_codex" or self.mode == "achievements" then return end
     if self.mode == "character_traits" then self.characterTraitBoard:update(dt); return end
@@ -567,6 +578,15 @@ function Game:keypressed(key)
         elseif key=="end" then self:setViewTilt(1) end
         return
     end
+    if self.mode=="score_tier_select"then
+        if key=="escape"then self.mode="lobby"
+        elseif key=="left"or key=="a"or key=="down"or key=="s"then self:setScoreTierChoice((self.scoreTierChoice or 1)-1)
+        elseif key=="right"or key=="d"or key=="up"or key=="w"then self:setScoreTierChoice((self.scoreTierChoice or 1)+1)
+        elseif key=="home"then self:setScoreTierChoice(1)
+        elseif key=="end"then self:setScoreTierChoice(self.scoreTierMax)
+        elseif key=="return"or key=="kpenter"or key=="space"then self:startClearcutScoreAttack(self.scoreTierChoice)end
+        return
+    end
     if self.mode == "lobby" then
         local action=self.lobby:keypressed(key)
         -- "clearcut" is intentionally unreachable from the active lobby, but
@@ -575,7 +595,7 @@ function Game:keypressed(key)
         if action=="clearcut" then
             self.mode="clearcut_select"
         elseif action=="score_attack" then
-            self:startClearcutScoreAttack()
+            self:openScoreTierSelect()
         elseif action=="defense" then
             self:startClearcutDefense()
         elseif action=="character_traits" then
@@ -753,10 +773,19 @@ function Game:mousepressed(x, y, button)
         end
         return
     end
+    if self.mode=="score_tier_select"then
+        if button==1 then
+            if Frontend.inside(self.scoreTierBackBox,x,y)then self.mode="lobby"
+            elseif Frontend.inside(self.scoreTierPrevBox,x,y)and(self.scoreTierChoice or 1)>1 then self:setScoreTierChoice(self.scoreTierChoice-1)
+            elseif Frontend.inside(self.scoreTierNextBox,x,y)and(self.scoreTierChoice or 1)<(self.scoreTierMax or 1)then self:setScoreTierChoice(self.scoreTierChoice+1)
+            elseif Frontend.inside(self.scoreTierStartBox,x,y)then self:startClearcutScoreAttack(self.scoreTierChoice)end
+        end
+        return
+    end
     if self.mode == "lobby" then
         local action = self.lobby:mousepressed(x, y, button)
         if action == "clearcut" then self.mode = "clearcut_select"
-        elseif action == "score_attack" then self:startClearcutScoreAttack()
+        elseif action == "score_attack" then self:openScoreTierSelect()
         elseif action == "defense" then self:startClearcutDefense()
         elseif action == "character_traits" then self.characterTraitReturnMode="lobby"; self.mode = "character_traits"
         elseif action == "character_codex" then self.mode = "character_codex"
@@ -1533,9 +1562,39 @@ function Game:drawClearcutBriefing()
     Frontend.button(self.clearcutBriefingBackBox,"← 구역 변경",f.small,{accent=Frontend.colors.teal}); Frontend.button(self.clearcutBriefingStartBox,"작업 시작",f.heading,{primary=true,key="ENT",align="left",accent=accent})
 end
 
+function Game:drawScoreTierSelect()
+    local w,h=love.graphics.getDimensions();local f=self.fonts;local accent=Frontend.colors.teal
+    self.lobby:drawBackground(w,h,true);Frontend.backdrop(w,h,accent,.58)
+    local pw=math.min(470,w-56);local ph=math.min(310,h-72);local x=(w-pw)/2;local y=(h-ph)/2-8
+    Frontend.frame(x,y,pw,ph,accent,{selected=true})
+    love.graphics.setFont(f.heading);love.graphics.setColor(.98,.96,.86);love.graphics.printf("시작 재생 단계",x+24,y+23,pw-48,"center")
+    local tier=math.max(1,math.min(self.scoreTierMax or 1,self.scoreTierChoice or 1))
+    love.graphics.setFont(f.micro);love.graphics.setColor(.66,.75,.68)
+    love.graphics.printf(string.format("선택 가능  1 ~ %d단계",self.scoreTierMax or 1),x+24,y+55,pw-48,"center")
+    local controlY=y+84;local arrowW=64;local centerX=x+100;local centerW=pw-200
+    self.scoreTierPrevBox={x=x+24,y=controlY,w=arrowW,h=60}
+    self.scoreTierNextBox={x=x+pw-24-arrowW,y=controlY,w=arrowW,h=60}
+    Frontend.button(self.scoreTierPrevBox,"<",f.heading,{accent=accent,enabled=tier>1})
+    Frontend.button(self.scoreTierNextBox,">",f.heading,{accent=accent,enabled=tier<(self.scoreTierMax or 1)})
+    love.graphics.setColor(accent[1],accent[2],accent[3],.12);love.graphics.rectangle("fill",centerX,controlY,centerW,60,4,4)
+    love.graphics.setColor(accent[1],accent[2],accent[3],.60);love.graphics.rectangle("line",centerX+.5,controlY+.5,centerW-1,59,4,4)
+    love.graphics.setFont(self.lobby.pixelMenu or f.big);love.graphics.setColor(.99,.91,.62)
+    love.graphics.printf(tier.."단계",centerX,controlY+14,centerW,"center")
+    local rate=.14*1.75^(tier-1);local rateText=rate<10 and string.format("%.2f",rate)or(rate<1000 and string.format("%.0f",rate)or string.format("%.2e",rate))
+    love.graphics.setFont(f.small);love.graphics.setColor(.82,.86,.76)
+    love.graphics.printf("기본 생성 "..rateText.."그루/초",x+24,y+161,pw-48,"center")
+    love.graphics.setFont(f.micro);love.graphics.setColor(.58,.68,.61)
+    love.graphics.printf("A / D 또는 방향키로 선택",x+24,y+190,pw-48,"center")
+    self.scoreTierBackBox={x=x+24,y=y+ph-58,w=120,h=38}
+    self.scoreTierStartBox={x=x+pw-224,y=y+ph-62,w=200,h=42}
+    Frontend.button(self.scoreTierBackBox,"돌아가기",f.micro,{accent=accent,key="ESC"})
+    Frontend.button(self.scoreTierStartBox,tier.."단계 시작",f.body,{primary=true,key="ENT",align="left",accent=Frontend.colors.amber})
+end
+
 function Game:draw()
     if self.mode=="test_options" then self:drawTestOptions(); return end
     if self.mode == "lobby" then self.lobby:draw(self); return end
+    if self.mode=="score_tier_select"then self:drawScoreTierSelect();return end
     if self.mode == "achievements" then local w,h=love.graphics.getDimensions();self.lobby:drawBackground(w,h);self.achievementBoard:draw();return end
     if self.mode == "clearcut_select" then self:drawClearcutSelect(); return end
     if self.mode == "character_codex" then self:drawCharacterCodex(); return end

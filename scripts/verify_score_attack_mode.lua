@@ -240,6 +240,17 @@ assert(game.result.woodSpent==nil and game.result.automation==nil,"removed autom
 game:startClearcutScoreAttack()
 assert(game.clearcut.scoreRegenTier==2 and math.abs(game.clearcut:scoreTreeSpawnRate()-(.14*1.75))<.001,"next run did not start from the permanently unlocked tier")
 
+game:openScoreTierSelect()
+assert(game.mode=="score_tier_select"and game.scoreTierChoice==2 and game.scoreTierMax==2,
+    "score entry did not default the selector to the highest cleared regeneration tier")
+game:setScoreTierChoice(1);game:startClearcutScoreAttack(game.scoreTierChoice)
+assert(game.clearcut.scoreStartingRegenTier==1 and game.clearcut.scoreRegenTier==1 and Traits:getRegenTier()==2,
+    "choosing an earlier start tier changed the unlocked tier or started at the wrong difficulty")
+game:retryClearcut()
+assert(game.clearcut.scoreStartingRegenTier==1,"retry did not preserve the selected starting regeneration tier")
+game:startClearcutScoreAttack()
+assert(game.clearcut.scoreRegenTier==2,"direct score start no longer defaults to the highest unlocked tier")
+
 game.clearcut.scoreRegenTier=6
 assert(math.abs(game.clearcut:scoreTreeSpawnRate()-(.14*1.75^5))<.001,"late regeneration curve is not supply-led")
 assert(game.clearcut:scoreTreeHealth(7)==8,"late tree HP curve is missing its restrained increase")
@@ -258,6 +269,9 @@ assert(unattendedEnd and unattendedEnd>=18 and unattendedEnd<=26 and mode.scoreC
 
 for _,id in ipairs({"universal_yard","fire_score_yard_2","universal_yard_3","fire_score_yard_4",
     "universal_yard_5","fire_score_yard_6","fire_score_yard_7"})do Traits.data.levels[id]=1 end
+for _,id in ipairs({"fire_score_capacity_4","universal_capacity_5","fire_score_capacity_6",
+    "universal_capacity_7","fire_score_capacity_8","universal_capacity_9"})do Traits.data.levels[id]=1 end
+Traits.data.levels.universal_veteran_yard=4
 for _,id in ipairs({"universal_stride","fire_score_stride_2","universal_stride_3","fire_score_stride_4"})do Traits.data.levels[id]=1 end
 for _,id in ipairs({"fire_score_view_1","universal_view_2","fire_score_view_3","universal_view_4"})do Traits.data.levels[id]=1 end
 Traits.data.levels.universal_robot_start=1
@@ -271,7 +285,7 @@ Traits.data.levels.universal_mole_burrow_damage=3;Traits.data.levels.universal_m
 for _,id in ipairs({"fire_score_prewarm","fire_score_filter","fire_score_lighter","fire_score_spark","fire_score_launch","fire_score_ash","fire_score_drag","fire_score_heat"})do Traits.data.levels[id]=5 end
 Traits.data.levels.fire_score_stock=1
 game:startClearcutScoreAttack()
-assert(game.clearcut.scoreTreeAllowance==40,"max permanent yard expansion did not raise the runtime allowance to 40")
+assert(game.clearcut.scoreTreeAllowance==100,"max permanent forest-capacity research did not raise the runtime allowance to 100")
 assert(math.abs(game.world.clearcutMapScale-.875)<1e-9 and game.world.width==2800,
     "distributed yard nodes did not expand the actual score map")
 assert(math.abs(game.clearcut.baseSpeed-396.8)<1e-9,"distributed movement nodes did not preserve +24% runtime speed")

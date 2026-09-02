@@ -548,6 +548,7 @@ function ClearcutMode:setup(game)
         self.currentTreesPerSecond,self.peakTreesPerSecond=0,0
         self.scoreWoodEarned=0
         self.scoreRegenTier=self.scorePractice and 1
+            or self.scoreSelectedRegenTier
             or(game.characterTraits and game.characterTraits.getRegenTier and game.characterTraits:getRegenTier()or 1)
         self.scoreStartingRegenTier=self.scoreRegenTier
         self.scoreHighestRegenTier=self.scoreRegenTier
@@ -6743,6 +6744,7 @@ function ClearcutMode:fellTree(node, game, axeImpact)
         amount=math.floor(amount*(self.permanentTraits.woodYield or 1)+.5)
         game.world:harvestBurst(node,game,amount,"목재",axeImpact)
         game.world:spawnDrop("wood",amount,node.x,node.y-10,42,30,1.5)
+        BossRewardPickup.rollWoodMagnet(self,node.x,node.y-10)
         local lumber=WoodEconomy.forTree(self.mapId,node.treeVariant or 1)
         self.lumberInventory=self.lumberInventory or{}
         -- 노다지: 정산 재고에만 붙는다. 화면의 목재 드롭은 그대로라 눈이 헷갈리지 않는다.

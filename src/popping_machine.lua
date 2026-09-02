@@ -1,7 +1,7 @@
 local Art={}
 local Maps=require("src.clearcut_maps")
 local machine,grain,impact,monkey,machineQuads,grainQuads,impactQuads,monkeyQuads
-local COOLDOWN=10
+local COOLDOWN=7
 
 local function load()
     if machine then return end
@@ -75,8 +75,8 @@ local function launch(mode,value)
     if not first then value.state,value.cooldown,value.heat="cooldown",COOLDOWN,0;return false end
     local dx=first.x-value.x;value.facing=dx<0 and-1 or 1;value.state,value.recoil="recoil",.28
     mode.puffedRiceShots[#mode.puffedRiceShots+1]={x=value.x+value.facing*75,y=value.y-65,fromX=value.x+value.facing*75,fromY=value.y-65,
-        target=first,t=0,dur=.30,used={},contacts=0,maxContacts=3+math.floor(mode.permanentTraits.scorePopperBounces or 0),
-        damage=4+(mode.permanentTraits.scorePopperDamage or 0),spin=0}
+        target=first,t=0,dur=.30,used={},contacts=0,maxContacts=4+math.floor(mode.permanentTraits.scorePopperBounces or 0),
+        damage=7+(mode.permanentTraits.scorePopperDamage or 0),spin=0}
     if mode._popperGame and mode._popperGame.feedback then mode._popperGame.feedback:play("popper",true)end
     if mode._popperGame and mode._popperGame.camera then
         mode._popperGame.camera.trauma=math.min(1,(mode._popperGame.camera.trauma or 0)+.18)
@@ -97,7 +97,7 @@ function Art.update(mode,dt,game)
         if v.state=="ready"and fireNearby(mode,v)then v.state,v.heat="heating",0 end
         if v.state=="heating"then
             v.heat=v.heat+dt;v.shake=.08
-            local heatTime=math.max(1.2,2.8-(mode.permanentTraits.scorePopperHeat or 0))
+            local heatTime=math.max(1.2,2.2-(mode.permanentTraits.scorePopperHeat or 0))
             if v.heat>=heatTime then launch(mode,v);v.heat=0 end
         elseif v.state=="recoil"and v.recoil<=0 then v.state,v.cooldown="cooldown",COOLDOWN end
     end
@@ -140,7 +140,10 @@ function Art.queue(mode,queue)
         love.graphics.setColor(1,1,1,1);love.graphics.draw(machine,machineQuads[frame],v.x+jitter,v.y,0,.68*v.facing,.68,128,174)
     end}end
     for _,p in ipairs(mode.puffedRiceShots or{})do queue[#queue+1]={x=p.x,y=p.y,anchorY=p.y,sortBias=.01,draw=function()
-        local frame=math.floor((p.spin or 0)*1.6)%4+1;love.graphics.setColor(1,1,1,1);love.graphics.draw(grain,grainQuads[frame],p.x,p.y,p.spin,.52,.52,64,64)
+        local frame=math.floor((p.spin or 0)*1.6)%4+1
+        love.graphics.setColor(1,.72,.16,.28);love.graphics.circle("fill",p.x,p.y,34)
+        love.graphics.setColor(.12,.07,.02,.78);love.graphics.circle("fill",p.x,p.y,25)
+        love.graphics.setColor(1,1,1,1);love.graphics.draw(grain,grainQuads[frame],p.x,p.y,p.spin,.72,.72,64,64)
     end}end
     for _,v in ipairs(mode.puffedRiceImpacts or{})do queue[#queue+1]={x=v.x,y=v.y,anchorY=v.y,sortBias=.02,draw=function()
         local frame=math.min(6,math.floor(v.age/v.life*6)+1);love.graphics.setColor(1,1,1,1);love.graphics.draw(impact,impactQuads[frame],v.x,v.y,v.angle or 0,.82,.82,96,96)
