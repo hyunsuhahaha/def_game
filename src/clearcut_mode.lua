@@ -556,7 +556,8 @@ function ClearcutMode:setup(game)
     end
     self.permanentTraits=self.permanentTraits or{}
     local yardExpansion=math.max(0,math.floor(self.permanentTraits.scoreYardExpansion or 0))
-    game.world.clearcutMapScale=self.scoreAttack and math.min(.90,Maps.SCORE_MAP_SCALE+yardExpansion*.025)or 1
+    game.world.clearcutMapScale=self.defenseMode and ClearcutMode.DefenseMode.mapScale
+        or(self.scoreAttack and math.min(.90,Maps.SCORE_MAP_SCALE+yardExpansion*.025)or 1)
     Maps.configure(game.world,self.mapId)
     Maps.configureStage(game.world,self.stage)
     self.mapWorld=game.world

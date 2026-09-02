@@ -5,7 +5,7 @@ local mode={remainingTrees=0,treesFelled=0}
 local game={world=world,player={x=0,y=0},result=nil}
 function mode:finish(target,victory)target.result={victory=victory,failureReason=self.failureReason}end
 
-assert(Defense.visibleStages==4 and Defense.treeCount()==96,"opening defense density drifted")
+assert(Defense.visibleStages==4 and Defense.treeCount()==384,"opening defense density drifted")
 Defense.populate(mode,game)
 local radii,counts,hp={},{0,0,0,0},{}
 for _,node in ipairs(world.nodes)do
@@ -23,10 +23,11 @@ local first=world.nodes[1];local before=math.sqrt((first.x-Defense.centerX(world
 Defense.update(mode,game,1)
 local after=math.sqrt((first.x-Defense.centerX(world))^2+(first.y-Defense.centerY(world))^2)
 assert(math.abs((before-after)-Defense.speed)<.01,"stage ring did not advance inward")
+assert(type(first.swayAngle)=="number"and math.abs(first.swayAngle)>0,"moving trees did not receive visible inward sway")
 
 -- Stage 5 must arrive on time even while every tree from stages 1..4 is alive.
 Defense.update(mode,game,Defense.spawnInterval-1)
-assert(mode.defenseNextStage==6 and #world.nodes==120 and mode.remainingTrees==120,"stage 5 waited for an earlier ring clear")
+assert(mode.defenseNextStage==6 and #world.nodes==480 and mode.remainingTrees==480,"stage 5 waited for an earlier ring clear")
 local stage5Hp
 for _,node in ipairs(world.nodes)do if node.defenseStage==5 and node.treeVariant==1 then stage5Hp=node.rushMaxHp end end
 assert(stage5Hp and stage5Hp>hp[4],"stage 5 did not receive increased tree health")
@@ -53,7 +54,10 @@ end
 function runtime:setNotice(message)self.notice=message end
 runtime:startClearcutDefense()
 assert(runtime.mode=="playing"and runtime.clearcut.defenseMode and runtime.clearcut.scoreAttack,"lobby defense start path did not create the active mode")
-assert(runtime.clearcut.remainingTrees==96 and runtime.clearcut.defenseNextStage==5,"runtime defense setup did not create stages 1..4")
+assert(runtime.clearcut.remainingTrees==384 and runtime.clearcut.defenseNextStage==5,"runtime defense setup did not create dense stages 1..4")
+assert(runtime.world.width==5120 and runtime.world.height==3200,"defense mode did not expand the world")
+assert(runtime.world.playBounds.w==3840 and runtime.world.playBounds.h==2240,"defense playable field did not expand with the world")
+assert(Defense.spawnRadius>1280/2/.84,"defense stages are not born beyond the opening camera edge")
 local fonts={};for name,size in pairs({micro=12,small=14,big=28,heading=21,title=36,display=48})do fonts[name]=love.graphics.newFont("assets/font-korean-regular.ttf",size)end
 fixture.reset();runtime.clearcut:drawHUD(runtime,fonts)
 assert(#fixture.commands>0,"defense HUD draw path produced no output")
