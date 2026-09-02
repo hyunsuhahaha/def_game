@@ -4465,9 +4465,7 @@ function ClearcutMode:updateFlamethrowerAttack(dt,game,held)
     game.player.facing=nx<0 and -1 or 1
     local originX,originY=game.player.x+nx*34,game.player.y-58+ny*10
     local flameTime=(self.flameStream and self.flameStream.t or 0)+dt
-    local activeReach=reach*math.min(1,.18+flameTime/.18)
-    self.flameStream={x=originX,y=originY,nx=nx,ny=ny,reach=activeReach,maxReach=reach,
-        visualReach=activeReach,halfWidth=halfWidth,
+    self.flameStream={x=originX,y=originY,nx=nx,ny=ny,reach=reach,halfWidth=halfWidth,
         angle=(math.atan2 and math.atan2(ny,nx)or math.atan(ny/(nx==0 and 1e-6 or nx))),
         t=flameTime}
     if game.player.setClearcutAction then game.player:setClearcutAction(.5+math.sin(self.flameStream.t*22)*.16)end
@@ -4483,7 +4481,7 @@ function ClearcutMode:updateFlamethrowerAttack(dt,game,held)
     local hit=false
     for _,node in ipairs(game.world.nodes)do
         if node.rushTree and node.active and not node.treeEmergence
-            and ClearcutMode.flameStreamCovers(originX,originY,nx,ny,activeReach,halfWidth,node.x,node.y)then
+            and ClearcutMode.flameStreamCovers(originX,originY,nx,ny,reach,halfWidth,node.x,node.y)then
             hit=true
             local felled=self:damageTreeWithSmokerWeapon(node,damage,game)
             if not felled and not self.rainSuppressFire and not node.burning
@@ -4493,7 +4491,7 @@ function ClearcutMode:updateFlamethrowerAttack(dt,game,held)
         end
     end
     for _,enemy in ipairs(self.enemies)do
-        if enemy.hp>0 and ClearcutMode.flameStreamCovers(originX,originY,nx,ny,activeReach,halfWidth,enemy.x,enemy.y)then
+        if enemy.hp>0 and ClearcutMode.flameStreamCovers(originX,originY,nx,ny,reach,halfWidth,enemy.x,enemy.y)then
             hit=true
             enemy.hp=enemy.hp-(6+damage*2);enemy.visualHit=.12
             self:igniteEnemy(enemy,game,self.smokerGroundTime)

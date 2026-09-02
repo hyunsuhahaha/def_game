@@ -9,7 +9,7 @@ local smokerQuad=love.graphics.newQuad(0,0,96,192,smoker:getDimensions())
 local bw,bh=bg:getDimensions()
 
 for frame=0,7 do
-    fixture.reset();fixture.time=frame/22
+    fixture.reset();fixture.time=frame/16
     love.graphics.setColor(1,1,1,.86);love.graphics.draw(bg,0,0,0,1280/bw,720/bh)
     love.graphics.setColor(.015,.035,.025,.48);love.graphics.rectangle("fill",0,0,1280,720)
     -- Runtime-scale anchors: a player, targets at the edge, and one target in
@@ -22,6 +22,6 @@ for frame=0,7 do
     mode.flameStream={x=248,y=552,nx=1,ny=0,reach=430,halfWidth=100,t=fixture.time}
     Art.drawHeld(mode,{player={x=214,y=610,facing=1}})
     Art.drawStream(mode.flameStream)
-    fixture.save("docs/previews/flamethrower-fx-v3-draws-"..frame..".json")
+    fixture.save("docs/previews/flamethrower-fx-v4-draws-"..frame..".json")
 end
-print("FLAMETHROWER_FX_V3_CAPTURE_OK frames=8 reach=430 width=200 window=none")
+print("FLAMETHROWER_FX_V4_CAPTURE_OK frames=8 reach=430 width=200 window=none")

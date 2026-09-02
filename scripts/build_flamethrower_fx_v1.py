@@ -1,7 +1,7 @@
 """Build the smoker's authored flamethrower equipment and eight-frame stream."""
 from pathlib import Path
+from collections import deque
 import math
-import random
 
 from PIL import Image, ImageDraw
 
@@ -9,14 +9,11 @@ from PIL import Image, ImageDraw
 ROOT = Path(__file__).resolve().parents[1]
 ASSET = ROOT / "assets" / "effects"
 PREVIEW = ROOT / "docs" / "previews"
-CELL_W, CELL_H, COLS, FRAMES = 1280, 768, 4, 8
+CELL_W, CELL_H, COLS, FRAMES = 1536, 768, 4, 8
 GRID = 2
+SOURCE = ASSET / "smoker-flamethrower-source-screenshot-v1.png"
 
 INK = (49, 21, 22, 255)
-COAL = (58, 39, 37, 255)
-SMOKE_DARK = (67, 57, 55, 218)
-SMOKE = (91, 76, 69, 190)
-SMOKE_LIT = (132, 91, 62, 174)
 RED = (139, 30, 19, 255)
 RED_LIT = (169, 34, 14, 255)
 VERMILION = (199, 42, 11, 255)
@@ -38,85 +35,158 @@ def poly(draw, points, fill):
     draw.polygon([(snap(x), snap(y)) for x, y in points], fill=fill)
 
 
-def ellipse(draw, cx, cy, rx, ry, fill):
-    draw.ellipse((snap(cx-rx), snap(cy-ry), snap(cx+rx), snap(cy+ry)), fill=fill)
+FIRE_PALETTE = (
+    INK, RED, RED_LIT, VERMILION, VERMILION_LIT, ORANGE, AMBER,
+    GOLD, YELLOW, CREAM, PALE, WHITE,
+)
+
+
+def quantize_fire(canvas):
+    small = canvas.resize((CELL_W // GRID, CELL_H // GRID), Image.Resampling.LANCZOS)
+    colors = []
+    for r, g, b, a in small.get_flattened_data():
+        if a < 96:
+            colors.append((0, 0, 0, 0));continue
+        nearest = min(FIRE_PALETTE, key=lambda color:
+            (r-color[0])**2 + (g-color[1])**2 + (b-color[2])**2)
+        colors.append(nearest)
+    small.putdata(colors)
+    return small.resize((CELL_W, CELL_H), Image.Resampling.NEAREST)
+
+
+def extract_reference():
+    """Remove the screenshot checkerboard without redrawing any flame detail."""
+    source = Image.open(SOURCE).convert("RGBA")
+    width, height = source.size
+    pixels = source.load()
+    flame = set()
+    for y in range(height):
+        for x in range(width):
+            r, g, b, _ = pixels[x, y]
+            if max(r, g, b) - min(r, g, b) > 30 and r > 150: flame.add((x, y))
+
+    outside, queue = set(), deque()
+    for x in range(width):
+        for y in (0, height - 1):
+            if (x, y) not in flame and (x, y) not in outside:
+                outside.add((x, y));queue.append((x, y))
+    for y in range(height):
+        for x in (0, width - 1):
+            if (x, y) not in flame and (x, y) not in outside:
+                outside.add((x, y));queue.append((x, y))
+    while queue:
+        x, y = queue.popleft()
+        for nx, ny in ((x+1,y),(x-1,y),(x,y+1),(x,y-1)):
+            if 0 <= nx < width and 0 <= ny < height and (nx, ny) not in flame and (nx, ny) not in outside:
+                outside.add((nx, ny));queue.append((nx, ny))
+
+    cutout = Image.new("RGBA", source.size)
+    result = cutout.load()
+    for y in range(height):
+        for x in range(width):
+            if (x, y) not in outside: result[x, y] = pixels[x, y][:3] + (255,)
+    cutout = cutout.crop(cutout.getbbox()).resize((1480, 630), Image.Resampling.LANCZOS)
+    canvas = Image.new("RGBA", (CELL_W, CELL_H))
+    canvas.alpha_composite(cutout, (28, 69))
+    return quantize_fire(canvas)
+
+
+MASTER = extract_reference()
+
+
+def column_bounds(image, x):
+    alpha = image.getchannel("A")
+    ys = [y for sample_x in range(max(0,x-4),min(CELL_W,x+5),GRID)
+        for y in range(0,CELL_H,GRID) if alpha.getpixel((sample_x,y))]
+    return (min(ys),max(ys)) if ys else (330,438)
+
+
+LOBE_ZONES = (
+    # Each box isolates a real tongue from the reference.  The boxes end inside
+    # the body of the flame so their transformed bases remain naturally hidden.
+    (472, 92, 704, 336, 0.00),
+    (682, 58, 866, 358, 1.45),
+    (842, 36, 1068, 414, 2.70),
+    (1218, 224, 1454, 488, 4.05),
+    (850, 486, 1112, 696, 5.25),
+    (1110, 500, 1392, 686, 0.85),
+)
+
+
+def move_reference_lobe(image, box, frame, phase):
+    """Grow a differently posed copy of a real reference lobe."""
+    left, top, right, bottom = box
+    lobe = MASTER.crop(box)
+    lobe_alpha = lobe.getchannel("A")
+    lobe_mask = Image.new("L", lobe.size)
+    source_mask = lobe_alpha.load()
+    target_mask = lobe_mask.load()
+    for y in range(lobe.height):
+        for x in range(lobe.width):
+            # An uneven buried join prevents crop-box edges from becoming part
+            # of the silhouette when the tongue leans or stretches.
+            join = lobe.height * (.66 + .035 * math.sin(x * .055 + phase))
+            target_mask[x, y] = source_mask[x, y] if y < join else 0
+    lobe.putalpha(lobe_mask)
+    angle = math.sin(frame * math.pi / 4 + phase) * 4.5
+    sx = 1.0 + math.sin(frame * math.pi / 2 + phase) * .035
+    sy = 1.0 + math.sin(frame * math.pi / 4 + phase + .8) * .12
+    posed = lobe.resize((snap(lobe.width * sx), snap(lobe.height * sy)), Image.Resampling.NEAREST)
+    posed = posed.rotate(angle, resample=Image.Resampling.NEAREST, expand=True)
+    dx = snap(math.sin(frame * math.pi / 2 + phase * 1.7) * 9)
+    dy = snap(math.sin(frame * math.pi / 4 + phase) * 12)
+    paste_x = left + (lobe.width - posed.width) // 2 + dx
+    # Anchor the lobe near its buried base; most motion happens at the tip.
+    paste_y = top + lobe.height - posed.height + dy
+    image.alpha_composite(posed, (paste_x, paste_y))
+
+
+def cycle_hot_fragments(image, frame):
+    """Make real white/yellow reference fragments blink into new paths."""
+    fragments = (
+        (292, 342, 438, 438, 1),
+        (478, 352, 642, 470, -1),
+        (662, 344, 828, 480, 1),
+        (850, 366, 1038, 496, -1),
+        (1050, 390, 1234, 522, 1),
+        (1222, 420, 1398, 558, -1),
+    )
+    for index, (left, top, right, bottom, direction) in enumerate(fragments):
+        patch = MASTER.crop((left, top, right, bottom))
+        pixels = patch.load()
+        mask = Image.new("L", patch.size)
+        mask_pixels = mask.load()
+        for y in range(patch.height):
+            for x in range(patch.width):
+                r, g, b, a = pixels[x, y]
+                # Preserve only the authored hottest filaments, never inventing
+                # a replacement stripe or polygon.
+                inset = min(x, y, patch.width - 1 - x, patch.height - 1 - y)
+                mask_pixels[x, y] = 255 if inset > 10 and a and r > 250 and g > 195 and b > 90 else 0
+        offset = snap(math.sin(frame * math.pi / 2 + index * 1.1) * (8 + index % 3 * 3))
+        lift = snap(math.sin(frame * math.pi / 4 + index * .7) * 5)
+        image.paste(patch, (left + direction * offset, top + lift), mask)
 
 
 def make_stream(frame):
-    """Eight authored frames of a pressured flame jet whose detail travels forward."""
-    image = Image.new("RGBA", (CELL_W, CELL_H))
+    """Animate real reference fragments; no procedural triangle substitutes."""
+    image = MASTER.copy()
+    for left, top, right, bottom, phase in LOBE_ZONES:
+        move_reference_lobe(image, (left, top, right, bottom), frame, phase)
+    cycle_hot_fragments(image, frame)
+
+    # Short-lived embers make frame changes readable even around the outer edge.
     draw = ImageDraw.Draw(image)
-    phase = frame * math.tau / FRAMES
-    rng = random.Random(4417 + frame * 97)
-    xs = list(range(48, 1249, 40))
-
-    def envelope(x):
-        if x < 180:
-            return 24 + (x - 48) * .62
-        if x > 1080:
-            return max(18, 154 - (x - 1080) * .74)
-        return 150 + 18 * math.sin(x / 117 - phase * 1.3)
-
-    def flame_band(scale, color, inset=0, phase_shift=0):
-        upper, lower = [], []
-        for index, x in enumerate(xs):
-            flow = x / 92 - phase * 2.35 + phase_shift
-            center = 384 + math.sin(flow * .43) * (8 + scale * 9)
-            chop = math.sin(flow) * 17 + math.sin(flow * 2.17 + index * .31) * 8
-            width = max(8, envelope(x) * scale - inset + chop * scale)
-            upper.append((x, center - width))
-            lower.append((x, center + width))
-        poly(draw, upper + list(reversed(lower)), color)
-
-    # A dark authored edge, then asymmetric hot layers. Unlike the old chain of
-    # circles, every ridge is a streamwise tongue and its phase advances right.
-    flame_band(1.08, INK, phase_shift=.15)
-    flame_band(1.00, RED, phase_shift=.15)
-    flame_band(.91, VERMILION, phase_shift=.55)
-    flame_band(.76, ORANGE, phase_shift=1.05)
-    flame_band(.58, GOLD, phase_shift=1.55)
-    flame_band(.39, YELLOW, phase_shift=2.0)
-
-    # White-hot ribbons break apart toward the head instead of forming repeated
-    # circular cores. Their x positions advance each animation frame.
-    travel = frame * 92
-    for index in range(8):
-        x = 160 + ((index * 173 + travel) % 930)
-        length = 112 + (index % 3) * 42
-        y = 384 + math.sin(x / 105 - phase * 2.2 + index) * (30 + index % 2 * 22)
-        height = 18 + (index % 3) * 7
-        color = (CREAM, PALE, WHITE)[index % 3]
-        poly(draw, [(x, y-height), (x+length*.72, y-height*.65),
-                    (x+length, y), (x+length*.66, y+height*.62), (x, y+height)], color)
-
-    # Long edge tongues and detached embers visibly advect toward the target.
     for index in range(12):
-        x = 210 + ((index * 137 + travel * 1.25) % 1000)
+        x = 420 + ((index * 101 + frame * 83) % 1040)
         side = -1 if (index + frame) % 2 else 1
-        y = 384 + side * (envelope(x) + 18 + (index % 3) * 12)
-        length = 34 + (index % 4) * 18
-        poly(draw, [(x-22, y-side*5), (x+8, y-side*20),
-                    (x+length, y), (x+2, y+side*13)], (VERMILION, ORANGE, GOLD)[index%3])
-    for index in range(16):
-        x = 510 + ((index * 79 + travel * 1.7) % 750)
-        side = -1 if (index + frame) % 2 else 1
-        y = 384 + side * (190 + (index % 4) * 18)
-        size = (4, 6, 10)[index % 3]
-        draw.rectangle((snap(x), snap(y), snap(x+size*2), snap(y+size)),
-                       fill=(ORANGE, GOLD, YELLOW)[index % 3])
+        top, bottom = column_bounds(MASTER, x)
+        y = (top if side < 0 else bottom) + side * (20 + (index * 11 + frame * 7) % 54)
+        size = 4 + index % 3 * 2
+        draw.rectangle((snap(x),snap(y),snap(x+size*2),snap(y+size)),fill=YELLOW if index%3 else ORANGE)
 
-    # Small smoke scraps only appear at the cooling leading edge.
-    for index in range(5):
-        x = 1040 + ((index * 61 + travel) % 190)
-        y = 384 + (-1 if index % 2 else 1) * (174 + (index % 3) * 24)
-        ellipse(draw, x, y, 16 + index % 2 * 7, 10 + index % 3 * 4,
-                (SMOKE_DARK, SMOKE, SMOKE_LIT)[(index+frame)%3])
-
-    # Stable white-hot nozzle root prevents the rolling column from floating.
-    poly(draw, [(48,360),(118,348),(222,364),(250,384),(222,404),(118,420),(48,408)], INK)
-    poly(draw, [(54,366),(150,358),(226,372),(240,384),(226,396),(150,410),(54,402)], ORANGE)
-    poly(draw, [(58,372),(168,368),(218,378),(230,384),(218,390),(168,400),(58,396)], YELLOW)
-    poly(draw, [(58,378),(186,376),(210,384),(186,392),(58,390)], WHITE)
+    # The pressure root is the one invariant: it never detaches from the nozzle.
+    image.alpha_composite(MASTER.crop((0, 0, 190, CELL_H)), (0, 0))
     return image
 
 
@@ -184,16 +254,26 @@ for frame in range(FRAMES):
     cell = make_stream(frame)
     frames.append(cell)
     atlas.alpha_composite(cell, ((frame % COLS) * CELL_W, (frame // COLS) * CELL_H))
-atlas.save(ASSET / "smoker-flamethrower-stream-atlas-v3.png", optimize=True)
+MASTER.save(ASSET / "smoker-flamethrower-master-pixel-v1.png", optimize=True)
+atlas.save(ASSET / "smoker-flamethrower-stream-atlas-v4.png", optimize=True)
+frames[0].save(ASSET / "smoker-flamethrower-stream-v4.gif", save_all=True,
+    append_images=frames[1:], duration=62, loop=0, disposal=2, optimize=False)
 equipment = make_equipment()
 equipment.save(ASSET / "smoker-flamethrower-equipment-v1.png", optimize=True)
 
-# Builder-level board: actual-ish scale above, nearest 2x material inspection below.
+# Builder-level board: all eight moments above, nearest 2x inspection below.
 board = Image.new("RGB", (1280, 720), (27, 48, 31))
-for index, frame in enumerate(frames[:4]):
-    thumb = frame.resize((600, 360), Image.Resampling.NEAREST)
-    board.paste(thumb, ((index % 2) * 640 + 20, (index // 2) * 180 - 78), thumb)
+for index, frame in enumerate(frames):
+    thumb = frame.resize((300, 150), Image.Resampling.NEAREST)
+    board.paste(thumb, ((index % 4) * 320 + 10, (index // 4) * 170 + 10), thumb)
 zoom = frames[5].crop((32, 180, 672, 564)).resize((1280, 768), Image.Resampling.NEAREST).crop((0, 0, 1280, 300))
 board.paste(zoom, (0, 420), zoom)
-board.save(PREVIEW / "flamethrower-fx-v3-pixel-board.png")
-print("FLAMETHROWER_FX_V3_BUILT stream=1280x768x8 atlas=5120x1536 equipment=384x128 grid=2 flow=forward")
+board.save(PREVIEW / "flamethrower-fx-v4-pixel-board.png")
+alpha_check = Image.new("RGB", (1280, 720), (18, 30, 25))
+light = Image.new("RGB", (1280, 360), (235, 232, 218))
+alpha_check.paste(light, (0, 360))
+check = MASTER.resize((960, 480), Image.Resampling.NEAREST)
+alpha_check.paste(check, (160, -60), check)
+alpha_check.paste(check, (160, 300), check)
+alpha_check.save(PREVIEW / "flamethrower-fx-v4-alpha-check.png")
+print("FLAMETHROWER_FX_V4_BUILT stream=1536x768x8 atlas=6144x1536 equipment=384x128 grid=2 source=captured")

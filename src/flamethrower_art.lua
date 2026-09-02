@@ -1,12 +1,12 @@
 -- Authored, upright-safe pixel art for the score-mode flamethrower.
 local Art={}
 local streamImage,equipmentImage,streamQuads
-local CELL_W,CELL_H,FRAMES=1280,768,8
-local SOURCE_REACH,SOURCE_HALF=1210,230
+local CELL_W,CELL_H,FRAMES=1536,768,8
+local SOURCE_REACH,SOURCE_HALF=1480,220
 
 local function load()
     if streamImage then return end
-    streamImage=love.graphics.newImage("assets/effects/smoker-flamethrower-stream-atlas-v3.png")
+    streamImage=love.graphics.newImage("assets/effects/smoker-flamethrower-stream-atlas-v4.png")
     equipmentImage=love.graphics.newImage("assets/effects/smoker-flamethrower-equipment-v1.png")
     streamImage:setFilter("nearest","nearest");equipmentImage:setFilter("nearest","nearest")
     streamQuads={}
@@ -40,21 +40,18 @@ function Art.drawStream(stream)
     if not stream then return false end
     load()
     local time=stream.t or 0
-    local frame=math.floor(time*22)%FRAMES+1
-    local deployment=math.min(1,.18+time/.18)
+    local frame=math.floor(time*16)%FRAMES+1
     -- The gameplay stream lives on the ground plane. Upright FX compensate for
     -- camera pitch while preserving the authored pressured forward jet.
     local angle=atan2((stream.ny or 0)*.62,stream.nx or 1)
     local halfWidth=(stream.halfWidth or 72)*.62
-    -- Runtime supplies visualReach after applying the same startup travel to the
-    -- hit column. Standalone previews fall back to deriving it from time here.
-    local visualReach=stream.visualReach or(stream.reach or 250)*deployment
+    local visualReach=stream.visualReach or stream.reach or 250
     local scaleX=visualReach/SOURCE_REACH
     local pressure=1+math.sin(time*38)*.035
-    local scaleY=math.max(.26,halfWidth/SOURCE_HALF)*pressure
+    local scaleY=math.max(.24,halfWidth/SOURCE_HALF*1.25)*pressure
     love.graphics.setBlendMode("alpha")
     love.graphics.setColor(1,1,1,1)
-    love.graphics.draw(streamImage,streamQuads[frame],stream.x,stream.y,angle,scaleX,scaleY,58,384)
+    love.graphics.draw(streamImage,streamQuads[frame],stream.x,stream.y,angle,scaleX,scaleY,30,410)
     love.graphics.setColor(1,1,1,1)
     love.graphics.setBlendMode("alpha")
     return true
