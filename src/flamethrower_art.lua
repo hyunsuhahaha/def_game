@@ -52,6 +52,8 @@ function Art.drawStream(stream)
     -- The gameplay stream lives on the ground plane. Upright FX compensate for
     -- camera pitch while preserving the authored pressured forward jet.
     local angle=atan2((stream.ny or 0)*.62,stream.nx or 1)
+    local facing=1
+    if math.cos(angle)<0 then angle=angle-math.pi;facing=-1 end
     local halfWidth=(stream.halfWidth or 72)*.62
     local visualReach=stream.visualReach or stream.reach or 250
     local scaleX=visualReach/SOURCE_REACH
@@ -60,7 +62,7 @@ function Art.drawStream(stream)
     love.graphics.setBlendMode("alpha")
     love.graphics.setColor(1,1,1,1)
     love.graphics.draw(torch and torchImage or streamImage,
-        (torch and torchQuads or streamQuads)[frame],stream.x,stream.y,angle,scaleX,scaleY,30,410)
+        (torch and torchQuads or streamQuads)[frame],stream.x,stream.y,angle,scaleX*facing,scaleY,30,410)
     love.graphics.setColor(1,1,1,1)
     love.graphics.setBlendMode("alpha")
     return true

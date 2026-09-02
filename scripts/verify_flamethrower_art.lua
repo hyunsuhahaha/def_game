@@ -30,6 +30,12 @@ end
 local frameCount=0;for _ in pairs(frameKeys)do frameCount=frameCount+1 end
 assert(frameCount==8,"runtime did not expose all eight coherent stream frames")
 
+stream.nx=-1;stream.ny=0;fixture.reset();Art.drawStream(stream)
+local left=fixture.commands[1]
+assert(left.args[3]==0 and left.args[4]<0 and left.args[5]>0,
+    "left-facing stream must mirror horizontally without turning upside down")
+stream.nx=1
+
 stream.visualStyle="torch";local torchFrames={}
 for index=0,7 do
     fixture.reset();stream.t=index/16;Art.drawStream(stream)
