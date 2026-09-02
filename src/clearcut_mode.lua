@@ -7785,6 +7785,7 @@ ClearcutMode.icons = {
     boomerang_axe = {rows = axeIconRows, palette = boomerangAxePalette},
     seed_mine = {rows = seedIconRows, palette = seedIconPalette},
     chain_lightning = {rows = lightningIconRows, palette = lightningIconPalette},
+    dash = {rows = lightningIconRows, palette = lightningIconPalette},
     baby_robot = {rows = boxRows, palette = lightningIconPalette},
     brute_force = {rows = boxRows, palette = bruteForcePalette},
 }
@@ -8783,12 +8784,15 @@ function ClearcutMode:drawHUD(game,fonts)
     end
     if self.job=="fire"and(self.permanentTraits.scoreDashUnlock or 0)>0 then
         local ready=(self.smokerDashCooldown or 0)<=0 and not self.smokerDash
-        local text=self.smokerDash and "대시 중" or ready and "SPACE  대시" or string.format("대시 재사용 %.1f초",self.smokerDashCooldown)
-        love.graphics.setFont(fonts.small)
-        love.graphics.setColor(.035,.045,.035,.9); love.graphics.rectangle("fill",w/2-150,h-52,300,30,7,7)
-        love.graphics.setColor(ready and {.94,.76,.28,1} or {.72,.65,.52,1})
-        love.graphics.printf(text,w/2-146,h-45,292,"center")
-
+        local icon=ClearcutMode.icons.dash
+        local cx,cy=w/2,h-31
+        love.graphics.setColor(.025,.04,.035,.9);love.graphics.rectangle("fill",cx-22,cy-22,44,44,7,7)
+        love.graphics.setColor(ready and {.45,.88,1,1}or{.18,.28,.3,.9})
+        love.graphics.setLineWidth(2);love.graphics.rectangle("line",cx-21,cy-21,42,42,7,7)
+        drawPixelGrid(icon.rows,ready and icon.palette or darkenPalette(icon.palette,.4,.75),cx,cy,3)
+        love.graphics.setColor(1,1,1,1)
+    end
+    if self.job=="fire"then
         -- 보루 잔량: 화면 오른쪽 가장자리에 남은 개비 수만큼 아이콘을 하나씩 세로로 쌓아 보여준다.
         -- 배경 패널 없이 아이콘만 떠 있게 해서 화면을 가리지 않는다.
         local ammoMax=self.cartonSize or 20

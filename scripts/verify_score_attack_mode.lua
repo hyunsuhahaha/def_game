@@ -66,11 +66,23 @@ assert(mode:scoreTimePressureMultiplier()==1,"time pressure was not neutral at r
 assert(mode:scoreTreeHealth(7)==7,"tier 1 altered ordinary tree health")
 local fonts={big=love.graphics.newFont(30),micro=love.graphics.newFont(11),small=love.graphics.newFont(14),body=love.graphics.newFont(18),display=love.graphics.newFont(34)}
 fixture.reset();mode:drawHUD(game,fonts)
+local lockedAmmoIcons=0
 for _,command in ipairs(fixture.commands)do
     assert(command.op~="text"or not command.text:find("SPACE",1,true),"locked dash leaked a SPACE hint into the score HUD")
+    if command.op=="ellipse"and command.args[1]>1200 then lockedAmmoIcons=lockedAmmoIcons+1 end
 end
+assert(lockedAmmoIcons>0,"locking dash also hid the smoker ammo HUD")
 assert(not mode:activateSmokerDash(game),"smoker dashed before buying the research node")
 mode.permanentTraits.scoreDashUnlock=1
+fixture.reset();mode:drawHUD(game,fonts)
+if os.getenv("DASH_HUD_CAPTURE")then fixture.save(os.getenv("DASH_HUD_CAPTURE"))end
+local dashPixels=0
+for _,command in ipairs(fixture.commands)do
+    assert(command.op~="text"or(not command.text:find("SPACE",1,true)and not command.text:find("대시",1,true)),
+        "dash HUD used a text prompt instead of the bottom icon")
+    if command.op=="rectangle"and command.args[2]>650 and command.color[1]==.55 and command.color[2]==.9 then dashPixels=dashPixels+1 end
+end
+assert(dashPixels>0,"unlocked dash did not draw its ready icon at the bottom of the HUD")
 heldKeys.d=true
 local dashStartX=game.player.x
 assert(mode:activateSmokerDash(game),"unlocked smoker dash did not start")
