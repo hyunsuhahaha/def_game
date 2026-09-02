@@ -869,7 +869,7 @@ end
 
 -- 기록 모드는 기존 캐릭터 트리의 누적 수치에 종속되지 않는다. 현재 활성 연구와
 -- 공용 허용량만 합산하며, 이전 모드의 구매 데이터는 저장 파일에 그대로 남긴다.
-function CharacterTraits:scoreAttackEffects()
+function CharacterTraits:scoreAttackEffects(ignoreOwned)
     local effects={
         attackSpeed=1,range=0,area=0,maxHp=0,reward=1,extraTargets=0,treeDamage=0,
         healOnFell=0,executeChance=0,burnSpeed=1,extraFires=0,spreadChance=0,
@@ -901,9 +901,11 @@ function CharacterTraits:scoreAttackEffects()
         -- 담배 탄약 관리 갈래.
         scoreReloadSpeed=0,scoreCartonSize=0,scoreCartonReload=0,scoreAutoThrowRate=0
     }
-    for _,job in ipairs({"fire","universal"})do
-        for _,node in ipairs(self:getScoreAttackNodes(job))do
-            effects[node.effect]=(effects[node.effect]or 0)+self:getLevel(node.id)*node.value
+    if not ignoreOwned then
+        for _,job in ipairs({"fire","universal"})do
+            for _,node in ipairs(self:getScoreAttackNodes(job))do
+                effects[node.effect]=(effects[node.effect]or 0)+self:getLevel(node.id)*node.value
+            end
         end
     end
     return effects

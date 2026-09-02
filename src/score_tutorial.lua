@@ -10,13 +10,19 @@ end
 local function begin(mode,persist)
     mode.scoreTutorial={step=1,elapsed=0,axe=(mode.actionAudit or{}).scoreAxe or 0,
         ranged=rangedCount(mode.actionAudit),persist=persist~=false}
+    mode.scoreTutorialRun=true
     return true
+end
+
+function Tutorial.shouldStart(game)
+    local traits=game and game.characterTraits
+    return traits and traits.shouldStartScoreTutorial and traits:shouldStartScoreTutorial()or false
 end
 
 function Tutorial.start(mode,game)
     local traits=game and game.characterTraits
     if not mode or not mode.scoreAttack or mode.scorePractice or mode.defenseMode or
-        not traits or not traits.shouldStartScoreTutorial or not traits:shouldStartScoreTutorial()then
+        not traits or not Tutorial.shouldStart(game)then
         return false
     end
     return begin(mode,true)
@@ -29,6 +35,28 @@ function Tutorial.forceStart(mode)
     return begin(mode,false)
 end
 
+local function placeLessonTree(mode,game,distance)
+    local target
+    for _,node in ipairs((game.world and game.world.nodes)or{})do
+        if node.rushTree and node.active and not target then target=node
+        elseif node.rushTree then node.active=false end
+    end
+    if not target then return false end
+    target.active=true
+    target.x,target.y=game.player.x+distance,game.player.y
+    target.rushHp,target.rushMaxHp=math.max(12,target.rushMaxHp or 0),math.max(12,target.rushMaxHp or 0)
+    target.burning,target.burnTimer,target.treeEmergence,target.fallT,target.uprooted=nil,nil,nil,nil,nil
+    target.hitFlash,target.swayAngle,target.swayVel=0,0,0
+    mode.scoreTutorialTarget=target
+    mode.remainingTrees,mode.initialTrees,mode.totalTreesSpawned,mode.peakActiveTrees=1,1,1,1
+    return true
+end
+
+function Tutorial.prepareWorld(mode,game)
+    if not mode or not mode.scoreTutorialRun or not game or not game.player then return false end
+    return placeLessonTree(mode,game,90)
+end
+
 function Tutorial.update(mode,game,dt)
     local state=mode and mode.scoreTutorial
     if not state then return end
@@ -36,6 +64,7 @@ function Tutorial.update(mode,game,dt)
     local audit=mode.actionAudit or{}
     if state.step==1 and(audit.scoreAxe or 0)>state.axe then
         state.step,state.elapsed,state.ranged=2,0,rangedCount(audit)
+        placeLessonTree(mode,game,280)
     elseif state.step==2 and rangedCount(audit)>state.ranged then
         state.step,state.elapsed=3,0
     elseif state.step==3 and state.elapsed>=FINAL_DURATION then
@@ -43,6 +72,7 @@ function Tutorial.update(mode,game,dt)
             game.characterTraits:markScoreTutorialSeen()
         end
         mode.scoreTutorial=nil
+        mode.scoreTutorialComplete=true
     end
 end
 

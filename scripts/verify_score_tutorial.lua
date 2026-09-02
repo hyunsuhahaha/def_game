@@ -6,6 +6,9 @@ local Tutorial=require("src.score_tutorial")
 local function source(path)local f=assert(io.open(path,"rb"));local s=f:read("*a");f:close();return s end
 local gameSource,modeSource=source("src/game.lua"),source("src/clearcut_mode.lua")
 assert(gameSource:find("ScoreTutorial.start%(self.clearcut,self%)"),"score run start is not connected to tutorial")
+assert(gameSource:find("startClearcutScoreAttack%(startTier,tutorialMode%)")
+    and modeSource:find("scoreAttackEffects%(self.scoreTutorialRun%)")
+    and modeSource:find('tutorialStep==1 and"axe"',1,true),"tutorial is not isolated from the upgraded score run")
 assert(modeSource:find("recordScoreRunCompleted",1,true)and modeSource:find("not self.scorePractice and not self.defenseMode",1,true)
     and modeSource:find("not self.scoreTutorialTestRun",1,true),
     "ordinary score result is not connected to tutorial run count")
@@ -36,8 +39,23 @@ for _,variant in ipairs({{scoreAttack=true,scorePractice=true},{scoreAttack=true
 end
 
 local replayTraits=Traits.new(true)
+replayTraits:setScoreProgress(100)
+local neutral=replayTraits:scoreAttackEffects(true)
+assert(neutral.scoreTreeDamage==0 and neutral.scoreAxeCrew==0 and neutral.scoreRocketUnlock==0
+    and neutral.scoreMoleCompanion==0 and neutral.scoreOvenUnlock==0,"tutorial inherited permanent research")
 local replay={scoreAttack=true,actionAudit={}}
 assert(Tutorial.forceStart(replay)and replay.scoreTutorial.persist==false,"developer replay did not start without persistence")
+local lessonGame={characterTraits=replayTraits,player={x=500,y=400},world={nodes={
+    {rushTree=true,active=true,x=50,y=50,rushHp=7,rushMaxHp=7},
+    {rushTree=true,active=true,x=70,y=70,rushHp=9,rushMaxHp=9},
+}}}
+assert(Tutorial.prepareWorld(replay,lessonGame),"tutorial did not prepare its single lesson tree")
+assert(lessonGame.world.nodes[1].x==590 and lessonGame.world.nodes[1].rushHp==12
+    and lessonGame.world.nodes[2].active==false,"axe lesson was not reduced to one nearby neutral tree")
+replay.actionAudit.scoreAxe=1;Tutorial.update(replay,lessonGame,.016)
+assert(replay.scoreTutorial.step==2 and lessonGame.world.nodes[1].x==780,
+    "ranged lesson did not move the single tree outside axe range")
+replay.actionAudit.cigaretteFlick=1;Tutorial.update(replay,lessonGame,.016)
 replay.scoreTutorial.step=3
 Tutorial.update(replay,{characterTraits=replayTraits},Tutorial.FINAL_DURATION)
 assert(replay.scoreTutorial==nil and not replayTraits.data.scoreTutorialSeen,"developer replay changed the real tutorial save")
@@ -49,4 +67,4 @@ for step=1,3 do
     assert(#fixture.commands>=5,"tutorial step did not draw its compact panel")
 end
 
-print("SCORE_TUTORIAL_OK first=free second=guided steps=axe+ranged+loss_meta persistent=true dev_replay=no_save exclusions=practice+defense")
+print("SCORE_TUTORIAL_OK first=free second=isolated_zero_upgrades tree=near_axe_then_far_cigarette persistent=true dev_replay=no_save exclusions=practice+defense")

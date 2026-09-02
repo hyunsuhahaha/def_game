@@ -559,7 +559,7 @@ function ClearcutMode:setup(game)
     if self.scorePractice and self.practicePermanentTraits then
         self.permanentTraits=self.practicePermanentTraits
     elseif game.characterTraits then
-        self.permanentTraits=self.scoreAttack and game.characterTraits.scoreAttackEffects and game.characterTraits:scoreAttackEffects()or game.characterTraits:effects(self.job)
+        self.permanentTraits=self.scoreAttack and game.characterTraits.scoreAttackEffects and game.characterTraits:scoreAttackEffects(self.scoreTutorialRun)or game.characterTraits:effects(self.job)
     end
     self.permanentTraits=self.permanentTraits or{}
     local yardExpansion=math.max(0,math.floor(self.permanentTraits.scoreYardExpansion or 0))
@@ -598,7 +598,7 @@ function ClearcutMode:setup(game)
         self.scoreDeficitTimer,self.scoreCollapseActive=0,false
         game.wood=0
     end
-    if game.achievements then
+    if game.achievements and not self.scoreTutorialRun then
         local ae=game.achievements:effects()
         self.permanentTraits.treeDamage=(self.permanentTraits.treeDamage or 0)+(ae.treeDamage or 0)
         self.permanentTraits.maxHp=(self.permanentTraits.maxHp or 0)+(ae.maxHp or 0)
@@ -615,8 +615,8 @@ function ClearcutMode:setup(game)
     self.reviveCharges = math.floor(self.permanentTraits.reviveCharges or 0)
     self.stageBossHpMul=1+(self.stage-1)*.55
     self.regrowInterval=self.stage==1 and 12 or (self.stage==2 and 9 or 7)
-    local startingTrees=self.defenseMode and ClearcutMode.DefenseMode.treeCount()
-        or(self.scoreAttack and(self.scoreStartingTrees or 6)or Maps.treeTarget(self.mapId,self.stage))
+    local startingTrees=self.scoreTutorialRun and 1 or(self.defenseMode and ClearcutMode.DefenseMode.treeCount()
+        or(self.scoreAttack and(self.scoreStartingTrees or 6)or Maps.treeTarget(self.mapId,self.stage)))
     self:generateForest(game,startingTrees)
     if self.defenseMode then ClearcutMode.DefenseMode.populate(self,game)end
     if self.scoreAttack then
@@ -1747,10 +1747,10 @@ function ClearcutMode:update(dt, game)
     self.elapsed = self.elapsed + dt
     if self:updateStageClock(dt,game) then return end
     if self.defenseMode and ClearcutMode.DefenseMode.update(self,game,dt)then return end
-    local tierTransition=not self.defenseMode and self:updateScoreTierClear(dt,game)
+    local tierTransition=not self.scoreTutorialRun and not self.defenseMode and self:updateScoreTierClear(dt,game)
     if tierTransition then return end
-    if not self.defenseMode and self:updateScoreTreeGrowth(dt,game)then return end
-    if not self.defenseMode then self:updateScoreWorldTree(dt,game)end
+    if not self.scoreTutorialRun and not self.defenseMode and self:updateScoreTreeGrowth(dt,game)then return end
+    if not self.scoreTutorialRun and not self.defenseMode then self:updateScoreWorldTree(dt,game)end
     self:updateWorldTreeLumber(dt)
     self:updateMoleCompanion(dt,game)
     self:updateOilDrums(dt,game)
@@ -1803,6 +1803,11 @@ function ClearcutMode:update(dt, game)
         self.hp = math.min(self.maxHp, self.hp + self.permanentTraits.hpRegen * dt)
     end
     ClearcutMode.ScoreTutorial.update(self,game,dt)
+    if self.scoreTutorialComplete then
+        self.scoreTutorialComplete=false
+        game:startClearcutScoreAttack(self.scoreStartingRegenTier,false)
+        return
+    end
 end
 
 function ClearcutMode:updateBossEntrance(dt,game)
@@ -4125,11 +4130,18 @@ function ClearcutMode:updateHeldAxe(dt, game, heldOverride)
         -- 스쳐도 그 클릭을 놓기 전에는 도끼로 갈아타지 않는다.
         local flameOwnsPress=held and rangedWeapon=="flamethrower"and self.flameStream~=nil
         local meleeTarget=(self.scoreMeleeEnabled~=false)and held and self:scoreMeleeTargetAtAim(game)
-        local weapon=cigaretteThrowActive and"cigarette"or(flameOwnsPress and"flamethrower"
-            or(((self.scoreMeleeEnabled~=false and self.scoreAxeAction)or meleeTarget)and"axe"or rangedWeapon))
+        local tutorialStep=self.scoreTutorial and self.scoreTutorial.step
+        local weapon=tutorialStep==1 and"axe"or(tutorialStep==2 and"cigarette"or(
+            cigaretteThrowActive and"cigarette"or(flameOwnsPress and"flamethrower"
+            or(((self.scoreMeleeEnabled~=false and self.scoreAxeAction)or meleeTarget)and"axe"or rangedWeapon))))
         self.scoreActiveWeapon=weapon
         game.player.scoreAxeEquipped=weapon=="axe"
         game.player.hideAxeRange=weapon=="axe"
+        if tutorialStep==3 then
+            game.player.scoreAxeEquipped=false;game.player.hideAxeRange=false
+            if game.player.clearClearcutAction then game.player:clearClearcutAction()end
+            return false
+        end
         if weapon~="cigarette" then self:tickSmokerReload(dt,game)end
         if weapon=="axe" then return self:updateScoreAxeAttack(dt,game,heldOverride)end
         if weapon=="flamethrower" then return self:updateFlamethrowerAttack(dt,game,held)end

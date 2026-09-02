@@ -16,6 +16,7 @@ local World=require("src.world")
 local Player=require("src.player")
 local Camera=require("src.camera")
 local Traits=require("src.character_traits").new(true)
+Traits.data.scoreTutorialSeen=true -- This suite verifies ordinary score runs, not onboarding.
 local WoodEconomy=require("src.wood_economy")
 local function expectedSpawn(tier,seconds)return .14*1.75^(tier-1)*2^(seconds/20)end
 

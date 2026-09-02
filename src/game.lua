@@ -227,7 +227,7 @@ end
 function Game:setScoreTierChoice(tier)
     self.scoreTierChoice=math.max(1,math.min(self.scoreTierMax or 1,math.floor(tier or 1)))
 end
-function Game:startClearcutScoreAttack(startTier)
+function Game:startClearcutScoreAttack(startTier,tutorialMode)
     local unlocked=math.max(1,self.characterTraits and self.characterTraits:getRegenTier()or 1)
     startTier=math.max(1,math.min(unlocked,math.floor(startTier or unlocked)))
     self:resetRun()
@@ -239,13 +239,21 @@ function Game:startClearcutScoreAttack(startTier)
     self.clearcut.stage=1
     self.clearcut.scoreAttack=true
     self.clearcut.scoreSelectedRegenTier=startTier
+    if tutorialMode~=false then
+        if tutorialMode==true then
+            self.clearcut.scoreTutorialTestRun=true
+            ClearcutMode.ScoreTutorial.forceStart(self.clearcut)
+        else
+            ClearcutMode.ScoreTutorial.start(self.clearcut,self)
+        end
+    end
     self.selectedClearcutMap="forest"
     self.selectedClearcutStage=1
     local fireSprite=self.clearcutSprites.fire or self.clearcutSprites.physical
     local avatar=fireSprite.avatarVariants and fireSprite.avatarVariants[self.scoreAvatarId]
     self.player:setClearcutSprite(avatar or fireSprite,"fire")
     self.clearcut:setup(self)
-    ClearcutMode.ScoreTutorial.start(self.clearcut,self)
+    ClearcutMode.ScoreTutorial.prepareWorld(self.clearcut,self)
     self:consumeTestNextRunLevels()
     self:enableClearcutPerspective()
     self.mode="playing"
@@ -437,17 +445,9 @@ function Game:useTestOption(index)
         if self.testResetArmed and self.testResetTime>0 then self.progression:reset();self.characterTraits:reset();self.achievements:reset();self.testResetArmed=false;self.testMessage="영구 재화·특성·업적 기록을 초기화했습니다."
         else self.testResetArmed,self.testResetTime=true,4; self.testMessage="초기화하려면 4초 안에 버튼을 한 번 더 누르세요." end
     elseif index==16 then
-        local currentScore=activeRun and self.clearcut and self.clearcut.scoreAttack and not self.clearcut.scorePractice and not self.clearcut.defenseMode
-        if currentScore then
-            self.mode="playing"
-            ClearcutMode.ScoreTutorial.forceStart(self.clearcut)
-        else
-            self:startClearcutScoreAttack(1)
-            self.clearcut.scoreTutorialTestRun=true
-            ClearcutMode.ScoreTutorial.forceStart(self.clearcut)
-        end
+        self:startClearcutScoreAttack(1,true)
         self.testReturnMode=nil
-        self.testMessage="튜토리얼을 저장 기록과 무관하게 실행했습니다."
+        self.testMessage="강화가 없는 별도 튜토리얼을 실행했습니다."
     elseif index>=6 and index<=15 then
         local percent=(index-5)*10
         local ranks,total=self.characterTraits:setScoreProgress(percent)

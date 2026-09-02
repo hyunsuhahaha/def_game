@@ -61,17 +61,13 @@ assert(game.testResetArmed and game.testResetTime==4,"developer reset confirmati
 game:useTestOption(4)
 assert(resets.progression==1 and resets.traits==1 and resets.achievements==1 and not game.testResetArmed,"developer reset did not clear every permanent store")
 
-game.clearcut={scoreAttack=true,scorePractice=false,defenseMode=false,actionAudit={scoreAxe=0,cigaretteFlick=0}}
-game.testReturnMode="playing";game.mode="test_options";game:useTestOption(16)
-assert(game.mode=="playing"and game.clearcut.scoreTutorial and game.clearcut.scoreTutorial.step==1
-    and game.clearcut.scoreTutorial.persist==false,"developer tutorial replay failed in a current score run")
-
-game.startClearcutScoreAttack=function(self,tier)
-    self.startedTutorialTier=tier;self.clearcut={scoreAttack=true,scorePractice=false,defenseMode=false,actionAudit={}};self.mode="playing"
+game.startClearcutScoreAttack=function(self,tier,tutorialMode)
+    self.startedTutorialTier,self.startedTutorialMode=tier,tutorialMode
+    self.clearcut={scoreAttack=true,scoreTutorialRun=tutorialMode==true};self.mode="playing"
 end
-game.clearcut=nil;game.testReturnMode="lobby";game.mode="test_options";game:useTestOption(16)
-assert(game.startedTutorialTier==1 and game.clearcut.scoreTutorialTestRun and game.clearcut.scoreTutorial
-    and game.clearcut.scoreTutorial.persist==false,"developer tutorial replay did not create an isolated score run")
+game.clearcut={scoreAttack=true};game.testReturnMode="playing";game.mode="test_options";game:useTestOption(16)
+assert(game.startedTutorialTier==1 and game.startedTutorialMode==true and game.clearcut.scoreTutorialRun,
+    "developer tutorial replay did not replace the current run with an isolated tutorial")
 
 print("DEVELOPER_TOOLS_OK research_coin=1m tutorial=replay_no_save traits=10..100_step10 "..
     "responsive=960x540+ reset=confirmed removed=resources+levels")
