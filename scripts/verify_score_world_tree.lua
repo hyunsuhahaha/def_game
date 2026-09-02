@@ -20,6 +20,7 @@ local ClearcutMode = require("src.clearcut_mode")
 local ScoreWorldTree = require("src.score_world_tree")
 
 assert(ScoreWorldTree.INTERVAL == 40, "세계수 주기가 40초가 아니다")
+assert(ScoreWorldTree.REWARDS_ENABLED == false, "운영 모드에서 세계수 보상이 다시 활성화됐다")
 
 local function mode()
     local m = ClearcutMode.new()
@@ -201,7 +202,17 @@ low.scoreRegenTier, high.scoreRegenTier = 1, 8
 assert(ScoreWorldTree.health(high) > ScoreWorldTree.health(low) * 2,
     "재생 단계가 세계수 체력에 반영되지 않는다")
 
--- 5. 처치하면 보상 3택이 열리고 게임이 멈춘다.
+-- 5. 운영 모드에서는 처치해도 보상 3택이 열리지 않는다.
+local disabled = mode()
+local disabledGame = world()
+disabled.mapWorld=disabledGame.world
+disabled.scoreWorldTree = {scoreWorldTree = true, hp = 0, def = {}, x = 0, y = 0}
+disabled:onEnemyDefeated(disabled.scoreWorldTree, disabledGame)
+assert(disabledGame.mode ~= "score_reward" and disabled.scoreRewardChoices == nil,
+    "비활성화한 세계수 보상 3택이 운영 모드에서 열렸다")
+
+-- 보상 코드와 스크립트는 복구 가능하게 보존한다.
+ScoreWorldTree.REWARDS_ENABLED = true
 local dead = mode()
 local dg = world()
 dead.stageElapsed=40
@@ -392,4 +403,5 @@ do
     assert(permit.scoreTreeAllowance == 22, "무허가 확장의 허용량이 늘지 않았다")
 end
 
-print("SCORE_WORLD_TREE_OK interval=40s tier=empty_or_kill reward=3pick run_only")
+ScoreWorldTree.REWARDS_ENABLED = false
+print("SCORE_WORLD_TREE_OK interval=40s tier=empty_or_kill reward=disabled legacy=verified")

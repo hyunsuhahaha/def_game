@@ -2742,7 +2742,8 @@ function ClearcutMode:spawnScoreWorldTree(game)
             if camera.setMode then camera:setMode("skyview",.7) end
             if camera.focus then camera:focus(tree.x,tree.y-80,7.2,.96) end
         end
-        game:setNotice("거대 세계수가 하늘을 가른다 — 쓰러뜨리면 보상을 고른다","food")
+        local result=ClearcutMode.ScoreWorldTree.REWARDS_ENABLED and "보상을 고른다" or "재생 단계가 오른다"
+        game:setNotice("거대 세계수가 하늘을 가른다 — 쓰러뜨리면 "..result,"food")
     else
         tree.scoreWorldTreeGrowing=true
         tree.scoreWorldTreeGrowthT=0
@@ -2750,7 +2751,8 @@ function ClearcutMode:spawnScoreWorldTree(game)
         tree.entranceOffsetY=72
         tree.entranceScaleX,tree.entranceScaleY=.70,.56
         if game.camera then game.camera.trauma=math.min(.22,(game.camera.trauma or 0)+.08) end
-        game:setNotice("어린 세계수가 자라났다 — 쓰러뜨리면 보상을 고른다","food")
+        local result=ClearcutMode.ScoreWorldTree.REWARDS_ENABLED and "보상을 고른다" or "재생 단계가 오른다"
+        game:setNotice("어린 세계수가 자라났다 — 쓰러뜨리면 "..result,"food")
     end
     return true
 end
@@ -2957,10 +2959,12 @@ function ClearcutMode:onEnemyDefeated(e, game)
         -- 소비하고 여섯 그루를 심어 빈 다음 단계가 즉시 또 승급하지 않게 한다.
         local empty=self:scoreActiveTreeCount()==0
         self:advanceScoreRegenTier(game,empty,empty and"empty_world_tree"or"world_tree")
-        local choices=ClearcutMode.ScoreWorldTree.roll(self,3)
-        if #choices>0 then
-            self.scoreRewardChoices=choices
-            game.mode="score_reward"
+        if ClearcutMode.ScoreWorldTree.REWARDS_ENABLED then
+            local choices=ClearcutMode.ScoreWorldTree.roll(self,3)
+            if #choices>0 then
+                self.scoreRewardChoices=choices
+                game.mode="score_reward"
+            end
         end
     end
     if e == self.worldTree then

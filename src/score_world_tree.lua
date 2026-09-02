@@ -15,6 +15,8 @@ local ScoreWorldTree = {}
 ScoreWorldTree.INTERVAL = 40
 ScoreWorldTree.BASE_HP = 260
 ScoreWorldTree.TIER_HP = 1.18   -- 재생 단계마다 체력 배수
+-- 보상 코드와 검증 자산은 복구 가능하게 보존하되 현재 기록 모드에서는 열지 않는다.
+ScoreWorldTree.REWARDS_ENABLED = false
 -- 세계수는 항상 이동 가능 구역의 정중앙에 선다. 매번 다른 자리에 무작위로
 -- 솟으면 화면 밖에서 조용히 자라 플레이어가 놓치고, 판마다 "어디에 있더라"를
 -- 다시 찾아야 한다. 중앙 고정은 그 자체로 랜드마크가 되어 항상 같은 방향을 본다.
