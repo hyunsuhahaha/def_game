@@ -326,8 +326,12 @@ function flamePlayer:setClearcutAction(value)self.clearcutActionProgress=value e
 function flamePlayer:clearClearcutAction()self.clearcutActionProgress=nil end
 local flameGame={player=flamePlayer,world=flameWorld,tools={axe={speed=1}},camera={screenToWorld=function()return 300,0 end}}
 assert(flameMode:updateFlamethrowerAttack(.13,flameGame,true),"first continuous flame tick missed")
+assert(flameMode.flameStream.reach<flameMode.flameStream.maxReach,
+    "startup flame hit column appeared at full reach before the visible jet arrived")
 local afterFirstTick=flameTree.rushHp
 assert(flameMode:updateFlamethrowerAttack(.13,flameGame,true),"second continuous flame tick missed")
+assert(flameMode.flameStream.reach==flameMode.flameStream.maxReach,
+    "mature flame hit column never reached its authored range")
 assert(flameTree.rushHp<afterFirstTick and not flameTree.burning,
     "direct flame damage stopped when ignition was unavailable")
 

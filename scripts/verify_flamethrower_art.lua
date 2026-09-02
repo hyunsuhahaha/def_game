@@ -12,19 +12,31 @@ local function game()
 end
 
 local stream={x=34,y=-58,nx=1,ny=0,reach=380,halfWidth=90,t=0}
+local function streamDrawAt(time)
+    fixture.reset();stream.t=time;Art.drawStream(stream)
+    for _,command in ipairs(fixture.commands)do
+        if command.op=="draw"and command.file:find("smoker%-flamethrower%-stream%-atlas")then return command end
+    end
+end
+
+-- A press must visibly travel out of the nozzle. Cycling a full-length sprite in
+-- place is animation, but it still reads as a static beam rather than emitted fire.
+local startup=assert(streamDrawAt(0),"startup stream draw disappeared")
+local mature=assert(streamDrawAt(.24),"mature stream draw disappeared")
+assert(startup.args[4]<mature.args[4]*.55,"flame stream appears at full reach instead of travelling from the nozzle")
 fixture.reset();Art.drawHeld({flameStream=stream},{player={x=0,y=0,facing=1}});Art.drawStream(stream)
 local equipment,atlas=0,0
 for _,command in ipairs(fixture.commands)do if command.op=="draw"then
     if command.file=="assets/effects/smoker-flamethrower-equipment-v1.png"then equipment=equipment+1 end
-    if command.file=="assets/effects/smoker-flamethrower-stream-atlas-v2.png"then atlas=atlas+1 end
+    if command.file=="assets/effects/smoker-flamethrower-stream-atlas-v3.png"then atlas=atlas+1 end
 end end
 assert(equipment==1 and atlas==1,"flamethrower did not use its authored equipment and stream atlases")
 
 local frameKeys={}
 for index=0,7 do
-    fixture.reset();stream.t=index/18;Art.drawStream(stream)
+    fixture.reset();stream.t=index/22;Art.drawStream(stream)
     local command=fixture.commands[1]
-    assert(command and command.file=="assets/effects/smoker-flamethrower-stream-atlas-v2.png","stream atlas draw disappeared")
+    assert(command and command.file=="assets/effects/smoker-flamethrower-stream-atlas-v3.png","stream atlas draw disappeared")
     frameKeys[(command.quad[1]or 0)..":"..(command.quad[2]or 0)]=true
 end
 local frameCount=0;for _ in pairs(frameKeys)do frameCount=frameCount+1 end
@@ -36,9 +48,9 @@ local queued=false
 for _,entry in ipairs(g.world.billboardQueue)do
     if entry.draw then fixture.reset();entry.draw()
         for _,command in ipairs(fixture.commands)do
-            if command.op=="draw"and command.file=="assets/effects/smoker-flamethrower-stream-atlas-v2.png"then queued=true end
+            if command.op=="draw"and command.file=="assets/effects/smoker-flamethrower-stream-atlas-v3.png"then queued=true end
         end
     end
 end
 assert(queued,"flamethrower stream did not enter the upright 2.5D billboard pass")
-print("FLAMETHROWER_ART_OK atlas=1280x768x8 equipment=384x128 nearest=true billboard=upright")
+print("FLAMETHROWER_ART_OK atlas=v3:1280x768x8 equipment=384x128 nearest=true billboard=upright startup=travelling")

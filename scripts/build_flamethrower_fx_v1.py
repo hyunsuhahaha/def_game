@@ -43,76 +43,74 @@ def ellipse(draw, cx, cy, rx, ry, fill):
 
 
 def make_stream(frame):
-    """Eight authored frames of a rolling, constant-width fire column."""
+    """Eight authored frames of a pressured flame jet whose detail travels forward."""
     image = Image.new("RGBA", (CELL_W, CELL_H))
     draw = ImageDraw.Draw(image)
     phase = frame * math.tau / FRAMES
     rng = random.Random(4417 + frame * 97)
-    centers = (145, 320, 500, 680, 860, 1042, 1140)
+    xs = list(range(48, 1249, 40))
 
-    # Sparse exhaust sits behind the orange mass; it must never become the
-    # silhouette. The column itself is built from overlapping round billows.
-    for index in range(7):
-        x = 690 + index * 82 + math.sin(phase + index) * 16
-        y = 384 + (-1 if index % 2 else 1) * (205 + (index % 3) * 18)
-        radius = 22 + (index % 3) * 8
-        ellipse(draw, x, y, radius, radius*.72, (SMOKE_DARK, SMOKE, SMOKE_LIT)[(index+frame)%3])
+    def envelope(x):
+        if x < 180:
+            return 24 + (x - 48) * .62
+        if x > 1080:
+            return max(18, 154 - (x - 1080) * .74)
+        return 150 + 18 * math.sin(x / 117 - phase * 1.3)
 
-    lobes = []
-    for index, cx in enumerate(centers):
-        pulse = math.sin(phase + index * 1.31)
-        cy = 384 + pulse * (16 if index else 5)
-        rx = (150 if index < 6 else 118) + math.cos(phase*.8 + index)*12
-        ry = (216 if index in (1,2,3,4,5) else 174) + pulse*14
-        lobes.append((cx, cy, rx, ry))
+    def flame_band(scale, color, inset=0, phase_shift=0):
+        upper, lower = [], []
+        for index, x in enumerate(xs):
+            flow = x / 92 - phase * 2.35 + phase_shift
+            center = 384 + math.sin(flow * .43) * (8 + scale * 9)
+            chop = math.sin(flow) * 17 + math.sin(flow * 2.17 + index * .31) * 8
+            width = max(8, envelope(x) * scale - inset + chop * scale)
+            upper.append((x, center - width))
+            lower.append((x, center + width))
+        poly(draw, upper + list(reversed(lower)), color)
 
-    # Dark outline and twelve stepped heat bands keep each cloud readable while
-    # overlaps weld them into a single pressured blast.
-    bands = (
-        (1.00, INK), (.965, RED), (.91, RED_LIT), (.855, VERMILION),
-        (.79, VERMILION_LIT), (.72, ORANGE), (.64, AMBER), (.55, GOLD),
-        (.44, YELLOW), (.34, CREAM), (.25, PALE), (.16, WHITE),
-    )
-    for scale, color in bands:
-        for index, (cx, cy, rx, ry) in enumerate(reversed(lobes)):
-            real_index = len(lobes)-1-index
-            # Hot cores roll around each other instead of sharing one centered
-            # gradient, producing the reference's circular cannon rhythm.
-            drift_x = (1-scale)*rx*.36*math.cos(phase*1.2+real_index*1.4)
-            drift_y = (1-scale)*ry*.30*math.sin(phase+real_index*1.7)
-            ellipse(draw, cx+drift_x, cy+drift_y, rx*scale, ry*scale, color)
+    # A dark authored edge, then asymmetric hot layers. Unlike the old chain of
+    # circles, every ridge is a streamwise tongue and its phase advances right.
+    flame_band(1.08, INK, phase_shift=.15)
+    flame_band(1.00, RED, phase_shift=.15)
+    flame_band(.91, VERMILION, phase_shift=.55)
+    flame_band(.76, ORANGE, phase_shift=1.05)
+    flame_band(.58, GOLD, phase_shift=1.55)
+    flame_band(.39, YELLOW, phase_shift=2.0)
 
-    # Crescent/spiral cuts describe rotation on the flame surface. All strokes
-    # are hard pixel steps; no blur, translucent glow, or procedural noise.
-    for index, (cx, cy, rx, ry) in enumerate(lobes[1:6], 1):
-        flip = -1 if (index+frame)%2 else 1
-        box = (snap(cx-rx*.58), snap(cy-ry*.57), snap(cx+rx*.58), snap(cy+ry*.57))
-        start = int(30 + (frame*19 + index*47)%120)
-        draw.arc(box, start=start, end=start+215, fill=VERMILION_LIT, width=18)
-        inner = (snap(cx-rx*.40), snap(cy-ry*.39), snap(cx+rx*.40), snap(cy+ry*.39))
-        draw.arc(inner, start=start+35*flip, end=start+35*flip+175, fill=YELLOW, width=14)
-        ellipse(draw, cx+flip*rx*.25, cy-ry*.18, 17, 11, CREAM)
+    # White-hot ribbons break apart toward the head instead of forming repeated
+    # circular cores. Their x positions advance each animation frame.
+    travel = frame * 92
+    for index in range(8):
+        x = 160 + ((index * 173 + travel) % 930)
+        length = 112 + (index % 3) * 42
+        y = 384 + math.sin(x / 105 - phase * 2.2 + index) * (30 + index % 2 * 22)
+        height = 18 + (index % 3) * 7
+        color = (CREAM, PALE, WHITE)[index % 3]
+        poly(draw, [(x, y-height), (x+length*.72, y-height*.65),
+                    (x+length, y), (x+length*.66, y+height*.62), (x, y+height)], color)
 
-    # Streamwise hot seams and edge tongues add dense, intentional pixel
-    # texture without breaking the round-lobe silhouette.
-    for index in range(34):
-        x = 92 + index*32 + math.sin(phase*1.7+index)*8
-        lane = ((index*5+frame)%7)-3
-        y = 384 + lane*39 + math.sin(index*1.9+phase)*11
-        length = 10 + (index%5)*5
-        color = (RED_LIT, ORANGE, GOLD, YELLOW, CREAM)[index%5]
-        draw.rectangle((snap(x), snap(y), snap(x+length), snap(y+4+(index%2)*2)), fill=color)
-    for index in range(16):
-        x = 180 + ((index*71 + frame*29)%1030)
-        side = -1 if (index+frame)%2 else 1
-        y = 384 + side*(185 + (index%4)*17)
-        tip = 22 + (index%4)*10
-        poly(draw, [(x-20,y-side*5),(x+10,y-side*18),(x+tip,y+side*7),(x-8,y+side*18)],
-             (RED, VERMILION, ORANGE, GOLD)[index%4])
+    # Long edge tongues and detached embers visibly advect toward the target.
     for index in range(12):
-        x = 930 + ((index*61 + frame*37)%300); y = 384 + math.sin(index*2.2+phase)*(214+(index%3)*18)
-        size = (4,6,8)[index%3]
-        draw.rectangle((snap(x),snap(y),snap(x+size),snap(y+size)),fill=YELLOW if index%2 else ORANGE)
+        x = 210 + ((index * 137 + travel * 1.25) % 1000)
+        side = -1 if (index + frame) % 2 else 1
+        y = 384 + side * (envelope(x) + 18 + (index % 3) * 12)
+        length = 34 + (index % 4) * 18
+        poly(draw, [(x-22, y-side*5), (x+8, y-side*20),
+                    (x+length, y), (x+2, y+side*13)], (VERMILION, ORANGE, GOLD)[index%3])
+    for index in range(16):
+        x = 510 + ((index * 79 + travel * 1.7) % 750)
+        side = -1 if (index + frame) % 2 else 1
+        y = 384 + side * (190 + (index % 4) * 18)
+        size = (4, 6, 10)[index % 3]
+        draw.rectangle((snap(x), snap(y), snap(x+size*2), snap(y+size)),
+                       fill=(ORANGE, GOLD, YELLOW)[index % 3])
+
+    # Small smoke scraps only appear at the cooling leading edge.
+    for index in range(5):
+        x = 1040 + ((index * 61 + travel) % 190)
+        y = 384 + (-1 if index % 2 else 1) * (174 + (index % 3) * 24)
+        ellipse(draw, x, y, 16 + index % 2 * 7, 10 + index % 3 * 4,
+                (SMOKE_DARK, SMOKE, SMOKE_LIT)[(index+frame)%3])
 
     # Stable white-hot nozzle root prevents the rolling column from floating.
     poly(draw, [(48,360),(118,348),(222,364),(250,384),(222,404),(118,420),(48,408)], INK)
@@ -186,7 +184,7 @@ for frame in range(FRAMES):
     cell = make_stream(frame)
     frames.append(cell)
     atlas.alpha_composite(cell, ((frame % COLS) * CELL_W, (frame // COLS) * CELL_H))
-atlas.save(ASSET / "smoker-flamethrower-stream-atlas-v2.png", optimize=True)
+atlas.save(ASSET / "smoker-flamethrower-stream-atlas-v3.png", optimize=True)
 equipment = make_equipment()
 equipment.save(ASSET / "smoker-flamethrower-equipment-v1.png", optimize=True)
 
@@ -197,5 +195,5 @@ for index, frame in enumerate(frames[:4]):
     board.paste(thumb, ((index % 2) * 640 + 20, (index // 2) * 180 - 78), thumb)
 zoom = frames[5].crop((32, 180, 672, 564)).resize((1280, 768), Image.Resampling.NEAREST).crop((0, 0, 1280, 300))
 board.paste(zoom, (0, 420), zoom)
-board.save(PREVIEW / "flamethrower-fx-v2-pixel-board.png")
-print("FLAMETHROWER_FX_V2_BUILT stream=1280x768x8 atlas=5120x1536 equipment=384x128 grid=2 rolling=column")
+board.save(PREVIEW / "flamethrower-fx-v3-pixel-board.png")
+print("FLAMETHROWER_FX_V3_BUILT stream=1280x768x8 atlas=5120x1536 equipment=384x128 grid=2 flow=forward")

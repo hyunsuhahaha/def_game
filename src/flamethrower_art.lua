@@ -2,11 +2,11 @@
 local Art={}
 local streamImage,equipmentImage,streamQuads
 local CELL_W,CELL_H,FRAMES=1280,768,8
-local SOURCE_REACH,SOURCE_HALF=1160,286
+local SOURCE_REACH,SOURCE_HALF=1210,230
 
 local function load()
     if streamImage then return end
-    streamImage=love.graphics.newImage("assets/effects/smoker-flamethrower-stream-atlas-v2.png")
+    streamImage=love.graphics.newImage("assets/effects/smoker-flamethrower-stream-atlas-v3.png")
     equipmentImage=love.graphics.newImage("assets/effects/smoker-flamethrower-equipment-v1.png")
     streamImage:setFilter("nearest","nearest");equipmentImage:setFilter("nearest","nearest")
     streamQuads={}
@@ -40,13 +40,18 @@ function Art.drawStream(stream)
     if not stream then return false end
     load()
     local time=stream.t or 0
-    local frame=math.floor(time*18)%FRAMES+1
+    local frame=math.floor(time*22)%FRAMES+1
+    local deployment=math.min(1,.18+time/.18)
     -- The gameplay stream lives on the ground plane. Upright FX compensate for
-    -- camera pitch while preserving the authored constant-width rolling column.
+    -- camera pitch while preserving the authored pressured forward jet.
     local angle=atan2((stream.ny or 0)*.62,stream.nx or 1)
     local halfWidth=(stream.halfWidth or 72)*.62
-    local scaleX=(stream.reach or 250)/SOURCE_REACH
-    local scaleY=math.max(.26,halfWidth/SOURCE_HALF)
+    -- Runtime supplies visualReach after applying the same startup travel to the
+    -- hit column. Standalone previews fall back to deriving it from time here.
+    local visualReach=stream.visualReach or(stream.reach or 250)*deployment
+    local scaleX=visualReach/SOURCE_REACH
+    local pressure=1+math.sin(time*38)*.035
+    local scaleY=math.max(.26,halfWidth/SOURCE_HALF)*pressure
     love.graphics.setBlendMode("alpha")
     love.graphics.setColor(1,1,1,1)
     love.graphics.draw(streamImage,streamQuads[frame],stream.x,stream.y,angle,scaleX,scaleY,58,384)

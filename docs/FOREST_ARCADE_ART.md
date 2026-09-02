@@ -112,19 +112,20 @@
 - 구형 `tree-fire-pulse-atlas-pixel-v1.png`는 보존하지만 런타임에서 연결하지
   않는다. 반복 펄스에 맞춘 나무 좌우 흔들림과 타이머 파티클도 제거했다.
 
-## 화염방사기 회전 화염 기둥 FX (v2)
+## 화염방사기 전진 분사 FX (v3)
 
 - 폭죽 다음 원거리 무기인 화염방사기는 런타임 반투명 삼각형 부채를 사용하지 않는다.
-  `smoker-flamethrower-stream-atlas-v2.png`의 1280×768 원생 셀 8프레임을
-  18fps로 순환한다. 크고 둥근 화염 덩어리 7개가 일정한 굵기의 기둥으로 겹쳐 굴러가며,
-  백황색 압력 코어·12단 화염 램프·회전 초승달 명암·분리 불꽃 혀·불티가 독립적으로 움직인다.
+  `smoker-flamethrower-stream-atlas-v3.png`의 1280×768 원생 셀 8프레임을
+  22fps로 순환한다. 둥근 화염 덩어리를 반복하던 구형 기둥 대신 길게 찢어진 백황색
+  고열 리본·비대칭 외곽 화염·분리 불꽃 혀·불티가 총구에서 목표 방향으로 전진한다.
 - `smoker-flamethrower-equipment-v1.png`는 384×128 원생 픽셀의 연료통·주름 호스·
   장총열 방사구를 플레이어 몸 위에 별도 장비로 붙인다. 총구의 고정 고열 코어와
   스트림의 시작점을 겹쳐 불이 몸에서 떠 보이지 않게 한다.
 - 런타임 표시 길이와 폭은 `scoreFlameRange`·`scoreFlameWidth`가 사용하는 같은
   `reach`·`halfWidth`에서 계산한다. 멀어져도 폭이 넓어지지 않으며 판정도 같은 전방
-  기둥이다. 확대 검수는 `flamethrower-fx-v2-pixel-board.png`, 실제 배율 검수는
-  `flamethrower-fx-v2-runtime-sheet.png`와 8프레임 GIF를 사용한다.
+  기둥이다. 발사 직후 0.18초 동안은 뾰족한 선두를 보존한 채 길이 방향으로 차오르므로
+  완성된 불기둥이 한 번에 붙지 않는다. 확대 검수는 `flamethrower-fx-v3-pixel-board.png`,
+  실제 배율 검수는 `flamethrower-fx-v3-runtime-sheet.png`와 8프레임 GIF를 사용한다.
 
 ## 기름 드럼통 바닥·화염 FX (런타임 픽셀 방식)
 
