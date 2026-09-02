@@ -3,6 +3,7 @@ local fixture=require("scripts.forest_render_fixture")
 local Traits=require("src.character_traits")
 local Shop=require("src.lobby_companion_shop")
 local Companions=require("src.lobby_companions")
+local Lobby=require("src.lobby")
 
 local function read(path)local file=assert(io.open(path,"rb"));local data=file:read("*a");file:close();return data end
 local function be32(png,offset)local a,b,c,d=png:byte(offset,offset+3);return((a*256+b)*256+c)*256+d end
@@ -46,8 +47,24 @@ local shopDraw=false
 for _,op in ipairs(fixture.commands)do if op.op=="draw"and op.file:find("lobby%-companion%-shop")then shopDraw=true end end
 fixture.reset();Shop.drawOverlay(state,traits,fonts)
 assert(#state.itemBoxes==4 and state.closeBox,"상점 오버레이에 네 상품과 닫기 버튼이 없다")
+
+-- 작은 로비에서는 상점 건물의 클릭 영역과 음악 버튼이 실제로 겹친다.
+-- 화면에서 위에 그려지는 음악 버튼이 입력도 우선해야 상점 대신 곡이 바뀐다.
+Shop.close(state)
+local lobby=setmetatable({companionShop=state,audioTrack=2,audioPlaying=true,time=0,
+    drawAudioDisc=function()end},{__index=Lobby})
+lobby:drawAudio(89,648,590,48,fonts.small)
+local left=math.max(state.buildingBox.x,lobby.audioPrevBox.x)
+local top=math.max(state.buildingBox.y,lobby.audioPrevBox.y)
+local right=math.min(state.buildingBox.x+state.buildingBox.w,lobby.audioPrevBox.x+lobby.audioPrevBox.w)
+local bottom=math.min(state.buildingBox.y+state.buildingBox.h,lobby.audioPrevBox.y+lobby.audioPrevBox.h)
+assert(left<=right and top<=bottom,"상점과 음악 이전 버튼의 회귀 좌표가 더는 겹치지 않는다")
+lobby:mousepressed((left+right)/2,(top+bottom)/2,1)
+assert(lobby.audioTrack==1 and not Shop.isOpen(state),"겹친 좌표에서 상점이 음악 이전 버튼 클릭을 가로챘다")
+
 traits.data.currency=30
 local sandBox=state.itemBoxes[2]
+state.open=true
 assert(Shop.mousepressed(state,sandBox.x+sandBox.w/2,sandBox.y+sandBox.h/2,1,traits)and
     traits:hasLobbyItem("sand_burrow")and traits.data.currency==16,"상점 상품 클릭이 구매·차감·설치로 이어지지 않았다")
 local playDraw=false

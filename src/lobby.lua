@@ -132,10 +132,10 @@ function Lobby:mousepressed(x,y,button)
   elseif inside(self.exitSettingsBox,x,y)then self.exitMenuOpen=false;return "settings"
   else self.exitMenuOpen=false;return end
  end
- if CompanionShop.openAtBuilding(self.companionShop,x,y)then return end
  if inside(self.audioPrevBox,x,y)then self:cycleTrack(-1);return end
  if inside(self.audioPlayBox,x,y)then self.audioPlaying=not self.audioPlaying;return end
  if inside(self.audioNextBox,x,y)then self:cycleTrack(1);return end
+ if CompanionShop.openAtBuilding(self.companionShop,x,y)then return end
  for i,box in ipairs(self.menuBoxes or {})do if inside(box,x,y)then self.menuFocus=i;return menuAction(self,i)end end
  -- Headless navigation tests provide the named boxes directly.
  if inside(self.scoreAttackBox,x,y)then return "score_attack"
