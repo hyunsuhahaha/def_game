@@ -1,6 +1,7 @@
 -- 로비에서 생활하는 해금 동물 동료. 전투 수치와는 완전히 분리된 표현 계층이다.
 -- 승인된 전투 몸체를 걷기에 그대로 쓰고, 별도 고정 픽셀 수면 아틀라스만 추가한다.
 local Companions={}
+local GraduateMonkeyArt=require("src.graduate_monkey_art")
 
 local FRAMES=6
 local INTERACTION_KINDS={"cat_wand","banana_toss","mole_peek","chase_train"}
@@ -10,7 +11,7 @@ local ART={
         walk="assets/characters/companions/graduate-monkey-atlas-pixel-v3.png",
         sleep="assets/characters/companions/lobby-monkey-sleep-atlas-pixel-v2.png",
         cellW=128,cellH=128,foot=118,sleepCellW=192,sleepCellH=160,sleepFoot=152,
-        scale=.42,nativeFacing=1,speed=24,shadowX=18,sleepShadowX=31,shadowY=5,
+        scale=GraduateMonkeyArt.LOBBY_SCALE,nativeFacing=1,speed=24,shadowX=18,sleepShadowX=31,shadowY=5,
     },
     mole={
         walk="assets/characters/ingame/coin-miner-mole-atlas-pixel-v3.png",
@@ -76,19 +77,16 @@ end
 
 local function desiredAnimals(traits)
     local desired={}
-    local veteran=level(traits,"universal_veteran_crew")
-    local function add(kind,prefix,count)
-        for index=1,count do desired[#desired+1]={id=prefix..index,kind=kind}end
-    end
-    if level(traits,"fire_score_axe_crew")>0 then add("monkey","axe_monkey_",1+veteran)end
-    if level(traits,"fire_score_rocket_crew")>0 then add("monkey","rocket_monkey_",1+veteran)end
-    if level(traits,"fire_score_popper_unlock")>0 then
-        add("monkey","popper_monkey_",1+math.min(1,level(traits,"fire_score_popper_extra")))
+    if level(traits,"fire_score_axe_crew")>0 or level(traits,"fire_score_rocket_crew")>0 or
+        level(traits,"fire_score_popper_unlock")>0 then
+        desired[#desired+1]={id="lobby_monkey",kind="monkey"}
     end
     if level(traits,"universal_mole_companion")>0 then
-        add("mole","mole_",1+math.min(2,level(traits,"universal_mole_extra")))
+        desired[#desired+1]={id="lobby_mole",kind="mole"}
     end
-    if level(traits,"universal_gray_cat")>0 then add("cat","gray_cat_",1)end
+    if level(traits,"universal_gray_cat")>0 then
+        desired[#desired+1]={id="lobby_gray_cat",kind="cat"}
+    end
     return desired
 end
 
@@ -194,7 +192,7 @@ local function point(actor,bounds,fromX,fromY)
     local band,bandCount=roamBand(actor)
     local span=bounds.x2-bounds.x1
     for _=1,24 do
-        if random(actor)<.82 then
+        if bandCount<=3 or random(actor)<.82 then
             local bandPadding=span*.018
             local bandX1=bounds.x1+span*(band-1)/bandCount+bandPadding
             local bandX2=bounds.x1+span*band/bandCount-bandPadding
@@ -403,7 +401,7 @@ local function interactionActors(state,kind)
     if kind=="cat_wand"then
         local monkey=available(state,"monkey",1);local cat=available(state,"cat",1)
         return monkey and cat and{monkey[1],cat[1]}or nil
-    elseif kind=="banana_toss"then return available(state,"monkey",2)
+    elseif kind=="banana_toss"then return available(state,"monkey",1)
     elseif kind=="mole_peek"then
         local mole=available(state,"mole",1);if not mole then return nil end
         local watcher
@@ -442,7 +440,7 @@ end
 local function targetFormation(interaction,index)
     local kind=interaction.kind
     if kind=="cat_wand"then return interaction.x+(index==1 and -42 or 48),interaction.y
-    elseif kind=="banana_toss"then return interaction.x+(index==1 and -48 or 48),interaction.y
+    elseif kind=="banana_toss"then return interaction.x,interaction.y
     elseif kind=="mole_peek"then return interaction.x+(index==1 and 0 or 62),interaction.y
     else return interaction.x-(index-1)*52,interaction.y+(index-1)*4 end
 end
@@ -499,11 +497,10 @@ local function updateInteraction(state,dt)
         local leap=math.max(0,math.sin(t*4.1))
         cat.interactionLift=math.floor(leap*10)
     elseif interaction.kind=="banana_toss"then
-        local left,right=interaction.actors[1],interaction.actors[2]
-        left.facing=1;right.facing=-1;left.interactionMoving=false;right.interactionMoving=false
+        local monkey=interaction.actors[1]
+        monkey.facing=math.floor(t/1.6)%2==0 and 1 or -1;monkey.interactionMoving=false
         local throw=(t%1.6)/1.6
-        local catcher=math.floor(t/1.6)%2==0 and right or left
-        catcher.interactionLift=throw>.72 and math.floor(math.sin((throw-.72)/.28*math.pi)*7)or 0
+        monkey.interactionLift=throw>.72 and math.floor(math.sin((throw-.72)/.28*math.pi)*7)or 0
     elseif interaction.kind=="mole_peek"then
         local mole,watcher=interaction.actors[1],interaction.actors[2]
         mole.facing=1;watcher.facing=-1;mole.interactionMoving=false;watcher.interactionMoving=false
@@ -793,14 +790,14 @@ local function drawInteraction(state,light,pass,splitY)
             drawProp(props,"sparkle",frame,cat.x,cat.y-22,.23,32,1)
         end
     elseif interaction.kind=="banana_toss"then
-        local left,right=interaction.actors[1],interaction.actors[2]
+        local monkey=interaction.actors[1]
         local cycle=math.floor(interaction.clock/1.6)%2
         local t=(interaction.clock%1.6)/1.6
-        local fromX,toX=left.x,right.x;if cycle==1 then fromX,toX=toX,fromX end
-        local x=fromX+(toX-fromX)*t
+        local direction=cycle==0 and 1 or -1
+        local x=monkey.x+direction*math.sin(t*math.pi)*18
         local y=interaction.y-28-math.sin(t*math.pi)*38
-        drawProp(props,"banana",frame,x,y,.45,32,cycle==0 and 1 or -1)
-        if t>.88 then drawProp(props,"sparkle",frame,toX,interaction.y-25,.28,32,1)end
+        drawProp(props,"banana",frame,x,y,.45,32,direction)
+        if t>.88 then drawProp(props,"sparkle",frame,monkey.x,interaction.y-25,.28,32,1)end
     elseif interaction.kind=="mole_peek"then
         local mole=interaction.actors[1]
         drawProp(props,"dirt",frame,mole.x,mole.y+5,.58,48,1)
@@ -853,9 +850,9 @@ function Companions.preparePreview(state)
         actor.targetY=actor.y
     end
     -- 가장 작은 고양이는 전경 나무 사이에 완전히 묻히지 않도록 검수 장면의
-    -- 가까운 공터에 둔다. 실제 플레이에서는 다른 동료처럼 계속 산책한다.
+    -- 오른쪽 가까운 공터에 둔다. 실제 플레이에서는 다른 동료처럼 계속 산책한다.
     for _,actor in ipairs(state.animals)do if actor.kind=="cat"then
-        actor.x=bounds.x1+(bounds.x2-bounds.x1)*.28
+        actor.x=bounds.x1+(bounds.x2-bounds.x1)*.84
         actor.y=bounds.y1+(bounds.y2-bounds.y1)*.86
         actor.targetX=actor.x+36;actor.targetY=actor.y
     end end
@@ -935,14 +932,12 @@ end
 function Companions.prepareDepthPreview(state)
     if not state then return false end
     if state.interaction then finishInteraction(state)end
-    local monkeys={}
-    for _,actor in ipairs(state.animals)do if actor.kind=="monkey"then
-        monkeys[#monkeys+1]=actor;if #monkeys==3 then break end
-    end end
-    if #monkeys<3 then return false end
+    local actors={}
+    for _,actor in ipairs(state.animals)do actors[#actors+1]=actor;if #actors==3 then break end end
+    if #actors<3 then return false end
     local bounds=state.bounds
-    state.animals=monkeys
-    for index,actor in ipairs(monkeys)do
+    state.animals=actors
+    for index,actor in ipairs(actors)do
         local depth=(index-1)/2
         actor.x=bounds.x1+48+(index-1)*118
         actor.y=bounds.y1+(bounds.y2-bounds.y1)*(.08+.84*depth)

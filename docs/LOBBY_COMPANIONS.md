@@ -6,15 +6,11 @@
 
 | 연구 | 로비 동물 |
 |---|---|
-| `fire_score_axe_crew` | 도끼 졸업 원숭이 1마리 |
-| `fire_score_rocket_crew` | 폭죽 졸업 원숭이 1마리 |
-| `fire_score_popper_unlock` | 뻥튀기차 원숭이 1마리 |
-| `universal_veteran_crew` | 해금한 도끼/폭죽 원숭이마다 1마리 추가 |
-| `fire_score_popper_extra` | 뻥튀기 원숭이 1마리 추가 |
-| `universal_mole_companion` / `universal_mole_extra` | 두더지 1~3마리 |
+| `fire_score_axe_crew` / `fire_score_rocket_crew` / `fire_score_popper_unlock` | 하나라도 해금하면 졸업 원숭이 1마리 |
+| `universal_mole_companion` | 두더지 1마리 |
 | `universal_gray_cat` | 회색 고양이 1마리 |
 
-해금하지 않은 동물은 생성하지 않는다. 연구를 구매하고 로비로 돌아오면 `CharacterTraits:getLevel`의 현재 저장값을 다시 읽어 즉시 합류시킨다.
+해금하지 않은 동물은 생성하지 않는다. 추가 원숭이·두더지 연구는 전투 수치에만 반영하며, 로비에는 해금한 종류별로 원숭이·두더지·고양이가 각각 최대 1마리만 나타난다. 연구를 구매하고 로비로 돌아오면 `CharacterTraits:getLevel`의 현재 저장값을 다시 읽어 즉시 합류시킨다.
 
 ## 생활 상태와 깊이
 
@@ -32,7 +28,7 @@
 평소에는 각자 생활하지만 9~17초 간격으로 가능한 조합 하나만 골라 짧은 상호작용을 만든다. 참여 중인 동료만 예약하며 나머지는 계속 산책하거나 잔다. 장면이 끝나면 모두 새 산책 목표를 받아 자연스럽게 흩어진다.
 
 - `cat_wand`: 원숭이가 픽셀 낚싯대의 깃털 장난감을 좌우·상하로 흔들고, 고양이는 실제 장난감 좌표를 쫓아 달려가며 주기적으로 뛰어오른다.
-- `banana_toss`: 원숭이 둘이 마주 보고 바나나를 포물선으로 주고받으며 받는 순간 뛰고 반짝임이 난다.
+- `banana_toss`: 원숭이 한 마리가 바나나를 포물선으로 던져 받아 내며 순간적으로 뛰고 반짝임이 난다.
 - `mole_peek`: 두더지가 흙더미 아래로 숨었다가 튀어나오고, 지켜보던 원숭이 또는 고양이가 놀라 뛰어오른다.
 - `chase_train`: 서로 다른 동료 세 마리가 간격을 유지한 채 방향을 바꾸며 줄지어 술래잡기하고 발밑에 작은 흙먼지를 남긴다.
 

@@ -37,21 +37,21 @@ local levels={
     fire_score_popper_extra=1,universal_veteran_crew=1,
     universal_mole_companion=1,universal_mole_extra=2,universal_gray_cat=1,
 }
-assert(Companions.sync(state,fakeTraits(levels),1280,720)==10,
-    "해금/추가 연구 수만큼 동료가 로비에 합류하지 않았다")
+assert(Companions.sync(state,fakeTraits(levels),1280,720)==3,
+    "해금한 동물 종류마다 한 마리씩 로비에 합류하지 않았다")
 assert(state.bounds.x1<=1280*.15 and state.bounds.x2>=1280*.89,
     "동료 산책 범위가 로비 왼쪽 공터까지 열리지 않았다")
 local kinds={monkey=0,mole=0,cat=0}
 for _,actor in ipairs(state.animals)do kinds[actor.kind]=kinds[actor.kind]+1 end
-assert(kinds.monkey==6 and kinds.mole==3 and kinds.cat==1,
-    "원숭이·두더지·고양이 해금 수가 잘못 반영됐다")
+assert(kinds.monkey==1 and kinds.mole==1 and kinds.cat==1,
+    "원숭이·두더지·고양이가 종류별 한 마리로 제한되지 않았다")
 
 local initialLeft,initialRight=0,0
 for _,actor in ipairs(state.animals)do
     if actor.x<state.bounds.width*.42 then initialLeft=initialLeft+1 end
     if actor.x>state.bounds.width*.62 then initialRight=initialRight+1 end
 end
-assert(initialLeft>=2 and initialRight>=2,
+assert(initialLeft>=1 and initialRight>=1,
     "실제 초기 동료 배치가 개체별 산책 구역 없이 한쪽에 몰렸다")
 
 local resized=Companions.new();Companions.sync(resized,fakeTraits(levels),1280,720)
@@ -106,7 +106,7 @@ for _,actor in ipairs(state.animals)do
     if actor.x>state.bounds.width*.62 then rightCount=rightCount+1 end
 end
 assert(states.walk and states.idle and states.sleep,"생활 상태 세 종류가 준비되지 않았다")
-assert(leftCount>=2 and rightCount>=2,"동료 검수 배치가 좌우 공터에 고르게 퍼지지 않는다")
+assert(leftCount>=1 and rightCount>=1,"동료 검수 배치가 좌우 공터에 고르게 퍼지지 않는다")
 local function radius(actor)
     if actor.state=="sleep"then return actor.kind=="monkey"and 35 or(actor.kind=="mole"and 47 or 48)end
     return actor.kind=="monkey"and 19 or(actor.kind=="mole"and 27 or 23)
@@ -141,11 +141,16 @@ for _,op in ipairs(fixture.commands)do
         assert(op.filter=="nearest","로비 동료가 nearest 필터를 사용하지 않는다")
     elseif op.op=="rectangle"then zMarks=zMarks+1 end
 end
+for _,actor in ipairs(state.animals)do actor.state="idle"end
+fixture.reset();Companions.draw(state,.35)
+for _,op in ipairs(fixture.commands)do
+    if op.op=="draw"then sourceKinds[op.file]=true end
+end
 assert(sourceKinds["assets/characters/companions/graduate-monkey-atlas-pixel-v3.png"]and
     sourceKinds["assets/characters/ingame/coin-miner-mole-atlas-pixel-v3.png"]and
     sourceKinds["assets/characters/companions/gray-oil-cat-atlas-pixel-v1.png"],
     "승인된 원숭이·두더지·고양이 몸체가 걷기 경로에 연결되지 않았다")
-assert(sleepDraws>=3 and zMarks>=45,"이불 수면 자세 또는 세 단계 Z Z Z가 그려지지 않았다")
+assert(sleepDraws>=1 and zMarks>=15,"이불 수면 자세 또는 세 단계 Z Z Z가 그려지지 않았다")
 for kind,spec in pairs(Companions.ART)do
     assert(spec.sleepCellW>spec.cellW and spec.sleepCellH>=spec.cellH and spec.sleepFoot,
         kind.." 수면 자세가 서 있는 몸과 같은 작은 셀에 축소됐다")
@@ -157,6 +162,7 @@ assert(behind>0 and front>0 and behind+front==#state.animals,
 
 for _,kind in ipairs(Companions.INTERACTION_KINDS)do
     local scene=Companions.new();Companions.sync(scene,fakeTraits(levels),1280,720)
+    for _,actor in ipairs(scene.animals)do actor.state="idle"end
     assert(Companions.prepareInteractionPreview(scene,kind),kind.." 상호작용을 구성하지 못했다")
     assert(scene.interaction and scene.interaction.kind==kind and scene.interaction.phase=="play",
         kind.." 상호작용 참여자가 함께 예약되지 않았다")
@@ -173,6 +179,7 @@ for _,kind in ipairs(Companions.INTERACTION_KINDS)do
 end
 
 local scheduled=Companions.new();Companions.sync(scheduled,fakeTraits(levels),1280,720)
+for _,actor in ipairs(scheduled.animals)do actor.state="idle"end
 scheduled.nextInteraction=.01;Companions.update(scheduled,.02)
 assert(scheduled.interaction and scheduled.interaction.kind=="cat_wand",
     "일상 상태에서 첫 상호작용이 자동 예약되지 않았다")
@@ -181,6 +188,7 @@ for _,actor in ipairs(sleepingCat.animals)do if actor.kind=="cat"then actor.stat
 assert(not Companions.prepareInteractionPreview(sleepingCat,"cat_wand"),
     "자던 고양이가 이불을 순간적으로 없애고 상호작용에 끌려갔다")
 local chase=Companions.new();Companions.sync(chase,fakeTraits(levels),1280,720)
+for _,actor in ipairs(chase.animals)do actor.state="idle"end
 Companions.prepareInteractionPreview(chase,"chase_train")
 local chaseKinds={}
 for _,actor in ipairs(chase.interaction.actors)do chaseKinds[actor.kind]=true end
@@ -193,6 +201,7 @@ for index=2,#chase.interaction.actors do
 end
 
 local anchored=Companions.new();Companions.sync(anchored,fakeTraits(levels),1280,720)
+for _,actor in ipairs(anchored.animals)do actor.state="idle"end
 Companions.prepareInteractionPreview(anchored,"cat_wand")
 fixture.reset();Companions.draw(anchored,.7,nil,nil,0)
 local baseX

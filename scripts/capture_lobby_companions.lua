@@ -40,6 +40,7 @@ if LOBBY_DEPTH_PREVIEW then
 elseif LOBBY_SCALE_MODE then
     assert(Companions.prepareScalePreview(lobby.lobbyCompanions,LOBBY_SCALE_MODE=="sleep"))
 elseif LOBBY_INTERACTION_KIND then
+    for _,actor in ipairs(lobby.lobbyCompanions.animals)do actor.state="idle"end
     assert(Companions.prepareInteractionPreview(lobby.lobbyCompanions,LOBBY_INTERACTION_KIND),
         "interaction preview unavailable: "..tostring(LOBBY_INTERACTION_KIND))
 elseif not LOBBY_NATURAL_LAYOUT then Companions.preparePreview(lobby.lobbyCompanions)end
