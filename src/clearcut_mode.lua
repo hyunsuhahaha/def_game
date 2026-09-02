@@ -816,11 +816,22 @@ function ClearcutMode:initLumberjackCompanion(game,prop,slot)
     return true
 end
 
-function ClearcutMode:findMoleCompanionTree(companion,game)
-    local claimed={}
+ClearcutMode.COMPANION_TARGET_SPACING=240
+ClearcutMode.COMPANION_BODY_SPACING=80
+
+function ClearcutMode:companionTargetIsSpaced(companion,node)
+    local spacing=ClearcutMode.COMPANION_TARGET_SPACING
     for _,other in ipairs(self.moleCompanions or{})do
-        if other~=companion and other.target and other.target.active and not other.target.treeEmergence then claimed[other.target]=true end
+        local target=other~=companion and other.target
+        if target and target.active and not target.treeEmergence then
+            local dx,dy=node.x-target.x,node.y-target.y
+            if dx*dx+dy*dy<spacing*spacing then return false end
+        end
     end
+    return true
+end
+
+function ClearcutMode:findMoleCompanionTree(companion,game)
     local best,bestDistance,fallback,fallbackDistance,bestX,bestY,fallbackX,fallbackY
     for _,node in ipairs(game.world.nodes)do
         -- giantTree는 큰 수관을 고르는 시각 표식일 뿐 살아 있는 벌목 대상이다. 이를
@@ -833,7 +844,7 @@ function ClearcutMode:findMoleCompanionTree(companion,game)
                 if not fallbackDistance or distance<fallbackDistance then
                     fallback,fallbackDistance,fallbackX,fallbackY=node,distance,approachX,approachY
                 end
-                if not claimed[node]and(not bestDistance or distance<bestDistance)then
+                if self:companionTargetIsSpaced(companion,node)and(not bestDistance or distance<bestDistance)then
                     best,bestDistance,bestX,bestY=node,distance,approachX,approachY
                 end
             end
@@ -1002,15 +1013,19 @@ function ClearcutMode:companionSpeed(companion)
 end
 
 function ClearcutMode:findMoleCompanionBurrowTree(companion,game)
-    local best,bestDistance
+    local best,bestDistance,fallback,fallbackDistance
     for _,node in ipairs(game.world.nodes)do
         if node.rushTree and node.active and not node.treeEmergence and not companion.burrowHit[node]then
             local dx,dy=node.x-companion.x,node.y-companion.y
             local distance=dx*dx+dy*dy
-            if not bestDistance or distance<bestDistance then best,bestDistance=node,distance end
+            if not fallbackDistance or distance<fallbackDistance then fallback,fallbackDistance=node,distance end
+            if self:companionTargetIsSpaced(companion,node)and(not bestDistance or distance<bestDistance)then
+                best,bestDistance=node,distance
+            end
         end
     end
-    companion.target=best
+    companion.target=best or fallback
+    best=companion.target
     if best then
         companion.routeViaCenter=not self:moleCompanionPathClear(game.world,companion.x,companion.y,best.x,best.y)
     end
@@ -1145,6 +1160,30 @@ function ClearcutMode:updateOneMoleCompanion(companion,dt,game)
     return true
 end
 
+function ClearcutMode:separateMoleCompanions(game)
+    local companions=self.moleCompanions or{}
+    local spacing=ClearcutMode.COMPANION_BODY_SPACING
+    local maps=require("src.clearcut_maps")
+    -- ponytail: max five companions; pairwise separation is simpler than a spatial grid.
+    for _=1,2 do for first=1,#companions-1 do for second=first+1,#companions do
+        local a,b=companions[first],companions[second]
+        if a.state~="burrow"and b.state~="burrow"then
+            local dx,dy=b.x-a.x,b.y-a.y
+            local distance=math.sqrt(dx*dx+dy*dy)
+            if distance<spacing then
+                if distance<.001 then
+                    local angle=first*2.399+second*.91
+                    dx,dy,distance=math.cos(angle),math.sin(angle),1
+                end
+                local push=(spacing-distance)*.5
+                local nx,ny=dx/distance,dy/distance
+                a.x,a.y=maps.constrain(game.world,a.x-nx*push,a.y-ny*push,42)
+                b.x,b.y=maps.constrain(game.world,b.x+nx*push,b.y+ny*push,42)
+            end
+        end
+    end end end
+end
+
 function ClearcutMode:updateMoleCompanion(dt,game)
     local companions=self.moleCompanions or{}
     if #companions==0 and self.moleCompanion then companions={self.moleCompanion}end
@@ -1154,6 +1193,7 @@ function ClearcutMode:updateMoleCompanion(dt,game)
     for _,companion in ipairs(companions)do
         updated=self:updateOneMoleCompanion(companion,dt,game)or updated
     end
+    self:separateMoleCompanions(game)
     return updated
 end
 

@@ -255,11 +255,25 @@ assert(game.clearcut.permanentTraits.scoreMoleBurrow==1 and
     game.clearcut.permanentTraits.scoreMoleBurrowDamage==6 and game.clearcut.permanentTraits.scoreMoleBurrowCooldown==4.5,
     "mole burrow unlock and upgrades did not reach score runtime")
 local claimed={}
+local claimedTargets={}
 for _,companion in ipairs(game.clearcut.moleCompanions)do
     local target=game.clearcut:findMoleCompanionTree(companion,game)
     assert(target and not claimed[target],"additional mole companions did not split up across distinct trees")
+    for _,other in ipairs(claimedTargets)do
+        local dx,dy=target.x-other.x,target.y-other.y
+        assert(dx*dx+dy*dy>=240^2,"companions chose separate trees in the same crowded cluster")
+    end
     claimed[target]=true
+    claimedTargets[#claimedTargets+1]=target
 end
+local first,second=game.clearcut.moleCompanions[1],game.clearcut.moleCompanions[2]
+local firstX,firstY,secondX,secondY,secondKind=first.x,first.y,second.x,second.y,second.kind
+second.kind="lumberjack"
+first.x,first.y,second.x,second.y=800,700,800,700
+game.clearcut:separateMoleCompanions(game)
+local splitX,splitY=first.x-second.x,first.y-second.y
+assert(splitX*splitX+splitY*splitY>=80^2,"overlapping companions were not separated")
+first.x,first.y,second.x,second.y,second.kind=firstX,firstY,secondX,secondY,secondKind
 local moleTree
 for _,node in ipairs(game.world.nodes)do if node.rushTree and node.active and not node.giantTree then moleTree=node;break end end
 assert(moleTree,"mole companion test has no active tree")
@@ -398,4 +412,4 @@ local _,t1=WoodEconomy.settlement("forest",{broadleaf=100},1,1)
 local _,t2=WoodEconomy.settlement("forest",{broadleaf=100},2,2)
 assert(t2>t1,"2단계 수입이 1단계와 같다 - 배수가 반올림에 먹히고 있다")
 
-print("SCORE_ATTACK_MODE_OK start=6 persistent_regen_tier run_upgrades=disabled combat=permanent")
+print("SCORE_ATTACK_MODE_OK start=6 persistent_regen_tier run_upgrades=disabled combat=permanent companions=spaced")
