@@ -1,6 +1,8 @@
 package.path="./?.lua;./?/init.lua;"..package.path
 
 local Settings=require("src.settings")
+local defaults=Settings.decode(nil,false)
+assert(defaults.musicVolume==.98,"기본 배경음악 음량이 98%가 아니다")
 local decoded=Settings.decode("musicVolume=.35\nsfxVolume=1.8\nscreenShake=false\nviewPitch=.82\n",false)
 assert(decoded.musicVolume==.35 and decoded.sfxVolume==1,"저장된 음량을 읽거나 범위 제한하지 못했다")
 assert(decoded.screenShake==false and decoded.viewPitch==.82,"기존 화면 설정과 함께 읽히지 않는다")

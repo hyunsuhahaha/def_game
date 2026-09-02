@@ -1,6 +1,6 @@
 local Settings={}
 
-local DEFAULTS={screenShake=true,viewPitch=.76,musicVolume=.70,sfxVolume=.80}
+local DEFAULTS={screenShake=true,viewPitch=.76,musicVolume=.98,sfxVolume=.80}
 
 local function clamp(value,default)
     value=tonumber(value)
