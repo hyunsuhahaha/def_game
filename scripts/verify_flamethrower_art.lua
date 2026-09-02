@@ -6,6 +6,7 @@ local Art=require("src.flamethrower_art")
 
 local function game()
     local world={nodes={},playBounds={x=-1000,y=-1000,w=2000,h=2000},billboardQueue={}}
+    function world:impactNode(node)node.hitFlash=.2 end
     local player={x=0,y=0,facing=1,gather=1}
     function player:clearClearcutAction()self.clearcutActionProgress=nil end
     function player:setClearcutAction(value)self.clearcutActionProgress=value end
@@ -53,9 +54,11 @@ assert(fixture.commands[1]and fixture.commands[1].file=="assets/effects/smoker-f
 local mode=Mode.new();mode.scoreAttack=true;mode.job="fire";mode.permanentTraits.scoreFlameUnlock=1
 mode.flameVisualStyle="torch";mode.smokerGroundTime=.1;mode.flameStream=stream;local g=game()
 mode.permanentTraits.scoreFlameRange=250;mode.permanentTraits.scoreFlameWidth=56
+g.world.nodes={{rushTree=true,active=true,burning=true,x=110,y=0,rushHp=10,rushMaxHp=10}}
 mode:updateFlamethrowerAttack(.13,g,true)
 assert(mode.flameStream.reach==500 and mode.flameStream.halfWidth==128,
     "max flamethrower research did not extend reach to 500 while preserving its existing width")
+assert(g.world.nodes[1].hitFlash==0,"flamethrower left the generic solid tree-hit circle visible")
 g.world.nodes={{rushTree=true,active=true,x=110,y=20,flameTorchImpactAt=0,flameTorchImpactPhase=1},
     {rushTree=true,active=true,x=210,y=30,flameTorchImpactAt=0,flameTorchImpactPhase=5}}
 mode:queueProjectedOverlay(g,.2)
@@ -70,4 +73,4 @@ for _,entry in ipairs(g.world.billboardQueue)do
 end
 assert(queued,"flamethrower stream did not enter the upright 2.5D billboard pass")
 assert(impactCount==2,"torch impact was not queued independently for every damaged tree")
-print("FLAMETHROWER_ART_OK styles=classic+torch frames=8 impacts=per-tree billboard=upright")
+print("FLAMETHROWER_ART_OK styles=classic+torch frames=8 impacts=per-tree generic-circle=off billboard=upright")

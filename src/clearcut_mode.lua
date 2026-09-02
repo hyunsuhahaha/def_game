@@ -4559,6 +4559,7 @@ function ClearcutMode:updateFlamethrowerAttack(dt,game,held)
                 node.flameTorchImpactPhase=node.flameTorchImpactPhase or math.floor(math.abs(node.x*7+node.y*11))%8
             end
             local felled=self:damageTreeWithSmokerWeapon(node,damage,game)
+            node.hitFlash=0 -- 공용 단색 원 대신 화염방사기 전용 불꽃만 보인다.
             if not felled and not self.rainSuppressFire and not node.burning
                 and love.math.random()<igniteChance then
                 self:beginTreeBurn(node,0);game.world:igniteFx(node.x,node.y,false)
