@@ -570,6 +570,8 @@ function ClearcutMode:setup(game)
     Maps.configureStage(game.world,self.stage)
     self.mapWorld=game.world
     self.mapPlayer=game.player
+    game.world.effectParticleCap=self.scoreAttack and 100 or nil
+    game.world.effectPopupCap=self.scoreAttack and 8 or nil
     local w, h = game.world.width, game.world.height
     local spawnX, spawnY = w / 2, h / 2
     game.player.x, game.player.y = spawnX, spawnY
@@ -4506,6 +4508,7 @@ end
 -- 지역변수 200개 한도에 닿아 있어 새 상수는 모듈 테이블에 붙인다.
 ClearcutMode.FLAME_TICK=.12
 ClearcutMode.FLAME_BASE_REACH=300
+ClearcutMode.FLAME_IMPACT={kind="flame",quiet=true}
 ClearcutMode.FIREWORK_BASE_DAMAGE=7
 ClearcutMode.FIREWORK_BASE_COOLDOWN=.92
 
@@ -4555,7 +4558,7 @@ function ClearcutMode:updateFlamethrowerAttack(dt,game,held)
                 node.flameTorchImpactAt=self.smokerGroundTime or 0
                 node.flameTorchImpactPhase=node.flameTorchImpactPhase or math.floor(math.abs(node.x*7+node.y*11))%8
             end
-            local felled=self:damageTreeWithSmokerWeapon(node,damage,game)
+            local felled=self:damageTreeWithSmokerWeapon(node,damage,game,ClearcutMode.FLAME_IMPACT)
             node.hitFlash=0 -- 공용 단색 원 대신 화염방사기 전용 불꽃만 보인다.
             if not felled and not self.rainSuppressFire and not node.burning
                 and love.math.random()<igniteChance then
@@ -6794,7 +6797,9 @@ function ClearcutMode:fellTree(node, game, axeImpact)
         local amount=(node.treeVariant and node.treeVariant>1)and 6 or 4
         amount=math.floor(amount*(self.permanentTraits.woodYield or 1)+.5)
         game.world:harvestBurst(node,game,amount,"목재",axeImpact)
-        game.world:spawnDrop("wood",amount,node.x,node.y-10,42,30,1.5)
+        -- 정산 재고는 위에서 이미 확정된다. 로봇 회수 연출은 수량만큼 개체를 만들지
+        -- 않고 한 묶음으로 보이며, 대량 벌목 때는 오래된 묶음에 합쳐 렌더 목록을 제한한다.
+        game.world:spawnDrop("wood",amount,node.x,node.y-10,42,30,1.5,true,48)
         BossRewardPickup.rollWoodMagnet(self,node.x,node.y-10)
         local lumber=WoodEconomy.forTree(self.mapId,node.treeVariant or 1)
         self.lumberInventory=self.lumberInventory or{}

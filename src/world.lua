@@ -150,7 +150,8 @@ end
 function World:spawnFallImpact(node, game)
     local gx, gy = node.x, node.y + 6
     local giant=node.giantTree
-    local dustCount=giant and 26 or 12
+    local massMode=game.clearcut and game.clearcut.scoreAttack
+    local dustCount=giant and 26 or(massMode and 4 or 12)
     local reach=giant and (node.fallReach or 238)*.82 or 0
     for i = 1, dustCount do
         local a = love.math.random() * math.pi * 2
@@ -222,9 +223,14 @@ function World:impactNode(node, game, strong, impact)
     node.hitFlash, node.hitShake = axe and 0 or (strong and .2 or .12), strong and .24 or .14
     if node.rushTree and node.rushMaxHp and node.rushMaxHp>0 then
         node.damageStage=TreeDestruction.damageStage(node.rushHp,node.rushMaxHp)
-        ForestUnderstory.cutRadius(self,node.x,node.y,strong and 92 or 64,game)
-        BiomeVines.cutRadius(self,node.x,node.y,strong and 92 or 64,game)
+        if not(impact and impact.quiet)then
+            ForestUnderstory.cutRadius(self,node.x,node.y,strong and 92 or 64,game)
+            BiomeVines.cutRadius(self,node.x,node.y,strong and 92 or 64,game)
+        end
     end
+    -- 지속 화염은 전용 스트림/나무 접촉 FX가 이미 보인다. 매 틱마다 공용 파편과
+    -- 효과음을 중복 생성하면 100그루에서 수천 개의 원형 파티클이 불꽃을 가린다.
+    if impact and impact.quiet then return end
     if axe then
         for _=1,strong and 15 or 8 do self:addAxeChip(x,y,impact.dir or 1,strong)end
     else
@@ -262,18 +268,21 @@ function World:harvestBurst(node, game, amount, label, axeImpact)
         if game.feedback then game.feedback:play("harvest", true) end
         if game.camera then game.camera.trauma = math.min(1, game.camera.trauma + .2) end
     end
+    local massMode=game.clearcut and game.clearcut.scoreAttack
     if label then
-        for _ = 1, math.min(12, amount + 3) do self:addParticle(x, y, color, true, true) end
+        for _ = 1, massMode and 2 or math.min(12, amount + 3) do self:addParticle(x, y, color, true, true) end
         self.harvestChain = self.harvestChainTime > 0 and math.min(99, self.harvestChain + 1) or 1
         self.harvestChainTime = 2.4
-        self.popups[#self.popups + 1] = {x = x, y = y - 78, life = 1.05, maxLife = 1.05, text = "+" .. amount .. " " .. label, color = color, chain = self.harvestChain}
+        if not massMode or #self.popups<8 then
+            self.popups[#self.popups + 1] = {x = x, y = y - 78, life = 1.05, maxLife = 1.05, text = "+" .. amount .. " " .. label, color = color, chain = self.harvestChain}
+        end
     end
     if node.rushTree then
         local sway = node.swayAngle or 0
         local profile=TreeDestruction.fallProfile(node.rushMaxHp,node.giantTree)
         node.fallT, node.fallDur, node.fallReach = 0, profile.duration, profile.reach
         node.fallDir = axeImpact and axeImpact.dir or (sway > 0 and 1 or sway < 0 and -1 or (love.math.random() < .5 and 1 or -1))
-        for _ = 1, 10 do self:addLeafParticle(x, y) end
+        for _ = 1, massMode and 3 or 10 do self:addLeafParticle(x, y) end
         if node.giantTree and game.feedback then game.feedback:play("creak",true) end
     end
 end
@@ -335,20 +344,34 @@ function World:updateEffects(dt, game)
         popup.life, popup.y = popup.life - dt, popup.y - 28 * dt
         if popup.life <= 0 then table.remove(self.popups, i) end
     end
+    -- 대량 벌목에서는 새 효과가 한 프레임에 수천 개 생길 수 있다. 최신 효과를 남겨
+    -- 현재 타격은 선명하게 보이게 하고, 이미 다른 폭발에 묻힌 오래된 잔해만 버린다.
+    if self.effectParticleCap and #self.particles>self.effectParticleCap then
+        local kept={};for index=#self.particles-self.effectParticleCap+1,#self.particles do kept[#kept+1]=self.particles[index]end
+        self.particles=kept
+    end
+    if self.effectPopupCap and #self.popups>self.effectPopupCap then
+        local kept={};for index=#self.popups-self.effectPopupCap+1,#self.popups do kept[#kept+1]=self.popups[index]end
+        self.popups=kept
+    end
 end
 
-function World:spawnDrop(kind, amount, x, y, spreadX, spreadY, power)
+function World:spawnDrop(kind, amount, x, y, spreadX, spreadY, power, bundled, cap)
     spreadX, spreadY, power = spreadX or 24, spreadY or 0, math.min(power or 1, 2.4)
-    for _ = 1, amount do
+    if bundled and cap and #self.drops>=cap then
+        for index=#self.drops,1,-1 do local drop=self.drops[index];if drop.kind==kind then drop.amount=drop.amount+amount;return drop end end
+    end
+    for _ = 1, bundled and 1 or amount do
         local minVx, maxVx = kind == "wood" and 25 or -125, kind == "wood" and 125 or 35
         self.drops[#self.drops + 1] = {
-            kind = kind, amount = 1,
+            kind = kind, amount = bundled and amount or 1,
             x = x + love.math.random(-spreadX, spreadX), y = y - 34 + love.math.random(-spreadY, spreadY),
             vx = love.math.random(minVx, maxVx) * power, vy = love.math.random(28, 82) * power,
             height = love.math.random(36, 58) * power, vz = love.math.random(85, 135) * power,
             magnet = false
         }
     end
+    return self.drops[#self.drops]
 end
 
 function World:updateDrops(dt, game)

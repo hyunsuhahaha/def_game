@@ -6,7 +6,7 @@ local Art=require("src.flamethrower_art")
 
 local function game()
     local world={nodes={},playBounds={x=-1000,y=-1000,w=2000,h=2000},billboardQueue={}}
-    function world:impactNode(node)node.hitFlash=.2 end
+    function world:impactNode(node,_,_,impact)node.hitFlash=.2;world.lastImpact=impact end
     local player={x=0,y=0,facing=1,gather=1}
     function player:clearClearcutAction()self.clearcutActionProgress=nil end
     function player:setClearcutAction(value)self.clearcutActionProgress=value end
@@ -59,6 +59,7 @@ mode:updateFlamethrowerAttack(.13,g,true)
 assert(mode.flameStream.reach==550 and mode.flameStream.halfWidth==128,
     "max flamethrower research did not extend reach to 550 while preserving its existing width")
 assert(g.world.nodes[1].hitFlash==0,"flamethrower left the generic solid tree-hit circle visible")
+assert(g.world.lastImpact and g.world.lastImpact.quiet,"flamethrower restored generic per-tick hit particles")
 g.world.nodes={{rushTree=true,active=true,x=110,y=20,flameTorchImpactAt=0,flameTorchImpactPhase=1},
     {rushTree=true,active=true,x=210,y=30,flameTorchImpactAt=0,flameTorchImpactPhase=5}}
 mode:queueProjectedOverlay(g,.2)

@@ -71,6 +71,14 @@ python scripts/generate_playtest_report.py
 python scripts/generate_playtest_report.py C:\path\playtest_runs.csv -o C:\path\report.md
 ```
 
+100그루와 임시 전체 만렙의 화염·폭탄·기름·설비·동료를 동시에 실제 업데이트/렌더링하는 숨김 성능 벤치마크:
+
+```powershell
+powershell -ExecutionPolicy Bypass -File scripts/run_stress_benchmark.ps1
+```
+
+VSync 영향을 제외한 실제 처리량을 5초간 예열한 뒤 평균 50 FPS 이상, 95백분위 프레임 25ms 이하, 자동화 전부 활성화를 검사하고 `%APPDATA%\LOVE\last-haul\stress_benchmark.txt`에 결과를 저장한다. `-Seconds 60`처럼 예열 이후의 측정 시간을 늘릴 수 있다.
+
 ## 조작
 
 | 입력 | 동작 |

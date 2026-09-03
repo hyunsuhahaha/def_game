@@ -1,10 +1,19 @@
 local Game
 local game
+local stressBenchmark
 local frontendCapture = os.getenv("LAST_HAUL_CAPTURE_SETTINGS") or os.getenv("LAST_HAUL_CAPTURE_PAUSE") or os.getenv("LAST_HAUL_CAPTURE_CLEARCUT_MAP_SELECT") or os.getenv("LAST_HAUL_CAPTURE_CLEARCUT_BRIEFING") or os.getenv("LAST_HAUL_CAPTURE_CLEARCUT_INTRO") or os.getenv("LAST_HAUL_CAPTURE_BOSS_ENTRANCE") or os.getenv("LAST_HAUL_CAPTURE_CHARACTER_TRAITS") or os.getenv("LAST_HAUL_CAPTURE_ACHIEVEMENTS") or os.getenv("LAST_HAUL_CAPTURE_TALL_FOREST") or os.getenv("LAST_HAUL_CAPTURE_TALL_FALL")
 local captureFrames = frontendCapture and 8 or (os.getenv("LAST_HAUL_CAPTURE_TURRET_FIRE") and 3 or (os.getenv("LAST_HAUL_CAPTURE_DRILL") and 2 or ((os.getenv("LAST_HAUL_CAPTURE_RUSH") or os.getenv("LAST_HAUL_CAPTURE_LOBBY") or os.getenv("LAST_HAUL_CAPTURE_CLEARCUT") or os.getenv("LAST_HAUL_CAPTURE_CLEARCUT_UPGRADE") or os.getenv("LAST_HAUL_CAPTURE_CLEARCUT_RESULTS") or os.getenv("LAST_HAUL_CAPTURE_CLEARCUT_THREATS") or os.getenv("LAST_HAUL_CAPTURE_CLEARCUT_BUILDS") or os.getenv("LAST_HAUL_CAPTURE_CLEARCUT_CHAR_SELECT") or os.getenv("LAST_HAUL_CAPTURE_CLEARCUT_FIREJOB") or os.getenv("LAST_HAUL_CAPTURE_CLEARCUT_DEVJOB") or os.getenv("LAST_HAUL_CAPTURE_CLEARCUT_COMBAT") or os.getenv("LAST_HAUL_CAPTURE_CLEARCUT_DEFEAT") or os.getenv("LAST_HAUL_CAPTURE_CLEARCUT_MILESTONE") or os.getenv("LAST_HAUL_CAPTURE_VEGAN_FORK") or os.getenv("LAST_HAUL_CAPTURE_ACHIEVEMENT_POPUP")) and 6 or (os.getenv("LAST_HAUL_CAPTURE_HARVEST") and 10 or ((os.getenv("LAST_HAUL_CAPTURE") or os.getenv("LAST_HAUL_CAPTURE_GAME") or os.getenv("LAST_HAUL_CAPTURE_FARM") or os.getenv("LAST_HAUL_CAPTURE_MINE") or os.getenv("LAST_HAUL_CAPTURE_WALL") or os.getenv("LAST_HAUL_CAPTURE_REPAIR") or os.getenv("LAST_HAUL_CAPTURE_META") or os.getenv("LAST_HAUL_CAPTURE_RESULTS") or os.getenv("LAST_HAUL_CAPTURE_UPGRADE") or os.getenv("LAST_HAUL_CAPTURE_UNITS") or os.getenv("LAST_HAUL_CAPTURE_TEST_OPTIONS") or os.getenv("LAST_HAUL_CAPTURE_TURRET_PROMPT") or os.getenv("LAST_HAUL_CAPTURE_TURRET_PLACEMENT") or os.getenv("LAST_HAUL_CAPTURE_TURRET_UPGRADE")) and 30 or nil)))))
 if os.getenv("LAST_HAUL_UI_CAPTURE_MODE") then
     function love.errorhandler(message)
         io.stderr:write("UI_CAPTURE_ERROR: "..tostring(message).."\n")
+        os.exit(1)
+    end
+end
+if os.getenv("LAST_HAUL_STRESS_BENCHMARK")then
+    function love.errorhandler(message)
+        local detail=debug.traceback(tostring(message),2)
+        if love.filesystem then pcall(love.filesystem.write,"stress_benchmark_error.txt",detail)end
+        io.stderr:write("STRESS_BENCHMARK_ERROR: "..detail.."\n")
         os.exit(1)
     end
 end
@@ -18,6 +27,10 @@ function love.load()
         local ok, err = pcall(require("src.selftest").run, game)
         if not ok then print("SELF_TEST_FAIL: " .. tostring(err)); love.event.quit(1); return end
         love.event.quit(0)
+        return
+    end
+    if os.getenv("LAST_HAUL_STRESS_BENCHMARK")then
+        stressBenchmark=require("src.stress_benchmark").new(game)
         return
     end
     if os.getenv("LAST_HAUL_CAPTURE_META") then game.progression.data.currency = 42; game.mode = "meta" end
@@ -523,17 +536,23 @@ function love.load()
 end
 
 function love.update(dt)
+    if stressBenchmark then stressBenchmark:beforeUpdate(game)end
     if game and game.mode=="playing"and game.clearcut and game.clearcut.playtestTelemetry then
         game.clearcut.playtestTelemetry:frame(dt)
     end
+    local stressUpdateStart=stressBenchmark and love.timer.getTime()
     game:update(math.min(dt, 1 / 20))
+    if stressBenchmark then stressBenchmark:recordUpdate(love.timer.getTime()-stressUpdateStart)end
+    if stressBenchmark and stressBenchmark:afterUpdate(dt,game)then return end
     if os.getenv("LAST_HAUL_CAPTURE_RUSH") and game.rush and game.mode=="playing" then game.rush:updateHeldAxe(0,game,true) end
     if os.getenv("LAST_HAUL_CAPTURE_CLEARCUT") and game.clearcut and game.mode=="playing" then game.clearcut:updateHeldAxe(0,game,true) end
     if captureFrames then captureFrames = captureFrames - 1 end
 end
 function love.draw()
+    local stressDrawStart=stressBenchmark and love.timer.getTime()
     game:draw()
     game:drawAchievementOverlay()
+    if stressBenchmark then stressBenchmark:recordDraw(love.timer.getTime()-stressDrawStart)end
     if captureFrames and captureFrames <= 0 then
         captureFrames = nil
         love.graphics.captureScreenshot(function(data)
