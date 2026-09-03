@@ -1,4 +1,5 @@
 local Settings={}
+local SafeSave=require("src.safe_save")
 
 local DEFAULTS={screenShake=true,viewPitch=.76,musicVolume=.70,sfxVolume=.80}
 
@@ -22,9 +23,7 @@ end
 
 function Settings.load(memoryOnly,fullscreen)
     local self=setmetatable({file="last_haul_settings_v1.txt",memoryOnly=memoryOnly==true},{__index=Settings})
-    local text
-    if not self.memoryOnly and love.filesystem and love.filesystem.getInfo and
-        love.filesystem.getInfo(self.file)then text=love.filesystem.read(self.file)end
+    local text=not self.memoryOnly and SafeSave.read(self.file)or nil
     self.data=Settings.decode(text,fullscreen)
     return self
 end
@@ -38,7 +37,7 @@ function Settings:save()
         string.format("musicVolume=%.4f",d.musicVolume),
         string.format("sfxVolume=%.4f",d.sfxVolume),
     },"\n").."\n"
-    return love.filesystem.write(self.file,text)
+    return SafeSave.write(self.file,text)
 end
 
 return Settings

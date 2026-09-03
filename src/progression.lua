@@ -1,5 +1,6 @@
 local Progression = {}
 Progression.__index = Progression
+local SafeSave = require("src.safe_save")
 
 local nodes = {
     {id = "quick_work", branch = 1, tier = 1, angle = 190, name = "숙련된 손", max = 5, costs = {6, 9, 13, 18, 24}, desc = "모든 채집 속도 +6%", effect = "gather"},
@@ -55,16 +56,14 @@ end
 
 function Progression.new(memoryOnly)
     local self = setmetatable({memoryOnly = memoryOnly, file = "meta_progress.sav", data = defaults()}, Progression)
-    if not memoryOnly and love.filesystem.getInfo(self.file) then
-        local text = love.filesystem.read(self.file)
-        if text then self.data = Progression.decode(text) end
-    end
+    local text=not memoryOnly and SafeSave.read(self.file)or nil
+    if text then self.data=Progression.decode(text)end
     return self
 end
 
 function Progression:save()
     if self.memoryOnly then return true end
-    return love.filesystem.write(self.file, Progression.encode(self.data))
+    return SafeSave.write(self.file,Progression.encode(self.data))
 end
 
 function Progression:getLevel(id) return self.data.levels[id] or 0 end

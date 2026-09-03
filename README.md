@@ -55,6 +55,8 @@ Windows 출시 패키지는 LÖVE 11.5가 설치된 개발 PC에서 다음 명�
 powershell -ExecutionPolicy Bypass -File scripts/package_windows.ps1
 ```
 
+Steam Auto-Cloud에는 LÖVE 저장 폴더의 `character_traits.sav`, `achievements.sav`, `meta_progress.sav`와 각 `.bak` 파일만 등록한다. `.tmp`는 중단된 저장의 로컬 복구용이며 `last_haul_settings_v1.txt`는 장치별 설정이므로 동기화하지 않는다.
+
 ## 조작
 
 | 입력 | 동작 |

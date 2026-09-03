@@ -1,4 +1,5 @@
 local Achievements={};Achievements.__index=Achievements
+local SafeSave=require("src.safe_save")
 
 local species={
  {key="broadleaf",name="활엽수"},{key="pine",name="소나무"},{key="birch",name="자작나무"},{key="maple",name="단풍나무"},
@@ -66,10 +67,10 @@ function Achievements.encode(d)
 end
 function Achievements.new(memoryOnly)
  local self=setmetatable({memoryOnly=memoryOnly,file="achievements.sav",data=defaults(),queue={},popup=nil,time=0},Achievements)
- if not memoryOnly and love.filesystem.getInfo(self.file) then local text=love.filesystem.read(self.file);if text then self.data=Achievements.decode(text) end end
+ local text=not memoryOnly and SafeSave.read(self.file)or nil;if text then self.data=Achievements.decode(text)end
  return self
 end
-function Achievements:save() if self.memoryOnly then return true end return love.filesystem.write(self.file,Achievements.encode(self.data)) end
+function Achievements:save()if self.memoryOnly then return true end return SafeSave.write(self.file,Achievements.encode(self.data))end
 function Achievements:getDefinitions()return definitions end
 function Achievements:getRewards()return rewards end
 function Achievements:progress(def)return math.min(def.goal,self.data.stats[def.stat] or 0)end

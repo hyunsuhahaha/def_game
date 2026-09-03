@@ -1,5 +1,6 @@
 local CharacterTraits = {}
 CharacterTraits.__index = CharacterTraits
+local SafeSave = require("src.safe_save")
 
 local jobs = {
     physical = {
@@ -617,16 +618,14 @@ end
 
 function CharacterTraits.new(memoryOnly)
     local self = setmetatable({memoryOnly=memoryOnly, file="character_traits.sav", data=defaults()}, CharacterTraits)
-    if not memoryOnly and love.filesystem.getInfo(self.file) then
-        local text = love.filesystem.read(self.file)
-        if text then self.data = CharacterTraits.decode(text); self._scoreRanks = nil end
-    end
+    local text=not memoryOnly and SafeSave.read(self.file)or nil
+    if text then self.data=CharacterTraits.decode(text);self._scoreRanks=nil end
     return self
 end
 
 function CharacterTraits:save()
     if self.memoryOnly then return true end
-    return love.filesystem.write(self.file, CharacterTraits.encode(self.data))
+    return SafeSave.write(self.file,CharacterTraits.encode(self.data))
 end
 
 function CharacterTraits:getJobs() return jobs end
