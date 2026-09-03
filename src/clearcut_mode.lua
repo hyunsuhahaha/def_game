@@ -61,6 +61,7 @@ ClearcutMode.PoppingMachine = require("src.popping_machine")
 ClearcutMode.PizzaOven = require("src.pizza_oven")
 ClearcutMode.BombMonkey = require("src.bomb_monkey")
 ClearcutMode.ScoreTutorial = require("src.score_tutorial")
+ClearcutMode.PlaytestTelemetry = require("src.playtest_telemetry")
 ClearcutMode.OIL_BASE_RADIUS=180
 
 ClearcutMode.scoreWeaponDefinitions = {
@@ -662,6 +663,9 @@ function ClearcutMode:setup(game)
     if self.job=="miner" then notice=Maps.get(self.mapId).name.." — 좌클릭 할퀴기 · SPACE/우클릭 잠복" end
     game:setNotice(notice, "food")
     if self.job == "fire" then self:startSmoking(game) end
+    if self.scoreAttack and not self.scorePractice and not self.defenseMode and not self.scoreTutorialRun and not self.scoreTutorialTestRun then
+        self.playtestTelemetry=ClearcutMode.PlaytestTelemetry.new(self,game.characterTraits,require("src.build_info").VERSION)
+    end
 end
 
 -- 나무 종류(스프라이트 variant)별 기초 체력. 예전엔 전부 3으로 고정이라 종류와 상관없이
@@ -6979,6 +6983,7 @@ function ClearcutMode:finish(game, victory)
         game.characterTraits:recordScoreRunCompleted()
     end
     if game.achievements then game.achievements:recordRun(game.result) end
+    if self.playtestTelemetry then self.playtestTelemetry:finish(game.result)end
     game.mode="clearcut_results"
 end
 

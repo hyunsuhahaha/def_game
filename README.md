@@ -57,6 +57,20 @@ powershell -ExecutionPolicy Bypass -File scripts/package_windows.ps1
 
 Steam Auto-Cloud에는 LÖVE 저장 폴더의 `character_traits.sav`, `achievements.sav`, `meta_progress.sav`와 각 `.bak` 파일만 등록한다. `.tmp`는 중단된 저장의 로컬 복구용이며 `last_haul_settings_v1.txt`는 장치별 설정이므로 동기화하지 않는다.
 
+## 플레이테스트 계측
+
+정상 벌목 기록전은 LÖVE 저장 폴더의 `playtest_runs.csv`에 판당 한 줄을 자동 기록한다. 연구 진척도, 해금·시작·최고 재생 단계, 시간·벌목·수입, 무기 사용 횟수와 실제 프레임 저하만 저장하며 입력 좌표나 개인 식별 정보는 남기지 않는다. 튜토리얼·연습장·디펜스·자동 캡처는 제외된다. 리포트는 첫 30분, 단계별 최초 도달 판수, 연구 10% 구간과 주력 무기를 자동 요약한다. 게임을 종료한 뒤 다음 명령으로 같은 폴더에 생성한다.
+
+```powershell
+python scripts/generate_playtest_report.py
+```
+
+다른 CSV를 분석하거나 결과 위치를 지정할 수도 있다.
+
+```powershell
+python scripts/generate_playtest_report.py C:\path\playtest_runs.csv -o C:\path\report.md
+```
+
 ## 조작
 
 | 입력 | 동작 |

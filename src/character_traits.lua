@@ -731,6 +731,12 @@ function CharacterTraits:ownedScoreRanks()
     return owned
 end
 
+function CharacterTraits:scoreProgress()
+    local total=0
+    for _,id in ipairs(orderedIds)do local node=byId[id];if node.scoreMode then total=total+node.max end end
+    return self:ownedScoreRanks(),total
+end
+
 -- 기록 모드 노드만 상승률을 받는다. 보존된 캐릭터 트리는 별도 경제라 건드리지 않는다.
 function CharacterTraits:nodeCost(node, level)
     if type(node) == "string" then node = byId[node] end

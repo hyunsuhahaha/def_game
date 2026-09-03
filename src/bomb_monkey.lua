@@ -75,6 +75,8 @@ local function fireNearby(mode,bomb,world)
 end
 
 local function explode(mode,bomb,game)
+    mode.actionAudit=mode.actionAudit or{}
+    mode.actionAudit.bombExplosion=(mode.actionAudit.bombExplosion or 0)+1
     local radius=180+(mode.permanentTraits.scoreBombRadius or 0)
     local damage=14+(mode.permanentTraits.scoreBombDamage or 0)
     local felled=0

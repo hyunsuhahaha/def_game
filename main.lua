@@ -523,6 +523,9 @@ function love.load()
 end
 
 function love.update(dt)
+    if game and game.mode=="playing"and game.clearcut and game.clearcut.playtestTelemetry then
+        game.clearcut.playtestTelemetry:frame(dt)
+    end
     game:update(math.min(dt, 1 / 20))
     if os.getenv("LAST_HAUL_CAPTURE_RUSH") and game.rush and game.mode=="playing" then game.rush:updateHeldAxe(0,game,true) end
     if os.getenv("LAST_HAUL_CAPTURE_CLEARCUT") and game.clearcut and game.mode=="playing" then game.clearcut:updateHeldAxe(0,game,true) end
@@ -540,12 +543,18 @@ function love.draw()
     end
 end
 function love.keypressed(key)
+    if game and game.mode=="playing"and game.clearcut and game.clearcut.playtestTelemetry then
+        game.clearcut.playtestTelemetry:input("key",key)
+    end
     game:keypressed(key)
 end
 function love.keyreleased(key)
     game:keyreleased(key)
 end
 function love.mousepressed(x, y, button)
+    if game and game.mode=="playing"and game.clearcut and game.clearcut.playtestTelemetry then
+        game.clearcut.playtestTelemetry:input("mouse",button)
+    end
     game:mousepressed(x, y, button)
 end
 function love.mousemoved(x, y, dx, dy)
