@@ -5,6 +5,7 @@
 -- 몸체 자산: 사용자가 고른 3안 원본을 고정 모델로 쓰는 scripts/build_graduate_monkey_selected.py
 -- 장비 자산: scripts/build_graduate_monkey.py (몸체와 독립)
 local Art = {}
+Art.LOBBY_SCALE = .42
 
 local CELL, PX, FOOT = 128, 2, 118
 local PROP = 64
