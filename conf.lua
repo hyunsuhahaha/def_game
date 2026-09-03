@@ -1,3 +1,5 @@
+local BuildInfo=require("src.build_info")
+
 local function isAutomatedRun()
     for _, name in ipairs({
         "LAST_HAUL_SELF_TEST", "LAST_HAUL_CAPTURE", "LAST_HAUL_CAPTURE_HARVEST", "LAST_HAUL_CAPTURE_GAME",
@@ -13,7 +15,7 @@ end
 function love.conf(t)
     t.identity = "last-haul"
     t.version = "11.5"
-    t.console = true
+    t.console = not BuildInfo.isRelease()
     t.window.title = "LAST HAUL — 전진 보급 로비"
     t.window.width = tonumber(os.getenv("LAST_HAUL_CAPTURE_WIDTH")) or 1280
     t.window.height = tonumber(os.getenv("LAST_HAUL_CAPTURE_HEIGHT")) or 720

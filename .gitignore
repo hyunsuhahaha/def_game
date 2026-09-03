@@ -19,6 +19,7 @@ docs/previews/*
 !docs/previews/mole-fusion-v1-display-scale.png
 !docs/previews/mole-fusion-v1-3x.png
 __pycache__/
+dist/
 
 # Unused generation drafts kept only on the original workstation
 assets/worker.png

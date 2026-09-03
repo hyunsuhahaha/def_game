@@ -23,6 +23,7 @@ local Cigarette = require("src.cigarette_sprite")
 local VeganForkArt = require("src.vegan_fork_art")
 local Achievements = require("src.achievements")
 local AchievementBoard = require("src.achievement_board")
+local BuildInfo = require("src.build_info")
 local resourceLabels = {wood = "목재", stone = "돌", ore = "광석", food = "식량"}
 local VIEW_PITCH_MIN,VIEW_PITCH_MAX=.72,1
 
@@ -96,6 +97,7 @@ end
 
 function Game.new()
     local self = setmetatable({}, Game)
+    self.releaseBuild=BuildInfo.isRelease()
     local temporaryProfile = os.getenv("LAST_HAUL_SELF_TEST") or os.getenv("LAST_HAUL_CAPTURE_META") or os.getenv("LAST_HAUL_CAPTURE_RESULTS") or os.getenv("LAST_HAUL_CAPTURE_TEST_OPTIONS") or os.getenv("LAST_HAUL_CAPTURE_TURRET_PROMPT") or os.getenv("LAST_HAUL_CAPTURE_TURRET_PLACEMENT") or os.getenv("LAST_HAUL_CAPTURE_BOSS_ENTRANCE") or os.getenv("LAST_HAUL_CAPTURE_ACHIEVEMENTS") or os.getenv("LAST_HAUL_CAPTURE_ACHIEVEMENT_POPUP") or os.getenv("LAST_HAUL_CAPTURE_SKYVIEW")
     self.settingsStore=Settings.load(temporaryProfile~=nil,love.window.getFullscreen())
     self.settings=self.settingsStore.data
@@ -390,7 +392,9 @@ function Game:autoResolvePendingUpgrades()
 end
 
 function Game:openTestOptions(returnMode)
+    if self.releaseBuild then return false end
     self.testReturnMode, self.mode, self.testMessage, self.testResetArmed, self.testResetTime = returnMode or self.mode, "test_options", "테스트 기능은 실제 저장 데이터에 반영됩니다.", false, 0
+    return true
 end
 
 function Game:closeTestOptions()
@@ -581,7 +585,7 @@ end
 
 function Game:keypressed(key)
     if self.mode=="test_options" then if key=="escape" or key=="f10" then self:closeTestOptions() end; return end
-    if key=="f10" then self:openTestOptions(self.mode); return end
+    if key=="f10" and self:openTestOptions(self.mode)then return end
     if self.paused then
         if key=="escape" then self.paused=false;self.pauseTiltDragging=false
         elseif key=="left" or key=="a" then self:setViewTilt(self:viewTiltAmount()-.04)
@@ -879,7 +883,7 @@ function Game:mousepressed(x, y, button)
                 local nextValue = not self.settings.fullscreen
                 local ok = love.window.setFullscreen(nextValue, "desktop")
                 if ok ~= false then self.settings.fullscreen = nextValue;self:saveSettings() end
-            elseif Frontend.inside(self.settingsTestBox,x,y) then self:openTestOptions("settings")
+            elseif self.settingsTestBox and Frontend.inside(self.settingsTestBox,x,y) then self:openTestOptions("settings")
             end
         end
         return
@@ -1790,14 +1794,16 @@ function Game:drawSettings()
     local tiltDetail=not compact and "벌목 지역·연습장 지면의 깊이만 조절 · 캐릭터 비율 유지"or nil
     Frontend.slider(self.settingsTiltBox,self:viewTiltAmount(),f.body,"시점 기울기",tiltDetail,Frontend.colors.amber)
     self.settingsTestBox=nil
-    if not compact then
+    if not compact and not self.releaseBuild then
         local devY=self.settingsTiltBox.y+self.settingsTiltBox.h+12
         if devY+64<h-48 then
             Frontend.label("개발 도구",x+24,devY,f.micro,Frontend.colors.rust)
             self.settingsTestBox={x=x+24,y=devY+22,w=pw-48,h=42}; Frontend.button(self.settingsTestBox,"테스트 도구 열기  (F10)",f.body,{accent=Frontend.colors.rust,align="left"})
         end
     end
-    Frontend.footer(w,h,"음량 드래그 / 휠    ·    효과음은 놓으면 시험 재생    ·    F10 테스트 도구    ·    ESC 지휘실",f.small)
+    local footer=self.releaseBuild and"음량 드래그 / 휠    ·    효과음은 놓으면 시험 재생    ·    ESC 지휘실"
+        or"음량 드래그 / 휠    ·    효과음은 놓으면 시험 재생    ·    F10 테스트 도구    ·    ESC 지휘실"
+    Frontend.footer(w,h,footer,f.small)
 end
 
 function Game:drawTestOptions()

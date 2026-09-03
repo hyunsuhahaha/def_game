@@ -49,6 +49,12 @@ love .
 
 Windows는 `PLAY.bat`, macOS/Linux는 `./run.sh`. 별도 Lua 설치는 필요 없다(LuaJIT이 LÖVE에 포함).
 
+Windows 출시 패키지는 LÖVE 11.5가 설치된 개발 PC에서 다음 명령으로 만든다. `dist` 아래의 폴더는 SteamPipe 콘텐츠 루트이며 ZIP은 같은 내용의 보관본이다. 패키지 안의 `release.flag`가 F10 테스트 도구와 콘솔 창을 자동으로 숨긴다. 백신 오탐을 피하도록 원본 LÖVE 실행 파일을 이름까지 그대로 유지하며, Steam 시작 옵션은 실행 파일 `love.exe`, 인자 `game.love`로 설정한다.
+
+```powershell
+powershell -ExecutionPolicy Bypass -File scripts/package_windows.ps1
+```
+
 ## 조작
 
 | 입력 | 동작 |
