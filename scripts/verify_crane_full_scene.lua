@@ -68,7 +68,12 @@ local b=game.world.playBounds
 local left,top=game.camera:worldToScreen(b.x,b.y)
 local right,bottom=game.camera:worldToScreen(b.x+b.w,b.y+b.h)
 assert(left>=0 and right<=1280 and top>=0 and bottom<=720,"playable map clipped")
-assert(right-left>=1280*.80,"playable map is still a small floating rectangle")
+assert(right-left>=1280*(game.world.lakeside and .55 or .80),"playable map lost its readable overview footprint")
+if game.world.lakeside then
+    local lake=0
+    for _,op in ipairs(fixture.commands)do if op.file=="assets/scenery/lakeside/lakeside-environment-pixel-v1.png"then lake=lake+1 end end
+    assert(lake==1 and not game.world.northBackdrop,"lakeshore missing or covered by legacy backdrop")
+end
 assert(#mode.moleCompanions>0 and mode.pizzaOven and #mode.bombMonkeys>0,"full-scene verification disabled existing automation")
 fixture.save("docs/previews/crane-full-scene.json")
 print("CRANE_FULL_SCENE_OK Game.draw flame=1 equipment=1 crane=1 perspective companions+facilities-on HUD-on")

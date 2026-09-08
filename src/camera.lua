@@ -124,6 +124,21 @@ function Camera:update(dt, target, world)
         self.perspective=true;self.pitch=pitch;self.userZoom=1
         self.x,self.y=b.x+b.w/2,b.y+b.h/2-40/pitch
         self.zoom=math.min((w-48)/(b.w+64),(h-112)/(b.h*pitch+120))
+        if world.lakeside then
+            local left,top=b.x-world.width*.12,b.y-world.height*.35
+            local right,bottom=world.width*1.30,world.height*1.12
+            local tx,ty=(left+right)/2,(top+bottom)/2
+            local tz=math.min((w-32)/(right-left),(h-64)/((bottom-top)*pitch))
+            local halfView=h/(2*tz*pitch)
+            local low,high=-world.height*.19/.54+halfView,world.height*.81/.54-halfView
+            if low<=high then ty=clamp(ty,low,high)end
+            local blend=world.lakeOpening and(1-math.exp(-dt*3.5))or 1
+            -- Save the prior overview before recomputing the new target.
+            self.x=(self.lakeX or tx)+(tx-(self.lakeX or tx))*blend
+            self.y=(self.lakeY or ty)+(ty-(self.lakeY or ty))*blend
+            self.zoom=(self.lakeZoom or tz)+(tz-(self.lakeZoom or tz))*blend
+            self.lakeX,self.lakeY,self.lakeZoom=self.x,self.y,self.zoom
+        else self.lakeX,self.lakeY,self.lakeZoom=nil,nil,nil end
         self:syncRender(true)
         return
     end
