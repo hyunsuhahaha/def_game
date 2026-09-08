@@ -144,6 +144,42 @@ def crawler(frame):
     plate(im,(168,40,280,87),GOLD)
     return im
 
+def long_pipe(frame):
+    im=Image.new('RGBA',(640,192));d=ImageDraw.Draw(im)
+    # Long cast-concrete barrel: native-grid curved shading and rotating seams.
+    for y in range(20,169):
+        t=(y-94)/74
+        shade=max(1,min(15,round(8+5*math.sqrt(max(0,1-t*t))-5*t)))
+        d.line((55,y,570,y),fill=CONCRETE[shade])
+    d.line((55,20,570,20),fill=CONCRETE[3],width=3)
+    d.line((55,168,570,168),fill=CONCRETE[0],width=4)
+    for x in (154,304,454):
+        d.line((x,23,x,165),fill=CONCRETE[6],width=3)
+        d.line((x+3,24,x+3,162),fill=CONCRETE[12],width=2)
+    phase=frame*math.tau/12
+    for row in range(8):
+        a=phase+row*math.tau/8
+        if math.cos(a)>0:
+            y=94+round(math.sin(a)*72)
+            for x in range(80+row*7,550,47):
+                d.line((x,y,x+18,y+1),fill=CONCRETE[5+row%4],width=2)
+    for cx in (55,570):
+        d.ellipse((cx-42,20,cx+42,168),fill=CONCRETE[2],outline=CONCRETE[0],width=3)
+        d.arc((cx-38,24,cx+38,164),95,275,fill=CONCRETE[14],width=7)
+        d.arc((cx-37,25,cx+37,163),275,455,fill=CONCRETE[8],width=6)
+        d.ellipse((cx-24,46,cx+24,143),fill=CONCRETE[0])
+        d.arc((cx-23,47,cx+23,142),0,180,fill=CONCRETE[10],width=4)
+        for i in range(4):
+            a=phase+i*math.pi/2
+            x,y=cx+round(math.cos(a)*32),94+round(math.sin(a)*61)
+            d.rectangle((x,y,x+2,y+3),fill=CONCRETE[15])
+    return im
+
+def build_long_pipe():
+    sheet=Image.new('RGBA',(640*12,192))
+    for i in range(12):sheet.paste(long_pipe(i),(i*640,0))
+    sheet.save(OUT/'concrete-long-pipe-roll-atlas-v2.png')
+
 def build():
     OUT.mkdir(parents=True,exist_ok=True)
     tower().save(OUT/'tower-crane-pixel-v1.png')
@@ -158,4 +194,7 @@ def build():
     sheet.save(OUT/'concrete-pipe-roll-atlas-v1.png')
     print('CONSTRUCTION_ASSETS_OK native mast=448x896 jib=1152x144 tracks=6x448x128 pipe=12x192x192')
 
-if __name__=='__main__':build()
+if __name__=='__main__':
+    import sys
+    if '--long-pipe' in sys.argv:build_long_pipe()
+    else:build()

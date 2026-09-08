@@ -5,17 +5,24 @@ local function load()
     tower=love.graphics.newImage("assets/construction/tower-crane-pixel-v2.png")
     jib=love.graphics.newImage("assets/construction/tower-jib-pixel-v2.png")
     tracks=love.graphics.newImage("assets/construction/crane-tracks-atlas-v1.png")
-    pipes=love.graphics.newImage("assets/construction/concrete-pipe-roll-atlas-v1.png")
+    pipes=love.graphics.newImage("assets/construction/concrete-long-pipe-roll-atlas-v2.png")
     for _,im in ipairs({tower,jib,tracks,pipes})do im:setFilter("nearest","nearest")end
-    frames={};for i=0,11 do frames[i+1]=love.graphics.newQuad(i*192,0,192,192,pipes:getDimensions())end
+    frames={};for i=0,11 do frames[i+1]=love.graphics.newQuad(i*640,0,640,192,pipes:getDimensions())end
     trackFrames={};for i=0,5 do trackFrames[i+1]=love.graphics.newQuad(i*448,0,448,128,tracks:getDimensions())end
 end
 
 function Art.drawPipe(load)
     local scale=load.stats.radius/75
     local frame=math.floor((load.roll or 0)/(math.pi*2)*12)%12+1
+    local angle=math.atan2(load.ny,load.nx)+math.pi/2
+    local lengthScale=(load.halfLength or load.stats.radius*3)/257
+    love.graphics.setColor(0,0,0,.24)
+    love.graphics.push();love.graphics.translate(load.x,load.y);love.graphics.rotate(angle)
+    love.graphics.ellipse("fill",0,0,(load.halfLength or 126)+load.stats.radius,load.stats.radius*.45)
+    love.graphics.pop()
     love.graphics.setColor(1,1,1,1)
-    love.graphics.draw(pipes,frames[frame],load.x,load.y-(load.height or 0),0,scale,scale,90,170)
+    love.graphics.draw(pipes,frames[frame],load.x,load.y-(load.height or 0)-load.stats.radius,
+        angle,lengthScale,scale,312,94)
 end
 
 function Art.drawCrane(c,actor)

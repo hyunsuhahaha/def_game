@@ -97,10 +97,11 @@ for direction=0,7 do
     operator.x,operator.y=game.world.width/2,game.world.height/2
     local near={kind="tree",rushTree=true,active=true,x=operator.x+nx*320,y=operator.y+ny*320,rushHp=10000,rushMaxHp=10000,treeVariant=1}
     local far={kind="tree",rushTree=true,active=true,x=operator.x+nx*540,y=operator.y+ny*540,rushHp=10000,rushMaxHp=10000,treeVariant=1}
-    local missed={kind="tree",rushTree=true,active=true,x=near.x-ny*130,y=near.y+nx*130,rushHp=10000,rushMaxHp=10000,treeVariant=1}
+    local missed={kind="tree",rushTree=true,active=true,x=near.x-ny*300,y=near.y+nx*300,rushHp=10000,rushMaxHp=10000,treeVariant=1}
     game.world.nodes={near,far,missed};mode.enemies={}
     mode.construction.loads={};mode.construction.cooldown=0
     Builder.update(mode,game,.2,true,operator.x+nx*600,operator.y+ny*600)
+    assert(#mode.construction.loads==1 and mode.construction.loads[1].halfLength==126,"expected one long cylinder")
     assert(near.rushHp==10000 and far.rushHp==10000,"airborne material damaged trees")
     Builder.update(mode,game,.8,false)
     assert(near.rushHp==8800 and far.rushHp==8800,"material failed continuous collision direction "..direction)

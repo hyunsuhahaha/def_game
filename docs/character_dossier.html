@@ -820,7 +820,7 @@ TRAITS.builder = {
     {id:"builder_interval",name:"크레인 작업속도 상승",short:"투하 주기 -0.12초",desc:"자재 투하 주기가 단계마다 0.12초 짧아집니다.",max:5,costs:[22000,38000,60000,95000,140000],targetTier:12,requires:[["builder_damage",1]]},
     {id:"builder_radius",name:"콘크리트 관 크기 상승",short:"자재 반경 +10",desc:"자재의 크기와 실제 충돌 반경이 단계마다 10 증가합니다.",max:4,costs:[35000,60000,95000,145000],targetTier:12,requires:[["builder_speed",2]]},
     {id:"builder_range",name:"자재 굴림 거리 상승",short:"굴림 거리 +200",desc:"자재가 굴러가는 최대 거리가 단계마다 200 증가합니다.",max:4,costs:[30000,55000,90000,140000],targetTier:12,requires:[["builder_speed",1]]},
-    {id:"builder_payload",name:"동시 자재 투하 증가",short:"동시 투하 +1",desc:"한 번의 크레인 작업에서 나란히 굴리는 자재가 1개 증가합니다.",max:2,costs:[180000,350000],targetTier:12,requires:[["builder_radius",2],["builder_interval",3]]},
+    {id:"builder_payload",name:"콘크리트 관 길이 상승",short:"원통 길이 상승",desc:"원통 하나의 길이와 충돌 폭이 단계마다 반경의 2배만큼 증가합니다.",max:2,costs:[180000,350000],targetTier:12,requires:[["builder_radius",2],["builder_interval",3]]},
     {id:"builder_boss",name:"세계수 철거 피해 상승",short:"세계수 피해 +50%",desc:"세계수에 주는 자재 충돌 피해가 단계마다 50% 증가합니다.",max:4,costs:[70000,120000,200000,320000],targetTier:12,requires:[["builder_range",2]]},
     {id:"builder_capacity",name:"건설 현장 허용량 상승",short:"허용량 +15",desc:"현장의 나무 허용량이 단계마다 15그루 증가합니다.",max:4,costs:[45000,80000,140000,240000],targetTier:12,requires:[["builder_payload",1]]},
     {id:"builder_move",name:"크레인 이동속도 상승",short:"이동속도 +8%",desc:"크레인 본체의 이동속도가 단계마다 8% 증가합니다.",max:4,costs:[20000,35000,60000,100000],targetTier:12,requires:[["builder_interval",1]]},
