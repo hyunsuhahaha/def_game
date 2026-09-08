@@ -226,19 +226,22 @@ do
     local store=Traits.new(true)
     local count,ranks,cost=0,0,0
     local effects={}
+    local function add(effect,value)effects[effect]=(effects[effect]or 0)+value end
     for _,node in ipairs(store:getScoreAttackNodes("universal"))do
         if node.id:match("^universal_oven")then
             count=count+1;ranks=ranks+node.max
             for _,value in ipairs(node.costs)do cost=cost+value end
-            effects[node.effect]=(effects[node.effect]or 0)+node.value*node.max
+            if node.rankEffects then
+                for _,rank in ipairs(node.rankEffects)do for effect,value in pairs(rank)do add(effect,value)end end
+            else add(node.effect,node.value*node.max)end
             assert(node.scoreMode,"oven node is missing scoreMode")
         end
     end
-    assert(count==10,"oven research node count changed, got "..count)
+    assert(count==8,"oven research node count changed, got "..count)
     assert(ranks==29,"oven research rank total changed, got "..ranks)
     assert(cost==2866,"oven research cost total changed, got "..cost)
     assert(effects.scoreOvenRadius==200,"radius branch total changed")
-    assert(math.abs(effects.scoreOvenHeat-1.0)<1e-6,"heat branch total changed")
+    assert(math.abs(effects.scoreOvenHeat-1.0)<1e-6,"heat branch total changed: "..tostring(effects.scoreOvenHeat))
     assert(math.abs(effects.scoreOvenSliceCost-21)<1e-6,"dough branch total changed")
     assert(effects.scoreOvenCall==540,"call branch total changed")
     assert(effects.scoreOvenDuration==20,"duration branch total changed")
@@ -280,4 +283,4 @@ Oven.queue({pizzaOven={x=0,y=0,slices=3,life=1,fire=.5,flare=0}},{})
 Oven.load()
 print("PIZZA_OVEN_OK fuel=burning_trees+firework_direct_4s center_placed=true radius=260 slice_cost=75 tray=6 "..
       "call=520 reservation=no_wasted_trips feast=30s_x2 feast_visual=persistent_yellow_aura+scale "..
-      "hearth_visual=8frame_active_fire+stored_embers+firework_direct_4s+no_interior_pizza rain_stops=true stacking_capstone=true nodes=10 ranks=29")
+      "hearth_visual=8frame_active_fire+stored_embers+firework_direct_4s+no_interior_pizza rain_stops=true stacking_capstone=true nodes=8 ranks=29")

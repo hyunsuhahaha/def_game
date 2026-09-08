@@ -137,6 +137,8 @@ local function expand(job, definitions)
             wx=definition.wx or position[1],wy=definition.wy or position[2],icon=definition.icon or "capstone",color=definition.color,
             max=max,costs=definition.costs or (max==1 and {135} or max==2 and {48,86} or {36,62,94}),
             capstone=definition.capstone,scoreMode=definition.scoreMode,
+            rankValues=definition.rankValues,rankEffects=definition.rankEffects,
+            rankTiers=definition.rankTiers,targetTier=definition.targetTier,
             -- 새 필드를 추가할 때 여기에 같이 넣지 않으면 조용히 사라진다.
             requiresTier=definition.requiresTier
         }
@@ -198,11 +200,10 @@ local scoreFireNodes={
     -- 루트 바로 다음 두 번째 노드. 도끼·폭죽을 들고 있는 동안에도 한 갑을 다 쓴
     -- 긴 재장전을 포함한 흡연 상태가 계속 진행된다.
     {id="fire_score_alwayssmoke",name="상시 흡연",short="상시 흡연",desc="근접 도끼질이나 폭죽 공격 중에도 담배 재장전이 계속됩니다.",effect="scoreAlwaysSmoking",value=1,max=1,costs={70},wx=2020,wy=760,icon="cigarette",color={.94,.72,.36},requires={{"fire_score_prewarm",1}}},
-    {id="fire_score_filter",name="원거리 무기 사거리 상승",short="원거리 사거리",desc="원거리 무기 사거리 +16",effect="scoreRange",value=16,max=6,costs={18,32,50,74,104,142},wx=730,wy=520,icon="filter",color={.88,.66,.32},requires={{"fire_score_prewarm",1}}},
+    {id="fire_score_filter",name="담배 투척 성능",short="사거리·비행",desc="초반 6단계는 원거리 사거리 +16, 이후 5단계는 꽁초 비행 속도 +7%",effect="scoreRange",value=16,max=11,costs={18,32,50,74,104,142,18,32,50,74,104},rankEffects={{scoreRange=16},{scoreRange=16},{scoreRange=16},{scoreRange=16},{scoreRange=16},{scoreRange=16},{scoreProjectileSpeed=.07},{scoreProjectileSpeed=.07},{scoreProjectileSpeed=.07},{scoreProjectileSpeed=.07},{scoreProjectileSpeed=.07}},wx=730,wy=520,icon="filter",color={.88,.66,.32},requires={{"fire_score_prewarm",1}}},
     {id="fire_score_pickup_1",name="목재 끌어당김 범위 상승",short="목재 흡수 범위",desc="떨어진 목재를 작업자 쪽으로 끌어당기기 시작하는 범위 +45",effect="pickupRadius",value=45,max=3,costs={20,36,58},wx=1040,wy=780,icon="basket",color={.58,.82,.58},requires={{"fire_score_filter",2}}},
     {id="fire_score_view_1",name="카메라 시야 확장",short="시야 +2.5%",desc="게임 화면에 보이는 월드 범위가 2.5% 넓어집니다.",effect="scoreViewExpansion",value=.025,max=1,costs={46},wx=1200,wy=1080,icon="map",color={.48,.72,.66},requires={{"fire_score_pickup_1",2}}},
-    {id="fire_score_lighter",name="착화 범위 상승",short="착화 범위",desc="꽁초가 불씨를 옮기는 착화 반경 +12",effect="scoreArea",value=12,max=6,costs={18,32,50,74,104,142},wx=730,wy=900,icon="ember",color={.96,.43,.16},requires={{"fire_score_prewarm",1}}},
-    {id="fire_score_spark",name="꽁초 착화 확률 상승",short="착화 확률",desc="꽁초의 착화 성공 확률 +1.2%p",effect="scoreIgnitionChance",value=.012,wx=1080,wy=380,icon="ember",color={1,.56,.16},requires={{"fire_score_filter",2}}},
+    {id="fire_score_lighter",name="담배 착화 성능",short="범위·확률",desc="초반 6단계는 착화 반경 +12, 이후 5단계는 착화 확률 +1.2%p",effect="scoreArea",value=12,max=11,costs={18,32,50,74,104,142,18,32,50,74,104},rankEffects={{scoreArea=12},{scoreArea=12},{scoreArea=12},{scoreArea=12},{scoreArea=12},{scoreArea=12},{scoreIgnitionChance=.012},{scoreIgnitionChance=.012},{scoreIgnitionChance=.012},{scoreIgnitionChance=.012},{scoreIgnitionChance=.012}},wx=730,wy=900,icon="ember",color={.96,.43,.16},requires={{"fire_score_prewarm",1}}},
     -- 탄약 관리 갈래. 흡연자는 한 보루(기본 20개비) 단위로 탄창을 굴리는데(startSmoking),
     -- 개비 재장전 하한 0.75초 · 보루 재장전 하한 2.4초 · 보루 크기 20개비가 전부 상수로
     -- 박혀 있어서 공격속도를 아무리 올려도 이 세 벽에 그대로 막혔다. 셋을 각각 노드로 연다 —
@@ -211,14 +212,13 @@ local scoreFireNodes={
     {id="fire_score_reload",name="개비 재장전 속도 상승",short="개비 재장전",desc="담배 한 개비를 무는 재장전 시간이 단계마다 8% 단축됩니다. (기본 1.25초, 하한 0.75초 — 하한도 함께 내려갑니다)",effect="scoreReloadSpeed",value=.08,max=5,costs={20,34,54,78,108},wx=400,wy=600,icon="clock",color={.86,.78,.58},requires={{"fire_score_prewarm",1}}},
     {id="fire_score_carton_size",name="보루 개비 수 증가",short="보루 용량",desc="보루 하나에 담기는 담배가 단계마다 6개비 늘어납니다. 보루를 다 피울 때만 오는 긴 재장전이 그만큼 드물어집니다. (기본 20개비)",effect="scoreCartonSize",value=6,max=5,costs={24,42,64,92,126},wx=400,wy=350,icon="pack",color={.90,.62,.30},requires={{"fire_score_reload",2}}},
     {id="fire_score_carton_reload",name="보루 교체 속도 상승",short="보루 교체",desc="보루를 다 피우고 새 보루를 뜯는 긴 재장전이 단계마다 12% 단축됩니다. (기본 4.4초, 하한 2.4초 — 하한도 함께 내려갑니다)",effect="scoreCartonReload",value=.12,max=4,costs={30,52,80,116},wx=750,wy=350,icon="cigarette",color={.78,.70,.46},requires={{"fire_score_carton_size",2}}},
-    {id="fire_score_launch",name="꽁초 비행 속도 상승",short="비행 속도",desc="꽁초 비행 속도 +7%",effect="scoreProjectileSpeed",value=.07,wx=1080,wy=650,icon="wind",color={.82,.72,.42},requires={{"fire_score_prewarm",1}}},
-    {id="fire_score_stride_2",name="작업자 이동속도 상승",short="이동속도 +6%",desc="작업자 이동속도 +6%",effect="moveSpeed",value=.06,max=1,costs={54},wx=1450,wy=650,icon="road",color={.52,.74,.66},requires={{"fire_score_launch",2}}},
+    {id="fire_score_stride_2",name="작업자 이동속도 상승",short="이동속도 +6%",desc="작업자 이동속도 +6%",effect="moveSpeed",value=.06,max=1,costs={54},wx=1450,wy=650,icon="road",color={.52,.74,.66},requires={{"fire_score_filter",8}}},
     -- 값은 초당 확률 단위로 저장하고 런타임이 기준 연소시간(3.6초)을 곱해 "옮겨붙는
     -- 기대 그루 수"로 쓴다. 0레벨 0.43그루 → 6레벨 1.45그루로, 만렙이 임계점 1.00을
     -- 확실히 넘겨 산불이 스스로 번지게 한다.
     {id="fire_score_ash",name="불 확산량 상승",short="확산량",desc="불붙은 나무가 옮겨붙이는 기대 그루 +0.17 (만렙 1.45그루 — 1.00을 넘으면 산불이 스스로 번집니다)",effect="scoreSpreadChance",value=.047,max=6,costs={18,32,50,74,104,142},wx=1080,wy=940,icon="ash",color={.72,.52,.36},requires={{"fire_score_lighter",2}}},
     {id="fire_score_yard_2",name="작업 구역 확장",short="맵 +2.5%p",desc="이동 가능한 맵 크기가 2.5% 넓어지고 나무 허용량이 4그루 증가합니다.",effect="scoreYardExpansion",value=1,max=1,costs={58},wx=1780,wy=940,icon="map",color={.48,.72,.42},requires={{"fire_score_ash",2}}},
-    {id="fire_score_drag",name="무기 공격속도 상승",short="공격속도",desc="무기 공격속도 +4%",effect="scoreAttackSpeed",value=.04,max=6,costs={18,32,50,74,104,142},wx=1430,wy=470,icon="clock",color={.78,.76,.67},requires={{"fire_score_launch",2}}},
+    {id="fire_score_drag",name="무기 공격속도 상승",short="공격속도",desc="무기 공격속도 +4%",effect="scoreAttackSpeed",value=.04,max=6,costs={18,32,50,74,104,142},wx=1430,wy=470,icon="clock",color={.78,.76,.67},requires={{"fire_score_filter",8}}},
     {id="fire_score_heat",name="연소속도 상승",short="연소 속도",desc="불이 나무를 태우는 주기 6% 단축 (기본 1초마다 4피해, 연소 3.6초)",effect="scoreBurnSpeed",value=.06,max=6,costs={18,32,50,74,104,142},wx=1430,wy=820,icon="warning",color={1,.34,.08},requires={{"fire_score_prewarm",1}}},
     {id="fire_score_stock",name="추가 꽁초 투척",short="추가 꽁초",desc="투척할 때 추가 꽁초 +1 (자동 투척에도 그대로 적용됩니다)",effect="scoreExtraFires",value=1,max=2,costs={180,310},wx=1780,wy=650,icon="pack",color={1,.30,.08},requires={{"fire_score_heat",3}},capstone=true},
 
@@ -230,7 +230,7 @@ local scoreFireNodes={
     -- 없어서 두 무기의 주력 수치가 영구히 고정돼 있었다. 여기가 그 성장 경로다.
     -- 루트 노드. 도끼는 초반 무기인데 담배 갈래 뒤에 갇혀 있어서 첫 판부터 도끼로
     -- 갈 수가 없었다. 어느 빌드로 가든 유효한 공용 수치라 첫 구매로도 적합하다.
-    {id="fire_score_edge",name="나무 피해 상승",short="무기 피해",desc="무기가 나무에 주는 피해 +1 (불의 타격 피해에도 더해집니다)",effect="scoreTreeDamage",value=1,max=5,costs={16,32,56,86,124},wx=390,wy=1120,icon="fist",color={.86,.62,.34}},
+    {id="fire_score_edge",name="나무 피해·거목 대응",short="무기 피해",desc="초반 5단계는 나무 피해 +1, 이후 4단계는 도끼가 최대 체력의 8%를 추가 피해로 줍니다.",effect="scoreTreeDamage",value=1,max=9,costs={16,32,56,86,124,120,190,280,390},rankEffects={{scoreTreeDamage=1},{scoreTreeDamage=1},{scoreTreeDamage=1},{scoreTreeDamage=1},{scoreTreeDamage=1},{scoreAxeHeavy=.08},{scoreAxeHeavy=.08},{scoreAxeHeavy=.08},{scoreAxeHeavy=.08}},wx=390,wy=1120,icon="fist",color={.86,.62,.34}},
 
     -- 도끼 갈래. 이전에는 담배용 착화 범위(scoreArea)를 ×0.2로 얻어 쓰고 있어서
     -- 담배 특성을 사야 도끼가 자라는 기묘한 의존이 있었다. 전용 수치로 분리한다.
@@ -250,18 +250,15 @@ local scoreFireNodes={
     -- 폭죽 공격 중에도 재장전이 계속된다.
     -- 도끼 상위 갈래. 기본 도끼는 동시 타격 3그루가 하드캡이라 후반 공급량을 못 따라간다.
     -- 충격파와 연속 벌목은 그 천장을 밀도에 비례하게 바꿔, 만렙 도끼가 후반까지 살아남게 한다.
-    {id="fire_score_axe_shock",name="도끼 충격파",short="충격파",desc="나무를 쓰러뜨리면 주변 나무에 단계마다 2 피해를 줍니다. 범위는 단계마다 34 넓어집니다.",effect="scoreAxeShock",value=1,max=3,costs={90,150,230},wx=200,wy=1470,icon="blast",color={.86,.58,.30},requires={{"fire_score_axe_targets",2}}},
+    {id="fire_score_axe_shock",name="도끼 충격파",short="충격파·연쇄",desc="초반 3단계는 충격파를 강화하고, 이후 2단계는 충격파로 쓰러진 나무의 연쇄 깊이를 늘립니다.",effect="scoreAxeShock",value=1,max=5,costs={90,150,230,180,300},rankEffects={{scoreAxeShock=1},{scoreAxeShock=1},{scoreAxeShock=1},{scoreAxePierce=1},{scoreAxePierce=1}},wx=200,wy=1470,icon="blast",color={.86,.58,.30},requires={{"fire_score_axe_targets",2}}},
     {id="fire_score_axe_chain",name="연속 벌목",short="연속 벌목",desc="나무를 쓰러뜨리면 단계마다 18% 확률로 도끼 재사용 대기시간이 즉시 초기화됩니다.",effect="scoreAxeChain",value=.18,max=3,costs={90,150,230},wx=200,wy=1790,icon="clock",color={.78,.70,.42},requires={{"fire_score_axe_execute",3}}},
     -- 도끼 갈래의 졸업. 마스터한 빌드를 동료에게 전수해 자동 벌목을 추가한다.
-    -- 도끼 상위 갈래. 도끼는 7노드로 담배(17)의 절반도 안 돼서 만렙이 너무 빨리 왔다.
-    -- 두 노드 모두 "굵은 나무를 도끼로 넘긴다"는 같은 문제를 다른 방식으로 푼다.
-    {id="fire_score_axe_pierce",name="도끼 충격파 연쇄",short="충격파 연쇄",desc="충격파로 쓰러진 나무가 단계마다 한 번 더 충격파를 냅니다. 연쇄 깊이만 늘어나며 무한 연쇄는 되지 않습니다.",effect="scoreAxePierce",value=1,max=2,costs={180,300},wx=200,wy=1850,icon="split",color={.90,.60,.26},requires={{"fire_score_axe_shock",3}}},
-    {id="fire_score_axe_heavy",name="도끼 거목 특화",short="거목 특화",desc="나무의 최대 체력 단계마다 8%를 추가 피해로 더합니다. 체력이 굵은 수종일수록 크게 오릅니다.",effect="scoreAxeHeavy",value=.08,max=4,costs={120,190,280,390},wx=950,wy=1850,icon="fist",color={.82,.46,.24},requires={{"fire_score_edge",3}}},
+    -- 도끼 상위 갈래. 거목 대응은 기본 피해 카드 후반 랭크로, 충격파 연쇄는 충격파
+    -- 카드 후반 랭크로 접어 카드 수만 줄이고 기존 최대 성능과 비용을 보존한다.
     {id="fire_score_axe_crew",name="도끼 원숭이 해금",short="도끼 원숭이",desc="내 도끼 빌드의 절반 성능을 물려받은 졸업 원숭이 1마리가 자동 벌목합니다.",effect="scoreAxeCrew",value=1,max=1,costs={800},wx=200,wy=2100,icon="capstone",color={.94,.52,.20},requires={{"fire_score_axe_shock",3},{"fire_score_axe_chain",3}},capstone=true},
-    {id="fire_score_autothrow",name="담배 자동 투척",short="자동 투척",desc="근접 도끼질이나 폭죽 공격 중에도 2.6초마다 꽁초가 자동으로 날아갑니다. 불붙지 않은 드럼통 기름이 있으면 그곳을 먼저 노립니다.",effect="scoreAutoThrow",value=1,max=1,costs={240},wx=2020,wy=900,icon="cigarette",color={1,.46,.14},requires={{"fire_score_alwayssmoke",1}},capstone=true},
+    {id="fire_score_autothrow",name="담배 자동 투척",short="자동 투척",desc="1단계에서 자동 투척을 해금하고, 이후 4단계는 기본 2.6초인 자동 투척 간격을 단계마다 9% 줄입니다.",effect="scoreAutoThrow",value=1,max=5,costs={240,48,80,124,180},rankEffects={{scoreAutoThrow=1},{scoreAutoThrowRate=.09},{scoreAutoThrowRate=.09},{scoreAutoThrowRate=.09},{scoreAutoThrowRate=.09}},wx=2020,wy=900,icon="cigarette",color={1,.46,.14},requires={{"fire_score_alwayssmoke",1}},capstone=true},
     -- 자동 투척 간격은 updateFire에 2.6초 상수로 박혀 있어, 손이 도끼·폭죽으로 넘어간
     -- 뒤로는 담배 화력이 공격속도와 무관하게 고정됐다. 그 상수를 여는 노드다.
-    {id="fire_score_autothrow_rate",name="자동 투척 주기 단축",short="자동 투척 주기",desc="자동 투척 간격이 단계마다 9% 짧아집니다. (기본 2.6초)",effect="scoreAutoThrowRate",value=.09,max=4,costs={48,80,124,180},wx=1450,wy=1350,icon="clock",color={1,.58,.20},requires={{"fire_score_autothrow",1}}},
     {id="fire_score_rocket_unlock",name="폭죽 로켓 해금",short="폭죽 해금",desc="근접 대상이 없을 때의 원거리 공격이 폭죽 로켓으로 자동 전환됩니다.",effect="scoreRocketUnlock",value=1,max=1,costs={900},targetTier=5,wx=1150,wy=1250,icon="blast",color={1,.34,.10},requires={{"fire_score_autothrow",1}},capstone=true},
     {id="fire_score_rocket_radius",name="폭죽 폭발 반경 상승",short="폭발 반경",desc="폭죽 로켓의 폭발 반경 +16",effect="scoreRocketRadius",value=16,max=5,costs={700,900,1200,1800,2400},rankTiers={5,5,5,6,6},wx=1700,wy=1300,icon="blast",color={1,.52,.18},requires={{"fire_score_rocket_unlock",1}}},
     {id="fire_score_rocket_damage",name="폭죽 폭발 피해 상승",short="폭발 피해",desc="폭죽 폭발이 나무에 주는 피해 +2",effect="scoreRocketDamage",value=2,max=5,costs={700,900,1200,1800,2400},rankTiers={5,5,5,6,6},wx=2050,wy=1350,icon="ember",color={1,.38,.14},requires={{"fire_score_rocket_unlock",1}}},
@@ -271,13 +268,11 @@ local scoreFireNodes={
     {id="fire_score_capacity_6",name="산림 수용 확장 III",short="허용량 +8",desc="나무 허용량이 8그루 증가합니다. 재생 6단계부터 연구할 수 있습니다.",effect="scoreTreeAllowance",value=8,max=1,costs={3000},requiresTier=6,wx=750,wy=2550,icon="map",color={.42,.78,.52},requires={{"fire_score_yard_6",1}}},
     {id="fire_score_rocket_ignite",name="폭죽 발화 범위 상승",short="발화 범위",desc="폭죽이 나무·기름·설비에 불을 붙이는 범위 +6%",effect="scoreRocketIgnite",value=.06,max=5,costs={900,1200,1800,2400,3000},rankTiers={5,5,6,6,6},wx=1790,wy=1660,icon="ember",color={1,.62,.24},requires={{"fire_score_rocket_radius",3}}},
     {id="fire_score_rocket_cooldown",name="폭죽 발사 속도 상승",short="발사 속도",desc="폭죽 로켓 재발사 대기시간 단계마다 9% 감소",effect="scoreRocketCooldown",value=.09,max=5,costs={900,1200,1800,2400,3000},rankTiers={5,5,6,6,6},wx=2130,wy=1400,icon="clock",color={.94,.58,.22},requires={{"fire_score_rocket_damage",3}}},
-    {id="fire_score_rocket_twin",name="폭죽 쌍발 발사대",short="동시 2발",desc="폭죽을 조준점 좌우로 동시에 2발 발사합니다.",effect="scoreRocketTwin",value=1,max=1,costs={2400},targetTier=6,wx=1420,wy=1900,icon="blast",color={1,.72,.24},requires={{"fire_score_rocket_speed",4},{"fire_score_rocket_cooldown",3}}},
-    {id="fire_score_rocket_cluster",name="폭죽 자탄 불꽃",short="자탄 5발",desc="주 폭발에서 소형 폭죽 5발이 별 모양으로 퍼진 뒤 다시 폭발합니다.",effect="scoreRocketCluster",value=1,max=1,costs={3000},targetTier=6,wx=1810,wy=1980,icon="ember",color={1,.46,.16},requires={{"fire_score_rocket_radius",5},{"fire_score_rocket_ignite",3}}},
-    {id="fire_score_rocket_finale",name="폭죽 삼단 대단원",short="삼단 폭발",desc="주 폭발 뒤 크기가 줄어드는 두 번의 지연 폭발이 연속으로 터집니다.",effect="scoreRocketFinale",value=1,max=1,costs={6200},targetTier=7,wx=1630,wy=2290,icon="capstone",color={1,.34,.12},requires={{"fire_score_rocket_twin",1},{"fire_score_rocket_cluster",1}},capstone=true},
+    {id="fire_score_rocket_twin",name="폭죽 탄두 개조",short="쌍발·자탄·대단원",desc="1단계 쌍발, 2단계 자탄 5발, 3단계 삼단 지연 폭발을 차례로 해금합니다.",effect="scoreRocketTwin",value=1,max=3,costs={2400,3000,6200},rankTiers={6,6,7},rankEffects={{scoreRocketTwin=1},{scoreRocketCluster=1},{scoreRocketFinale=1}},wx=1630,wy=1980,icon="blast",color={1,.72,.24},requires={{"fire_score_rocket_speed",4},{"fire_score_rocket_cooldown",3},{"fire_score_rocket_radius",5},{"fire_score_rocket_ignite",3}},capstone=true},
     -- 폭죽 갈래의 졸업. 도끼와 같은 계약이다 — 마스터한 무기를 원숭이에게 넘기고
     -- 손은 다음 무기로 넘어간다. 원숭이 몸체와 폭죽 프롭은 이미 아틀라스에 있고
     -- configureGraduateMonkeyWeapon / moleCompanionImpact가 prop="firework"를 이미 처리한다.
-    {id="fire_score_rocket_crew",name="폭죽 원숭이 해금",short="폭죽 원숭이",desc="내 폭죽 빌드의 절반 성능을 물려받은 졸업 원숭이 1마리가 자동으로 폭죽을 쏩니다.",effect="scoreRocketCrew",value=1,max=1,costs={7800},targetTier=7,wx=1100,wy=2600,icon="capstone",color={1,.62,.22},requires={{"fire_score_rocket_finale",1}},capstone=true},
+    {id="fire_score_rocket_crew",name="폭죽 원숭이 해금",short="폭죽 원숭이",desc="내 폭죽 빌드의 절반 성능을 물려받은 졸업 원숭이 1마리가 자동으로 폭죽을 쏩니다.",effect="scoreRocketCrew",value=1,max=1,costs={7800},targetTier=7,wx=1100,wy=2600,icon="capstone",color={1,.62,.22},requires={{"fire_score_rocket_twin",3}},capstone=true},
     -- 폭죽까지 넘기고 빈 손에 드는 마지막 무기. 담배·도끼·폭죽이 전부 단발이었던 것과
     -- 달리 누르고 있는 동안 계속 뿜는 지속 무기라, 후반 과밀 숲을 훑어서 태운다.
     {id="fire_score_flame_unlock",name="화염방사기 해금",short="화염방사기",desc="근접 대상이 없을 때의 원거리 공격이 화염방사기로 자동 전환됩니다. 누르고 있는 동안 굵은 화염 기둥이 매 틱 직접 피해를 주고, 추가로 불을 붙입니다.",effect="scoreFlameUnlock",value=1,max=1,costs={16000},targetTier=8,wx=1100,wy=2850,icon="ember",color={1,.44,.12},requires={{"fire_score_rocket_crew",1}},capstone=true},
@@ -291,15 +286,11 @@ local scoreFireNodes={
     {id="fire_score_stride_4",name="작업자 이동속도 상승",short="이동속도 +6%",desc="작업자 이동속도 +6%",effect="moveSpeed",value=.06,max=1,costs={260},wx=650,wy=3850,icon="road",color={.52,.74,.66},requires={{"fire_score_flame_range",3}}},
     {id="fire_score_pickup_2",name="목재 끌어당김 범위 상승",short="목재 흡수 범위",desc="떨어진 목재를 작업자 쪽으로 끌어당기기 시작하는 범위 +90",effect="pickupRadius",value=90,max=3,costs={120,180,260},wx=1550,wy=3850,icon="basket",color={.52,.86,.62},requires={{"fire_score_flame_width",3}}},
     {id="fire_score_yard_7",name="작업 구역 확장",short="맵 +2.5%p",desc="이동 가능한 맵 크기가 2.5% 넓어지고 나무 허용량이 4그루 증가합니다.",effect="scoreYardExpansion",value=1,max=1,costs={310},wx=1850,wy=4450,icon="map",color={.48,.72,.42},requires={{"fire_score_pickup_2",2}}},
-    {id="fire_score_popper_unlock",name="원숭이 뻥튀기차 해금",short="원숭이 뻥튀기차",desc="원숭이가 맵 안에서 계속 뻥튀기차를 끕니다. 쿨타임 뒤 꽁초·화염·불붙은 기름과 접촉하면 예열 후 거대한 뻥튀기를 발사합니다.",effect="scorePopperUnlock",value=1,max=1,costs={650},wx=2600,wy=2100,icon="popping_machine",color={.88,.62,.30},requires={{"universal_mole_dual",1}},capstone=true},
-    {id="fire_score_popper_damage_1",name="뻥튀기 충돌 피해 상승",short="단계당 피해 +1",desc="단계마다 나무에 부딪힐 때 주는 피해 +1",effect="scorePopperDamage",value=1,max=3,costs={30,35,45},wx=2300,wy=2350,icon="fist",color={.90,.72,.46},requires={{"fire_score_popper_unlock",1}}},
-    {id="fire_score_popper_bounce_1",name="뻥튀기 튕김 횟수 증가",short="접촉 +1",desc="한 발이 연속으로 접촉하는 나무 +1 (기본 4그루)",effect="scorePopperBounces",value=1,max=1,costs={130},wx=2600,wy=2350,icon="split",color={.96,.82,.58},requires={{"fire_score_popper_unlock",1}}},
-    {id="fire_score_popper_heat_1",name="뻥튀기 가열시간 감소",short="단계당 -0.1초",desc="단계마다 점화 후 발사까지 걸리는 시간 -0.1초 (기본 2.2초)",effect="scorePopperHeat",value=.1,max=2,costs={40,50},wx=2900,wy=2350,icon="clock",color={1,.50,.18},requires={{"fire_score_popper_unlock",1}}},
-    {id="fire_score_popper_damage_2",name="뻥튀기 충돌 피해 상승",short="단계당 피해 +1",desc="단계마다 나무에 부딪힐 때 주는 피해 +1",effect="scorePopperDamage",value=1,max=3,costs={50,60,70},wx=2050,wy=2600,icon="fist",color={.90,.72,.46},requires={{"fire_score_popper_damage_1",2}}},
-    {id="fire_score_popper_bounce_2",name="뻥튀기 튕김 횟수 증가",short="접촉 +1",desc="한 발이 연속으로 접촉하는 나무 +1",effect="scorePopperBounces",value=1,max=1,costs={210},wx=2300,wy=2600,icon="split",color={.96,.82,.58},requires={{"fire_score_popper_bounce_1",1}}},
-    {id="fire_score_popper_damage_3",name="뻥튀기 충돌 피해 상승",short="단계당 피해 +2",desc="단계마다 나무에 부딪힐 때 주는 피해 +2",effect="scorePopperDamage",value=2,max=2,costs={120,150},wx=2550,wy=2600,icon="fist",color={.90,.72,.46},requires={{"fire_score_popper_damage_2",2},{"fire_score_popper_bounce_1",1}}},
-    {id="fire_score_popper_heat_2",name="뻥튀기 가열시간 감소",short="단계당 -0.25초",desc="단계마다 점화 후 발사까지 걸리는 시간 -0.25초",effect="scorePopperHeat",value=.25,max=2,costs={70,90},wx=2800,wy=2600,icon="clock",color={1,.50,.18},requires={{"fire_score_popper_heat_1",2}}},
-    {id="fire_score_popper_extra",name="원숭이 뻥튀기차 추가",short="뻥튀기차 +1",desc="맵에서 계속 활동하는 원숭이 뻥튀기차가 1대 증가합니다.",effect="scorePopperExtra",value=1,max=1,costs={520},wx=2425,wy=2850,icon="capstone",color={1,.68,.24},requires={{"fire_score_popper_bounce_2",1},{"fire_score_popper_damage_3",2},{"fire_score_popper_heat_2",2}},capstone=true},
+    {id="fire_score_popper_unlock",name="원숭이 뻥튀기차 해금",short="원숭이 뻥튀기차",desc="원숭이가 맵 안에서 계속 뻥튀기차를 끕니다. 쿨타임 뒤 꽁초·화염·불붙은 기름과 접촉하면 예열 후 거대한 뻥튀기를 발사합니다.",effect="scorePopperUnlock",value=1,max=1,costs={650},wx=2600,wy=2100,icon="popping_machine",color={.88,.62,.30},requires={{"universal_mole_claw",3}},capstone=true},
+    {id="fire_score_popper_damage_1",name="뻥튀기 충돌 피해",short="충돌 피해",desc="8단계에 걸쳐 충돌 피해를 총 10 높입니다.",effect="scorePopperDamage",value=1,max=8,costs={30,35,45,50,60,70,120,150},rankValues={1,1,1,1,1,1,2,2},wx=2300,wy=2350,icon="fist",color={.90,.72,.46},requires={{"fire_score_popper_unlock",1}}},
+    {id="fire_score_popper_bounce_1",name="뻥튀기 연속 충돌",short="접촉 +1",desc="단계마다 한 발이 연속으로 접촉하는 나무가 1그루 늘어납니다.",effect="scorePopperBounces",value=1,max=2,costs={130,210},wx=2600,wy=2350,icon="split",color={.96,.82,.58},requires={{"fire_score_popper_unlock",1}}},
+    {id="fire_score_popper_heat_1",name="뻥튀기 가열시간 감소",short="가열 단축",desc="초반 2단계는 0.1초, 이후 2단계는 0.25초씩 가열시간을 줄입니다.",effect="scorePopperHeat",value=.1,max=4,costs={40,50,70,90},rankValues={.1,.1,.25,.25},wx=2900,wy=2350,icon="clock",color={1,.50,.18},requires={{"fire_score_popper_unlock",1}}},
+    {id="fire_score_popper_extra",name="원숭이 뻥튀기차 추가",short="뻥튀기차 +1",desc="맵에서 계속 활동하는 원숭이 뻥튀기차가 1대 증가합니다.",effect="scorePopperExtra",value=1,max=1,costs={520},wx=2425,wy=2850,icon="capstone",color={1,.68,.24},requires={{"fire_score_popper_bounce_1",2},{"fire_score_popper_damage_1",8},{"fire_score_popper_heat_1",4}},capstone=true},
 }
 for _,node in ipairs(scoreFireNodes)do node.job="fire";node.scoreMode=true;node.max=node.max or 5;node.costs=node.costs or{18,32,50,74,104};jobs.fire.nodes[#jobs.fire.nodes+1]=node end
 
@@ -439,14 +430,11 @@ expand("universal",{
     {id="universal_mole_speed",name="두더지 이동속도 상승",short="이동속도 상승",desc="두더지 이동속도가 단계마다 10% 증가합니다.",effect="scoreMoleSpeed",value=.10,max=3,costs={26,44,66},wx=1100,wy=1370,icon="road",color={.48,.72,.82},requires={{"universal_mole_companion",1}},scoreMode=true},
     {id="universal_view_2",name="카메라 시야 확장",short="시야 +2.5%",desc="게임 화면에 보이는 월드 범위가 2.5% 넓어집니다.",effect="scoreViewExpansion",value=.025,max=1,costs={104},wx=3200,wy=1650,icon="map",color={.48,.72,.66},requires={{"universal_mole_speed",2}},scoreMode=true},
     {id="universal_mole_attack_speed",name="두더지 공격속도 상승",short="공격속도 상승",desc="두더지 공격속도가 단계마다 12% 증가합니다.",effect="scoreMoleAttackSpeed",value=.12,max=3,costs={32,52,78},wx=1500,wy=1320,icon="clock",color={.82,.68,.30},requires={{"universal_mole_companion",1}},scoreMode=true},
-    {id="universal_mole_claw",name="두더지 공격범위 상승",short="공격범위 상승",desc="두더지의 공격 가능 거리와 발톱 자국 크기가 단계마다 증가합니다.",effect="scoreMoleClawTier",value=1,max=2,costs={56,92},wx=500,wy=1570,icon="split",color={.92,.42,.22},requires={{"universal_mole_damage",2}},scoreMode=true},
-    {id="universal_mole_dual",name="두더지 양손 공격",short="양손 공격",desc="두더지가 한 번의 공격에 양손 발톱 자국을 남깁니다.",effect="scoreMoleDualClaw",value=1,max=1,costs={125},wx=500,wy=1820,icon="capstone",color={1,.32,.16},requires={{"universal_mole_claw",2}},scoreMode=true},
+    {id="universal_mole_claw",name="두더지 발톱 개조",short="범위·양손",desc="1~2단계는 공격 범위와 발톱 크기를 높이고, 3단계는 양손 공격을 해금합니다.",effect="scoreMoleClawTier",value=1,max=3,costs={56,92,125},rankEffects={{scoreMoleClawTier=1},{scoreMoleClawTier=1},{scoreMoleDualClaw=1}},wx=500,wy=1570,icon="split",color={.92,.42,.22},requires={{"universal_mole_damage",2}},scoreMode=true},
     {id="universal_mole_extra",name="두더지 추가 동료",short="추가 동료",desc="단계마다 두더지 동료 1마리가 추가로 합류합니다.",effect="scoreMoleExtraCompanions",value=1,max=2,costs={110,180},wx=1100,wy=1650,icon="split",color={.72,.58,.32},requires={{"universal_mole_speed",2},{"universal_mole_attack_speed",2}},scoreMode=true},
     {id="universal_mole_burrow",name="두더지 땅굴 이동 해금",short="땅굴 이동 해금",desc="두더지가 주기적으로 땅속에 들어가 가까운 나무들을 향해 빠르게 이동합니다. 이동 경로의 나무에 피해를 주고 체력이 0이 되면 뿌리째 날립니다.",effect="scoreMoleBurrow",value=1,max=1,costs={140},wx=1500,wy=1570,icon="road",color={.58,.42,.24},requires={{"universal_mole_speed",2},{"universal_mole_damage",2}},scoreMode=true},
-    {id="universal_mole_burrow_speed",name="땅굴 이동속도 상승",short="땅굴 속도 상승",desc="두더지의 땅굴 이동속도가 단계마다 12% 증가합니다.",effect="scoreMoleBurrowSpeed",value=.12,max=3,costs={46,74,110},wx=1300,wy=1820,icon="road",color={.62,.48,.28},requires={{"universal_mole_burrow",1}},scoreMode=true},
-    {id="universal_mole_burrow_damage",name="땅굴 피해 상승",short="땅굴 피해 상승",desc="땅굴 이동 경로에 닿은 나무의 피해가 단계마다 2 증가합니다.",effect="scoreMoleBurrowDamage",value=2,max=3,costs={52,84,124},wx=1700,wy=1820,icon="fist",color={.76,.44,.22},requires={{"universal_mole_burrow",1}},scoreMode=true},
-    {id="universal_mole_burrow_cooldown",name="땅굴 재사용시간 감소",short="재사용시간 감소",desc="두더지 땅굴의 재사용시간이 단계마다 1.5초 감소합니다.",effect="scoreMoleBurrowCooldown",value=1.5,max=3,costs={58,92,138},wx=1500,wy=2070,icon="clock",color={.68,.56,.32},requires={{"universal_mole_burrow_speed",1},{"universal_mole_burrow_damage",1}},scoreMode=true},
-    {id="universal_bomb_monkey",name="폭탄 운반 원숭이",short="폭탄 원숭이 해금",desc="원숭이가 검은 구형 폭탄을 몸 앞으로 들고 다니다 10초마다 내려놓습니다. 꽁초·화염방사기·불타는 나무·불붙은 기름이 도화선에 닿으면 2.6초 뒤 폭발합니다. 재생 7단계에 도달해야 열립니다.",effect="scoreBombMonkey",value=1,max=1,costs={6000},requiresTier=7,wx=4700,wy=1550,icon="blast",color={.92,.42,.16},requires={{"universal_mole_dual",1}},scoreMode=true},
+    {id="universal_mole_burrow_speed",name="두더지 땅굴 개조",short="속도·피해·재사용",desc="이동속도 3단계, 경로 피해 3단계, 재사용시간 감소 3단계를 차례로 강화합니다.",effect="scoreMoleBurrowSpeed",value=.12,max=9,costs={46,74,110,52,84,124,58,92,138},rankEffects={{scoreMoleBurrowSpeed=.12},{scoreMoleBurrowSpeed=.12},{scoreMoleBurrowSpeed=.12},{scoreMoleBurrowDamage=2},{scoreMoleBurrowDamage=2},{scoreMoleBurrowDamage=2},{scoreMoleBurrowCooldown=1.5},{scoreMoleBurrowCooldown=1.5},{scoreMoleBurrowCooldown=1.5}},wx=1500,wy=1820,icon="road",color={.62,.48,.28},requires={{"universal_mole_burrow",1}},scoreMode=true},
+    {id="universal_bomb_monkey",name="폭탄 운반 원숭이",short="폭탄 원숭이 해금",desc="원숭이가 검은 구형 폭탄을 몸 앞으로 들고 다니다 10초마다 내려놓습니다. 꽁초·화염방사기·불타는 나무·불붙은 기름이 도화선에 닿으면 2.6초 뒤 폭발합니다. 재생 7단계에 도달해야 열립니다.",effect="scoreBombMonkey",value=1,max=1,costs={6000},requiresTier=7,wx=4700,wy=1550,icon="blast",color={.92,.42,.16},requires={{"universal_mole_claw",3}},scoreMode=true},
     {id="universal_capacity_7",name="산림 수용 확장 IV",short="허용량 +8",desc="나무 허용량이 8그루 증가합니다. 재생 7단계부터 연구할 수 있습니다.",effect="scoreTreeAllowance",value=8,max=1,costs={7000},requiresTier=7,wx=4350,wy=1550,icon="map",color={.42,.78,.52},requires={{"universal_bomb_monkey",1}},scoreMode=true},
     {id="universal_bomb_interval",name="폭탄 보급 단축",short="투하 주기 감소",desc="단계마다 폭탄 투하 주기가 1초 감소합니다. 재생 8단계부터 강화할 수 있습니다.",effect="scoreBombInterval",value=1,max=3,costs={12000,16000,20000},requiresTier=8,wx=5000,wy=1400,icon="clock",color={.78,.60,.28},requires={{"universal_bomb_monkey",1}},scoreMode=true},
     {id="universal_bomb_fuse",name="짧은 도화선",short="도화선 시간 감소",desc="단계마다 점화 후 폭발까지 걸리는 시간이 0.35초 감소합니다. 재생 8단계부터 강화할 수 있습니다.",effect="scoreBombFuse",value=.35,max=3,costs={12000,16000,20000},requiresTier=8,wx=5000,wy=1700,icon="ember",color={1,.48,.15},requires={{"universal_bomb_monkey",1}},scoreMode=true},
@@ -456,34 +444,26 @@ expand("universal",{
     {id="universal_capacity_9",name="산림 수용 확장 VI",short="허용량 +8",desc="나무 허용량이 8그루 증가합니다. 재생 9단계부터 연구할 수 있습니다.",effect="scoreTreeAllowance",value=8,max=1,costs={60000},requiresTier=9,wx=5700,wy=1900,icon="map",color={.42,.78,.52},requires={{"universal_bomb_extra",1}},scoreMode=true},
     {id="universal_oil_drum",name="기름 드럼통 생성",short="드럼통 생성",desc="벌목 기록 모드에서 22초마다 기름 드럼통이 떨어집니다. 도끼로 두 번 타격하면 반경 180 안에 검은 기름 픽셀이 매번 다른 형태로 튑니다.",effect="scoreOilDrum",value=1,max=1,costs={64},wx=1740,wy=930,icon="oil_drum",color={.42,.50,.52},requires={{"universal_robot_start",1}},scoreMode=true},
     {id="universal_oil_interval",name="드럼통 등장 주기",short="등장 주기 감소",desc="단계마다 기름 드럼통 등장 주기가 2초 감소합니다.",effect="scoreOilDrumInterval",value=2,max=3,costs={38,64,96},wx=2050,wy=700,icon="clock",color={.48,.58,.60},requires={{"universal_oil_drum",1}},scoreMode=true},
-    {id="universal_oil_radius",name="기름 살포 거리",short="살포 거리 상승",desc="기본 살포 반경은 180이며, 단계마다 기름 픽셀이 튀는 최대 거리가 30 증가합니다.",effect="scoreOilRadius",value=30,max=5,costs={28,46,70,100,138},wx=2350,wy=700,icon="split",color={.55,.45,.30},requires={{"universal_oil_interval",1}},scoreMode=true},
+    {id="universal_oil_radius",name="기름 살포 거리",short="살포 거리 상승",desc="12단계에 걸쳐 살포 반경을 30·50·80씩 높여 최종 반경 770에 도달합니다.",effect="scoreOilRadius",value=30,max=12,costs={28,46,70,100,138,190,290,430,620,420,650,920},rankValues={30,30,30,30,30,50,50,50,50,80,80,80},wx=2350,wy=700,icon="split",color={.55,.45,.30},requires={{"universal_oil_interval",1}},scoreMode=true},
     {id="universal_view_4",name="카메라 시야 확장",short="시야 +2.5%",desc="게임 화면에 보이는 월드 범위가 2.5% 넓어집니다.",effect="scoreViewExpansion",value=.025,max=1,costs={220},wx=4800,wy=520,icon="map",color={.48,.72,.66},requires={{"universal_oil_radius",3}},scoreMode=true},
-    {id="universal_oil_splash_count",name="기름 튐 개수",short="기름 자국 증가",desc="단계마다 서로 다른 검은 기름 자국이 3개 더 생성되어 빈틈이 줄어듭니다.",effect="scoreOilSplashCount",value=3,max=4,costs={30,50,76,108},wx=2650,wy=700,icon="split",color={.31,.34,.38},requires={{"universal_oil_radius",1}},scoreMode=true},
-    {id="universal_oil_patch_scale",name="기름 자국 크기",short="자국 크기 상승",desc="단계마다 개별 기름 자국의 픽셀 면적과 실제 타격 반경이 8% 증가합니다.",effect="scoreOilPatchScale",value=.08,max=4,costs={34,56,84,118},wx=2800,wy=1040,icon="oil_drum",color={.24,.27,.31},requires={{"universal_oil_splash_count",1}},scoreMode=true},
-    {id="universal_oil_radius_2",name="기름 살포 거리 상승 II",short="살포 거리 +50",desc="단계마다 드럼통 기름의 최대 살포 반경이 50 증가합니다.",effect="scoreOilRadius",value=50,max=4,costs={190,290,430,620},wx=3100,wy=700,icon="split",color={.58,.46,.28},requires={{"universal_oil_patch_scale",4}},scoreMode=true},
-    {id="universal_oil_radius_3",name="기름 살포 거리 상승 III",short="살포 거리 +80",desc="단계마다 드럼통 기름의 최대 살포 반경이 80 증가합니다.",effect="scoreOilRadius",value=80,max=3,costs={420,650,920},wx=3400,wy=700,icon="split",color={.64,.48,.25},requires={{"universal_oil_radius_2",4}},scoreMode=true},
-    {id="universal_oil_splash_count_2",name="기름 튐 개수 상승 II",short="기름 자국 +5",desc="넓어진 살포 범위가 비지 않도록 단계마다 기름 자국이 5개 더 생성됩니다.",effect="scoreOilSplashCount",value=5,max=4,costs={260,400,580,820},wx=3700,wy=700,icon="oil_drum",color={.34,.36,.39},requires={{"universal_oil_radius_3",2}},scoreMode=true},
+    {id="universal_oil_splash_count",name="기름 살포 밀도",short="개수·자국 크기",desc="자국 개수 4단계, 자국 크기 4단계, 추가 자국 4단계를 차례로 강화합니다.",effect="scoreOilSplashCount",value=3,max=12,costs={30,50,76,108,34,56,84,118,260,400,580,820},rankEffects={{scoreOilSplashCount=3},{scoreOilSplashCount=3},{scoreOilSplashCount=3},{scoreOilSplashCount=3},{scoreOilPatchScale=.08},{scoreOilPatchScale=.08},{scoreOilPatchScale=.08},{scoreOilPatchScale=.08},{scoreOilSplashCount=5},{scoreOilSplashCount=5},{scoreOilSplashCount=5},{scoreOilSplashCount=5}},wx=2800,wy=900,icon="oil_drum",color={.31,.34,.38},requires={{"universal_oil_radius",1}},scoreMode=true},
     {id="universal_oil_ignition_radius",name="기름 인화 범위 상승",short="인화 범위 상승",desc="단계마다 담배꽁초가 기름 자국에 불을 붙이는 거리가 16 증가합니다.",effect="scoreOilIgnitionRadius",value=16,max=4,costs={34,56,84,118},wx=2350,wy=470,icon="ember",color={.86,.54,.20},requires={{"universal_oil_radius",2}},scoreMode=true},
     {id="universal_oil_duration",name="기름 지속시간",short="지속시간 상승",desc="단계마다 검은 기름 자국의 지속시간이 3초 증가합니다.",effect="scoreOilDuration",value=3,max=4,costs={28,46,70,100},wx=2050,wy=930,icon="clock",color={.44,.40,.34},requires={{"universal_oil_drum",1}},scoreMode=true},
     {id="universal_yard_5",name="작업 구역 확장",short="맵 +2.5%p",desc="이동 가능한 맵 크기가 2.5% 넓어지고 나무 허용량이 4그루 증가합니다.",effect="scoreYardExpansion",value=1,max=1,costs={160},wx=4450,wy=820,icon="map",color={.48,.72,.42},requires={{"universal_oil_duration",2}},scoreMode=true},
     {id="universal_capacity_5",name="산림 수용 확장 II",short="허용량 +8",desc="나무 허용량이 8그루 증가합니다. 재생 5단계부터 연구할 수 있습니다.",effect="scoreTreeAllowance",value=8,max=1,costs={1200},requiresTier=5,wx=4450,wy=1100,icon="map",color={.42,.78,.52},requires={{"universal_yard_5",1}},scoreMode=true},
     {id="universal_oil_burn_duration",name="기름 발화 지속시간 상승",short="발화 지속시간",desc="단계마다 기름 자국 위에 생성된 불꽃 오브젝트의 유지시간이 1.5초 증가합니다.",effect="scoreOilBurnDuration",value=1.5,max=4,costs={40,66,98,138},wx=2350,wy=1160,icon="ember",color={.92,.38,.14},requires={{"universal_oil_duration",2}},scoreMode=true},
-    {id="universal_oil_damage",name="기름 피해",short="기름 피해 상승",desc="단계마다 불붙은 기름의 나무 및 적 피해가 1 증가합니다.",effect="scoreOilDamage",value=1,max=5,costs={42,66,96,132,174},wx=2800,wy=1400,icon="ember",color={.78,.40,.20},requires={{"universal_oil_patch_scale",2},{"universal_oil_duration",2}},scoreMode=true},
+    {id="universal_oil_damage",name="기름 피해",short="기름 피해 상승",desc="단계마다 불붙은 기름의 나무 및 적 피해가 1 증가합니다.",effect="scoreOilDamage",value=1,max=5,costs={42,66,96,132,174},wx=2800,wy=1400,icon="ember",color={.78,.40,.20},requires={{"universal_oil_splash_count",6},{"universal_oil_duration",2}},scoreMode=true},
     {id="universal_gray_cat",name="회색 고양이 동료",short="고양이 동료 해금",desc="드럼통마다 기본 35% 확률로 회색 고양이가 2.2초 뒤 출동해 드럼통을 밀어 넘어뜨립니다. 사용자가 먼저 부수면 출동을 취소합니다.",effect="scoreGrayCat",value=1,max=1,costs={92},wx=1740,wy=1270,icon="gray_cat",color={.56,.62,.68},requires={{"universal_oil_drum",1}},scoreMode=true},
-    {id="universal_gray_cat_chance",name="고양이 출현 확률",short="고양이 출현 확률",desc="단계마다 고양이 출현 확률이 20% 증가합니다.",effect="scoreGrayCatChance",value=.20,max=3,costs={40,68,104},wx=2050,wy=1210,icon="gray_cat",color={.62,.66,.70},requires={{"universal_gray_cat",1}},scoreMode=true},
-    {id="universal_gray_cat_delay",name="고양이 출동 대기시간",short="고양이 대기시간",desc="단계마다 고양이 출동 대기시간이 0.45초 감소합니다.",effect="scoreGrayCatDelay",value=.45,max=3,costs={34,58,88},wx=2350,wy=1210,icon="clock",color={.50,.66,.72},requires={{"universal_gray_cat_chance",1}},scoreMode=true},
-    {id="universal_gray_cat_speed",name="고양이 등장 속도",short="빠른 등장",desc="단계마다 고양이가 화면 밖에서 드럼통까지 달려오는 속도가 20% 증가합니다.",effect="scoreGrayCatSpeed",value=.20,max=4,costs={28,46,70,100},wx=2050,wy=1470,icon="road",color={.52,.64,.68},requires={{"universal_gray_cat",1}},scoreMode=true},
+    {id="universal_gray_cat_chance",name="고양이 출동 신뢰도",short="확률·대기시간",desc="출현 확률 3단계 뒤 출동 대기시간 감소 3단계를 강화합니다.",effect="scoreGrayCatChance",value=.20,max=6,costs={40,68,104,34,58,88},rankEffects={{scoreGrayCatChance=.20},{scoreGrayCatChance=.20},{scoreGrayCatChance=.20},{scoreGrayCatDelay=.45},{scoreGrayCatDelay=.45},{scoreGrayCatDelay=.45}},wx=2050,wy=1210,icon="gray_cat",color={.62,.66,.70},requires={{"universal_gray_cat",1}},scoreMode=true},
+    {id="universal_gray_cat_speed",name="고양이 이동 템포",short="등장·퇴장 속도",desc="등장 속도 4단계 뒤 퇴장 속도 4단계를 강화합니다.",effect="scoreGrayCatSpeed",value=.20,max=8,costs={28,46,70,100,30,50,76,108},rankEffects={{scoreGrayCatSpeed=.20},{scoreGrayCatSpeed=.20},{scoreGrayCatSpeed=.20},{scoreGrayCatSpeed=.20},{scoreGrayCatExitSpeed=.25},{scoreGrayCatExitSpeed=.25},{scoreGrayCatExitSpeed=.25},{scoreGrayCatExitSpeed=.25}},wx=2050,wy=1470,icon="road",color={.52,.64,.68},requires={{"universal_gray_cat",1}},scoreMode=true},
     {id="universal_oven_unlock",name="화덕 피자 설치",short="화덕 해금",desc="작업장 한가운데에 화덕이 섭니다. 타는 나무의 열을 모으고, 폭죽에 직접 맞으면 4초간 화실이 붙어 피자를 굽습니다. 구운 조각은 두더지와 졸업 원숭이가 직접 와서 먹습니다.",effect="scoreOvenUnlock",value=1,max=1,costs={210},wx=3800,wy=2100,icon="pizza_oven",color={.94,.60,.28},requires={{"universal_mole_damage",2},{"universal_mole_attack_speed",2},{"universal_mole_extra",1}},scoreMode=true},
-    {id="universal_oven_heat",name="불목 확장",short="화력 상승",desc="타고 있는 나무 한 그루가 올리는 화력이 단계마다 0.25 증가합니다. 기본은 그루당 초당 1입니다.",effect="scoreOvenHeat",value=.25,max=4,costs={34,56,84,118},wx=3400,wy=2350,icon="ember",color={1,.52,.18},requires={{"universal_oven_unlock",1}},scoreMode=true},
+    {id="universal_oven_heat",name="화덕 생산 효율",short="화력·얇은 도우",desc="화력 4단계 뒤 조각에 필요한 화력을 줄이는 얇은 도우 3단계를 강화합니다.",effect="scoreOvenHeat",value=.25,max=7,costs={34,56,84,118,48,78,120},rankEffects={{scoreOvenHeat=.25},{scoreOvenHeat=.25},{scoreOvenHeat=.25},{scoreOvenHeat=.25},{scoreOvenSliceCost=7},{scoreOvenSliceCost=7},{scoreOvenSliceCost=7}},wx=3400,wy=2350,icon="ember",color={1,.52,.18},requires={{"universal_oven_unlock",1}},scoreMode=true},
     {id="universal_oven_radius",name="굴뚝 개조",short="수집 반경",desc="열을 걷어오는 반경이 단계마다 50 증가합니다. 기본 반경은 260입니다.",effect="scoreOvenRadius",value=50,max=4,costs={30,50,76,108},wx=3800,wy=2350,icon="map",color={.88,.66,.34},requires={{"universal_oven_unlock",1}},scoreMode=true},
-    {id="universal_oven_slice_cost",name="얇은 도우",short="필요 화력 감소",desc="조각 하나에 필요한 화력이 단계마다 7 줄어듭니다. 기본은 75입니다.",effect="scoreOvenSliceCost",value=7,max=3,costs={48,78,120},wx=4200,wy=2350,icon="clock",color={.96,.82,.58},requires={{"universal_oven_unlock",1}},scoreMode=true},
     {id="universal_oven_slices",name="큰 판",short="조각 수 증가",desc="한 판에 올라가는 조각이 단계마다 1개 늘어납니다. 기본은 6조각입니다.",effect="scoreOvenSlices",value=1,max=3,costs={70,115,175},wx=3000,wy=2600,icon="split",color={.92,.74,.30},requires={{"universal_oven_heat",2}},scoreMode=true},
     {id="universal_oven_call",name="소문이 퍼짐",short="호출 거리 증가",desc="먹으러 오는 동료의 거리 제한이 단계마다 180 늘어납니다. 기본은 520이며, 이보다 멀리 있는 동료는 아예 오지 않습니다.",effect="scoreOvenCall",value=180,max=3,costs={40,68,104},wx=3400,wy=2600,icon="road",color={.72,.82,.56},requires={{"universal_oven_unlock",1}},scoreMode=true},
-    {id="universal_oven_duration",name="넉넉한 인심",short="지속시간 증가",desc="한 조각이 주는 버프 지속시간이 단계마다 5초 늘어납니다. 기본은 30초입니다.",effect="scoreOvenDuration",value=5,max=4,costs={32,54,80,112},wx=3800,wy=2600,icon="lunch",color={.86,.62,.30},requires={{"universal_oven_unlock",1}},scoreMode=true},
-    {id="universal_oven_power",name="치즈 두 배",short="버프 배율 상승",desc="먹은 동료의 피해·공격속도·이동속도 상승폭이 단계마다 커집니다. 기본은 피해 2배, 공격속도 +120%, 이동속도 +60%입니다.",effect="scoreOvenPower",value=.35,max=4,costs={60,96,148,210},wx=4200,wy=2600,icon="fist",color={1,.72,.26},requires={{"universal_oven_duration",1}},scoreMode=true},
+    {id="universal_oven_duration",name="화덕 식사 품질",short="지속시간·버프",desc="버프 지속시간 4단계 뒤 피해·공격·이동 상승폭 4단계를 강화합니다.",effect="scoreOvenDuration",value=5,max=8,costs={32,54,80,112,60,96,148,210},rankEffects={{scoreOvenDuration=5},{scoreOvenDuration=5},{scoreOvenDuration=5},{scoreOvenDuration=5},{scoreOvenPower=.35},{scoreOvenPower=.35},{scoreOvenPower=.35},{scoreOvenPower=.35}},wx=4000,wy=2600,icon="lunch",color={.86,.62,.30},requires={{"universal_oven_unlock",1}},scoreMode=true},
     {id="universal_oven_rain",name="젖은 장작",short="비 대응",desc="비가 오는 동안에도 화력의 20%가 단계마다 유지됩니다. 강화하지 않으면 비가 오는 동안 화덕이 완전히 멈춥니다.",effect="scoreOvenRain",value=.2,max=2,costs={58,92},wx=4600,wy=2600,icon="wind",color={.52,.72,.84},requires={{"universal_oven_radius",2}},scoreMode=true},
-    {id="universal_oven_stack",name="곱빼기",short="중첩 급식",desc="이미 먹은 동료도 남은 조각을 몰아 먹으러 오고, 먹을 때마다 버프가 중첩됩니다.",effect="scoreOvenStack",value=1,max=1,costs={340},wx=3800,wy=2850,icon="capstone",color={1,.56,.20},requires={{"universal_oven_power",2},{"universal_oven_slices",2}},scoreMode=true,capstone=true},
-    {id="universal_gray_cat_exit_speed",name="고양이 퇴장 속도",short="빠른 퇴장",desc="단계마다 드럼통을 넘어뜨린 고양이가 화면 밖으로 사라지는 속도가 25% 증가합니다.",effect="scoreGrayCatExitSpeed",value=.25,max=4,costs={30,50,76,108},wx=2350,wy=1470,icon="road",color={.48,.60,.66},requires={{"universal_gray_cat_speed",1}},scoreMode=true},
+    {id="universal_oven_stack",name="곱빼기",short="중첩 급식",desc="이미 먹은 동료도 남은 조각을 몰아 먹으러 오고, 먹을 때마다 버프가 중첩됩니다.",effect="scoreOvenStack",value=1,max=1,costs={340},wx=3800,wy=2850,icon="capstone",color={1,.56,.20},requires={{"universal_oven_duration",6},{"universal_oven_slices",2}},scoreMode=true,capstone=true},
 })
 
 local byId = {}
@@ -515,14 +495,44 @@ local legacySplitFlameNodes={
     fire_score_flame_ignite={"fire_score_flame_ignite","fire_score_flame_ignite_2","fire_score_flame_ignite_3","fire_score_flame_ignite_4"}
 }
 
+-- v10은 같은 기능을 반복하던 활성 연구 카드를 다중 랭크 카드로 접는다. 기존 키는
+-- 런타임 목록에서 빼되, v9 이하 세이브를 읽을 때 구매 랭크를 대표 키에 합산한다.
+-- 합친 노드의 최대 랭크와 비용 배열은 이전 노드들의 합과 같아 진행률·경제를 보존한다.
+local compactedScoreNodes={
+    fire_score_filter={"fire_score_filter","fire_score_launch"},
+    fire_score_lighter={"fire_score_lighter","fire_score_spark"},
+    fire_score_autothrow={"fire_score_autothrow","fire_score_autothrow_rate"},
+    fire_score_edge={"fire_score_edge","fire_score_axe_heavy"},
+    fire_score_axe_shock={"fire_score_axe_shock","fire_score_axe_pierce"},
+    fire_score_rocket_twin={"fire_score_rocket_twin","fire_score_rocket_cluster","fire_score_rocket_finale"},
+    fire_score_popper_damage_1={"fire_score_popper_damage_1","fire_score_popper_damage_2","fire_score_popper_damage_3"},
+    fire_score_popper_bounce_1={"fire_score_popper_bounce_1","fire_score_popper_bounce_2"},
+    fire_score_popper_heat_1={"fire_score_popper_heat_1","fire_score_popper_heat_2"},
+    universal_mole_claw={"universal_mole_claw","universal_mole_dual"},
+    universal_mole_burrow_speed={"universal_mole_burrow_speed","universal_mole_burrow_damage","universal_mole_burrow_cooldown"},
+    universal_oil_radius={"universal_oil_radius","universal_oil_radius_2","universal_oil_radius_3"},
+    universal_oil_splash_count={"universal_oil_splash_count","universal_oil_patch_scale","universal_oil_splash_count_2"},
+    universal_gray_cat_chance={"universal_gray_cat_chance","universal_gray_cat_delay"},
+    universal_gray_cat_speed={"universal_gray_cat_speed","universal_gray_cat_exit_speed"},
+    universal_oven_heat={"universal_oven_heat","universal_oven_slice_cost"},
+    universal_oven_duration={"universal_oven_duration","universal_oven_power"}
+}
+local compactTargetBySource={}
+for target,sources in pairs(compactedScoreNodes)do
+    for _,source in ipairs(sources)do compactTargetBySource[source]=target end
+end
+
 function CharacterTraits.decode(text)
     local data = defaults()
     local savedVersion=tonumber((text or ""):match("version=(%d+)"))or 0
     local legacyMoleRank,seenNewMoleNode=0,false
     local legacyYardRank,legacyStrideRank,seenSplitYard,seenSplitStride=0,0,false,false
     local legacyFlameRanks,splitFlameRanks,seenSplitFlame={},{},{}
+    local compactedRanks={}
     for key, value in (text or ""):gmatch("([%w_]+)=([%d]+)") do
         local number = math.max(0, math.floor(tonumber(value) or 0))
+        local compactTarget=compactTargetBySource[key]
+        if compactTarget then compactedRanks[compactTarget]=(compactedRanks[compactTarget]or 0)+number end
         if key=="universal_mole_companion"then legacyMoleRank=number end
         if key:match("^universal_mole_")and key~="universal_mole_companion"then seenNewMoleNode=true end
         if key=="universal_yard"then legacyYardRank=number end
@@ -576,6 +586,12 @@ function CharacterTraits.decode(text)
             data.levels[base]=math.min(byId[base].max,rank)
         end
     end
+    for target,rank in pairs(compactedRanks)do
+        data.levels[target]=math.min(byId[target].max,rank)
+    end
+    -- 아주 오래된 단일 6랭크 두더지 세이브가 위의 구형 분기 마이그레이션을 탄 경우,
+    -- 마지막 양손 랭크도 새 발톱 카드의 3단계로 승계한다.
+    if legacyMoleRank>=6 and not seenNewMoleNode then data.levels.universal_mole_claw=3 end
     -- 초기 시안의 통나무 정글짐 구매는 완성형 캣타워로 승계한다.
     if data.lobbyItems.log_jungle then data.lobbyItems.log_jungle=nil;data.lobbyItems.cat_tower=true end
     -- 기존 개발 세이브에는 새 튜토리얼을 갑자기 띄우지 않는다. 실제 진행 흔적이
@@ -585,7 +601,7 @@ function CharacterTraits.decode(text)
 end
 
 function CharacterTraits.encode(data)
-    local lines = {"version=9", "job_master_fire="..(data.jobMasterFire and 1 or 0), "currency=" .. math.floor(data.currency or 0),"regenTier="..math.max(1,math.floor(data.regenTier or 1)),
+    local lines = {"version=10", "job_master_fire="..(data.jobMasterFire and 1 or 0), "currency=" .. math.floor(data.currency or 0),"regenTier="..math.max(1,math.floor(data.regenTier or 1)),
         "score_runs_completed="..math.max(0,math.floor(data.scoreRunsCompleted or 0)),
         "score_tutorial_seen="..(data.scoreTutorialSeen and 1 or 0),
         "equipment_configured="..(data.equipmentConfigured and 1 or 0),
@@ -852,7 +868,24 @@ function CharacterTraits:markStorySeen(jobId)
     self:save()
 end
 
-local multiplicativeEffects = {attackSpeed=true, reward=true, burnSpeed=true, dashSpeed=true, moveSpeed=true, woodYield=true}
+-- 간소화된 카드 한 장이 예전 여러 카드의 랭크 순서를 품을 수 있게 한다. rankValues는
+-- 같은 효과의 단계별 수치가 다를 때, rankEffects는 한 카드 안에서 효과 축이 바뀔 때 쓴다.
+local function accumulateNodeEffects(effects,node,level)
+    level=math.min(node.max,math.max(0,math.floor(level or 0)))
+    if node.rankEffects then
+        for rank=1,level do
+            for effect,amount in pairs(node.rankEffects[rank]or{})do
+                effects[effect]=(effects[effect]or 0)+amount
+            end
+        end
+    elseif node.rankValues then
+        local amount=0
+        for rank=1,level do amount=amount+(node.rankValues[rank]or node.value or 0)end
+        effects[node.effect]=(effects[node.effect]or 0)+amount
+    else
+        effects[node.effect]=(effects[node.effect]or 0)+level*node.value
+    end
+end
 
 -- 직업 전용 트리 + 공용(universal) 트리를 합산한다: 어떤 직업을 골라도 공용 특성은 항상 적용된다.
 function CharacterTraits:effects(job)
@@ -876,9 +909,7 @@ function CharacterTraits:effects(job)
     }
     local function accumulate(nodes)
         for _, node in ipairs(nodes) do
-            local amount = self:getLevel(node.id) * node.value
-            if multiplicativeEffects[node.effect] then effects[node.effect] = effects[node.effect] + amount
-            else effects[node.effect] = (effects[node.effect] or 0) + amount end
+            accumulateNodeEffects(effects,node,self:getLevel(node.id))
         end
     end
     accumulate(self:getNodes(job))
@@ -923,7 +954,7 @@ function CharacterTraits:scoreAttackEffects(ignoreOwned)
     if not ignoreOwned then
         for _,job in ipairs({"fire","universal"})do
             for _,node in ipairs(self:getScoreAttackNodes(job))do
-                effects[node.effect]=(effects[node.effect]or 0)+self:getLevel(node.id)*node.value
+                accumulateNodeEffects(effects,node,self:getLevel(node.id))
             end
         end
     end

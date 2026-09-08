@@ -57,14 +57,21 @@ for _,entry in ipairs({
 end
 for _,id in ipairs({
     "universal_mole_companion","universal_mole_damage","universal_mole_speed","universal_mole_attack_speed",
-    "universal_mole_claw","universal_mole_dual","universal_mole_extra","universal_mole_burrow",
-    "universal_mole_burrow_speed","universal_mole_burrow_damage","universal_mole_burrow_cooldown","universal_oil_drum",
-    "universal_oil_interval","universal_oil_radius","universal_oil_splash_count","universal_oil_patch_scale",
-    "universal_oil_radius_2","universal_oil_radius_3","universal_oil_splash_count_2","universal_oil_ignition_radius",
+    "universal_mole_claw","universal_mole_extra","universal_mole_burrow","universal_mole_burrow_speed","universal_oil_drum",
+    "universal_oil_interval","universal_oil_radius","universal_oil_splash_count","universal_oil_ignition_radius",
     "universal_oil_duration","universal_oil_burn_duration","universal_oil_damage",
-    "universal_gray_cat","universal_gray_cat_chance","universal_gray_cat_delay","universal_gray_cat_speed","universal_gray_cat_exit_speed"
+    "universal_gray_cat","universal_gray_cat_chance","universal_gray_cat_speed"
 })do
     assert(dossier:find('id:"'..id..'"',1,true),"dossier permanent trait is missing: "..id)
+end
+for _,id in ipairs({
+    "fire_score_launch","fire_score_spark","fire_score_autothrow_rate","fire_score_rocket_cluster","fire_score_rocket_finale",
+    "fire_score_popper_damage_2","fire_score_popper_damage_3","fire_score_popper_bounce_2","fire_score_popper_heat_2",
+    "universal_oil_patch_scale","universal_oil_radius_2","universal_oil_radius_3","universal_oil_splash_count_2",
+    "universal_gray_cat_delay","universal_gray_cat_exit_speed","universal_mole_dual",
+    "universal_mole_burrow_damage","universal_mole_burrow_cooldown","universal_oven_slice_cost","universal_oven_power"
+})do
+    assert(not dossier:find('id:"'..id..'"',1,true),"compacted trait remains in dossier: "..id)
 end
 
 print("CHARACTER_DOSSIER_OK permanent-research-only active-groups=weapon+companion archived-character-data=preserved")

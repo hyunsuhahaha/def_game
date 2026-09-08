@@ -32,7 +32,7 @@ local function nodeOf(id) return assert(CharacterTraits:getNode(id), id .. " 특
 local axeNodes = {"fire_score_axe_area", "fire_score_axe_speed", "fire_score_axe_targets", "fire_score_axe_execute"}
 local rocketNodes = {"fire_score_rocket_radius", "fire_score_rocket_damage", "fire_score_rocket_speed",
     "fire_score_rocket_ignite", "fire_score_rocket_cooldown", "fire_score_rocket_twin",
-    "fire_score_rocket_cluster", "fire_score_rocket_finale"}
+    "fire_score_rocket_crew", "fire_score_rocket_unlock"}
 for _, id in ipairs(axeNodes) do assert(nodeOf(id).scoreMode, id .. "가 기록 모드 연구판에 없다") end
 for _, id in ipairs(rocketNodes) do assert(nodeOf(id).scoreMode, id .. "가 기록 모드 연구판에 없다") end
 assert(nodeOf("fire_score_edge").effect == "scoreTreeDamage", "공용 나무 피해 노드가 treeDamage를 올리지 않는다")
@@ -40,7 +40,7 @@ assert(nodeOf("fire_score_edge").effect == "scoreTreeDamage", "공용 나무 피
 -- 2. 공용 수치의 설명에는 무기 이름을 나열하지 않는다. "담배·도끼·폭죽의 사거리"처럼
 -- 적으면 무기가 늘거나 바뀔 때마다 설명을 전부 고쳐야 하므로, "무기 사거리"처럼 공용
 -- 단어만 쓴다. 특정 무기에만 걸리는 수치는 그 무기 이름을 쓰는 게 맞으므로 제외한다.
-local sharedNodes = {"fire_score_drag", "fire_score_edge"}
+local sharedNodes = {"fire_score_drag"}
 for _, id in ipairs(sharedNodes) do
     local desc = nodeOf(id).desc
     for _, weapon in ipairs({"담배", "도끼", "폭죽", "꽁초", "로켓"}) do
@@ -49,15 +49,14 @@ for _, id in ipairs(sharedNodes) do
     end
     assert(desc:find("무기", 1, true), id .. " 공용 설명이 공용 단어 '무기'를 쓰지 않는다")
 end
-assert(nodeOf("fire_score_filter").desc:find("원거리 무기", 1, true)
+assert(nodeOf("fire_score_filter").desc:find("원거리 사거리", 1, true)
     and not nodeOf("fire_score_filter").desc:find("도끼", 1, true),
     "사거리 특성이 근접 도끼에도 적용되는 것처럼 안내한다")
 
 -- 3. 만렙 효과가 실제 수치로 합산된다.
 for _, id in ipairs({"fire_score_edge", "fire_score_axe_area", "fire_score_axe_speed", "fire_score_axe_targets",
     "fire_score_axe_execute", "fire_score_rocket_radius", "fire_score_rocket_damage", "fire_score_rocket_speed",
-    "fire_score_rocket_ignite", "fire_score_rocket_cooldown", "fire_score_rocket_twin",
-    "fire_score_rocket_cluster", "fire_score_rocket_finale"}) do
+    "fire_score_rocket_ignite", "fire_score_rocket_cooldown", "fire_score_rocket_twin"}) do
     store.data.levels[id] = nodeOf(id).max
 end
 local effects = store:scoreAttackEffects()

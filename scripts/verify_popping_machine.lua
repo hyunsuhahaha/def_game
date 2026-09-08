@@ -87,11 +87,11 @@ local store=Traits.new(true);local count,ranks,cost,multi,damage,bounces,heat=0,
 for _,node in ipairs(store:getScoreAttackNodes("fire"))do if node.id:match("^fire_score_popper")then
     count=count+1;ranks=ranks+node.max;if node.max>1 then multi=multi+1 end
     for _,value in ipairs(node.costs)do cost=cost+value end
-    if node.effect=="scorePopperDamage"then damage=damage+node.value*node.max end
+    if node.effect=="scorePopperDamage"then for _,value in ipairs(node.rankValues or{})do damage=damage+value end end
     if node.effect=="scorePopperBounces"then bounces=bounces+node.value*node.max end
-    if node.effect=="scorePopperHeat"then heat=heat+node.value*node.max end
+    if node.effect=="scorePopperHeat"then for _,value in ipairs(node.rankValues or{})do heat=heat+value end end
 end end
-assert(count==9 and ranks==16 and cost==2320,"popper research branch totals changed")
-assert(multi==5 and damage==10 and bounces==2 and math.abs(heat-.7)<.001,"popper upgrades are not distributed multi-rank nodes")
+assert(count==5 and ranks==16 and cost==2320,"popper research branch totals changed")
+assert(multi==3 and damage==10 and bounces==2 and math.abs(heat-.7)<.001,"popper upgrades are not compact multi-rank nodes")
 fixture.reset();Popper.queue(mode,{});Popper.load()
-print("POPPING_MACHINE_OK persistent=true monkey_cart=true cooldown=7 ignition=butt+flame+oil+tree+firework targetless_launch=wall_bounce_retarget base_damage=7 base_contacts=4 upgraded_damage=17 upgraded_contacts=6 survivor_chain=true nodes=9 ranks=16 distributed=true")
+print("POPPING_MACHINE_OK persistent=true monkey_cart=true cooldown=7 ignition=butt+flame+oil+tree+firework targetless_launch=wall_bounce_retarget base_damage=7 base_contacts=4 upgraded_damage=17 upgraded_contacts=6 survivor_chain=true nodes=5 ranks=16 compact=true")

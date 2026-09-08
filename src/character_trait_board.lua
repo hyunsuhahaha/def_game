@@ -336,7 +336,7 @@ function CharacterTraitBoard:nodeWorld(node)
         -- 대시 해금은 초반 상시 흡연 옆에 두되, 거리 상승은 폭죽 해금까지 진행한
         -- 약 5단계 지점에서 열리는 별도 후속 노드로 오른쪽에 내린다.
         fire_score_dash_unlock={2150,1100},fire_score_dash_distance={2150,1600},
-        fire_score_filter={750,850},fire_score_spark={400,850},
+        fire_score_filter={750,650},
         -- 초반 목재 흡수 범위를 기존 시야 노드 자리에 끼우고, 시야 노드는 같은
         -- 갈래의 왼쪽 빈 자리로 옮긴다. 둘 다 남아 있으며 연결 순서만 늘어난다.
         fire_score_pickup_1={700,1050},fire_score_view_1={50,1050},
@@ -345,12 +345,11 @@ function CharacterTraitBoard:nodeWorld(node)
         -- 탄약 관리 갈래는 루트 왼쪽 위로 세운다. 개비 회전 → 보루 용량 → 보루 교체 순의
         -- 한 줄기라 기존 착화/확산 갈래와 선이 겹치지 않는다.
         fire_score_reload={400,600},fire_score_carton_size={400,350},fire_score_carton_reload={750,350},
-        fire_score_launch={1100,600},fire_score_drag={1100,350},
+        fire_score_drag={1100,350},
         fire_score_stride_2={1450,500},
         -- 상시 흡연은 루트 바로 아래 두 번째 노드다. 자동 투척과 폭죽 해금은 그 아래로
         -- 이어지고, 기존 연소속도→추가 꽁초 갈래는 오른쪽으로 빼서 겹치지 않게 한다.
         fire_score_alwayssmoke={1100,1100},fire_score_autothrow={1100,1350},
-        fire_score_autothrow_rate={1450,1350},
         fire_score_rocket_unlock={1100,1600},
         fire_score_heat={1450,1100},fire_score_stock={1800,1100},
         -- 공용/도끼는 왼쪽, 폭죽 강화는 해금 아래 한 줄로 편다.
@@ -359,7 +358,6 @@ function CharacterTraitBoard:nodeWorld(node)
         fire_score_axe_targets={400,1600},fire_score_axe_execute={750,1600},
         fire_score_yard_4={50,1500},
         fire_score_axe_shock={400,1850},fire_score_axe_chain={750,1850},
-        fire_score_axe_pierce={100,2100},fire_score_axe_heavy={1050,1850},
         fire_score_axe_crew={575,2100},
         -- 폭죽 가지는 단계별로 한 줄씩만 내린다. 같은 행을 가로질러 다른 노드를
         -- 관통하던 선만 풀고, 담배/도끼 등 기존 연구 배치는 그대로 둔다.
@@ -370,8 +368,7 @@ function CharacterTraitBoard:nodeWorld(node)
         fire_score_rocket_speed={1250,2100},fire_score_rocket_ignite={1650,2100},
         fire_score_rocket_cooldown={2050,2100},
         fire_score_view_3={800,2450},fire_score_yard_6={1100,2300},
-        fire_score_rocket_cluster={1450,2350},fire_score_rocket_twin={1850,2350},
-        fire_score_rocket_finale={1100,2600},
+        fire_score_rocket_twin={1650,2350},
         -- 폭죽 졸업과 화염방사기는 폭죽 줄 아래로 새 층을 쌓는다. 도끼가 원숭이로
         -- 졸업한 뒤 폭죽으로 넘어갔듯, 폭죽도 원숭이로 졸업하고 화염방사기로 넘어간다.
         fire_score_rocket_crew={1100,2850},fire_score_flame_unlock={1100,3100},
@@ -381,12 +378,11 @@ function CharacterTraitBoard:nodeWorld(node)
         fire_score_flame_ignite={1000,3600},
         -- 후반 이동·흡수·작업 구역은 압축된 화염 갈래 바로 아래에서 이어진다.
         fire_score_stride_4={650,3850},fire_score_pickup_2={1550,3850},fire_score_yard_7={1550,4100},
-        -- 뻥튀기차는 무기 졸업물이 아니라 자동 동료 설비다. 두더지 양손 공격에서
+        -- 뻥튀기차는 무기 졸업물이 아니라 자동 동료 설비다. 두더지 발톱 개조 3단계에서
         -- 바로 이어지도록 두더지 갈래 아래의 빈 공간에 전용 가지를 둔다.
         fire_score_popper_unlock={2600,2100},
         fire_score_popper_damage_1={2300,2350},fire_score_popper_bounce_1={2600,2350},fire_score_popper_heat_1={2900,2350},
-        fire_score_popper_damage_2={2050,2600},fire_score_popper_bounce_2={2300,2600},
-        fire_score_popper_damage_3={2550,2600},fire_score_popper_heat_2={2800,2600},fire_score_popper_extra={2425,2850},
+        fire_score_popper_extra={2600,2700},
         -- 공용 연구는 흡연자 갈래와 같은 좌표를 쓰고 있었다(각자 다른 탭이었으므로).
         -- 한 판으로 합치면서 흡연자 오른쪽으로 통째로 옮긴다.
         universal_yard={2600,850},universal_robot_start={3000,850},universal_robot_motor={3400,850},
@@ -397,27 +393,24 @@ function CharacterTraitBoard:nodeWorld(node)
         -- 두 줄의 동일 간격 구조라 범위 계열과 지속 계열이 한눈에 구분된다.
         universal_oil_drum={3800,425},
         universal_oil_interval={4200,250},universal_oil_radius={4600,250},
-        universal_oil_splash_count={5000,250},universal_oil_patch_scale={5400,250},universal_oil_ignition_radius={5000,550},
-        universal_oil_radius_2={5800,250},universal_oil_radius_3={6200,250},universal_oil_splash_count_2={6600,250},
-        universal_oil_duration={4200,650},universal_oil_burn_duration={4600,650},universal_oil_damage={5400,650},
+        universal_oil_splash_count={5000,250},universal_oil_ignition_radius={5400,250},
+        universal_oil_duration={4200,650},universal_oil_burn_duration={4600,650},universal_oil_damage={5000,650},
         universal_view_4={4900,900},universal_yard_5={4700,1200},
         universal_gray_cat={3800,1100},
-        universal_gray_cat_chance={4100,1000},universal_gray_cat_delay={4400,1000},
-        universal_gray_cat_speed={4100,1200},universal_gray_cat_exit_speed={4400,1200},
+        universal_gray_cat_chance={4100,1000},universal_gray_cat_speed={4100,1300},
         universal_mole_companion={3000,1100},
         universal_mole_damage={2600,1350},universal_mole_speed={3000,1350},universal_mole_attack_speed={3400,1350},
-        universal_mole_claw={2600,1600},universal_mole_extra={3000,1600},universal_mole_dual={2600,1850},
+        universal_mole_claw={2600,1600},universal_mole_extra={3000,1600},
         universal_mole_burrow={3400,1600},universal_mole_burrow_speed={3100,1850},
-        universal_mole_burrow_damage={3400,1850},universal_mole_burrow_cooldown={3250,2100},
         universal_view_2={3700,1850},
         universal_bomb_monkey={5000,1550},universal_bomb_interval={5350,1400},universal_bomb_fuse={5350,1700},
         universal_bomb_radius={5700,1400},universal_bomb_damage={5700,1700},universal_bomb_extra={6050,1550},
         -- 화덕은 동료 급식 설비라 두더지 해금 아래로 새 층을 쌓는다. 기름/고양이
         -- 줄과 겹치지 않도록 y=2100 아래를 통째로 쓴다.
         universal_oven_unlock={3800,2100},
-        universal_oven_heat={3400,2350},universal_oven_radius={3800,2350},universal_oven_slice_cost={4200,2350},
+        universal_oven_heat={3400,2350},universal_oven_radius={3800,2350},
         universal_oven_slices={3000,2600},universal_oven_call={3400,2600},
-        universal_oven_duration={3800,2600},universal_oven_power={4200,2600},universal_oven_rain={4600,2600},
+        universal_oven_duration={4000,2600},universal_oven_rain={4600,2600},
         universal_oven_stack={3800,2850},
     }
     local fixed=scoreLayout[node.id]

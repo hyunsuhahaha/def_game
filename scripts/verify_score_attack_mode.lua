@@ -299,11 +299,11 @@ Traits.data.levels.universal_robot_start=1
 Traits.data.levels.universal_robot_motor=5
 Traits.data.levels.universal_mole_companion=1
 Traits.data.levels.universal_mole_damage=3;Traits.data.levels.universal_mole_speed=3
-Traits.data.levels.universal_mole_attack_speed=3;Traits.data.levels.universal_mole_claw=2
-Traits.data.levels.universal_mole_dual=1;Traits.data.levels.universal_mole_extra=2
-Traits.data.levels.universal_mole_burrow=1;Traits.data.levels.universal_mole_burrow_speed=3
-Traits.data.levels.universal_mole_burrow_damage=3;Traits.data.levels.universal_mole_burrow_cooldown=3
-for _,id in ipairs({"fire_score_prewarm","fire_score_filter","fire_score_lighter","fire_score_spark","fire_score_launch","fire_score_ash","fire_score_drag","fire_score_heat"})do Traits.data.levels[id]=5 end
+Traits.data.levels.universal_mole_attack_speed=3;Traits.data.levels.universal_mole_claw=3
+Traits.data.levels.universal_mole_extra=2
+Traits.data.levels.universal_mole_burrow=1;Traits.data.levels.universal_mole_burrow_speed=9
+for _,id in ipairs({"fire_score_prewarm","fire_score_ash","fire_score_drag","fire_score_heat"})do Traits.data.levels[id]=5 end
+Traits.data.levels.fire_score_filter=11;Traits.data.levels.fire_score_lighter=11
 Traits.data.levels.fire_score_stock=1
 game:startClearcutScoreAttack()
 assert(game.clearcut.scoreTreeAllowance==100,"max permanent forest-capacity research did not raise the runtime allowance to 100")
@@ -311,7 +311,7 @@ assert(math.abs(game.world.clearcutMapScale-.875)<1e-9 and game.world.width==280
     "distributed yard nodes did not expand the actual score map")
 assert(math.abs(game.clearcut.baseSpeed-396.8)<1e-9,"distributed movement nodes did not preserve +24% runtime speed")
 assert(math.abs(game.camera.zoom-(.84/1.1))<1e-9,"distributed view nodes did not expand the runtime camera view")
-assert(game.clearcut.permanentTraits.range==80 and game.clearcut.permanentTraits.area==60 and game.clearcut.permanentTraits.extraFires==1,"score-only permanent smoker traits were not applied at runtime")
+assert(game.clearcut.permanentTraits.range==96 and game.clearcut.permanentTraits.area==72 and game.clearcut.permanentTraits.extraFires==1,"score-only permanent smoker traits were not applied at runtime")
 assert(game.clearcut.permanentTraits.attackSpeed==1.2 and game.clearcut.permanentTraits.burnSpeed==1.3 and game.clearcut.permanentTraits.cigaretteProjectileSpeed==1.35,"score-only pacing traits were not applied at runtime")
 assert(game.clearcut:levelOf("molotov")==0 and game.clearcut:levelOf("dry_forest")==0 and game.clearcut:levelOf("straw_bale")==0 and game.clearcut:levelOf("smoke_ring")==0 and game.clearcut:levelOf("oil_drum")==0,"permanent traits still injected whole in-game skill levels")
 assert(game.clearcut:levelOf("baby_robot")==1 and game.clearcut.permanentTraits.scoreRobotSpeed==.5,"baby robot permanent research was not applied at runtime")

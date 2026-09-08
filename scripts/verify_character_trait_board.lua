@@ -5,7 +5,7 @@ local Board = require("src.character_trait_board")
 local store = {
     data = {},
     getScoreAttackNodes = function()
-        return {{id="universal_mole_dual"}}
+        return {{id="universal_mole_claw"}}
     end,
 }
 
@@ -19,7 +19,7 @@ board:clampCamera()
 assert(board.panX==9100 and board.panY==7200,
     "research board still clamps dragging at the old canvas edge")
 
-local nodeX,nodeY=board:nodeWorld({id="universal_mole_dual"})
+local nodeX,nodeY=board:nodeWorld({id="universal_mole_claw"})
 local screenX=board.viewport.x+board.viewport.w/2+(nodeX-board.panX)*board.zoom
 local screenY=board.viewport.y+board.viewport.h/2+(nodeY-board.panY)*board.zoom
 assert(screenX<board.viewport.x and screenY<board.viewport.y,

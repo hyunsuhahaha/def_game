@@ -102,16 +102,14 @@ moleUpgradeStore.data.currency=500000
 moleUpgradeStore.data.levels.universal_robot_start=1
 assert(moleUpgradeStore:buy("universal_mole_companion")and not moleUpgradeStore:buy("universal_mole_companion"),"mole hire root was not a one-rank node")
 assert(moleUpgradeStore:buy("universal_oil_drum")and moleUpgradeStore:buy("universal_gray_cat"),"gray oil-cat research chain was not purchasable")
-for _,spec in ipairs({{"universal_oil_interval",3},{"universal_oil_radius",5},{"universal_oil_splash_count",4},
-    {"universal_oil_patch_scale",4},{"universal_oil_radius_2",4},{"universal_oil_radius_3",3},
-    {"universal_oil_splash_count_2",4},{"universal_oil_ignition_radius",4},{"universal_oil_duration",4},
-    {"universal_oil_burn_duration",4},{"universal_oil_damage",5},{"universal_gray_cat_chance",3},
-    {"universal_gray_cat_delay",3},{"universal_gray_cat_speed",4},{"universal_gray_cat_exit_speed",4}})do
+for _,spec in ipairs({{"universal_oil_interval",3},{"universal_oil_radius",12},{"universal_oil_splash_count",12},
+    {"universal_oil_ignition_radius",4},{"universal_oil_duration",4},{"universal_oil_burn_duration",4},
+    {"universal_oil_damage",5},{"universal_gray_cat_chance",6},{"universal_gray_cat_speed",8}})do
     for rank=1,spec[2]do assert(moleUpgradeStore:buy(spec[1]),spec[1].." rank "..rank.." was not purchasable")end
 end
 for _,spec in ipairs({{"universal_mole_damage",3},{"universal_mole_speed",3},{"universal_mole_attack_speed",3},
-    {"universal_mole_claw",2},{"universal_mole_dual",1},{"universal_mole_extra",2},{"universal_mole_burrow",1},
-    {"universal_mole_burrow_speed",3},{"universal_mole_burrow_damage",3},{"universal_mole_burrow_cooldown",3}})do
+    {"universal_mole_claw",3},{"universal_mole_extra",2},{"universal_mole_burrow",1},
+    {"universal_mole_burrow_speed",9}})do
     for rank=1,spec[2]do assert(moleUpgradeStore:buy(spec[1]),spec[1].." rank "..rank.." was not purchasable")end
 end
 local moleEffects=moleUpgradeStore:scoreAttackEffects()
@@ -119,7 +117,7 @@ assert(moleEffects.scoreMoleCompanion==1 and moleEffects.scoreMoleDamage==3 and 
     math.abs(moleEffects.scoreMoleAttackSpeed-.36)<1e-9 and moleEffects.scoreMoleClawTier==2 and moleEffects.scoreMoleDualClaw==1 and
     moleEffects.scoreMoleExtraCompanions==2 and moleEffects.scoreMoleBurrow==1 and
     math.abs(moleEffects.scoreMoleBurrowSpeed-.36)<1e-9 and moleEffects.scoreMoleBurrowDamage==6 and
-    moleEffects.scoreMoleBurrowCooldown==4.5,"split mole research nodes did not accumulate independently")
+    moleEffects.scoreMoleBurrowCooldown==4.5,string.format("compact mole effects drifted claw=%s dual=%s burrowSpeed=%s damage=%s cooldown=%s",tostring(moleEffects.scoreMoleClawTier),tostring(moleEffects.scoreMoleDualClaw),tostring(moleEffects.scoreMoleBurrowSpeed),tostring(moleEffects.scoreMoleBurrowDamage),tostring(moleEffects.scoreMoleBurrowCooldown)))
 assert(moleEffects.scoreOilDrum==1 and moleEffects.scoreGrayCat==1,"gray oil-cat research effects were not accumulated")
 assert(moleEffects.scoreOilDrumInterval==6 and moleEffects.scoreOilRadius==590 and moleEffects.scoreOilSplashCount==32 and
     math.abs(moleEffects.scoreOilPatchScale-.32)<1e-9 and moleEffects.scoreOilIgnitionRadius==64 and
@@ -129,12 +127,35 @@ assert(moleEffects.scoreOilDrumInterval==6 and moleEffects.scoreOilRadius==590 a
     "split oil drum and gray cat upgrades did not accumulate")
 local roundTrip=CharacterTraits.decode(CharacterTraits.encode(store.data))
 assert(roundTrip.regenTier==3,"persistent regeneration tier did not survive save encoding")
-local migrated=CharacterTraits.decode("fire_score_filter=6\nfire_score_lighter=6\nfire_score_ash=6\nfire_score_drag=6\nfire_score_heat=6\n")
-assert(migrated.levels.fire_score_filter==6 and migrated.levels.fire_score_heat==6 and migrated.levels.fire_score_spark==0 and migrated.levels.fire_score_stock==0,
-    "legacy score research ranks were not preserved as granular traits")
+assert(CharacterTraits.encode(store.data):match("^version=10\n"),"compacted research save version was not bumped")
+local migrated=CharacterTraits.decode("version=9\nfire_score_filter=6\nfire_score_launch=5\nfire_score_lighter=6\nfire_score_spark=5\nfire_score_ash=6\nfire_score_drag=6\nfire_score_heat=6\n")
+assert(migrated.levels.fire_score_filter==11 and migrated.levels.fire_score_lighter==11
+    and migrated.levels.fire_score_heat==6 and migrated.levels.fire_score_stock==0,
+    "legacy score research ranks were not folded into compact traits")
+local migratedCompact=CharacterTraits.decode(table.concat({
+    "version=9","fire_score_autothrow=1","fire_score_autothrow_rate=4",
+    "fire_score_edge=5","fire_score_axe_heavy=4","fire_score_axe_shock=3","fire_score_axe_pierce=2",
+    "fire_score_rocket_twin=1","fire_score_rocket_cluster=1","fire_score_rocket_finale=1",
+    "fire_score_popper_damage_1=3","fire_score_popper_damage_2=3","fire_score_popper_damage_3=2",
+    "fire_score_popper_bounce_1=1","fire_score_popper_bounce_2=1","fire_score_popper_heat_1=2","fire_score_popper_heat_2=2",
+    "universal_mole_claw=2","universal_mole_dual=1","universal_mole_burrow_speed=3","universal_mole_burrow_damage=3","universal_mole_burrow_cooldown=3",
+    "universal_oil_radius=5","universal_oil_radius_2=4","universal_oil_radius_3=3",
+    "universal_oil_splash_count=4","universal_oil_patch_scale=4","universal_oil_splash_count_2=4",
+    "universal_gray_cat_chance=3","universal_gray_cat_delay=3","universal_gray_cat_speed=4","universal_gray_cat_exit_speed=4",
+    "universal_oven_heat=4","universal_oven_slice_cost=3","universal_oven_duration=4","universal_oven_power=4"
+},"\n").."\n")
+for id,max in pairs({
+    fire_score_autothrow=5,fire_score_edge=9,fire_score_axe_shock=5,fire_score_rocket_twin=3,
+    fire_score_popper_damage_1=8,fire_score_popper_bounce_1=2,fire_score_popper_heat_1=4,
+    universal_mole_claw=3,universal_mole_burrow_speed=9,universal_oil_radius=12,
+    universal_oil_splash_count=12,universal_gray_cat_chance=6,universal_gray_cat_speed=8,
+    universal_oven_heat=7,universal_oven_duration=8
+})do
+    assert(migratedCompact.levels[id]==max,"version 9 compact migration lost ranks: "..id)
+end
 local migratedMole=CharacterTraits.decode("universal_mole_companion=6\n")
 assert(migratedMole.levels.universal_mole_companion==1 and migratedMole.levels.universal_mole_damage==3 and
-    migratedMole.levels.universal_mole_claw==2 and migratedMole.levels.universal_mole_dual==1 and
+    migratedMole.levels.universal_mole_claw==3 and
     migratedMole.levels.universal_mole_extra==1,"legacy six-rank mole purchase was not migrated into the split graph")
 local migratedGrowth=CharacterTraits.decode("universal_yard=7\nuniversal_stride=4\n")
 for _,id in ipairs({"universal_yard","fire_score_yard_2","universal_yard_3","fire_score_yard_4",
@@ -175,20 +196,17 @@ store.data.levels.universal_robot_start=1
 store.data.levels.universal_robot_motor=5
 store.data.levels.universal_oil_drum=1
 store.data.levels.universal_gray_cat=1
-store.data.levels.universal_oil_interval=3;store.data.levels.universal_oil_radius=5
-store.data.levels.universal_oil_splash_count=4;store.data.levels.universal_oil_patch_scale=4
-store.data.levels.universal_oil_radius_2=4;store.data.levels.universal_oil_radius_3=3
-store.data.levels.universal_oil_splash_count_2=4
+store.data.levels.universal_oil_interval=3;store.data.levels.universal_oil_radius=12
+store.data.levels.universal_oil_splash_count=12
 store.data.levels.universal_oil_ignition_radius=4;store.data.levels.universal_oil_duration=4
 store.data.levels.universal_oil_burn_duration=4;store.data.levels.universal_oil_damage=5
-store.data.levels.universal_gray_cat_chance=3;store.data.levels.universal_gray_cat_delay=3
-store.data.levels.universal_gray_cat_speed=4;store.data.levels.universal_gray_cat_exit_speed=4
+store.data.levels.universal_gray_cat_chance=6
+store.data.levels.universal_gray_cat_speed=8
 store.data.levels.universal_mole_companion=1
 store.data.levels.universal_mole_damage=3;store.data.levels.universal_mole_speed=3
-store.data.levels.universal_mole_attack_speed=3;store.data.levels.universal_mole_claw=2
-store.data.levels.universal_mole_dual=1;store.data.levels.universal_mole_extra=2
-store.data.levels.universal_mole_burrow=1;store.data.levels.universal_mole_burrow_speed=3
-store.data.levels.universal_mole_burrow_damage=3;store.data.levels.universal_mole_burrow_cooldown=3
+store.data.levels.universal_mole_attack_speed=3;store.data.levels.universal_mole_claw=3
+store.data.levels.universal_mole_extra=2
+store.data.levels.universal_mole_burrow=1;store.data.levels.universal_mole_burrow_speed=9
 local splitGrowth=store:scoreAttackEffects()
 assert(splitGrowth.scoreYardExpansion==7,"split logging-yard expansion did not reach seven nodes")
 assert(splitGrowth.scoreTreeAllowance==60,"forest-capacity research did not reach the 100-tree runtime target")
@@ -208,13 +226,14 @@ for _,id in ipairs({"universal_stride","fire_score_stride_2","universal_stride_3
     "universal_yard_5","fire_score_yard_6","fire_score_yard_7"})do
     assert(store:getNode(id).max==1,id.." merged distributed progression back into a multi-rank node")
 end
-for _,id in ipairs({"fire_score_prewarm","fire_score_filter","fire_score_lighter","fire_score_spark","fire_score_launch","fire_score_ash","fire_score_drag","fire_score_heat"})do store.data.levels[id]=5 end
+for _,id in ipairs({"fire_score_prewarm","fire_score_ash","fire_score_drag","fire_score_heat"})do store.data.levels[id]=5 end
+store.data.levels.fire_score_filter=11;store.data.levels.fire_score_lighter=11
 store.data.levels.fire_score_stock=1
 local scoreSmoker=store:effects("fire")
-assert(scoreSmoker.scoreRange==80 and scoreSmoker.scoreArea==60,"score-mode permanent smoker geometry was not subdivided correctly")
+assert(scoreSmoker.scoreRange==96 and scoreSmoker.scoreArea==72,"score-mode permanent smoker geometry was not preserved after compaction")
 -- 확산은 런타임이 기준 연소시간 3.6초를 곱해 "옮겨붙는 기대 그루 수"로 쓴다.
 -- 5레벨 .235 → 만렙(6) .282, 즉 (.12+.282)*3.6 = 1.45그루로 임계점 1.00을 넘긴다.
-assert(math.abs(scoreSmoker.scoreIgnitionChance-.06)<1e-9 and math.abs(scoreSmoker.scoreSpreadChance-.235)<1e-9,"score-mode ignition traits were not separated")
+assert(math.abs(scoreSmoker.scoreIgnitionChance-.06)<1e-9 and math.abs(scoreSmoker.scoreSpreadChance-.235)<1e-9,"score-mode ignition traits were not preserved")
 assert(math.abs(scoreSmoker.scoreAttackSpeed-.20)<1e-9 and math.abs(scoreSmoker.scoreProjectileSpeed-.35)<1e-9 and math.abs(scoreSmoker.scoreBurnSpeed-.30)<1e-9 and scoreSmoker.scoreExtraFires==1,"score-mode permanent smoker pacing was not subdivided correctly")
 local earlySmoking=CharacterTraits.new(true)
 earlySmoking.data.currency=50000
@@ -298,7 +317,7 @@ throwStore.data.currency=400000
 throwStore.data.levels.fire_score_prewarm=1
 throwStore.data.levels.fire_score_alwayssmoke=1
 throwStore.data.levels.fire_score_autothrow=1
-for _=1,4 do assert(throwStore:buy("fire_score_autothrow_rate"),"auto-throw rate rank purchase failed") end
+for _=1,4 do assert(throwStore:buy("fire_score_autothrow"),"auto-throw rate rank purchase failed") end
 local throwEffects=throwStore:scoreAttackEffects()
 assert(math.abs(throwEffects.scoreAutoThrowRate-.36)<1e-9,"auto-throw rate research did not reach score runtime effects")
 assert(math.abs(2.6/(1+throwEffects.scoreAutoThrowRate)-2.6/1.36)<1e-9,"auto-throw interval formula drifted from the runtime")
@@ -375,14 +394,19 @@ local beforeRain=flameTree.rushHp
 assert(flameMode:updateFlamethrowerAttack(.13,flameGame,true)==false,"비가 오는데 화염방사기가 판정을 냈다")
 assert(flameTree.rushHp==beforeRain,"비가 오는데 화염방사기 직접 피해가 들어갔다")
 assert(flameMode.flameStream==nil,"비가 오는데 화염 기둥이 남아 있다")
--- 불 갈래 33 = 담배 9 + 탄약 관리 3(개비 재장전·보루 용량·보루 교체) + 공용 나무 피해 1
--- + 도끼 4 + 도끼 상위 3(충격파·연속 벌목·나무꾼 고용) + 후반 해금 3(상시 흡연·자동 투척·폭죽)
--- + 자동 투척 주기 1 + 폭죽 5. 탄약 관리 갈래는 startSmoking의 세 상수(개비 재장전 하한,
--- 보루 재장전 하한, 보루 크기 20)를 각각 여는 노드이며 폭죽 시각 특성 3개가 추가된다.
--- 이동·시야·작업 구역은 기존 장비 갈래 사이에 놓인 별도 노드를 유지한다. 화염방사기의
--- 반복 수치 카드만 네 개의 다중 랭크 카드로 접어 fire 64이고, universal은 기존 59를 유지한다.
-assert(#store:getScoreAttackNodes("fire")==64 and #store:getScoreAttackNodes("universal")==59,
-    "active research board node count changed outside the conservative flamethrower fold")
+-- 반복 카드만 접어 총 랭크와 비용은 유지하고, 공간·이동 카드는 건드리지 않는다.
+-- fire 53 + universal 48 = 활성 101노드다.
+assert(#store:getScoreAttackNodes("fire")==53 and #store:getScoreAttackNodes("universal")==48,
+    "active research board node count drifted from the approved compact graph")
+local activeRanks,activeBaseCost=0,0
+for _,job in ipairs({"fire","universal"})do
+    for _,node in ipairs(store:getScoreAttackNodes(job))do
+        activeRanks=activeRanks+node.max
+        for _,cost in ipairs(node.costs)do activeBaseCost=activeBaseCost+cost end
+    end
+end
+assert(activeRanks==339 and activeBaseCost==1851643,
+    string.format("compact graph changed progression economy: ranks=%d cost=%d",activeRanks,activeBaseCost))
 local pickupStore=CharacterTraits.new(true)
 pickupStore.data.levels.fire_score_pickup_1=3
 pickupStore.data.levels.fire_score_pickup_2=3
@@ -404,10 +428,10 @@ for _,node in ipairs(store:getScoreAttackNodes("fire"))do
             "flamethrower stacked rank metadata is incomplete: "..node.id)
     end
 end
-assert(rocketNodeCount==10 and rocketRanks==29 and rocketCost==59000,
+assert(rocketNodeCount==8 and rocketRanks==29 and rocketCost==59000,
     "firework stage pricing changed its node count, rank count, or total cost")
 assert(store:getNode("fire_score_rocket_unlock").targetTier==5 and
-    store:getNode("fire_score_rocket_finale").targetTier==7 and
+    store:getNode("fire_score_rocket_twin").rankTiers[3]==7 and
     store:getNode("fire_score_rocket_crew").targetTier==7,
     "firework progression is not documented across regeneration tiers 5-7")
 assert(flameNodeCount==4 and flameCost==784000,"flamethrower fold changed its rank count or total cost")
@@ -416,7 +440,7 @@ assert(store:getNode("fire_score_flame_unlock").targetTier==8 and
     "flamethrower progression is not documented from regeneration tier 8 onward")
 assert(flameRange==250,"maxed flamethrower research does not extend reach from 250 to 500")
 local popperUnlock=store:getNode("fire_score_popper_unlock")
-assert(#popperUnlock.requires==1 and popperUnlock.requires[1][1]=="universal_mole_dual" and popperUnlock.requires[1][2]==1,
+assert(#popperUnlock.requires==1 and popperUnlock.requires[1][1]=="universal_mole_claw" and popperUnlock.requires[1][2]==3,
     "monkey popping cart is not attached directly below the mole branch")
 for _, job in ipairs({"physical","fire","toxic","developer"}) do
     assert(#store:getNodes(job) >= 30, job .. " character graph has too few trait nodes")
@@ -466,8 +490,7 @@ assert(pcall(board.draw,board), "character trait board draw contract failed")
 assert(board.researchBackground==nil,"research board restored the removed forest-photo backdrop")
 local molePositions={};local minMoleY,maxMoleY=math.huge,-math.huge
 for _,id in ipairs({"universal_mole_companion","universal_mole_damage","universal_mole_speed","universal_mole_attack_speed",
-    "universal_mole_claw","universal_mole_dual","universal_mole_extra","universal_mole_burrow",
-    "universal_mole_burrow_speed","universal_mole_burrow_damage","universal_mole_burrow_cooldown"})do
+    "universal_mole_claw","universal_mole_extra","universal_mole_burrow","universal_mole_burrow_speed"})do
     local mx,my=board:nodeWorld(store:getNode(id));local key=mx..":"..my
     assert(not molePositions[key],"split mole research nodes overlap at "..key);molePositions[key]=true
     minMoleY,maxMoleY=math.min(minMoleY,my),math.max(maxMoleY,my)
@@ -479,23 +502,15 @@ local oilCatDistance=math.sqrt((oilX-catX)^2+(oilY-catY)^2)
 assert(oilY<catY and oilCatDistance>=500 and oilCatDistance<=750,
     "oil drum root is not visibly separated above its connected gray-cat branch")
 local chanceX,chanceY=board:nodeWorld(store:getNode("universal_gray_cat_chance"))
-local delayX,delayY=board:nodeWorld(store:getNode("universal_gray_cat_delay"))
 local speedX,speedY=board:nodeWorld(store:getNode("universal_gray_cat_speed"))
-local exitX,exitY=board:nodeWorld(store:getNode("universal_gray_cat_exit_speed"))
 local function catDistance(ax,ay,bx,by)return math.sqrt((ax-bx)^2+(ay-by)^2)end
 assert(catDistance(catX,catY,chanceX,chanceY)<=320,
     "gray cat chance upgrade is not attached to the cat unlock")
-assert(catDistance(chanceX,chanceY,delayX,delayY)<=320,
-    "gray cat delay upgrade is not the next node in the cat branch")
 assert(catDistance(catX,catY,speedX,speedY)<=430,
     "gray cat speed upgrade is not visibly grouped with the cat unlock")
-local exitNode=store:getNode("universal_gray_cat_exit_speed")
-assert(exitNode.requires[1][1]=="universal_gray_cat_speed"and not(speedX==exitX and speedY==exitY),
-    "gray cat exit-speed upgrade is not a distinct child of the entry-speed node")
-assert(not(chanceX==delayX and chanceY==delayY)and not(chanceX==speedX and chanceY==speedY),
+assert(not(chanceX==speedX and chanceY==speedY),
     "gray cat upgrades overlap instead of forming visible branches")
 local oilIds={"universal_oil_drum","universal_oil_interval","universal_oil_radius","universal_oil_splash_count",
-    "universal_oil_patch_scale","universal_oil_radius_2","universal_oil_radius_3","universal_oil_splash_count_2",
     "universal_oil_ignition_radius","universal_oil_duration","universal_oil_damage","universal_oil_burn_duration"}
 local oilPositions={}
 for _,id in ipairs(oilIds)do
@@ -512,11 +527,11 @@ local root=store:getNode("fire_score_prewarm")
 local rx,ry=board:nodeWorld(root)
 assert(store:getNode("fire_score_impact")==nil,"removed cigarette-impact research still has a board position")
 local directions={left=false,right=false,up=false,down=false}
-for _,id in ipairs({"fire_score_filter","fire_score_lighter","fire_score_launch","fire_score_alwayssmoke"})do
+for _,id in ipairs({"fire_score_filter","fire_score_lighter","fire_score_alwayssmoke"})do
     local nx,ny=board:nodeWorld(store:getNode(id));local dx,dy=nx-rx,ny-ry
     if math.abs(dx)>math.abs(dy)then directions[dx<0 and"left"or"right"]=true else directions[dy<0 and"up"or"down"]=true end
 end
-assert(directions.left and directions.right and directions.up and directions.down,"smoker root does not place always-smoking as its downward second node")
+assert(directions.left and directions.right and directions.down,"smoker root does not keep its three readable opening branches")
 for i=1,#board.nodeBoxes do for j=i+1,#board.nodeBoxes do
     local a,b=board.nodeBoxes[i],board.nodeBoxes[j]
     local separated=a.x+a.w<=b.x or b.x+b.w<=a.x or a.y+a.h<=b.y or b.y+b.h<=a.y
@@ -524,9 +539,7 @@ for i=1,#board.nodeBoxes do for j=i+1,#board.nodeBoxes do
 end end
 assert(board.viewInitialized and board.zoom==board.referenceZoom and board.referenceZoom>=.56 and board.referenceZoom<=.80,"research tree did not open at its authored reference spacing")
 local function distance(a,b)local ax,ay=board:nodeWorld(store:getNode(a));local bx,by=board:nodeWorld(store:getNode(b));return math.sqrt((ax-bx)^2+(ay-by)^2)end
-assert(distance("fire_score_prewarm","fire_score_filter")==distance("fire_score_filter","fire_score_spark"),"left branch step lengths differ")
 assert(distance("fire_score_prewarm","fire_score_lighter")==distance("fire_score_lighter","fire_score_ash"),"right branch step lengths differ")
-assert(distance("fire_score_prewarm","fire_score_launch")==distance("fire_score_launch","fire_score_drag"),"upper branch step lengths differ")
 assert(distance("fire_score_prewarm","fire_score_alwayssmoke")==distance("fire_score_alwayssmoke","fire_score_autothrow"),"always-smoking branch step lengths differ")
 store.data.currency=1000
 local rootBox
