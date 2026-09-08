@@ -39,7 +39,7 @@ for _,n in ipairs(trees)do assert(not n.active and n.uprooted and not n.fallT,"d
 local flying=mode.construction.flyingTrees[1]
 local rootX,rootY=trees[1].x,trees[1].y
 Builder.update(mode,game,.4,false)
-assert(flying.x>flying.startX and flying.height>200 and flying.angle>0,"tree lacks directional flight, arc or rotation")
+assert(flying.x>flying.startX and flying.height>0 and flying.height<=110 and flying.angle>0,"tree lacks low, heavy directional flight")
 assert(trees[1].x==rootX and trees[1].y==rootY,"visual flight moved respawn roots")
 Builder.update(mode,game,2,false)
 assert(#mode.construction.flyingTrees==0 and mode.treesFelled==score+3,"flight leaked or scored twice")

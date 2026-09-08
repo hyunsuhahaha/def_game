@@ -39,6 +39,13 @@ end
 
 function Builder.update(mode,game,dt,held,tx,ty)
     local c=mode.construction;if not c then return end
+    -- A short audible sequence, bounded across all loads, not ten sounds at once.
+    c.crackQueue=c.crackQueue or 0
+    c.crackTimer=math.max(0,(c.crackTimer or 0)-dt)
+    if c.crackQueue>0 and c.crackTimer<=0 then
+        if game.feedback then game.feedback:play("axe_wood",true,.82+math.min(8,c.crackStep or 0)*.045)end
+        c.crackQueue=c.crackQueue-1;c.crackTimer=.055;c.crackStep=(c.crackStep or 0)+1
+    elseif c.crackQueue==0 then c.crackStep=0 end
     c.contactDust=c.contactDust or {}
     for i=#c.contactDust,1,-1 do
         local p=c.contactDust[i];p.age=p.age+dt
@@ -57,8 +64,8 @@ function Builder.update(mode,game,dt,held,tx,ty)
         tree.t=math.min(tree.duration,tree.t+dt)
         local u=tree.t/tree.duration
         tree.x,tree.y=tree.startX+tree.nx*tree.distance*u,tree.startY+tree.ny*tree.distance*u
-        tree.height=math.sin(u*math.pi)*320
-        tree.angle=(tree.nx<0 and -1 or 1)*u*math.pi*1.7
+        tree.height=math.sin(u*math.pi)*110
+        tree.angle=(tree.nx<0 and -1 or 1)*u*math.pi*.75
         if u>=1 then
             game.world:spawnFallImpact({x=tree.x,y=tree.y,rushMaxHp=5,fallDir=tree.nx<0 and -1 or 1,fallReach=25},game)
             table.remove(c.flyingTrees,i)
@@ -88,17 +95,21 @@ function Builder.update(mode,game,dt,held,tx,ty)
     end
     for index=#c.loads,1,-1 do
         local load=c.loads[index];local oldAge=load.age;load.age=load.age+dt
-        load.height=c.dropHeight*(1-math.min(1,load.age/.4)^2)
+        -- Hold on the hoist for 120ms, then fall decisively; contact stays at .4s.
+        load.height=c.dropHeight*(1-math.max(0,math.min(1,(load.age-.12)/.28))^2)
         -- Damage starts on ground contact. Sweep the full travelled segment so
         -- fast material cannot tunnel through a tree between rendered frames.
         local groundDt=math.max(0,load.age-.4)-math.max(0,oldAge-.4)
         if groundDt>0 then
             if oldAge<=.4 then
                 contact(load,true)
+                if game.feedback then game.feedback:play("crane_land",true,.88)end
             end
             -- Build momentum instead of instantly shooting off at full speed.
             local ramp=math.min(1,(load.age-.4)/.7)
-            local distance=math.min(load.stats.range-load.travelled,load.stats.speed*groundDt*(.22+.78*ramp))
+            local pause=math.min(groundDt,load.impactPause or 0)
+            load.impactPause=math.max(0,(load.impactPause or 0)-groundDt)
+            local distance=math.min(load.stats.range-load.travelled,load.stats.speed*(groundDt-pause)*(.22+.78*ramp))
             local ax,ay=load.x,load.y
             load.x,load.y=Maps.constrain(game.world,ax+load.nx*distance,ay+load.ny*distance,load.stats.radius)
             load.travelled=load.travelled+distance;load.roll=load.travelled/load.stats.radius
@@ -121,11 +132,14 @@ function Builder.update(mode,game,dt,held,tx,ty)
                     load.hit[node]=true
                     mode:damageTreeWithSmokerWeapon(node,load.stats.damage,game)
                     if not node.active then
+                        load.felled=(load.felled or 0)+1
+                        if load.felled==1 then load.impactPause=.045 end
+                        c.crackQueue=math.min(8,c.crackQueue+1)
                         local im,scale=game.world:treeRenderSpec(node)
                         if #c.flyingTrees>=80 then table.remove(c.flyingTrees,1)end
                         c.flyingTrees[#c.flyingTrees+1]={image=im,scale=game.world.treeVisual.scale*scale,
                             startX=node.x,startY=node.y,x=node.x,y=node.y,nx=load.nx,ny=load.ny,
-                            distance=560+load.stats.radius*2,t=0,duration=1.15,height=0,angle=0}
+                            distance=180+load.stats.radius*3,t=0,duration=.65,height=0,angle=0}
                         node.fallT=nil;node.uprooted=true
                     end
                 end
@@ -137,7 +151,7 @@ function Builder.update(mode,game,dt,held,tx,ty)
                     enemy.visualHit=.18
                 end
             end
-            if load.travelled>=load.stats.range or (load.x-ax)^2+(load.y-ay)^2<.001 then table.remove(c.loads,index)end
+            if load.travelled>=load.stats.range or (distance>0 and (load.x-ax)^2+(load.y-ay)^2<.001) then table.remove(c.loads,index)end
         end
     end
 end

@@ -4,12 +4,18 @@ Feedback.__index = Feedback
 local function makeSource(kind)
     local rate, duration = 22050, kind=="creak" and 1.05 or kind=="tier_up" and .46 or kind=="ignite" and .19 or kind=="axe_wood" and .18 or kind=="popper" and .24 or kind=="butt_hit" and .12 or kind=="ember_land" and .09 or .11
     local count = math.floor(rate * duration)
+    if kind=="crane_land" then duration=.48;count=math.floor(rate*duration)end
     local data = love.sound.newSoundData(count, rate, 16, 1)
     for i = 0, count - 1 do
         local t, fade = i / rate, 1 - i / count
         local noise = love.math.random() * 2 - 1
         local sample
-        if kind == "creak" then
+        if kind=="crane_land" then
+            local bass=math.sin((t*66-t*t*32)*math.pi*2)*.72*math.exp(-t*7)
+            local strike=noise*.48*math.exp(-t*65)
+            local rubble=noise*.17*math.exp(-t*9)*( .5+.5*math.sin(t*79)^2)
+            sample=(bass+strike+rubble)*math.min(1,t/.002)*fade
+        elseif kind == "creak" then
             local groan=math.sin((t*72+t*t*34)*math.pi*2)*.34
             local rub=math.sin((t*187+math.sin(t*19)*.7)*math.pi*2)*.12
             sample=(groan+rub+noise*.16)*(math.sin(math.min(1,t/duration)*math.pi)^.55)
@@ -62,7 +68,7 @@ end
 function Feedback.new(volume)
     local self = setmetatable({pools = {}, cursor = {},volume=math.max(0,math.min(1,volume or 1))}, Feedback)
     local ok = pcall(function()
-        for _, kind in ipairs({"tree", "axe_wood", "stone", "ore", "metal", "harvest", "grass", "creak", "ember_land", "butt_hit", "ignite", "tier_up", "popper"}) do
+        for _, kind in ipairs({"tree", "axe_wood", "stone", "ore", "metal", "harvest", "grass", "creak", "ember_land", "butt_hit", "ignite", "tier_up", "popper", "crane_land"}) do
             self.pools[kind], self.cursor[kind] = {}, 1
             local source = makeSource(kind)
             source:setVolume(kind == "harvest" and .22 or kind=="grass" and .11 or kind=="creak" and .24 or .16)
@@ -77,14 +83,14 @@ function Feedback:setVolume(volume)
     self.volume=math.max(0,math.min(1,volume or 1))
 end
 
-function Feedback:play(kind, strong)
+function Feedback:play(kind, strong, pitch)
     local pool = self.pools[kind] or self.pools.harvest
     if not pool then return end
     local index = self.cursor[kind] or 1
     local source = pool[index]
     self.cursor[kind] = index % #pool + 1
     source:stop()
-    source:setPitch((strong and .88 or 1) + love.math.random() * .12)
+    source:setPitch(pitch or ((strong and .88 or 1) + love.math.random() * .12))
     source:setVolume((strong and .28 or .16)*(self.volume or 1))
     source:play()
 end
