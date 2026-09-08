@@ -101,7 +101,7 @@ for direction=0,7 do
     game.world.nodes={near,far,missed};mode.enemies={}
     mode.construction.loads={};mode.construction.cooldown=0
     Builder.update(mode,game,.2,true,operator.x+nx*600,operator.y+ny*600)
-    assert(#mode.construction.loads==1 and mode.construction.loads[1].halfLength==126,"expected one long cylinder")
+    assert(#mode.construction.loads==1 and mode.construction.loads[1].halfLength==72,"expected one narrowed cylinder")
     assert(near.rushHp==10000 and far.rushHp==10000,"airborne material damaged trees")
     Builder.update(mode,game,.8,false)
     assert(near.rushHp==8800 and far.rushHp==8800,"material failed continuous collision direction "..direction)
@@ -118,7 +118,7 @@ Builder.update(mode,game,1,true,operator.x+600,operator.y)
 assert(boss.hp==18800,"construction material cannot damage world tree")
 for _,node in ipairs(Builder.nodes)do store.data.levels[node.id]=node.max end
 local stats=Builder.stats(store)
-assert(stats.damage==4800 and stats.payload==3 and stats.boss==3 and stats.radius==82,
+assert(stats.damage==4800 and stats.payload==3 and stats.boss==3 and stats.radius==64 and stats.range==1400,
     "construction capstones do not affect real attack stats")
 print("JOB_MASTER_OK save+migration final-node fresh-builder full-smoker-runtime all-directions ground-contact sweep once-per-load boss cleanup")
 return game

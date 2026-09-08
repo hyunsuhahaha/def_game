@@ -577,6 +577,7 @@ function ClearcutMode:setup(game)
     local spawnX, spawnY = w / 2, h / 2
     game.player.x, game.player.y = spawnX, spawnY
     self.scoreTreeAllowance=(self.scoreBaseTreeAllowance or 12)+(self.permanentTraits.scoreTreeAllowance or 0)+yardExpansion*4
+    if self.scoreAttack and (self.scoreRegenTier or 1)>=11 then self.scoreTreeAllowance=self.scoreTreeAllowance+80 end
     self.scoreBaseAllowance=self.scoreTreeAllowance
     if self.scoreAttack then
         self.permanentTraits.range=(self.permanentTraits.range or 0)+(self.permanentTraits.scoreRange or 0)
@@ -710,6 +711,7 @@ function ClearcutMode:scoreTreeSpawnRate()
     local base=math.max(0,self.treeSpawnRate or .55)
     if self.scoreAttack then
         base=self:scoreTimedTreeSpawnRate()*self:scoreTimePressureMultiplier()*density
+        if (self.scoreRegenTier or 1)>=11 then base=base*.45 end
         -- 무허가 확장: 허용량을 크게 얻는 대신 숲이 더 빨리 차오른다.
         if self:scoreReward("permit")then base=base*1.5 end
         -- 할당량 감축: 숲이 천천히 차오르는 대신 목재값을 깎는다.
@@ -1595,6 +1597,9 @@ function ClearcutMode:advanceScoreRegenTier(game,reseed,reason)
     local enteringUpland=self.scoreRegenTier==require("src.upland").START_TIER and not game.world.upland
     require("src.clearcut_maps").configureScoreTier(game.world,self.scoreRegenTier)
     if enteringUpland then
+        self.scoreTreeAllowance=self.scoreTreeAllowance+80
+        self.scoreBaseAllowance=(self.scoreBaseAllowance or 12)+80
+        self.scoreOvercrowdTimer=0
         ForestScenery.generate(game.world,self.stage);require("src.clearcut_maps").filterScenery(game.world)
     end
     self.scoreHighestRegenTier=math.max(self.scoreHighestRegenTier or 1,self.scoreRegenTier)

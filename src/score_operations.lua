@@ -25,7 +25,9 @@ for _,definition in ipairs(ScoreOperations.definitions)do byId[definition.id]=de
 function ScoreOperations.is(id)return byId[id]~=nil end
 function ScoreOperations.get(id)return byId[id]end
 function ScoreOperations.woodXpMultiplier(mode)return 1+(mode:levelOf("wood_sorter")*.15)end
-function ScoreOperations.overcrowdGrace(mode)return mode:levelOf("safety_system")*.25 end
+function ScoreOperations.overcrowdGrace(mode)
+    return mode:levelOf("safety_system")*.25+((mode.scoreAttack and (mode.scoreRegenTier or 1)>=11)and 8 or 0)
+end
 function ScoreOperations.attackSpeedMultiplier(mode)return 1+mode:levelOf("score_attack_speed")*.18 end
 function ScoreOperations.weaponDamage(mode)return mode:levelOf("score_weapon_damage")end
 function ScoreOperations.weaponArea(mode)return mode:levelOf("score_weapon_area")*18 end

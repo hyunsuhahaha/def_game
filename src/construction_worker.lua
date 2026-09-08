@@ -26,7 +26,7 @@ function Builder.stats(store)
     local v={}
     for _,node in ipairs(Builder.nodes)do v[node.effect]=(store:getLevel(node.id)or 0)*node.value end
     return {damage=(900+v.damage)*(1+v.final),speed=680+v.speed,interval=1.35-v.interval,
-        radius=42+v.radius,range=1100+v.range,payload=1+v.payload,boss=1+v.boss,
+        radius=24+v.radius,range=600+v.range,payload=1+v.payload,boss=1+v.boss,
         capacity=v.capacity,moveSpeed=320*(1+v.move)}
 end
 

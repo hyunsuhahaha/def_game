@@ -10,14 +10,14 @@ for _,size in ipairs({{960,540},{1280,720},{1920,1080}})do
         local world={width=3200*scale,height=2000*scale}
         game.camera:update(0,game.player,world)
         local x,y,z=game.camera.x,game.camera.y,game.camera.zoom
-        for _,p in ipairs({{0,0},{world.width,world.height}})do
+        for _,p in ipairs({{x-100,y-60},{x+100,y+60}})do
             local sx,sy=game.camera:worldToScreen(p[1],p[2])
-            assert(sx>=0 and sx<=w and sy>=0 and sy<=h,"whole map/mast cropped")
+            assert(game.camera.x==game.player.x and game.camera.y==game.player.y,"camera lost operator")
             local wx,wy=game.camera:screenToWorld(sx,sy)
             assert(math.abs(wx-p[1])<.01 and math.abs(wy-p[2])<.01,"overview aim inverse drift")
         end
         game.camera:update(.5,{x=world.width,y=0},world)
-        assert(game.camera.x==x and game.camera.y==y and game.camera.zoom==z,"overview follows player")
+        assert(game.camera.x==world.width and game.camera.y==0 and game.camera.zoom==z,"camera must follow without map-fit zoom")
     end
 end
 love.graphics.getDimensions=function()return 1280,720 end

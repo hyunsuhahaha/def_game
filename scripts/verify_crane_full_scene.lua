@@ -67,8 +67,7 @@ assert(game.camera.perspective and game.camera.pitch<1,"crane must retain perspe
 local b=game.world.playBounds
 local left,top=game.camera:worldToScreen(b.x,b.y)
 local right,bottom=game.camera:worldToScreen(b.x+b.w,b.y+b.h)
-assert(left>=0 and right<=1280 and top>=0 and bottom<=720,"playable map clipped")
-assert(right-left>=1280*(game.world.lakeside and .55 or .80),"playable map lost its readable overview footprint")
+assert(math.abs(game.camera.x-game.player.x)<.001 and math.abs(game.camera.y-game.player.y)<.001,"crane camera lost operator follow")
 if game.world.lakeside then
     local lake=0
     for _,op in ipairs(fixture.commands)do if op.file=="assets/scenery/lakeside/lakeside-environment-pixel-v1.png"then lake=lake+1 end end

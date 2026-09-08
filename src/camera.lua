@@ -117,35 +117,11 @@ end
 function Camera:update(dt, target, world)
     local w, h = love.graphics.getDimensions()
     if self.craneOverview then
-        -- Fit the full playable forest, not its unused enclosing canvas.
-        -- Preserve the normal tilted ground and upright combat billboard pass.
-        local b=world.playBounds or {x=0,y=0,w=world.width,h=world.height}
-        local pitch=clamp(self.pitch or .76,.72,1)
-        self.perspective=true;self.pitch=pitch
-        self.x,self.y=b.x+b.w/2,b.y+b.h/2-40/pitch
-        self.zoom=math.min((w-48)/(b.w+64),(h-112)/(b.h*pitch+120))
-        if world.lakeside then
-            local left,top=b.x-world.width*.12,b.y-world.height*.35
-            local right,bottom=world.width*1.30,world.height*1.12
-            local tx,ty=(left+right)/2,(top+bottom)/2
-            local tz=math.min((w-32)/(right-left),(h-64)/((bottom-top)*pitch))
-            local halfView=h/(2*tz*pitch)
-            local low,high=-world.height*.19/.54+halfView,world.height*.81/.54-halfView
-            if low<=high then ty=clamp(ty,low,high)end
-            local blend=world.lakeOpening and(1-math.exp(-dt*3.5))or 1
-            -- Save the prior overview before recomputing the new target.
-            self.x=(self.lakeX or tx)+(tx-(self.lakeX or tx))*blend
-            self.y=(self.lakeY or ty)+(ty-(self.lakeY or ty))*blend
-            self.zoom=(self.lakeZoom or tz)+(tz-(self.lakeZoom or tz))*blend
-            self.lakeX,self.lakeY,self.lakeZoom=self.x,self.y,self.zoom
-        else self.lakeX,self.lakeY,self.lakeZoom=nil,nil,nil end
-        local zoomFactor=self.userZoom or 1
-        self.zoom=self.zoom*zoomFactor
-        if zoomFactor>1 then
-            local blend=math.min(1,(zoomFactor-1)*2)
-            self.x=self.x+(target.x-self.x)*blend
-            self.y=self.y+(target.y-self.y)*blend
-        end
+        self.perspective=true
+        self.pitch=clamp(self.pitch or .76,.72,1)
+        self.userZoom=clamp(self.userZoom or 1,.90,1.10)
+        self.zoom=(world.stageZoom or .84)*.85*self.userZoom
+        self.x,self.y=target.x,target.y
         self:syncRender(true)
         return
     end

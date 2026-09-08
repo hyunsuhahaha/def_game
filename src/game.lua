@@ -1042,7 +1042,7 @@ function Game:wheelmoved(x, y)
     if not (love.keyboard.isDown("lctrl") or love.keyboard.isDown("rctrl")) then return end
     local factor = y > 0 and 1.1 or 1 / 1.1
     if self.camera.craneOverview then
-        self.camera.userZoom=math.max(.65,math.min(3,(self.camera.userZoom or 1)*factor))
+        self.camera.userZoom=math.max(.90,math.min(1.10,(self.camera.userZoom or 1)*factor))
         self.camera:update(0,self.player,self.world)
         return
     end
