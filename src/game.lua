@@ -26,6 +26,7 @@ local AchievementBoard = require("src.achievement_board")
 local BuildInfo = require("src.build_info")
 local resourceLabels = {wood = "목재", stone = "돌", ore = "광석", food = "식량"}
 local VIEW_PITCH_MIN,VIEW_PITCH_MAX=.72,1
+local SCORE_TIER_MAX=10
 
 local Game = {}
 Game.__index = Game
@@ -222,7 +223,7 @@ function Game:startClearcut(characterId, mapId, stage)
     if self.clearcut.pending>0 then self.clearcut:openUpgradeChoices(self) end
 end
 function Game:openScoreTierSelect()
-    self.scoreTierMax=math.max(1,self.characterTraits and self.characterTraits:getRegenTier()or 1)
+    self.scoreTierMax=SCORE_TIER_MAX
     self.scoreTierChoice=self.scoreTierMax
     self.mode="score_tier_select"
 end
@@ -232,7 +233,7 @@ end
 function Game:startClearcutScoreAttack(startTier,tutorialMode)
     if self.characterTraits then self.characterTraits:completeJobMaster()end
     local unlocked=math.max(1,self.characterTraits and self.characterTraits:getRegenTier()or 1)
-    startTier=math.max(1,math.min(unlocked,math.floor(startTier or unlocked)))
+    startTier=math.max(1,math.min(SCORE_TIER_MAX,math.floor(startTier or unlocked)))
     self:resetRun()
     self.clearcut=ClearcutMode.new()
     -- "fire" is the archived runtime loadout id used by the current weapon set.
