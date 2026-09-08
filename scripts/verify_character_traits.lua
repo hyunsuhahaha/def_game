@@ -146,11 +146,15 @@ for _,id in ipairs({"universal_stride","fire_score_stride_2","universal_stride_3
 end
 local migratedFlame=CharacterTraits.decode("fire_score_flame_damage=5\nfire_score_flame_range=5\nfire_score_flame_width=4\nfire_score_flame_ignite=4\n")
 for _,baseAndMax in ipairs({{"fire_score_flame_damage",5},{"fire_score_flame_range",5},{"fire_score_flame_width",4},{"fire_score_flame_ignite",4}})do
-    for rank=1,baseAndMax[2]do
-        local id=baseAndMax[1]..(rank==1 and ""or"_"..rank)
-        assert(migratedFlame.levels[id]==1,"legacy flamethrower rank was not migrated into split nodes: "..id)
-    end
+    assert(migratedFlame.levels[baseAndMax[1]]==baseAndMax[2],
+        "legacy stacked flamethrower rank was not preserved: "..baseAndMax[1])
 end
+local migratedSplitFlame=CharacterTraits.decode("version=8\nfire_score_flame_damage=1\nfire_score_flame_damage_2=1\nfire_score_flame_damage_3=1\nfire_score_flame_damage_4=1\nfire_score_flame_damage_5=1\nfire_score_flame_range=1\nfire_score_flame_range_2=1\nfire_score_flame_range_3=1\nfire_score_flame_range_4=0\nfire_score_flame_range_5=0\nfire_score_flame_width=1\nfire_score_flame_width_2=1\nfire_score_flame_width_3=1\nfire_score_flame_width_4=0\nfire_score_flame_ignite=1\nfire_score_flame_ignite_2=1\nfire_score_flame_ignite_3=0\nfire_score_flame_ignite_4=0\n")
+assert(migratedSplitFlame.levels.fire_score_flame_damage==5 and
+    migratedSplitFlame.levels.fire_score_flame_range==3 and
+    migratedSplitFlame.levels.fire_score_flame_width==3 and
+    migratedSplitFlame.levels.fire_score_flame_ignite==2,
+    "version 8 split flamethrower nodes were not folded into stacked ranks")
 store.data.currency = 300
 local blocked = store:buy("physical_axe")
 assert(not blocked, "dependent character trait unlocked before its prerequisite")
@@ -375,11 +379,10 @@ assert(flameMode.flameStream==nil,"비가 오는데 화염 기둥이 남아 있�
 -- + 도끼 4 + 도끼 상위 3(충격파·연속 벌목·나무꾼 고용) + 후반 해금 3(상시 흡연·자동 투척·폭죽)
 -- + 자동 투척 주기 1 + 폭죽 5. 탄약 관리 갈래는 startSmoking의 세 상수(개비 재장전 하한,
 -- 보루 재장전 하한, 보루 크기 20)를 각각 여는 노드이며 폭죽 시각 특성 3개가 추가된다.
--- 이동·시야·작업 구역과 화염방사기 강화 단계는 한 노드의 다단계가 아니라 기존 장비
--- 갈래 사이에 놓인 별도 1레벨 노드다. 대시 해금·거리 2개, 초·후반 목재 흡수 범위 2개와 뻥튀기 9개,
--- 꽁초 즉시 타격을 기본 동작으로 옮겨 fire 78이고, universal은 기존 59를 유지한다.
-assert(#store:getScoreAttackNodes("fire")==78 and #store:getScoreAttackNodes("universal")==59,
-    "active research board did not expose the distributed one-rank nodes")
+-- 이동·시야·작업 구역은 기존 장비 갈래 사이에 놓인 별도 노드를 유지한다. 화염방사기의
+-- 반복 수치 카드만 네 개의 다중 랭크 카드로 접어 fire 64이고, universal은 기존 59를 유지한다.
+assert(#store:getScoreAttackNodes("fire")==64 and #store:getScoreAttackNodes("universal")==59,
+    "active research board node count changed outside the conservative flamethrower fold")
 local pickupStore=CharacterTraits.new(true)
 pickupStore.data.levels.fire_score_pickup_1=3
 pickupStore.data.levels.fire_score_pickup_2=3
@@ -394,9 +397,11 @@ for _,node in ipairs(store:getScoreAttackNodes("fire"))do
     end
     if node.id:match("^fire_score_flame_damage")or node.id:match("^fire_score_flame_range")or
         node.id:match("^fire_score_flame_width")or node.id:match("^fire_score_flame_ignite")then
-        flameNodeCount=flameNodeCount+1;flameCost=flameCost+node.costs[1]
-        if node.effect=="scoreFlameRange"then flameRange=flameRange+node.value end
-        assert(node.max==1 and #node.costs==1,"flamethrower upgrade still contains stacked ranks: "..node.id)
+        flameNodeCount=flameNodeCount+1
+        for _,cost in ipairs(node.costs)do flameCost=flameCost+cost end
+        if node.effect=="scoreFlameRange"then flameRange=flameRange+node.value*node.max end
+        assert(node.max==#node.costs and node.max==#node.rankTiers,
+            "flamethrower stacked rank metadata is incomplete: "..node.id)
     end
 end
 assert(rocketNodeCount==10 and rocketRanks==29 and rocketCost==59000,
@@ -405,9 +410,9 @@ assert(store:getNode("fire_score_rocket_unlock").targetTier==5 and
     store:getNode("fire_score_rocket_finale").targetTier==7 and
     store:getNode("fire_score_rocket_crew").targetTier==7,
     "firework progression is not documented across regeneration tiers 5-7")
-assert(flameNodeCount==18 and flameCost==784000,"flamethrower split changed its rank count or total cost")
+assert(flameNodeCount==4 and flameCost==784000,"flamethrower fold changed its rank count or total cost")
 assert(store:getNode("fire_score_flame_unlock").targetTier==8 and
-    store:getNode("fire_score_flame_damage_5").targetTier==10,
+    store:getNode("fire_score_flame_damage").rankTiers[5]==10,
     "flamethrower progression is not documented from regeneration tier 8 onward")
 assert(flameRange==250,"maxed flamethrower research does not extend reach from 250 to 500")
 local popperUnlock=store:getNode("fire_score_popper_unlock")

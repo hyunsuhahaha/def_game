@@ -282,28 +282,14 @@ local scoreFireNodes={
     -- 달리 누르고 있는 동안 계속 뿜는 지속 무기라, 후반 과밀 숲을 훑어서 태운다.
     {id="fire_score_flame_unlock",name="화염방사기 해금",short="화염방사기",desc="근접 대상이 없을 때의 원거리 공격이 화염방사기로 자동 전환됩니다. 누르고 있는 동안 굵은 화염 기둥이 매 틱 직접 피해를 주고, 추가로 불을 붙입니다.",effect="scoreFlameUnlock",value=1,max=1,costs={16000},targetTier=8,wx=1100,wy=2850,icon="ember",color={1,.44,.12},requires={{"fire_score_rocket_crew",1}},capstone=true},
     {id="fire_score_capacity_8",name="산림 수용 확장 V",short="허용량 +8",desc="나무 허용량이 8그루 증가합니다. 재생 8단계부터 연구할 수 있습니다.",effect="scoreTreeAllowance",value=8,max=1,costs={18000},requiresTier=8,wx=1650,wy=3000,icon="map",color={.42,.78,.52},requires={{"fire_score_flame_unlock",1}}},
-    -- 한 칸에서 4~5번 사는 대신 매 단계가 보드의 실제 선택지가 되도록 전부 1단계로 분리한다.
-    -- 기존 ID는 1단계에 남겨 구버전 저장을 복구할 수 있게 한다.
-    {id="fire_score_flame_damage",name="화염 피해 상승",short="화염 피해 +1",desc="화염이 나무에 주는 초당 피해 +1 (기본 초당 3)",effect="scoreFlameDamage",value=1,max=1,costs={12000},targetTier=8,wx=650,wy=3350,icon="fist",color={1,.56,.20},requires={{"fire_score_flame_unlock",1}}},
-    {id="fire_score_flame_range",name="화염 분사 거리 상승",short="분사 거리 +50",desc="화염이 닿는 거리 +50 (기본 300)",effect="scoreFlameRange",value=50,max=1,costs={14000},targetTier=8,wx=1000,wy=3350,icon="wind",color={.94,.66,.28},requires={{"fire_score_flame_unlock",1}}},
-    {id="fire_score_flame_width",name="화염 기둥 굵기 상승",short="기둥 폭 +28",desc="화염 기둥의 전체 폭 +28 (기본 폭 144)",effect="scoreFlameWidth",value=14,max=1,costs={16000},targetTier=8,wx=1350,wy=3350,icon="split",color={1,.50,.16},requires={{"fire_score_flame_unlock",1}}},
-    {id="fire_score_flame_ignite",name="화염 착화 확률 상승",short="착화 +8%p",desc="화염에 닿아 있는 나무가 초당 불붙을 확률 +8%p (기본 18%)",effect="scoreFlameIgnite",value=.08,max=1,costs={18000},targetTier=8,wx=450,wy=3600,icon="ember",color={1,.36,.10},requires={{"fire_score_flame_range",1},{"fire_score_flame_width",1}}},
-    {id="fire_score_flame_damage_2",name="화염 피해 상승",short="화염 피해 +1",desc="화염이 나무에 주는 초당 피해 +1",effect="scoreFlameDamage",value=1,max=1,costs={20000},targetTier=8,wx=800,wy=3600,icon="fist",color={1,.56,.20},requires={{"fire_score_flame_damage",1}}},
-    {id="fire_score_flame_range_2",name="화염 분사 거리 상승",short="분사 거리 +50",desc="화염이 닿는 거리 +50",effect="scoreFlameRange",value=50,max=1,costs={20000},targetTier=8,wx=1150,wy=3600,icon="wind",color={.94,.66,.28},requires={{"fire_score_flame_range",1}}},
-    {id="fire_score_flame_width_2",name="화염 기둥 굵기 상승",short="기둥 폭 +28",desc="화염 기둥의 전체 폭 +28",effect="scoreFlameWidth",value=14,max=1,costs={22000},targetTier=8,wx=1500,wy=3600,icon="split",color={1,.50,.16},requires={{"fire_score_flame_width",1}}},
-    {id="fire_score_flame_damage_3",name="화염 피해 상승",short="화염 피해 +1",desc="화염이 나무에 주는 초당 피해 +1",effect="scoreFlameDamage",value=1,max=1,costs={30000},targetTier=9,wx=450,wy=3850,icon="fist",color={1,.56,.20},requires={{"fire_score_flame_damage_2",1}}},
-    {id="fire_score_flame_range_3",name="화염 분사 거리 상승",short="분사 거리 +50",desc="화염이 닿는 거리 +50",effect="scoreFlameRange",value=50,max=1,costs={36000},targetTier=9,wx=800,wy=3850,icon="wind",color={.94,.66,.28},requires={{"fire_score_flame_range_2",1}}},
-    {id="fire_score_flame_ignite_2",name="화염 착화 확률 상승",short="착화 +8%p",desc="화염에 닿아 있는 나무가 초당 불붙을 확률 +8%p",effect="scoreFlameIgnite",value=.08,max=1,costs={42000},targetTier=9,wx=1150,wy=3850,icon="ember",color={1,.36,.10},requires={{"fire_score_flame_ignite",1}}},
-    {id="fire_score_flame_width_3",name="화염 기둥 굵기 상승",short="기둥 폭 +28",desc="화염 기둥의 전체 폭 +28",effect="scoreFlameWidth",value=14,max=1,costs={42000},targetTier=9,wx=1500,wy=3850,icon="split",color={1,.50,.16},requires={{"fire_score_flame_width_2",1}}},
-    {id="fire_score_flame_damage_4",name="화염 피해 상승",short="화염 피해 +1",desc="화염이 나무에 주는 초당 피해 +1",effect="scoreFlameDamage",value=1,max=1,costs={50000},targetTier=9,wx=450,wy=4100,icon="fist",color={1,.56,.20},requires={{"fire_score_flame_damage_3",1}}},
-    {id="fire_score_flame_ignite_3",name="화염 착화 확률 상승",short="착화 +8%p",desc="화염에 닿아 있는 나무가 초당 불붙을 확률 +8%p",effect="scoreFlameIgnite",value=.08,max=1,costs={52000},targetTier=9,wx=800,wy=4100,icon="ember",color={1,.36,.10},requires={{"fire_score_flame_ignite_2",1}}},
-    {id="fire_score_flame_range_4",name="화염 분사 거리 상승",short="분사 거리 +50",desc="화염이 닿는 거리 +50",effect="scoreFlameRange",value=50,max=1,costs={50000},targetTier=9,wx=1150,wy=4100,icon="wind",color={.94,.66,.28},requires={{"fire_score_flame_range_3",1}}},
-    {id="fire_score_flame_width_4",name="화염 기둥 굵기 상승",short="기둥 폭 +28",desc="화염 기둥의 전체 폭 +28",effect="scoreFlameWidth",value=14,max=1,costs={60000},targetTier=9,wx=1500,wy=4100,icon="split",color={1,.50,.16},requires={{"fire_score_flame_width_3",1}}},
-    {id="fire_score_flame_damage_5",name="화염 피해 상승",short="화염 피해 +1",desc="화염이 나무에 주는 초당 피해 +1",effect="scoreFlameDamage",value=1,max=1,costs={90000},targetTier=10,wx=650,wy=4350,icon="fist",color={1,.56,.20},requires={{"fire_score_flame_damage_4",1}}},
-    {id="fire_score_flame_range_5",name="화염 분사 거리 상승",short="분사 거리 +50",desc="화염이 닿는 거리 +50",effect="scoreFlameRange",value=50,max=1,costs={100000},targetTier=10,wx=1000,wy=4350,icon="wind",color={.94,.66,.28},requires={{"fire_score_flame_range_4",1}}},
-    {id="fire_score_flame_ignite_4",name="화염 착화 확률 상승",short="착화 +8%p",desc="화염에 닿아 있는 나무가 초당 불붙을 확률 +8%p",effect="scoreFlameIgnite",value=.08,max=1,costs={110000},targetTier=10,wx=1350,wy=4350,icon="ember",color={1,.36,.10},requires={{"fire_score_flame_ignite_3",1}}},
-    {id="fire_score_stride_4",name="작업자 이동속도 상승",short="이동속도 +6%",desc="작업자 이동속도 +6%",effect="moveSpeed",value=.06,max=1,costs={260},wx=100,wy=4100,icon="road",color={.52,.74,.66},requires={{"fire_score_flame_range_3",1}}},
-    {id="fire_score_pickup_2",name="목재 끌어당김 범위 상승",short="목재 흡수 범위",desc="떨어진 목재를 작업자 쪽으로 끌어당기기 시작하는 범위 +90",effect="pickupRadius",value=90,max=3,costs={120,180,260},wx=1850,wy=4100,icon="basket",color={.52,.86,.62},requires={{"fire_score_flame_width_3",1}}},
+    -- 같은 효과를 반복하던 18개의 1랭크 카드를 네 개의 다중 랭크 카드로 접는다.
+    -- 가격·단계 메타데이터·총 랭크는 그대로라 전투력과 잡 마스터까지의 경제는 바뀌지 않는다.
+    {id="fire_score_flame_damage",name="화염 피해 상승",short="화염 피해 +1",desc="단계마다 화염이 나무에 주는 초당 피해 +1 (기본 초당 3)",effect="scoreFlameDamage",value=1,max=5,costs={12000,20000,30000,50000,90000},rankTiers={8,8,9,9,10},wx=650,wy=3350,icon="fist",color={1,.56,.20},requires={{"fire_score_flame_unlock",1}}},
+    {id="fire_score_flame_range",name="화염 분사 거리 상승",short="분사 거리 +50",desc="단계마다 화염이 닿는 거리 +50 (기본 300)",effect="scoreFlameRange",value=50,max=5,costs={14000,20000,36000,50000,100000},rankTiers={8,8,9,9,10},wx=1000,wy=3350,icon="wind",color={.94,.66,.28},requires={{"fire_score_flame_unlock",1}}},
+    {id="fire_score_flame_width",name="화염 기둥 굵기 상승",short="기둥 폭 +28",desc="단계마다 화염 기둥의 전체 폭 +28 (기본 폭 144)",effect="scoreFlameWidth",value=14,max=4,costs={16000,22000,42000,60000},rankTiers={8,8,9,9},wx=1350,wy=3350,icon="split",color={1,.50,.16},requires={{"fire_score_flame_unlock",1}}},
+    {id="fire_score_flame_ignite",name="화염 착화 확률 상승",short="착화 +8%p",desc="단계마다 화염에 닿아 있는 나무가 초당 불붙을 확률 +8%p (기본 18%)",effect="scoreFlameIgnite",value=.08,max=4,costs={18000,42000,52000,110000},rankTiers={8,9,9,10},wx=1000,wy=3600,icon="ember",color={1,.36,.10},requires={{"fire_score_flame_range",1},{"fire_score_flame_width",1}}},
+    {id="fire_score_stride_4",name="작업자 이동속도 상승",short="이동속도 +6%",desc="작업자 이동속도 +6%",effect="moveSpeed",value=.06,max=1,costs={260},wx=650,wy=3850,icon="road",color={.52,.74,.66},requires={{"fire_score_flame_range",3}}},
+    {id="fire_score_pickup_2",name="목재 끌어당김 범위 상승",short="목재 흡수 범위",desc="떨어진 목재를 작업자 쪽으로 끌어당기기 시작하는 범위 +90",effect="pickupRadius",value=90,max=3,costs={120,180,260},wx=1550,wy=3850,icon="basket",color={.52,.86,.62},requires={{"fire_score_flame_width",3}}},
     {id="fire_score_yard_7",name="작업 구역 확장",short="맵 +2.5%p",desc="이동 가능한 맵 크기가 2.5% 넓어지고 나무 허용량이 4그루 증가합니다.",effect="scoreYardExpansion",value=1,max=1,costs={310},wx=1850,wy=4450,icon="map",color={.48,.72,.42},requires={{"fire_score_pickup_2",2}}},
     {id="fire_score_popper_unlock",name="원숭이 뻥튀기차 해금",short="원숭이 뻥튀기차",desc="원숭이가 맵 안에서 계속 뻥튀기차를 끕니다. 쿨타임 뒤 꽁초·화염·불붙은 기름과 접촉하면 예열 후 거대한 뻥튀기를 발사합니다.",effect="scorePopperUnlock",value=1,max=1,costs={650},wx=2600,wy=2100,icon="popping_machine",color={.88,.62,.30},requires={{"universal_mole_dual",1}},capstone=true},
     {id="fire_score_popper_damage_1",name="뻥튀기 충돌 피해 상승",short="단계당 피해 +1",desc="단계마다 나무에 부딪힐 때 주는 피해 +1",effect="scorePopperDamage",value=1,max=3,costs={30,35,45},wx=2300,wy=2350,icon="fist",color={.90,.72,.46},requires={{"fire_score_popper_unlock",1}}},
@@ -522,7 +508,7 @@ local function defaults()
     return data
 end
 
-local splitFlameNodes={
+local legacySplitFlameNodes={
     fire_score_flame_damage={"fire_score_flame_damage","fire_score_flame_damage_2","fire_score_flame_damage_3","fire_score_flame_damage_4","fire_score_flame_damage_5"},
     fire_score_flame_range={"fire_score_flame_range","fire_score_flame_range_2","fire_score_flame_range_3","fire_score_flame_range_4","fire_score_flame_range_5"},
     fire_score_flame_width={"fire_score_flame_width","fire_score_flame_width_2","fire_score_flame_width_3","fire_score_flame_width_4"},
@@ -534,7 +520,7 @@ function CharacterTraits.decode(text)
     local savedVersion=tonumber((text or ""):match("version=(%d+)"))or 0
     local legacyMoleRank,seenNewMoleNode=0,false
     local legacyYardRank,legacyStrideRank,seenSplitYard,seenSplitStride=0,0,false,false
-    local legacyFlameRanks,seenSplitFlame={},{}
+    local legacyFlameRanks,splitFlameRanks,seenSplitFlame={},{},{}
     for key, value in (text or ""):gmatch("([%w_]+)=([%d]+)") do
         local number = math.max(0, math.floor(tonumber(value) or 0))
         if key=="universal_mole_companion"then legacyMoleRank=number end
@@ -543,9 +529,12 @@ function CharacterTraits.decode(text)
         if key=="universal_stride"then legacyStrideRank=number end
         if key:match("_yard_[234567]$")then seenSplitYard=true end
         if key:match("_stride_[234]$")then seenSplitStride=true end
-        for base in pairs(splitFlameNodes)do
+        for base in pairs(legacySplitFlameNodes)do
             if key==base then legacyFlameRanks[base]=number
-            elseif key:match("^"..base.."_%d+$")then seenSplitFlame[base]=true end
+            elseif key:match("^"..base.."_%d+$")then
+                seenSplitFlame[base]=true
+                splitFlameRanks[base]=(splitFlameRanks[base]or 0)+number
+            end
         end
         if key == "currency" then data.currency = number
         elseif key == "job_master_fire" then data.jobMasterFire=number>0
@@ -581,10 +570,10 @@ function CharacterTraits.decode(text)
         local ids={"universal_stride","fire_score_stride_2","universal_stride_3","fire_score_stride_4"}
         for index=1,math.min(#ids,legacyStrideRank)do data.levels[ids[index]]=1 end
     end
-    for base,ids in pairs(splitFlameNodes)do
-        local rank=legacyFlameRanks[base]or 0
-        if rank>1 and not seenSplitFlame[base]then
-            for index=1,math.min(#ids,rank)do data.levels[ids[index]]=1 end
+    for base in pairs(legacySplitFlameNodes)do
+        if seenSplitFlame[base]then
+            local rank=(legacyFlameRanks[base]or 0)+(splitFlameRanks[base]or 0)
+            data.levels[base]=math.min(byId[base].max,rank)
         end
     end
     -- 초기 시안의 통나무 정글짐 구매는 완성형 캣타워로 승계한다.
@@ -596,7 +585,7 @@ function CharacterTraits.decode(text)
 end
 
 function CharacterTraits.encode(data)
-    local lines = {"version=8", "job_master_fire="..(data.jobMasterFire and 1 or 0), "currency=" .. math.floor(data.currency or 0),"regenTier="..math.max(1,math.floor(data.regenTier or 1)),
+    local lines = {"version=9", "job_master_fire="..(data.jobMasterFire and 1 or 0), "currency=" .. math.floor(data.currency or 0),"regenTier="..math.max(1,math.floor(data.regenTier or 1)),
         "score_runs_completed="..math.max(0,math.floor(data.scoreRunsCompleted or 0)),
         "score_tutorial_seen="..(data.scoreTutorialSeen and 1 or 0),
         "equipment_configured="..(data.equipmentConfigured and 1 or 0),

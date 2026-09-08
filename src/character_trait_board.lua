@@ -375,16 +375,12 @@ function CharacterTraitBoard:nodeWorld(node)
         -- 폭죽 졸업과 화염방사기는 폭죽 줄 아래로 새 층을 쌓는다. 도끼가 원숭이로
         -- 졸업한 뒤 폭죽으로 넘어갔듯, 폭죽도 원숭이로 졸업하고 화염방사기로 넘어간다.
         fire_score_rocket_crew={1100,2850},fire_score_flame_unlock={1100,3100},
+        -- 화염방사기의 반복 수치 카드는 네 개의 다중 랭크 카드로 접고, 기존 갈래의
+        -- 좌우 의미(피해/거리/폭)를 유지한다. 착화는 거리와 폭이 만나는 중앙 아래다.
         fire_score_flame_damage={650,3350},fire_score_flame_range={1000,3350},fire_score_flame_width={1350,3350},
-        fire_score_flame_ignite={450,3600},fire_score_flame_damage_2={800,3600},
-        fire_score_flame_range_2={1150,3600},fire_score_flame_width_2={1500,3600},
-        fire_score_flame_damage_3={450,3850},fire_score_flame_range_3={800,3850},
-        fire_score_flame_ignite_2={1150,3850},fire_score_flame_width_3={1500,3850},
-        fire_score_flame_damage_4={450,4100},fire_score_flame_ignite_3={800,4100},
-        fire_score_flame_range_4={1150,4100},fire_score_flame_width_4={1500,4100},
-        fire_score_flame_damage_5={650,4350},fire_score_flame_range_5={1000,4350},fire_score_flame_ignite_4={1350,4350},
-        -- 후반도 기존 작업 구역 자리에 흡수 범위를 넣고 작업 구역은 다음 행으로 내린다.
-        fire_score_stride_4={100,4100},fire_score_pickup_2={1850,4100},fire_score_yard_7={1850,4350},
+        fire_score_flame_ignite={1000,3600},
+        -- 후반 이동·흡수·작업 구역은 압축된 화염 갈래 바로 아래에서 이어진다.
+        fire_score_stride_4={650,3850},fire_score_pickup_2={1550,3850},fire_score_yard_7={1550,4100},
         -- 뻥튀기차는 무기 졸업물이 아니라 자동 동료 설비다. 두더지 양손 공격에서
         -- 바로 이어지도록 두더지 갈래 아래의 빈 공간에 전용 가지를 둔다.
         fire_score_popper_unlock={2600,2100},

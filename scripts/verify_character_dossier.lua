@@ -43,7 +43,7 @@ assert(dossier:find('id:"fire_score_rocket_unlock"',1,true)and dossier:find("cos
     dossier:find('id:"fire_score_rocket_crew"',1,true)and dossier:find("costs:[7800],targetTier:7",1,true),
     "dossier firework tier 5-7 pricing is stale")
 assert(dossier:find('id:"fire_score_flame_unlock"',1,true)and dossier:find("costs:[16000],targetTier:8",1,true)and
-    dossier:find('id:"fire_score_flame_ignite_4"',1,true)and dossier:find("costs:[110000],targetTier:10",1,true),
+    dossier:find('id:"fire_score_flame_ignite"',1,true)and dossier:find("costs:[18000,42000,52000,110000],rankTiers:[8,9,9,10]",1,true),
     "dossier flamethrower tier 8+ pricing is stale")
 assert(dossier:find("universal_robot_start",1,true)and dossier:find("universal_robot_motor",1,true),
     "dossier baby robot permanent research is stale")

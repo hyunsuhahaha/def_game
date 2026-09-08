@@ -16,7 +16,7 @@ local fonts={}
 for name,size in pairs({micro=12,small=14,body=17,heading=21,big=28,title=36,display=48})do fonts[name]=love.graphics.newFont("assets/font-korean-regular.ttf",size)end
 -- zoomOut: 휠을 끝까지 내린 전체 조망 상태. 합쳐진 연구판이 한 화면에 들어오는지
 -- 눈으로 확인하기 위한 시안이다.
-local function capture(w,h,path,job,zoomOut)
+local function capture(w,h,path,job,zoomOut,focusNode)
     love.graphics.getDimensions=function()return w,h end
     love.graphics.getWidth=function()return w end
     love.graphics.getHeight=function()return h end
@@ -24,13 +24,27 @@ local function capture(w,h,path,job,zoomOut)
     -- 구매 가능 표식 검수용: 루트를 1단계 연 상태에서 현재 코인으로 살 수 있는
     -- 직계 노드들이 한 화면에 함께 표시돼야 한다.
     store.data.levels.fire_score_prewarm=1
+    if focusNode then
+        store.data.currency=1000000;store.data.regenTier=10
+        store.data.levels.fire_score_rocket_crew=1
+        store.data.levels.fire_score_flame_unlock=1
+    end
     local board=Board.new(store,fonts,sprites);board.time=1.2
+    if focusNode then board.selectedNodeId=focusNode end
     if job and job~="fire"then board:selectJob(job)end
     fixture.reset();fixture.time=1.2
     local iw,ih=background:getDimensions();local scale=math.max(w/iw,h/ih)*1.025
     love.graphics.setColor(1,1,1,1);love.graphics.draw(background,(w-iw*scale)/2,(h-ih*scale)/2,0,scale,scale)
     love.graphics.setColor(.02,.08,.055,.18);love.graphics.rectangle("fill",0,0,w,h)
     board:draw()
+    if focusNode then
+        local node=assert(store:getNode(focusNode),"research-board focus node missing")
+        board.panX,board.panY=board:nodeWorld(node)
+        fixture.reset();fixture.time=1.2
+        love.graphics.setColor(1,1,1,1);love.graphics.draw(background,(w-iw*scale)/2,(h-ih*scale)/2,0,scale,scale)
+        love.graphics.setColor(.02,.08,.055,.18);love.graphics.rectangle("fill",0,0,w,h)
+        board:draw()
+    end
     if zoomOut then
         love.mouse.getPosition=function()return w/2,h*.7 end
         for _=1,60 do board:wheelmoved(0,-1)end
@@ -47,6 +61,7 @@ end
 capture(1280,720,"docs/previews/score-trait-board-draws.json")
 capture(1280,720,"docs/previews/score-trait-board-zoomout-draws.json",nil,true)
 capture(2048,1038,"docs/previews/score-trait-board-wide-draws.json")
+capture(1280,720,"docs/previews/score-trait-board-flame-draws.json",nil,false,"fire_score_flame_ignite")
 capture(960,540,"docs/previews/research-tabs-builder-small.json","builder")
 capture(1280,720,"docs/previews/research-tabs-builder.json","builder")
-print("SCORE_TRAIT_BOARD_CAPTURE_OK 1280x720+2048x1038 universal=1280x720+2048x1038 window=none")
+print("SCORE_TRAIT_BOARD_CAPTURE_OK 1280x720+2048x1038 flame-focus=1280x720 universal=1280x720+2048x1038 window=none")
