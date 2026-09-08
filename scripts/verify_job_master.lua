@@ -77,7 +77,7 @@ for _,key in ipairs({"w","a","s","d"})do
     assert(mode.construction.towerX==operator.x and mode.construction.towerY==operator.y,"crane detached from input position")
 end
 love.keyboard.isDown=keyboard;operator.x,operator.y=ox,oy
-assert(operator.cameraOffsetY==-250 and operator.movementMargin==160,"large crane framing/boundary clearance missing")
+assert(game.camera.craneOverview and operator.movementMargin==160,"crane overview/boundary clearance missing")
 
 -- Full update: autonomous original weapon attacks without mouse input, while
 -- the operator remains untouched and the shared forest is updated just once.

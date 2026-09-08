@@ -11,7 +11,6 @@ function Master.setup(mode,game)
     local world=game.world
     local actor=Player.new(game.player.x+140,game.player.y,world.images.workerWalk,world.images.workerActions,world.images.workerRepair)
     actor.clearcutJob="builder"
-    actor.cameraOffsetY=-250
     actor.movementMargin=160
     game.player=actor;mode.controlledJob="builder"
     Builder.setup(mode,game)

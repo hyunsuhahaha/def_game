@@ -31,7 +31,7 @@ function Builder.stats(store)
 end
 
 function Builder.setup(mode,game)
-    mode.construction={stats=Builder.stats(game.characterTraits),loads={},cooldown=0,
+    mode.construction={stats=Builder.stats(game.characterTraits),loads={},flyingTrees={},cooldown=0,
         towerX=game.player.x,towerY=game.player.y,clock=0,launchDistance=280,dropHeight=320}
     mode.scoreTreeAllowance=mode.scoreTreeAllowance+mode.construction.stats.capacity
     mode.scoreBaseAllowance=mode.scoreTreeAllowance
@@ -39,6 +39,18 @@ end
 
 function Builder.update(mode,game,dt,held,tx,ty)
     local c=mode.construction;if not c then return end
+    for i=#c.flyingTrees,1,-1 do
+        local tree=c.flyingTrees[i]
+        tree.t=math.min(tree.duration,tree.t+dt)
+        local u=tree.t/tree.duration
+        tree.x,tree.y=tree.startX+tree.nx*tree.distance*u,tree.startY+tree.ny*tree.distance*u
+        tree.height=math.sin(u*math.pi)*320
+        tree.angle=(tree.nx<0 and -1 or 1)*u*math.pi*1.7
+        if u>=1 then
+            game.world:spawnFallImpact({x=tree.x,y=tree.y,rushMaxHp=5,fallDir=tree.nx<0 and -1 or 1,fallReach=25},game)
+            table.remove(c.flyingTrees,i)
+        end
+    end
     c.clock=c.clock+dt;c.cooldown=math.max(0,c.cooldown-dt)
     local actor=game.player;actor.speed=c.stats.moveSpeed
     c.towerX,c.towerY=actor.x,actor.y
@@ -78,6 +90,14 @@ function Builder.update(mode,game,dt,held,tx,ty)
                     and Geometry.sweptCircleOverlapsTarget(ax,ay,load.x,load.y,load.stats.radius,node,24)then
                     load.hit[node]=true
                     mode:damageTreeWithSmokerWeapon(node,load.stats.damage,game)
+                    if not node.active then
+                        local im,scale=game.world:treeRenderSpec(node)
+                        if #c.flyingTrees>=80 then table.remove(c.flyingTrees,1)end
+                        c.flyingTrees[#c.flyingTrees+1]={image=im,scale=game.world.treeVisual.scale*scale,
+                            startX=node.x,startY=node.y,x=node.x,y=node.y,nx=load.nx,ny=load.ny,
+                            distance=560+load.stats.radius*2,t=0,duration=1.15,height=0,angle=0}
+                        node.fallT=nil;node.uprooted=true
+                    end
                 end
             end
             for _,enemy in ipairs(mode.enemies)do

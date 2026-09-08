@@ -309,6 +309,11 @@ function Game:setViewTilt(amount)
 end
 
 function Game:enableClearcutPerspective()
+    if self.clearcut and self.clearcut.construction then
+        self.camera.craneOverview=true
+        self.camera:update(0,self.player,self.world)
+        return
+    end
     local settings=self.settings or {}
     self.camera.pitch=math.max(VIEW_PITCH_MIN,math.min(VIEW_PITCH_MAX,settings.viewPitch or .76))
     self.camera.perspective=true
@@ -1047,7 +1052,7 @@ function Game:wheelmoved(x, y)
         self.camera.renderZoom=self.camera.zoom
         return
     end
-    if self.world.overviewBounds then return end
+    if self.world.overviewBounds or self.camera.craneOverview then return end
     self.camera.zoom = math.max(.6, math.min(1.8, self.camera.zoom * factor))
 end
 

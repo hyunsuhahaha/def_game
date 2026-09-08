@@ -1244,6 +1244,10 @@ local function treeRenderSpec(world, node)
     return sprite, world.treeVisual.variantScale[index] or 1, world.treeVisual.variantShadow[index] or 1
 end
 
+function World:treeRenderSpec(node)
+    return treeRenderSpec(self,node)
+end
+
 function World:useArcadeForest()
     if not self.arcadeForest then
         self.arcadeForest = true

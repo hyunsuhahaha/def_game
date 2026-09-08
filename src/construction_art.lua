@@ -48,5 +48,14 @@ function Art.queue(c,queue)
     for _,item in ipairs(c.loads)do local material=item
         queue[#queue+1]={x=material.x,y=material.y,anchorY=material.y,draw=function()Art.drawPipe(material)end}
     end
+    for _,item in ipairs(c.flyingTrees or {})do local tree=item
+        queue[#queue+1]={x=tree.x,y=tree.y,anchorY=tree.y,draw=function()
+            love.graphics.setColor(0,0,0,.26)
+            love.graphics.ellipse("fill",tree.x,tree.y,48,16)
+            love.graphics.setColor(1,1,1,1)
+            love.graphics.draw(tree.image,tree.x,tree.y-tree.height,tree.angle,tree.scale,tree.scale,
+                tree.image:getWidth()/2,tree.image:getHeight()*.91)
+        end}
+    end
 end
 return Art
