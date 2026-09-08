@@ -3004,12 +3004,27 @@ function ClearcutMode:onEnemyDefeated(e, game)
     if e.scoreWorldTree then
         self.scoreWorldTree=nil
         if game.achievements then game.achievements:add("world_trees",1) end
+        local defeatedTier=self.scoreRegenTier or 1
         -- 세계수는 이 단계에서 40초를 버텼다는 증명이다. 처치 순간 다음 단계로
         -- 넘어가되, 0그루 클리어와 달리 현재 숲은 지우거나 여섯 그루를 더하지 않는다.
         -- 단, 마지막 보통 나무와 세계수가 같은 프레임에 쓰러졌다면 두 조건을 한 번만
         -- 소비하고 여섯 그루를 심어 빈 다음 단계가 즉시 또 승급하지 않게 한다.
         local empty=self:scoreActiveTreeCount()==0
         self:advanceScoreRegenTier(game,empty,empty and"empty_world_tree"or"world_tree")
+        -- 운영 기록전의 세계수는 다음 단계 해금을 확정한 뒤 런을 끝낸다. 목재 정산과
+        -- 클리어 보너스를 즉시 한 번만 입금하고 결과 화면을 거치지 않고 로비로 간다.
+        -- 연습장/샌드박스와 보존된 3택 검증은 기존 반복 흐름을 그대로 쓴다.
+        local scoreClear=self.scoreAttack and not self.scorePractice and not self.sandbox
+            and not self.defenseMode and not self.scoreTutorialRun and not self.scoreTutorialTestRun
+        if scoreClear then
+            self.scoreClearBonus=ClearcutMode.ScoreWorldTree.clearBonus(defeatedTier)
+            self.completionReason="score_world_tree_cleared"
+            self:finish(game,true)
+            self:completeResultSettlement(game)
+            game.mode="lobby"
+            game:setNotice(string.format("세계수 제거 완료 · 클리어 보너스 +%d 연구 코인",self.scoreClearBonus),"food")
+            return
+        end
         if ClearcutMode.ScoreWorldTree.REWARDS_ENABLED then
             local choices=ClearcutMode.ScoreWorldTree.roll(self,3)
             if #choices>0 then
@@ -6996,10 +7011,16 @@ function ClearcutMode:finish(game, victory)
             self.lumberInventoryByTier={[tier]=self.lumberInventory}
             lumberRows,lumberCoinTotal,tierMultiplier=WoodEconomy.settlementByTier(self.mapId,self.lumberInventoryByTier,tier,self:scoreSettlementBonus())
         end
+        local clearBonus=math.max(0,math.floor(self.scoreClearBonus or 0))
+        if clearBonus>0 then
+            lumberRows[#lumberRows+1]={id="world_tree_clear",name="세계수 클리어",count=clearBonus,
+                remaining=clearBonus,converted=0,coin=1,color={1,.78,.24},bonus=true}
+            lumberCoinTotal=(lumberCoinTotal or 0)+clearBonus
+        end
         traitReward=0
     elseif game.characterTraits then game.characterTraits:addCurrency(traitReward) end
     local zonesSecured,zonesTotal=ForestZones.status(self)
-    game.result={elapsed=math.floor(self.elapsed),wood=self.scoreAttack and math.floor(self.scoreWoodEarned or 0)or self.totalWood,woodBalance=math.floor(self.totalWood),trees=self.treesFelled,total=self.initialTrees,maxMulti=self.maxMulti,maxChain=self.maxChain,level=self.level,stage=self.stage,stageCode=Maps.stageCode(self.mapId,self.stage),regrowPulses=self.regrowPulses,treesRevived=self.treesRevived,rootedCount=self.rootedCount,beeSwarms=self.beeSwarmsTriggered,victory=victory,kills=self.kills,zonesSecured=zonesSecured,zonesTotal=zonesTotal,traitEarned=traitReward,traitCurrency=game.characterTraits and game.characterTraits.data.currency or traitReward,mapId=self.mapId,operationName=BiomeBosses.operationName(self.mapId),bossName=self.operationBossName,failureReason=self.failureReason,scoreAttack=self.scoreAttack,defenseMode=self.defenseMode,defenseRingsCleared=self.defenseRingsCleared,defenseHighestStage=(self.defenseNextStage or 2)-1,totalTreesSpawned=self.totalTreesSpawned,peakActiveTrees=self.peakActiveTrees,treeAllowance=self.scoreTreeAllowance,treeSpawnRate=self:scoreTreeSpawnRate(),peakTreesPerSecond=self.peakTreesPerSecond or 0,regenTier=self.scoreRegenTier,startingRegenTier=self.scoreStartingRegenTier,highestRegenTier=self.scoreHighestRegenTier,lumberRows=lumberRows,lumberCoinTotal=lumberCoinTotal or traitReward,tierMultiplier=tierMultiplier or 1}
+    game.result={elapsed=math.floor(self.elapsed),wood=self.scoreAttack and math.floor(self.scoreWoodEarned or 0)or self.totalWood,woodBalance=math.floor(self.totalWood),trees=self.treesFelled,total=self.initialTrees,maxMulti=self.maxMulti,maxChain=self.maxChain,level=self.level,stage=self.stage,stageCode=Maps.stageCode(self.mapId,self.stage),regrowPulses=self.regrowPulses,treesRevived=self.treesRevived,rootedCount=self.rootedCount,beeSwarms=self.beeSwarmsTriggered,victory=victory,kills=self.kills,zonesSecured=zonesSecured,zonesTotal=zonesTotal,traitEarned=traitReward,traitCurrency=game.characterTraits and game.characterTraits.data.currency or traitReward,mapId=self.mapId,operationName=BiomeBosses.operationName(self.mapId),bossName=self.operationBossName,failureReason=self.failureReason,completionReason=self.completionReason,scoreClearBonus=math.max(0,math.floor(self.scoreClearBonus or 0)),scoreAttack=self.scoreAttack,defenseMode=self.defenseMode,defenseRingsCleared=self.defenseRingsCleared,defenseHighestStage=(self.defenseNextStage or 2)-1,totalTreesSpawned=self.totalTreesSpawned,peakActiveTrees=self.peakActiveTrees,treeAllowance=self.scoreTreeAllowance,treeSpawnRate=self:scoreTreeSpawnRate(),peakTreesPerSecond=self.peakTreesPerSecond or 0,regenTier=self.scoreRegenTier,startingRegenTier=self.scoreStartingRegenTier,highestRegenTier=self.scoreHighestRegenTier,lumberRows=lumberRows,lumberCoinTotal=lumberCoinTotal or traitReward,tierMultiplier=tierMultiplier or 1}
     if self.scoreAttack then
         local settlementUnits=0
         for _,row in ipairs(lumberRows or{})do settlementUnits=settlementUnits+(row.remaining or 0)end

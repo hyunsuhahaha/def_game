@@ -26,7 +26,7 @@ assert(dossier:find('document.getElementById("score-mode-summary").hidden = fals
 assert(dossier:find("기존 조합 보너스의 계산·연계 파동·HUD·선택 카드 표시는 제거",1,true),
     "dossier system note does not record the removed combination system")
 assert(dossier:find('id="score-mode-summary"',1,true),"dossier is missing the visible score-mode rules summary")
-assert(dossier:find("활성 나무 0그루 달성 또는 40초 뒤 세계수 처치 · 0.86초 연출 · 6그루 순차 발아 · 다음 단계 영구 해금",1,true),
+assert(dossier:find("활성 나무 0그루 달성 시 0.86초 승급·6그루 순차 발아 · 40초 세계수 처치 시 다음 단계 영구 해금·보너스 정산·로비 복귀",1,true),
     "dossier score-mode opening pacing is stale")
 assert(dossier:find("인게임 XP·레벨업·강화 3택 없음 · 목재는 점수와 정산만",1,true),"dossier score-mode growth summary is stale")
 assert(dossier:find("없음 · 멧돼지·다람쥐 등 일반 몬스터 비활성",1,true),"dossier score-mode monster rule is stale")

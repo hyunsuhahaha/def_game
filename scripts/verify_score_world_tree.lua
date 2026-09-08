@@ -24,6 +24,8 @@ assert(ScoreWorldTree.health(1)==260 and ScoreWorldTree.health(8)==17820
     and ScoreWorldTree.health(10)==40950 and ScoreWorldTree.health(11)==58968,
     "세계수 체력이 누적 빌드 DPS 기반 곡선과 다르다")
 assert(ScoreWorldTree.REWARDS_ENABLED == false, "운영 모드에서 세계수 보상이 다시 활성화됐다")
+assert(ScoreWorldTree.clearBonus(1)==30 and ScoreWorldTree.clearBonus(8)==100,
+    "세계수 클리어 보너스 단계식이 바뀌었다")
 
 local function mode()
     local m = ClearcutMode.new()
@@ -236,6 +238,37 @@ disabled:onEnemyDefeated(disabled.scoreWorldTree, disabledGame)
 assert(disabledGame.mode ~= "score_reward" and disabled.scoreRewardChoices == nil,
     "비활성화한 세계수 보상 3택이 운영 모드에서 열렸다")
 
+-- 5-1. 실제 기록전은 세계수 처치가 성공 종료다. 다음 재생 단계는 먼저 저장하고,
+-- 목재 정산과 별도 클리어 보너스를 한 번만 입금한 뒤 결과 화면 없이 로비로 간다.
+do
+    local cleared=mode();cleared.sandbox=false
+    cleared.scoreRegenTier,cleared.scoreStartingRegenTier,cleared.scoreHighestRegenTier=1,1,1
+    cleared.lumberInventory={broadleaf=2};cleared.lumberInventoryByTier={[1]={broadleaf=2}}
+    cleared.treesFelled,cleared.initialTrees,cleared.scoreWoodEarned=2,6,2
+    local traits={data={currency=7},regenTier=1,completed=0,saves=0}
+    function traits:unlockRegenTier(tier)self.regenTier=math.max(self.regenTier,tier)end
+    function traits:addCurrency(amount)self.data.currency=self.data.currency+amount;return amount end
+    function traits:save()self.saves=self.saves+1 end
+    function traits:recordScoreRunCompleted()self.completed=self.completed+1 end
+    local cg=world({{rushTree=true,active=true,x=100,y=100}});cg.characterTraits=traits
+    cleared.mapWorld=cg.world
+    local tree={scoreWorldTree=true,hp=0,def={},x=0,y=0}
+    cleared.scoreWorldTree=tree
+    cleared:onEnemyDefeated(tree,cg)
+    assert(cg.mode=="lobby" and cg.result and cg.result.victory,
+        "세계수 클리어가 결과 화면 없이 로비로 복귀하지 않았다")
+    assert(cg.result.completionReason=="score_world_tree_cleared" and cg.result.scoreClearBonus==30,
+        "세계수 성공 종료 사유나 클리어 보너스가 결과에 남지 않았다")
+    assert(cleared.scoreRegenTier==2 and traits.regenTier==2,
+        "세계수 클리어가 다음 재생 단계를 저장하지 않았다")
+    assert(cg.result.lumberCoinTotal==34 and cg.result.traitEarned==34 and traits.data.currency==41,
+        "목재 4코인과 세계수 보너스 30코인이 즉시 정확히 정산되지 않았다")
+    assert(cleared.resultSettlement.complete and traits.completed==1,
+        "세계수 클리어 정산이 중복 가능 상태이거나 정상 런 기록을 남기지 않았다")
+    cleared:completeResultSettlement(cg)
+    assert(traits.data.currency==41,"완료된 세계수 정산이 두 번 지급됐다")
+end
+
 -- 보상 코드와 스크립트는 복구 가능하게 보존한다.
 ScoreWorldTree.REWARDS_ENABLED = true
 local dead = mode()
@@ -429,4 +462,4 @@ do
 end
 
 ScoreWorldTree.REWARDS_ENABLED = false
-print("SCORE_WORLD_TREE_OK interval=40s tier=empty_or_kill reward=disabled legacy=verified")
+print("SCORE_WORLD_TREE_OK interval=40s tier=empty clear=world_tree_to_lobby bonus=scaled reward_cards=disabled")

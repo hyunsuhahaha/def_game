@@ -14,11 +14,12 @@ local meta=read("docs/SCORE_ATTACK_META_LOOP.md")
 assert(readme:find("40초 뒤 세계수 처치",1,true)and
     not readme:find("60초 뒤 세계수 처치",1,true),
     "README world-tree interval is stale")
-assert(active:find("/20초",1,true)and active:find("40초 뒤 세계수 처치",1,true),
+assert(active:find("/20초",1,true)and active:find("40초 뒤 세계수를 처치하면",1,true)
+    and active:find("로비로 복귀",1,true),
     "active-mode pressure or world-tree timing is stale")
 assert(system:find("과거의 트라우마를 불태우려고 꿈속의 숲에서 싸우고 있다",1,true)and
     system:find("해금 단계와 결말은 아직 미정",1,true)and
-    system:find("단계 시작 40초 뒤에 오는 승급 기회",1,true)and
+    system:find("단계 시작 40초 뒤에 오는 클리어 기회",1,true)and
     not system:find("60초마다 오는 유일한 선택",1,true),
     "system map invented or omitted the confirmed dream premise")
 for _,phrase in ipairs({"과거의 트라우마","꿈속의 숲","자각몽","염동력·초능력·물리 법칙 왜곡","아직 정하지 않은 것"})do

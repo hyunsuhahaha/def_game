@@ -15,6 +15,11 @@ local ScoreWorldTree = {}
 ScoreWorldTree.INTERVAL = 40
 ScoreWorldTree.HP_BY_TIER = {260,270,660,1480,3230,3890,6500,17820,24510,40950}
 ScoreWorldTree.ENDLESS_HP_GROWTH = 1.44
+-- 세계수를 실제 런의 명확한 클리어 목표로 쓸 때 지급하는 연구 코인.
+-- 1단계 보너스만으로 가장 싼 초반 연구 하나를 살 수 있고, 높은 단계의 훨씬 큰
+-- 체력을 쓰러뜨린 보상은 단계마다 완만하게 커진다.
+ScoreWorldTree.CLEAR_BONUS_BASE = 30
+ScoreWorldTree.CLEAR_BONUS_PER_TIER = 10
 -- 보상 코드와 검증 자산은 복구 가능하게 보존하되 현재 기록 모드에서는 열지 않는다.
 ScoreWorldTree.REWARDS_ENABLED = false
 -- 세계수는 항상 이동 가능 구역의 정중앙에 선다. 매번 다른 자리에 무작위로
@@ -40,6 +45,11 @@ local profiles = {
 function ScoreWorldTree.tier(modeOrTier)
     local value=type(modeOrTier)=="table" and modeOrTier.scoreRegenTier or modeOrTier
     return math.max(1,math.floor(value or 1))
+end
+
+function ScoreWorldTree.clearBonus(modeOrTier)
+    local tier=ScoreWorldTree.tier(modeOrTier)
+    return ScoreWorldTree.CLEAR_BONUS_BASE+(tier-1)*ScoreWorldTree.CLEAR_BONUS_PER_TIER
 end
 
 function ScoreWorldTree.profile(modeOrTier)
