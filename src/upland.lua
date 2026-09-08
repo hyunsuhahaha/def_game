@@ -1,62 +1,20 @@
--- Stage 11+ score-attack field: dry, open upland with trees in broad groves.
+-- Stage 11+ score-attack field: dry upland with growth across the whole field.
 local Upland={START_TIER=11}
 local shader,image
 
-local groves={
-    {.22,.24,.19,.16},{.78,.22,.20,.19},
-    {.15,.76,.23,.20},{.79,.78,.25,.18},{.51,.53,.20,.16},
-}
-
 function Upland.isTreeZone(world,x,y)
-    local w,h=world.width,world.height
-    local nx,ny=x/w,y/h
-    if x<105 or x>w-105 or y<145 or y>h-115 then return false end
-    -- Two wide, bent haul roads meet in the crane yard. They are continuous
-    -- openings, not arbitrary holes punched between tiny tree islands.
-    if ((nx-.5)/.045)^2+((ny-.5)/.065)^2<1 then return false end
-    for index,g in ipairs(groves)do
-        local dx=(nx-g[1])/g[3];local dy=(ny-g[2])/g[4]
-        local edge=dx*dx+dy*dy+math.sin(nx*31+index)*.09+math.sin(ny*27-index)*.07
-        if edge<1 then return true end
-    end
-    return false
-end
-
-local function random(seed)
-    seed=(seed*16807)%2147483647
-    return seed,(seed-1)/2147483646
+    local b=world.playBounds or {x=0,y=0,w=world.width,h=world.height}
+    return x>=b.x+110 and x<=b.x+b.w-110 and y>=b.y+145 and y<=b.y+b.h-115
 end
 
 function Upland.sampleTree(world,index,attempt)
-    local seed=(7919+(index or 1)*104729+(attempt or 1)*1543)%2147483647
-    local r
-    local grove=groves[1+(math.floor(((index or 1)-1)/18)+math.floor(((attempt or 1)-1)/30))%#groves]
-    seed,r=random(seed);local angle=r*math.pi*2
-    -- Keep every generated target inside the body of a grove. The looser
-    -- outer silhouette remains available for later growth without producing
-    -- isolated trees between the six main woodland masses.
-    seed,r=random(seed);local radius=math.sqrt(r)*math.min(.80,260/(world.width*grove[3]))
-    local x=world.width*(grove[1]+math.cos(angle)*grove[3]*radius)
-    local y=world.height*(grove[2]+math.sin(angle)*grove[4]*radius)
-    return x,y
-end
-
-function Upland.clusterTrees(world,nodes)
-    local placed={}
-    for index,node in ipairs(nodes or{})do
-        if node.rushTree and node.active and not node.giantTree then
-            for attempt=1,180 do
-                local x,y=Upland.sampleTree(world,index,attempt)
-                local clear=Upland.isTreeZone(world,x,y)
-                if clear then
-                    for _,p in ipairs(placed)do
-                        if (p.x-x)^2+(p.y-y)^2<54^2 then clear=false;break end
-                    end
-                end
-                if clear then node.x,node.y=x,y;placed[#placed+1]={x=x,y=y};break end
-            end
-        end
-    end
+    local b=world.playBounds or {x=0,y=0,w=world.width,h=world.height}
+    -- Low-discrepancy coverage across the whole field, with small random
+    -- offsets so consecutive growth neither piles up nor forms straight rows.
+    local n=(index or 1)+((attempt or 1)-1)*97
+    local u=(n*.754877666+(love.math.random()-.5)*.08)%1
+    local v=(n*.569840291+(love.math.random()-.5)*.08)%1
+    return b.x+110+u*(b.w-220),b.y+145+v*(b.h-260)
 end
 
 function Upland.configure(world,tier)

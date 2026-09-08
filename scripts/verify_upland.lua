@@ -13,18 +13,20 @@ local width=world.width
 Maps.configureScoreTier(world,12)
 assert(world.width==width and world.playBounds.w>oldW*2,"later tier compounded world size or stopped expansion")
 
-local nodes={}
-for i=1,72 do nodes[i]={rushTree=true,active=true,x=world.width/2,y=world.height/2}end
-Upland.clusterTrees(world,nodes)
-for _,node in ipairs(nodes)do
-    assert(Upland.isTreeZone(world,node.x,node.y),"tree escaped a woodland grove")
-    local neighbours=0
-    for _,other in ipairs(nodes)do
-        if other~=node and (other.x-node.x)^2+(other.y-node.y)^2<400^2 then neighbours=neighbours+1 end
-    end
-    assert(neighbours>=1,"upland tree became a sparse singleton")
+local b=world.playBounds
+local cells={}
+for i=1,180 do
+    local x,y=Upland.sampleTree(world,i,1)
+    assert(Upland.isTreeZone(world,x,y),"sample outside playable field")
+    local key=math.floor((x-b.x)/b.w*4)+math.floor((y-b.y)/b.h*3)*4
+    cells[key]=(cells[key]or 0)+1
 end
+for key=0,11 do assert((cells[key]or 0)>=5,"growth left an artificial empty region")end
+game.clearcut.scoreRegenTier=10;game.clearcut.scoreTierFx=nil
+local node=world.nodes[1];local x,y=node.x,node.y
+assert(game.clearcut:advanceScoreRegenTier(game,false,"world_tree"))
+assert(node.x==x and node.y==y,"promotion relocated an existing tree")
 
 local shader=assert(io.open("assets/shaders/upland-ground.glsl","rb")):read("*a")
 assert(not shader:lower():find("lake",1,true)and not shader:lower():find("shore",1,true),"upland shader contains lakeside material")
-print("UPLAND_OK tier11 zero-lakeside full-field clustered-groves haul-roads")
+print("UPLAND_OK tier11 fourfold-area full-field-growth existing-roots-preserved")

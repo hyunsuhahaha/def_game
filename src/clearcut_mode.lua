@@ -1490,11 +1490,11 @@ function ClearcutMode:spawnScoreTree(game)
         local zoning=self:levelOf("forest_zoning")
         local margin=130+zoning*35
         local px,py
-        if zoning>0 and love.math.random()<(.28+zoning*.17)then
+        if world.upland then px,py=require("src.upland").sampleTree(world,(self.totalTreesSpawned or 0)+1,attempt)
+        elseif zoning>0 and love.math.random()<(.28+zoning*.17)then
             local radius=math.max(180,520-zoning*70);local angle=love.math.random()*math.pi*2;local distance=love.math.random()*radius
             px=math.max(margin,math.min(w-margin,game.player.x+math.cos(angle)*distance))
             py=math.max(margin,math.min(h-margin,game.player.y+math.sin(angle)*distance))
-        elseif world.upland then px,py=require("src.upland").sampleTree(world,(self.totalTreesSpawned or 0)+1,attempt)
         else px=love.math.random(margin,w-margin);py=love.math.random(margin,h-margin)end
         if Maps.treeSpace(world,px,py)and (world.upland or not ForestScenery.isSceneryPocket(px,py,w,h))
             and not ClearcutMode.worldTreeGuardHits(guard,px,py)then
@@ -1595,7 +1595,6 @@ function ClearcutMode:advanceScoreRegenTier(game,reseed,reason)
     local enteringUpland=self.scoreRegenTier==require("src.upland").START_TIER and not game.world.upland
     require("src.clearcut_maps").configureScoreTier(game.world,self.scoreRegenTier)
     if enteringUpland then
-        require("src.upland").clusterTrees(game.world,game.world.nodes)
         ForestScenery.generate(game.world,self.stage);require("src.clearcut_maps").filterScenery(game.world)
     end
     self.scoreHighestRegenTier=math.max(self.scoreHighestRegenTier or 1,self.scoreRegenTier)
@@ -1648,7 +1647,7 @@ function ClearcutMode:generateForest(game, target)
         local clearSpawn = sdx*sdx + sdy*sdy > 260*260 and not ForestScenery.isOpen(x,y,w,h)
             and not ForestScenery.isSceneryPocket(x,y,w,h)
             and Maps.insidePlayable(game.world,x,y,110)
-        if game.world.clearcutMap and game.world.clearcutMap~="forest" then
+        if game.world.upland or (game.world.clearcutMap and game.world.clearcutMap~="forest") then
             clearSpawn=Maps.treeSpace(game.world,x,y)
         end
         local separated = true
@@ -1678,7 +1677,6 @@ function ClearcutMode:generateForest(game, target)
         end
     end
     self.initialTrees, self.remainingTrees = #game.world.nodes, #game.world.nodes
-    if game.world.upland then require("src.upland").clusterTrees(game.world,game.world.nodes)end
     ForestFloor.generate(game.world,self.stage)
     ForestLighting.generate(game.world,self.stage)
     ForestScenery.generate(game.world,self.stage)
