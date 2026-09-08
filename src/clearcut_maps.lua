@@ -87,6 +87,23 @@ function Maps.configureStage(world,stage)
     -- strand the player vertically on the final island stage.
     world.overviewBounds=nil
 end
+function Maps.configureScoreTier(world,tier)
+    tier=math.max(1,tier or 1)
+    local kind=world.clearcutMap=="island" and "island" or "normal"
+    local start=stageSizes[kind][1]
+    local scale=world.clearcutMapScale or 1
+    local startW=math.min(world.width,math.floor(start[1]*scale+.5))
+    local startH=math.min(world.height,math.floor(start[2]*scale+.5))
+    -- Each tier opens 18% of the remaining authored map, so every promotion
+    -- expands the field without ever exposing terrain outside the world.
+    local growth=1-.82^(tier-1)
+    local playW=startW+(world.width-startW)*growth
+    local playH=startH+(world.height-startH)*growth
+    world.playBounds={x=(world.width-playW)/2,y=(world.height-playH)/2,w=playW,h=playH}
+    local reveal=world.cameraTopReveal or 0
+    world.cameraBounds={x=world.playBounds.x,y=world.playBounds.y-reveal,
+        w=world.playBounds.w,h=world.playBounds.h+reveal}
+end
 function Maps.insidePlayable(world,x,y,margin)
     local b=world and world.playBounds
     if not b then return true end

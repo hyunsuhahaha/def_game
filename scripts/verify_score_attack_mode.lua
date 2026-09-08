@@ -18,7 +18,19 @@ local Camera=require("src.camera")
 local Traits=require("src.character_traits").new(true)
 Traits.data.scoreTutorialSeen=true -- This suite verifies ordinary score runs, not onboarding.
 local WoodEconomy=require("src.wood_economy")
+local Maps=require("src.clearcut_maps")
 local function expectedSpawn(tier,seconds)return .14*1.75^(tier-1)*2^(seconds/20)end
+
+local mapProbe={width=2240,height=1400,clearcutMap="forest",clearcutMapScale=.7,cameraTopReveal=630}
+local previousW,previousH=0,0
+for tier=1,12 do
+    Maps.configureScoreTier(mapProbe,tier)
+    assert(mapProbe.playBounds.w>previousW and mapProbe.playBounds.h>previousH,
+        "regeneration tier did not expand the playable map at tier "..tier)
+    previousW,previousH=mapProbe.playBounds.w,mapProbe.playBounds.h
+end
+assert(mapProbe.playBounds.w<mapProbe.width and mapProbe.playBounds.h<mapProbe.height,
+    "regeneration expansion escaped the authored world")
 
 assert(WoodEconomy.researchCoinMultiplier==2,"global research-coin reward multiplier drifted")
 for _,mapId in ipairs({"forest","mangrove","madagascar","island"})do
@@ -208,8 +220,11 @@ mode.remainingTrees=0
 local abandonedWorldTree={scoreWorldTree=true,hp=50};mode.scoreWorldTree=abandonedWorldTree
 mode.enemies[#mode.enemies+1]=abandonedWorldTree
 local pendingBeforeTier=mode.pending
+local tierOneMapW,tierOneMapH=game.world.playBounds.w,game.world.playBounds.h
 assert(mode:updateScoreTierClear(.31,game),"empty forest did not trigger a regeneration transition")
 assert(mode.scoreRegenTier==2 and Traits:getRegenTier()==2 and mode.pending==pendingBeforeTier,"tier clear was not persisted or incorrectly granted a card")
+assert(game.world.playBounds.w>tierOneMapW and game.world.playBounds.h>tierOneMapH,
+    "tier clear did not expand the playable map")
 assert(mode.stageElapsed==0 and mode.scoreWorldTreeTimer==mode.ScoreWorldTree.INTERVAL,
     "empty-forest tier up did not reset stage time and world-tree survival timer")
 assert(not mode.scoreWorldTree and mode.enemies[#mode.enemies]~=abandonedWorldTree,

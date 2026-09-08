@@ -568,6 +568,7 @@ function ClearcutMode:setup(game)
         or(self.scoreAttack and math.min(.90,Maps.SCORE_MAP_SCALE+yardExpansion*.025)or 1)
     Maps.configure(game.world,self.mapId)
     Maps.configureStage(game.world,self.stage)
+    if self.scoreAttack then Maps.configureScoreTier(game.world,self.scoreRegenTier)end
     self.mapWorld=game.world
     self.mapPlayer=game.player
     game.world.effectParticleCap=self.scoreAttack and 100 or nil
@@ -1590,6 +1591,7 @@ function ClearcutMode:advanceScoreRegenTier(game,reseed,reason)
     end
     self.scoreTierClearLatch=true
     self.scoreRegenTier=(self.scoreRegenTier or 1)+1
+    require("src.clearcut_maps").configureScoreTier(game.world,self.scoreRegenTier)
     self.scoreHighestRegenTier=math.max(self.scoreHighestRegenTier or 1,self.scoreRegenTier)
     if game.characterTraits and game.characterTraits.unlockRegenTier then game.characterTraits:unlockRegenTier(self.scoreRegenTier)end
     -- 시간 압력과 1초 벌목률 표본은 같은 시간축을 쓰므로 함께 초기화한다.
