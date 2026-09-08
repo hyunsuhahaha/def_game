@@ -236,7 +236,7 @@ function Game:startClearcutScoreAttack(startTier,tutorialMode)
     self:resetRun()
     self.clearcut=ClearcutMode.new()
     -- "fire" is the archived runtime loadout id used by the current weapon set.
-    -- It is not a player-selectable character or class in the active game flow.
+    -- The selected crane adds the mastered smoker through job_master.setup.
     self.clearcut.job="fire"
     self.clearcut.mapId="forest"
     self.clearcut.stage=1
@@ -526,7 +526,7 @@ function Game:update(dt)
     -- or skill cut-in temporarily freezes ordinary world/camera tracking.
     self.camera:updateMode(dt)
     if self.mode == "lobby" then self.lobby:update(dt,self); return end
-    if self.mode == "settings" or self.mode=="score_tier_select" then self.lobby:update(dt,self); return end
+    if self.mode == "settings" or self.mode=="score_tier_select" or self.mode=="score_character_select" then self.lobby:update(dt,self); return end
     if self.mode == "clearcut_map_select" then require("src.clearcut_map_select").update(self,dt);return end
     if self.mode == "clearcut_select" or self.mode == "clearcut_briefing" or self.mode == "character_story" or self.mode == "character_codex" or self.mode == "achievements" then return end
     if self.mode == "character_traits" then self.characterTraitBoard:update(dt); return end
@@ -586,6 +586,7 @@ function Game:update(dt)
 end
 
 function Game:keypressed(key)
+    if self.mode=="score_character_select"then require("src.score_character_select").keypressed(self,key);return end
     if self.mode=="test_options" then if key=="escape" or key=="f10" then self:closeTestOptions() end; return end
     if key=="f10" and self:openTestOptions(self.mode)then return end
     if self.paused then
@@ -614,8 +615,8 @@ function Game:keypressed(key)
             self.mode="clearcut_select"
         elseif action=="score_attack" then
             self:openScoreTierSelect()
-        elseif action=="defense" then
-            self:startClearcutDefense()
+        elseif action=="score_character_select" then
+            require("src.score_character_select").open(self)
         elseif action=="character_traits" then
             self.characterTraitReturnMode="lobby"
             self.mode="character_traits"
@@ -770,6 +771,7 @@ function Game:useAbility(index)
 end
 
 function Game:mousepressed(x, y, button)
+    if self.mode=="score_character_select"then require("src.score_character_select").mousepressed(self,x,y,button);return end
     if self.paused then
         if button==1 then
             local _, _, _, _, resumeBox, quitBox, tiltBox = self:pauseButtons()
@@ -804,7 +806,7 @@ function Game:mousepressed(x, y, button)
         local action = self.lobby:mousepressed(x, y, button)
         if action == "clearcut" then self.mode = "clearcut_select"
         elseif action == "score_attack" then self:openScoreTierSelect()
-        elseif action == "defense" then self:startClearcutDefense()
+        elseif action == "score_character_select" then require("src.score_character_select").open(self)
         elseif action == "character_traits" then self.characterTraitReturnMode="lobby"; self.mode = "character_traits"
         elseif action == "character_codex" then self.mode = "character_codex"
         elseif action == "achievements" then self.mode = "achievements"
@@ -1588,7 +1590,8 @@ function Game:drawScoreTierSelect()
     love.graphics.setFont(f.heading);love.graphics.setColor(.98,.96,.86);love.graphics.printf("시작 재생 단계",x+24,y+23,pw-48,"center")
     local tier=math.max(1,math.min(self.scoreTierMax or 1,self.scoreTierChoice or 1))
     love.graphics.setFont(f.micro);love.graphics.setColor(.66,.75,.68)
-    love.graphics.printf(string.format("선택 가능  1 ~ %d단계",self.scoreTierMax or 1),x+24,y+55,pw-48,"center")
+    local character=require("src.score_character_select").current(self)=="builder"and "타워크레인"or "흡연자"
+    love.graphics.printf(string.format("%s · 선택 가능  1 ~ %d단계",character,self.scoreTierMax or 1),x+24,y+55,pw-48,"center")
     local controlY=y+84;local arrowW=64;local centerX=x+100;local centerW=pw-200
     self.scoreTierPrevBox={x=x+24,y=controlY,w=arrowW,h=60}
     self.scoreTierNextBox={x=x+pw-24-arrowW,y=controlY,w=arrowW,h=60}
@@ -1610,6 +1613,7 @@ function Game:drawScoreTierSelect()
 end
 
 function Game:draw()
+    if self.mode=="score_character_select"then require("src.score_character_select").draw(self);return end
     if self.mode=="test_options" then self:drawTestOptions(); return end
     if self.mode == "lobby" then self.lobby:draw(self); return end
     if self.mode=="score_tier_select"then self:drawScoreTierSelect();return end

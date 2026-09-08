@@ -25,7 +25,7 @@ local lobby = setmetatable({
     traitsBox={x=110,y=0,w=100,h=50},
     settingsBox={x=220,y=0,w=100,h=50}
 }, Lobby)
-assert(lobby:keypressed("return") == "score_attack" and lobby:keypressed("m")=="score_attack" and lobby:keypressed("c") == nil, "active lobby did not intentionally disable campaign shortcuts")
+assert(lobby:keypressed("return") == "score_attack" and lobby:keypressed("m")=="score_attack" and lobby:keypressed("c") == "score_character_select", "active lobby did not route C to score character selection")
 assert(lobby:mousepressed(20,20,1)=="score_attack" and lobby:mousepressed(130,20,1) == "character_traits", "score-attack lobby navigation is not wired")
 lobby.audioTrack=1;lobby.audioPlaying=false;lobby:keypressed("]")
 assert(lobby.audioTrack==2 and lobby.audioPlaying,"lobby audio track shortcut failed")

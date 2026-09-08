@@ -4,7 +4,7 @@ local Builder=require("src.construction_worker")
 local Master={}
 
 function Master.setup(mode,game)
-    if not game.characterTraits.data.jobMasterFire or mode.scoreTutorialRun then return end
+    if not game.characterTraits.data.jobMasterFire or mode.scoreTutorialRun or game.selectedScoreCharacter=="fire" then return end
     -- Keep the fully configured smoker, including its original player stats,
     -- weapon state, permanent traits and all existing automation in this mode.
     mode.jobMaster={actor=game.player}

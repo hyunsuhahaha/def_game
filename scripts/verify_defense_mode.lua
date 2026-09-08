@@ -73,5 +73,5 @@ local fonts={};for name,size in pairs({micro=12,small=14,big=28,heading=21,title
 fixture.reset();runtime.clearcut:drawHUD(runtime,fonts)
 assert(#fixture.commands>0,"defense HUD draw path produced no output")
 local lobbySource=assert(io.open("src/lobby.lua","rb")):read("*a")
-assert(lobbySource:find('{label="디펜스",key="D",action="defense"}',1,true),"lobby defense entry is missing")
+assert(not lobbySource:find('action="defense"',1,true),"archived defense mode returned to the lobby")
 print("defense mode verification passed")
