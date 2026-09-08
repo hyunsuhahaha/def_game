@@ -1,5 +1,8 @@
 package.path="./?.lua;./?/init.lua;"..package.path
 local fixture=require("scripts.forest_render_fixture")
+love.graphics.setScissor=function(x,y,w,h)
+    fixture.commands[#fixture.commands+1]={op="scissor",args=x and {x,y,w,h} or {},color={1,1,1,1}}
+end
 love.mouse={getPosition=function()return -100,-100 end,isDown=function()return false end}
 
 local Store=require("src.character_traits")
@@ -44,4 +47,6 @@ end
 capture(1280,720,"docs/previews/score-trait-board-draws.json")
 capture(1280,720,"docs/previews/score-trait-board-zoomout-draws.json",nil,true)
 capture(2048,1038,"docs/previews/score-trait-board-wide-draws.json")
+capture(960,540,"docs/previews/research-tabs-builder-small.json","builder")
+capture(1280,720,"docs/previews/research-tabs-builder.json","builder")
 print("SCORE_TRAIT_BOARD_CAPTURE_OK 1280x720+2048x1038 universal=1280x720+2048x1038 window=none")

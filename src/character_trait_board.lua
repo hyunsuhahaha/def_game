@@ -9,12 +9,12 @@ CharacterTraitBoard.__index = CharacterTraitBoard
 -- 로비에서는 실제 적용되는 두 연구군만 의도적으로 노출한다.
 local archivedJobOrder = {"physical", "fire", "toxic", "developer", "miner", "philosopher", "universal"}
 local ACTIVE_DEVELOPMENT_MODE="score_attack"
--- 활성 게임에는 캐릭터/직업 선택이 없다. 기존 저장 호환용 "fire"와 "universal"
--- 연구 그룹만 한 연구망에 합쳐 보여주고 선택 탭은 만들지 않는다.
+-- 흡연자는 기존 fire+universal 연구망을 유지한다. 하단 탭은 연구 대상만
+-- 전환하며 로비의 플레이 캐릭터 선택과 저장 데이터에는 영향을 주지 않는다.
 local scoreAttackGroups = {"fire","universal"}
-local jobOrder = ACTIVE_DEVELOPMENT_MODE=="score_attack" and {"all"} or archivedJobOrder
+local jobOrder = ACTIVE_DEVELOPMENT_MODE=="score_attack" and {"all","builder"} or archivedJobOrder
 local jobNames = {physical="생계형 나무꾼", fire="흡연자", toxic="비건 단체 회장", developer="부동산 개발업자", miner="코인 채굴꾼", philosopher="차라투스트라는 이렇게 말했다", universal="공용 복지"}
-local jobTabNames = {philosopher="차라투스트라"}
+local jobTabNames = {all="흡연자",builder="건설업자",philosopher="차라투스트라"}
 local STRUCTURE={.32,.78,.62}
 local WARM={1,.73,.24}
 local scoreBoardCopy={
@@ -118,9 +118,10 @@ local function drawGlyph(icon, cx, cy, size)
 end
 
 function CharacterTraitBoard.new(store, fonts, sprites)
-    local first=store:getScoreAttackNodes("fire")[1]
+    local initialJob=store.data.jobMasterFire and "builder" or jobOrder[1]
+    local first=store:getScoreAttackNodes(initialJob=="builder" and "builder" or "fire")[1]
     return setmetatable({
-        store=store, fonts=fonts, sprites=sprites,researchBackground=nil,selectedJob=jobOrder[1],activeDevelopmentMode=ACTIVE_DEVELOPMENT_MODE,
+        store=store, fonts=fonts, sprites=sprites,researchBackground=nil,selectedJob=initialJob,activeDevelopmentMode=ACTIVE_DEVELOPMENT_MODE,
         tabBoxes={}, nodeBoxes={}, nodeHover={}, particles={}, time=0,
         message="", messageTime=0, messageKind="ok", unlockFx=nil,
         selectedNodeId=first and first.id or"fire_score_prewarm", blockedNode=nil, blockedTime=0, tabPulse=0,
@@ -131,7 +132,7 @@ end
 
 function CharacterTraitBoard:nodesFor(job)
     if self.activeDevelopmentMode=="score_attack"then
-        if self.store.data.jobMasterFire then return self.store:getScoreAttackNodes("builder")end
+        if job=="builder" then return self.store:getScoreAttackNodes("builder")end
         local merged={}
         for _,group in ipairs(scoreAttackGroups)do
             for _,node in ipairs(self.store:getScoreAttackNodes(group))do merged[#merged+1]=node end
@@ -146,6 +147,8 @@ function CharacterTraitBoard:selectJob(job)
     local nodes=self:nodesFor(job)
     self.selectedJob, self.selectedNodeId = job, nodes[1]and nodes[1].id or nil
     self.tabPulse, self.messageTime, self.blockedTime = 1, 0, 0
+    self.drag,self.buyButtonBox,self.unlockFx=nil,nil,nil
+    self.nodeBoxes,self.particles={},{}
     self.panX,self.panY,self.zoom,self.referenceZoom,self.panVX,self.panVY,self.viewInitialized=1100,job=="fire"and 920 or 850,.80,.80,0,0,false
 end
 
@@ -165,7 +168,7 @@ function CharacterTraitBoard:fitResearchTree()
     for _,node in ipairs(nodes)do local x,y=self:nodeWorld(node);minX,maxX=math.min(minX,x),math.max(maxX,x);minY,maxY=math.min(minY,y),math.max(maxY,y)end
     -- 합친 연구판의 정중앙은 흡연자 갈래와 공용 갈래 사이의 빈 곳이라, 열자마자
     -- 어느 쪽 트리도 제대로 안 보인다. 진행이 시작되는 뿌리 노드에 시점을 맞춘다.
-    local root=self.store:getNode(self.store.data.jobMasterFire and "builder_damage" or "fire_score_prewarm")
+    local root=self.store:getNode(self.selectedJob=="builder" and "builder_damage" or "fire_score_prewarm")
     if root then self.panX,self.panY=self:nodeWorld(root)
     else self.panX,self.panY=(minX+maxX)/2,(minY+maxY)/2 end
     -- 연구판을 한 판으로 합치면서 내용이 화면보다 훨씬 커졌다(1280x720에서 가로 64%,
@@ -176,7 +179,7 @@ function CharacterTraitBoard:fitResearchTree()
     -- Reset returns to the authored reference spacing. Zoom stays a readability
     -- adjustment upward; downward it may pull back far enough to see the whole tree.
     self.referenceZoom=clamp((self.viewport.w/1748)*.80,.56,.80)
-    if self.store.data.jobMasterFire then
+    if self.selectedJob=="builder" then
         self.panX,self.panY=self.contentCX,self.contentCY
         self.referenceZoom=math.min(self.referenceZoom,self.viewport.w/(self.contentW+360),self.viewport.h/(self.contentH+320))
     end
@@ -608,11 +611,6 @@ function CharacterTraitBoard:drawUnlockFx()
 end
 
 function CharacterTraitBoard:draw()
-    local currentJob=self.store:activeScoreJob()
-    if self.boardJob~=currentJob then
-        self.boardJob=currentJob;self.selectedNodeId=self:nodesFor(self.selectedJob)[1].id
-        self.viewInitialized=false
-    end
     local w,h=love.graphics.getDimensions()
     local textScale=clamp(math.min(w/1280,h/720),1,1.42)
     local fonts={
@@ -633,15 +631,17 @@ function CharacterTraitBoard:draw()
         love.graphics.setColor(.34,.36,.32,i%5==0 and .10 or .045);love.graphics.rectangle("fill",px,py,s,s)
     end
     local titleY=18*textScale;local subtitleY=titleY+fonts.title:getHeight()-2*textScale
-    local tabY=subtitleY+fonts.small:getHeight()+10*textScale
-    local tabH=#jobOrder>1 and 44*textScale or 0;local infoY=tabY+tabH+(#jobOrder>1 and 10*textScale or 0);local infoH=88*textScale
-    local graphY=infoY+infoH+10*textScale;local footerH=34*textScale
+    local footerH=34*textScale
+    local tabH=44*textScale;local tabY=h-tabH-12*textScale
+    local infoY=subtitleY+fonts.small:getHeight()+10*textScale;local infoH=88*textScale
+    local graphY=infoY+infoH+10*textScale
     self.backBox={x=26*textScale,y=18*textScale,w=132*textScale,h=40*textScale}
     Frontend.button(self.backBox,"← 돌아가기",fonts.small,{accent=STRUCTURE})
     local titleX=184*textScale
     love.graphics.setFont(fonts.title); love.graphics.setColor(.18,.19,.17); love.graphics.print("강화하기",titleX,titleY)
     local owned,total=self.store:jobMasterProgress()
-    local subtitle=self.store.data.jobMasterFire and "건설업자 연구 · 흡연자 잡 마스터 자동 전투"
+    local subtitle=self.selectedJob=="builder" and (self.store.data.jobMasterFire and "건설업자 연구 · 흡연자 잡 마스터 자동 전투" or "건설업자 미리보기 · 흡연자 잡 마스터 달성 후 강화 가능")
+        or self.store.data.jobMasterFire and "흡연자 연구 · 잡 마스터 완료 · 모든 능력 유지"
         or string.format("흡연자 잡 마스터 %d / %d · 모든 노드 만렙 시 건설업자 해금",owned,total)
     love.graphics.setFont(fonts.small); love.graphics.setColor(.38,.40,.37); love.graphics.print(subtitle,titleX,subtitleY)
     love.graphics.setFont(fonts.small);love.graphics.setColor(.38,.40,.37);love.graphics.printf("연구 코인",w-410*textScale,20*textScale,118*textScale,"right")
@@ -686,7 +686,7 @@ function CharacterTraitBoard:draw()
         self.buyButtonBox=nil;love.graphics.setColor(.43,.40,.37);love.graphics.printf(reason,actionX,infoY+55*textScale,actionW,"center")
     end
 
-    local graph={x=30*textScale,y=graphY,w=w-60*textScale,h=h-graphY-footerH}
+    local graph={x=30*textScale,y=graphY,w=w-60*textScale,h=tabY-footerH-10*textScale-graphY}
     self.viewport=graph
     if not self.viewInitialized then self:fitResearchTree()else self:clampCamera()end
     love.graphics.setColor(.94,.95,.91,.14); love.graphics.rectangle("fill",graph.x,graph.y,graph.w,graph.h)
@@ -751,15 +751,17 @@ function CharacterTraitBoard:draw()
     self:drawUnlockFx()
     love.graphics.setScissor()
     self.minimapBox=nil;self.resetViewBox=nil
-    love.graphics.setColor(.27,.28,.26,.88);love.graphics.rectangle("fill",0,h-footerH,w,footerH)
+    local helpY=graph.y+graph.h
+    love.graphics.setColor(.27,.28,.26,.88);love.graphics.rectangle("fill",0,helpY,w,footerH)
     love.graphics.setFont(fonts.micro or fonts.small);love.graphics.setColor(.94,.95,.91,.88)
-    love.graphics.printf("◆ 구매 가능     ·     클릭  강화 선택     ·     드래그  트리 이동     ·     휠  확대/축소",0,h-footerH+(footerH-fonts.small:getHeight())/2,w,"center")
+    love.graphics.printf("◆ 구매 가능     ·     클릭  강화 선택     ·     드래그  트리 이동     ·     휠  확대/축소",0,helpY+(footerH-fonts.small:getHeight())/2,w,"center")
     if self.messageTime>0 then
         local width=math.min(520,w*.46)
-        love.graphics.setColor(.94,.95,.91,.98); love.graphics.rectangle("fill",w/2-width/2,h-82,width,38,3,3)
+        local messageY=helpY-48
+        love.graphics.setColor(.94,.95,.91,.98); love.graphics.rectangle("fill",w/2-width/2,messageY,width,38,3,3)
         local success=self.messageKind=="ok"
-        love.graphics.setColor(success and {.24,.58,.32,1} or {.72,.28,.20,1}); love.graphics.rectangle("fill",w/2-width/2,h-82,4,38,2,2)
-        love.graphics.setFont(fonts.body); love.graphics.printf(self.message,w/2-width/2+12,h-72,width-24,"center")
+        love.graphics.setColor(success and {.24,.58,.32,1} or {.72,.28,.20,1}); love.graphics.rectangle("fill",w/2-width/2,messageY,4,38,2,2)
+        love.graphics.setFont(fonts.body); love.graphics.printf(self.message,w/2-width/2+12,messageY+10,width-24,"center")
     end
 end
 

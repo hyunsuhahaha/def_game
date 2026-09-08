@@ -46,3 +46,6 @@
 - 전체 회귀: `python scripts/headless_lua.py`, 자산 경로: `python scripts/verify_asset_versions.py`.
 - 전경·철거 검증: `python scripts/render_crane_overview.py`. 실제 카메라와 World 렌더로 28프레임 `crane-demolition-v1.gif`를 만들며, 세 화면 크기·맵 확장·고정 시점·조준 역변환·연속 벌목·비행/회전·정산 1회·정리를 검사한다.
 - 필수 통합 검수: `python scripts/render_crane_full_scene.py`. `Game:draw`부터 실제 HUD까지 실행하며 잡 마스터 화염방사기·크레인 동시 공격과 모든 동료·시설을 켠다. 캔버스 전송만 동일한 원근 수학으로 헤드리스 GPU에서 재생한다. 북쪽 지면 스텐실/원경 가위 영역도 보존한다. `crane-full-scene-v2.png/gif`가 현재 검수본이며, 이전 동료·시설을 제거한 `crane-demolition-v1.gif`는 단독 철거 실험 기록이지 완성 화면 검증이 아니다.
+# 강화 화면 연구 대상 전환
+
+강화 화면 맨 아래의 `1 흡연자` / `2 건설업자` 탭은 표시할 연구 노드만 전환한다. 클릭 또는 숫자키로 선택하며, 로비의 플레이 캐릭터 선택과 저장된 강화 수치는 바꾸지 않는다. 흡연자 탭에는 기존 무기·동료·설비 노드를 함께 표시하고 잡 마스터 이후에도 열람할 수 있다. 건설업자 탭은 해금 전 미리보기를 허용하지만 구매에는 기존 흡연자 잡 마스터 조건이 적용된다. 탭 전환 시 이전 선택·구매 버튼·드래그를 초기화한다.

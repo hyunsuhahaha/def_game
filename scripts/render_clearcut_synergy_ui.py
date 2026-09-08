@@ -7,11 +7,16 @@ ROOT=Path(__file__).resolve().parents[1];OUT=ROOT/'docs/previews'
 def rgba(c): return tuple(max(0,min(255,round(v*255))) for v in c)
 def render_ui(path,size,background=(0,0,0,255)):
  canvas=Image.new('RGBA',size,background);draw=ImageDraw.Draw(canvas,'RGBA')
+ clip=None
  def composite_primitive(painter):
   nonlocal draw
   layer=Image.new('RGBA',size,(0,0,0,0));painter(ImageDraw.Draw(layer,'RGBA'));canvas.alpha_composite(layer);draw=ImageDraw.Draw(canvas,'RGBA')
  for op in json.loads(Path(path).read_text(encoding='utf-8')):
   kind,args,color=op['op'],op['args'],rgba(op['color'])
+  if kind=='scissor':
+   clip=tuple(map(round,(args[0],args[1],args[0]+args[2],args[1]+args[3]))) if args else None
+   continue
+  before=canvas.copy() if clip else None
   if kind=='rectangle':
    x,y,w,h=args;x2,y2=x+w,y+h;box=(min(x,x2),min(y,y2),max(x,x2),max(y,y2));radius=op.get('radius') or 0
    radius=min(radius,(box[2]-box[0])/2,(box[3]-box[1])/2)
@@ -50,6 +55,8 @@ def render_ui(path,size,background=(0,0,0,255)):
    alpha=out.getchannel('A').point(lambda a:a*color[3]//255);out=rgb.convert('RGBA');out.putalpha(alpha)
    ox=args[5] if len(args)>5 else 0;oy=args[6] if len(args)>6 else 0
    canvas.alpha_composite(out,(round(x-ox*abs(sx)),round(y-oy*abs(sy))))
+  if clip:
+   before.paste(canvas.crop(clip),clip[:2]);canvas=before;draw=ImageDraw.Draw(canvas,'RGBA')
  return canvas if background[3]==0 else canvas.convert('RGB')
 def main():
  run(ROOT/'scripts/verify_clearcut_synergies.lua')

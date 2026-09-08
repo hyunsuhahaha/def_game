@@ -3,6 +3,7 @@ package.path = "./?.lua;./?/init.lua;" .. package.path
 local Board = require("src.character_trait_board")
 
 local store = {
+    data = {},
     getScoreAttackNodes = function()
         return {{id="universal_mole_dual"}}
     end,

@@ -59,7 +59,7 @@ assert(mode.jobMaster.actor.speed==original.baseSpeed and mode.jobMaster.actor.g
 assert(mode.construction.stats.damage==900 and mode.construction.stats.payload==1)
 local Board=require("src.character_trait_board")
 local board=Board.new(store,{},sprites)
-assert(#board:nodesFor("all")==#Builder.nodes,"builder research not reachable on board")
+assert(#board:nodesFor("builder")==#Builder.nodes,"builder research not reachable on board")
 assert(store:buy("builder_damage") and store:getLevel("builder_damage")==1)
 game:retryClearcut();mode=game.clearcut;operator=game.player
 assert(mode.construction.stats.damage==1200 and mode.jobMaster,"retry lost builder growth or master")
