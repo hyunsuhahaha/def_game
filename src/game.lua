@@ -402,6 +402,8 @@ end
 function Game:openTestOptions(returnMode)
     if self.releaseBuild then return false end
     self.testReturnMode, self.mode, self.testMessage, self.testResetArmed, self.testResetTime = returnMode or self.mode, "test_options", "테스트 기능은 실제 저장 데이터에 반영됩니다.", false, 0
+    self.testCoinAmount=math.max(1,math.floor(tonumber(self.testCoinAmount)or 1000000))
+    self.testCoinEditing=false
     return true
 end
 
@@ -446,13 +448,37 @@ function Game:testOptionLayout(width,height)
     local back={x=bx,y=panel.y+panel.h-backH-(compact and 10 or 12),w=bw,h=backH}
     local actionBottom=actions[#actions].y+actions[#actions].h
     local message={x=panel.x+24,y=actionBottom+(compact and 8 or 12),w=panel.w-48,h=math.max(24,back.y-actionBottom-(compact and 12 or 18))}
-    return{panel=panel,compact=compact,actions=actions,back=back,message=message}
+    local coinRow=actions[1]
+    local coinGap=compact and 4 or 6
+    local stepW=compact and 54 or 64
+    local grantW=compact and 126 or 150
+    local amountW=coinRow.w-stepW*2-grantW-coinGap*3
+    local coinControls={
+        minus={x=coinRow.x,y=coinRow.y,w=stepW,h=coinRow.h},
+        amount={x=coinRow.x+stepW+coinGap,y=coinRow.y,w=amountW,h=coinRow.h},
+        plus={x=coinRow.x+stepW+coinGap+amountW+coinGap,y=coinRow.y,w=stepW,h=coinRow.h},
+        grant={x=coinRow.x+coinRow.w-grantW,y=coinRow.y,w=grantW,h=coinRow.h},
+    }
+    return{panel=panel,compact=compact,actions=actions,back=back,message=message,coinControls=coinControls}
 end
 
-function Game:useTestOption(index)
+function Game:setTestCoinAmount(amount)
+    self.testCoinAmount=math.max(1,math.min(999999999,math.floor(tonumber(amount)or 1)))
+    return self.testCoinAmount
+end
+
+function Game:adjustTestCoinAmount(direction)
+    local amount=self:setTestCoinAmount(self.testCoinAmount or 1000000)
+    local step=amount>=1000000 and 100000 or(amount>=100000 and 10000 or(amount>=10000 and 1000 or(amount>=1000 and 100 or 10)))
+    return self:setTestCoinAmount(amount+direction*step)
+end
+
+function Game:useTestOption(index,amount)
     local activeRun=self.testReturnMode=="playing" or self.testReturnMode=="upgrade" or self.testReturnMode=="rush_upgrade" or self.testReturnMode=="clearcut_upgrade"
     if index==1 then
-        self.characterTraits:addCurrency(1000000); self.testMessage="연구 코인 1,000,000개를 지급했습니다."
+        local granted=self:setTestCoinAmount(amount or self.testCoinAmount or 1000000)
+        self.characterTraits:addCurrency(granted); self.testMessage=string.format("연구 코인 %d개를 지급했습니다.",granted)
+        self.testCoinEditing=false
     elseif index==4 then
         if self.testResetArmed and self.testResetTime>0 then self.progression:reset();self.characterTraits:reset();self.achievements:reset();self.testResetArmed=false;self.testMessage="영구 재화·특성·업적 기록을 초기화했습니다."
         else self.testResetArmed,self.testResetTime=true,4; self.testMessage="초기화하려면 4초 안에 버튼을 한 번 더 누르세요." end
@@ -593,7 +619,20 @@ end
 
 function Game:keypressed(key)
     if self.mode=="score_character_select"then require("src.score_character_select").keypressed(self,key);return end
-    if self.mode=="test_options" then if key=="escape" or key=="f10" then self:closeTestOptions() end; return end
+    if self.mode=="test_options" then
+        local digit=key:match("^kp([0-9])$")or key:match("^([0-9])$")
+        if digit then
+            local current=self.testCoinEditing and tostring(self.testCoinAmount or "")or""
+            self:setTestCoinAmount(tonumber(current..digit)or 1);self.testCoinEditing=true
+        elseif key=="backspace"then
+            local current=tostring(self.testCoinAmount or 1)
+            self:setTestCoinAmount(tonumber(current:sub(1,-2))or 1);self.testCoinEditing=true
+        elseif key=="left"or key=="down"then self:adjustTestCoinAmount(-1);self.testCoinEditing=false
+        elseif key=="right"or key=="up"then self:adjustTestCoinAmount(1);self.testCoinEditing=false
+        elseif key=="return"or key=="kpenter"then self:useTestOption(1)
+        elseif key=="escape" or key=="f10" then self:closeTestOptions() end
+        return
+    end
     if key=="f10" and self:openTestOptions(self.mode)then return end
     if self.paused then
         if key=="escape" then self.paused=false;self.pauseTiltDragging=false
@@ -792,8 +831,13 @@ function Game:mousepressed(x, y, button)
     if self.mode=="test_options" then
         if button==1 then
             local layout=self:testOptionLayout()
+            local coin=layout.coinControls
+            if Frontend.inside(coin.minus,x,y)then self:adjustTestCoinAmount(-1);self.testCoinEditing=false;return
+            elseif Frontend.inside(coin.amount,x,y)then self.testCoinEditing=false;return
+            elseif Frontend.inside(coin.plus,x,y)then self:adjustTestCoinAmount(1);self.testCoinEditing=false;return
+            elseif Frontend.inside(coin.grant,x,y)then self:useTestOption(1);return end
             for _,box in ipairs(layout.actions)do
-                if Frontend.inside(box,x,y)then self:useTestOption(box.index);return end
+                if box.index~=1 and Frontend.inside(box,x,y)then self:useTestOption(box.index);return end
             end
             if Frontend.inside(layout.back,x,y)then self:closeTestOptions()end
         end
@@ -1836,14 +1880,18 @@ function Game:drawTestOptions()
     love.graphics.setColor(1,.72,.25)
     love.graphics.printf("보유 연구 코인  "..self.characterTraits.data.currency,panel.x+20,panel.y+(compact and 78 or 92),panel.w-40,"center")
     local labels={
-        [1]="연구 코인 +1,000,000",
         [16]="튜토리얼 실행  (저장 상태 무시)",
         [4]=self.testResetArmed and "정말 초기화 — 다시 클릭"or"영구 재화·특성 초기화",
     }
     for index=6,15 do labels[index]=string.format("특성 %d%%",(index-5)*10)end
     for _,box in ipairs(layout.actions)do
-        UI.button(box.x,box.y,box.w,box.h,labels[box.index],true,box.index==1 and f.heading or(box.preset and f.small or f.body))
+        if box.index~=1 then UI.button(box.x,box.y,box.w,box.h,labels[box.index],true,box.preset and f.small or f.body)end
     end
+    local coin=layout.coinControls
+    UI.button(coin.minus.x,coin.minus.y,coin.minus.w,coin.minus.h,"-",true,f.heading)
+    UI.button(coin.amount.x,coin.amount.y,coin.amount.w,coin.amount.h,string.format("지급량  %d%s",self.testCoinAmount or 1000000,self.testCoinEditing and "  |"or""),true,compact and f.small or f.body)
+    UI.button(coin.plus.x,coin.plus.y,coin.plus.w,coin.plus.h,"+",true,f.heading)
+    UI.button(coin.grant.x,coin.grant.y,coin.grant.w,coin.grant.h,"연구 코인 지급",true,compact and f.small or f.body)
     UI.button(layout.back.x,layout.back.y,layout.back.w,layout.back.h,"돌아가기  [F10 / ESC]",true,f.body)
     love.graphics.setFont(f.small)
     love.graphics.setColor(self.testResetArmed and {1,.42,.25}or{.68,.82,.76})

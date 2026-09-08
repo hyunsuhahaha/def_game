@@ -16,6 +16,17 @@ local game=setmetatable({
 
 game.testReturnMode="lobby";game:useTestOption(1)
 assert(game.characterTraits.data.currency==1000000 and game.progression.data.currency==0,"developer research coin grant failed")
+game:useTestOption(1,12345)
+assert(game.characterTraits.data.currency==1012345 and game.testMessage:find("12345개",1,true),"custom developer research coin grant failed")
+game:setTestCoinAmount(9999999999)
+assert(game.testCoinAmount==999999999,"developer research coin input cap failed")
+game:setTestCoinAmount(1000000);game:adjustTestCoinAmount(-1)
+assert(game.testCoinAmount==900000,"developer research coin selector step failed")
+game.mode="test_options";game.testCoinEditing=false
+for digit in ("54321"):gmatch(".")do game:keypressed(digit)end
+assert(game.testCoinAmount==54321 and game.testCoinEditing,"developer research coin direct input failed")
+game:keypressed("return")
+assert(game.characterTraits.data.currency==1066666 and not game.testCoinEditing,"developer research coin keyboard grant failed")
 
 for action=6,15 do game:useTestOption(action)end
 assert(table.concat(game.characterTraits.progresses,",")=="10,20,30,40,50,60,70,80,90,100" and game.testMessage:find("300/300단계",1,true),
@@ -24,6 +35,8 @@ assert(table.concat(game.characterTraits.progresses,",")=="10,20,30,40,50,60,70,
 for _,size in ipairs({{960,540},{1280,720}})do
     local layout=game:testOptionLayout(size[1],size[2])
     assert(#layout.actions==13,"developer tool layout action count is wrong")
+    assert(layout.coinControls.minus.x>=layout.actions[1].x and layout.coinControls.grant.x+layout.coinControls.grant.w<=layout.actions[1].x+layout.actions[1].w,
+        "developer research coin controls escaped their row")
     local found={}
     for _,action in ipairs(layout.actions)do found[action.index]=true end
     assert(found[1]and found[4]and found[16]and not found[2]and not found[3]and not found[5],
@@ -69,5 +82,5 @@ game.clearcut={scoreAttack=true};game.testReturnMode="playing";game.mode="test_o
 assert(game.startedTutorialTier==1 and game.startedTutorialMode==true and game.clearcut.scoreTutorialRun,
     "developer tutorial replay did not replace the current run with an isolated tutorial")
 
-print("DEVELOPER_TOOLS_OK research_coin=1m tutorial=replay_no_save traits=10..100_step10 "..
+print("DEVELOPER_TOOLS_OK research_coin=custom_1..999999999 tutorial=replay_no_save traits=10..100_step10 "..
     "responsive=960x540+ reset=confirmed removed=resources+levels")
