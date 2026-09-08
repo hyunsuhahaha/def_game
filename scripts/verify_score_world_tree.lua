@@ -239,7 +239,7 @@ assert(disabledGame.mode ~= "score_reward" and disabled.scoreRewardChoices == ni
     "비활성화한 세계수 보상 3택이 운영 모드에서 열렸다")
 
 -- 5-1. 실제 기록전은 세계수 처치가 성공 종료다. 다음 재생 단계는 먼저 저장하고,
--- 목재 정산과 별도 클리어 보너스를 한 번만 입금한 뒤 결과 화면 없이 로비로 간다.
+-- 결과 화면에서 목재 정산과 별도 클리어 보너스를 한 번만 입금한다.
 do
     local cleared=mode();cleared.sandbox=false
     cleared.scoreRegenTier,cleared.scoreStartingRegenTier,cleared.scoreHighestRegenTier=1,1,1
@@ -255,18 +255,21 @@ do
     local tree={scoreWorldTree=true,hp=0,def={},x=0,y=0}
     cleared.scoreWorldTree=tree
     cleared:onEnemyDefeated(tree,cg)
-    assert(cg.mode=="lobby" and cg.result and cg.result.victory,
-        "세계수 클리어가 결과 화면 없이 로비로 복귀하지 않았다")
+    assert(cg.mode=="clearcut_results" and cg.result and cg.result.victory,
+        "세계수 클리어가 결과 화면으로 진입하지 않았다")
     assert(cg.result.completionReason=="score_world_tree_cleared" and cg.result.scoreClearBonus==30,
         "세계수 성공 종료 사유나 클리어 보너스가 결과에 남지 않았다")
     assert(cleared.scoreRegenTier==2 and traits.regenTier==2,
         "세계수 클리어가 다음 재생 단계를 저장하지 않았다")
-    assert(cg.result.lumberCoinTotal==34 and cg.result.traitEarned==34 and traits.data.currency==41,
-        "목재 4코인과 세계수 보너스 30코인이 즉시 정확히 정산되지 않았다")
-    assert(cleared.resultSettlement.complete and traits.completed==1,
-        "세계수 클리어 정산이 중복 가능 상태이거나 정상 런 기록을 남기지 않았다")
+    assert(cg.result.lumberCoinTotal==34 and cg.result.traitEarned==0 and traits.data.currency==7,
+        "세계수 결과판을 열기 전에 목재와 클리어 보너스를 입금했다")
+    assert(not cleared.resultSettlement.complete and traits.completed==1,
+        "세계수 클리어 결과 정산이 시작되지 않았거나 정상 런 기록을 남기지 않았다")
     cleared:completeResultSettlement(cg)
-    assert(traits.data.currency==41,"완료된 세계수 정산이 두 번 지급됐다")
+    assert(cg.result.traitEarned==34 and traits.data.currency==41 and cleared.resultSettlement.complete,
+        "결과 화면의 목재 4코인과 세계수 보너스 30코인이 정확히 정산되지 않았다")
+    cleared:completeResultSettlement(cg)
+    assert(traits.data.currency==41,"완료된 세계수 결과 정산이 두 번 지급됐다")
 end
 
 -- 보상 코드와 스크립트는 복구 가능하게 보존한다.
@@ -462,4 +465,4 @@ do
 end
 
 ScoreWorldTree.REWARDS_ENABLED = false
-print("SCORE_WORLD_TREE_OK interval=40s tier=empty clear=world_tree_to_lobby bonus=scaled reward_cards=disabled")
+print("SCORE_WORLD_TREE_OK interval=40s tier=empty clear=world_tree_to_results bonus=scaled reward_cards=disabled")

@@ -3012,7 +3012,7 @@ function ClearcutMode:onEnemyDefeated(e, game)
         local empty=self:scoreActiveTreeCount()==0
         self:advanceScoreRegenTier(game,empty,empty and"empty_world_tree"or"world_tree")
         -- 운영 기록전의 세계수는 다음 단계 해금을 확정한 뒤 런을 끝낸다. 목재 정산과
-        -- 클리어 보너스를 즉시 한 번만 입금하고 결과 화면을 거치지 않고 로비로 간다.
+        -- 클리어 보너스는 결과 화면에서 한 번만 입금하고 플레이어가 다음 행동을 고른다.
         -- 연습장/샌드박스와 보존된 3택 검증은 기존 반복 흐름을 그대로 쓴다.
         local scoreClear=self.scoreAttack and not self.scorePractice and not self.sandbox
             and not self.defenseMode and not self.scoreTutorialRun and not self.scoreTutorialTestRun
@@ -3020,8 +3020,6 @@ function ClearcutMode:onEnemyDefeated(e, game)
             self.scoreClearBonus=ClearcutMode.ScoreWorldTree.clearBonus(defeatedTier)
             self.completionReason="score_world_tree_cleared"
             self:finish(game,true)
-            self:completeResultSettlement(game)
-            game.mode="lobby"
             game:setNotice(string.format("세계수 제거 완료 · 클리어 보너스 +%d 연구 코인",self.scoreClearBonus),"food")
             return
         end
