@@ -1,7 +1,7 @@
 local game=dofile("scripts/verify_job_master.lua")
 local Builder=require("src.construction_worker")
 local mode=game.clearcut
-assert(game.camera.craneOverview and not game.camera.perspective)
+assert(game.camera.craneOverview and game.camera.perspective)
 for _,size in ipairs({{960,540},{1280,720},{1920,1080}})do
     local w,h=size[1],size[2]
     love.graphics.getDimensions=function()return w,h end
@@ -10,7 +10,7 @@ for _,size in ipairs({{960,540},{1280,720},{1920,1080}})do
         local world={width=3200*scale,height=2000*scale}
         game.camera:update(0,game.player,world)
         local x,y,z=game.camera.x,game.camera.y,game.camera.zoom
-        for _,p in ipairs({{0,-480},{world.width,world.height}})do
+        for _,p in ipairs({{0,0},{world.width,world.height}})do
             local sx,sy=game.camera:worldToScreen(p[1],p[2])
             assert(sx>=0 and sx<=w and sy>=0 and sy<=h,"whole map/mast cropped")
             local wx,wy=game.camera:screenToWorld(sx,sy)

@@ -55,6 +55,13 @@ def replay(capture_paths,size=(1280,900)):
         fbo=ctx.simple_framebuffer(size,components=4); fbo.use();fbo.clear(0,0,0,1)
         commands=json.loads(Path(capture_path).read_text(encoding="utf-8"))
         for op in commands:
+            clip=op.get('clip')
+            if clip:
+                x,y,w,h=clip
+                left,top=max(0,math.floor(x)),max(0,math.floor(y))
+                right,bottom=min(size[0],math.ceil(x+w)),min(size[1],math.ceil(y+h))
+                ctx.scissor=(left,size[1]-bottom,max(0,right-left),max(0,bottom-top))
+            else: ctx.scissor=None
             args=op['args']; color=op['color']; kind=op['op']
             if kind=='draw':
                 path=op['file']
@@ -91,6 +98,7 @@ def replay(capture_paths,size=(1280,900)):
                     if kind=='ellipse': x-=w;y-=h;w*=2;h*=2
                     shape['thickness'].value=(op['lineWidth']/max(1,w),op['lineWidth']/max(1,h))
                     draw_box(shape,x,y,w,h)
+        ctx.scissor=None
         result=Image.frombytes('RGBA',size,fbo.read(components=4)).transpose(Image.Transpose.FLIP_TOP_BOTTOM).convert('RGB')
         frames.append(result);fbo.release()
     return frames,ctx.info['GL_RENDERER'],len(programs)

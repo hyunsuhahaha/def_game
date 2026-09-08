@@ -117,12 +117,13 @@ end
 function Camera:update(dt, target, world)
     local w, h = love.graphics.getDimensions()
     if self.craneOverview then
-        -- Entire authored map, plus room for the mast and flying trees. Refit
-        -- every frame so regeneration expansion and window resizing stay visible.
-        local marginX,top,bottom=240,480,80
-        self.perspective=false;self.pitch=1;self.userZoom=1
-        self.x,self.y=world.width/2,(world.height+bottom-top)/2
-        self.zoom=math.min((w-64)/(world.width+marginX*2),(h-128)/(world.height+top+bottom))
+        -- Fit the full playable forest, not its unused enclosing canvas.
+        -- Preserve the normal tilted ground and upright combat billboard pass.
+        local b=world.playBounds or {x=0,y=0,w=world.width,h=world.height}
+        local pitch=clamp(self.pitch or .76,.72,1)
+        self.perspective=true;self.pitch=pitch;self.userZoom=1
+        self.x,self.y=b.x+b.w/2,b.y+b.h/2-40/pitch
+        self.zoom=math.min((w-48)/(b.w+64),(h-112)/(b.h*pitch+120))
         self:syncRender(true)
         return
     end

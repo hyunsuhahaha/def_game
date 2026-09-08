@@ -309,14 +309,14 @@ function Game:setViewTilt(amount)
 end
 
 function Game:enableClearcutPerspective()
+    local settings=self.settings or {}
+    self.camera.pitch=math.max(VIEW_PITCH_MIN,math.min(VIEW_PITCH_MAX,settings.viewPitch or .76))
+    self.camera.perspective=true
     if self.clearcut and self.clearcut.construction then
         self.camera.craneOverview=true
         self.camera:update(0,self.player,self.world)
         return
     end
-    local settings=self.settings or {}
-    self.camera.pitch=math.max(VIEW_PITCH_MIN,math.min(VIEW_PITCH_MAX,settings.viewPitch or .76))
-    self.camera.perspective=true
 end
 
 function Game:grantTestRunResources()
@@ -1038,6 +1038,7 @@ function Game:wheelmoved(x, y)
     end
     if self.clearcut and self.clearcut.worldTreeEmergence then return end
     if self.mode ~= "playing" or y == 0 then return end
+    if self.camera.craneOverview then return end
     if not (love.keyboard.isDown("lctrl") or love.keyboard.isDown("rctrl")) then return end
     local factor = y > 0 and 1.1 or 1 / 1.1
     if self.clearcut and self.camera.perspective then
