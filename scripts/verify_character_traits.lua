@@ -496,6 +496,12 @@ for _,id in ipairs({"universal_mole_companion","universal_mole_damage","universa
     minMoleY,maxMoleY=math.min(minMoleY,my),math.max(maxMoleY,my)
 end
 assert(maxMoleY-minMoleY>=700,"mole research graph is still compressed into one non-scrollable node cluster")
+local rootX,rootY=board:nodeWorld(store:getNode("fire_score_prewarm"))
+local hireX,hireY=board:nodeWorld(store:getNode("universal_mole_companion"))
+local burrowX,burrowY=board:nodeWorld(store:getNode("universal_mole_burrow_speed"))
+local function distanceFromCenter(x,y)return math.sqrt((x-rootX)^2+(y-rootY)^2)end
+assert(distanceFromCenter(hireX,hireY)<1300 and distanceFromCenter(hireX,hireY)<distanceFromCenter(burrowX,burrowY),
+    "cheap mole unlock is not near the board center ahead of its late upgrades")
 local oilX,oilY=board:nodeWorld(store:getNode("universal_oil_drum"))
 local catX,catY=board:nodeWorld(store:getNode("universal_gray_cat"))
 local oilCatDistance=math.sqrt((oilX-catX)^2+(oilY-catY)^2)

@@ -385,7 +385,7 @@ function CharacterTraitBoard:nodeWorld(node)
         fire_score_popper_extra={2600,2700},
         -- 공용 연구는 흡연자 갈래와 같은 좌표를 쓰고 있었다(각자 다른 탭이었으므로).
         -- 한 판으로 합치면서 흡연자 오른쪽으로 통째로 옮긴다.
-        universal_yard={2600,850},universal_robot_start={3000,850},universal_robot_motor={3400,850},
+        universal_yard={2300,750},universal_robot_start={2600,850},universal_robot_motor={3000,850},
         universal_yard_3={3400,250},universal_stride_3={3700,1450},
         -- 이동속도는 선행 없는 루트라 공용 갈래 입구 옆에 둔다.
         universal_stride={2600,550},
@@ -398,10 +398,13 @@ function CharacterTraitBoard:nodeWorld(node)
         universal_view_4={4900,900},universal_yard_5={4700,1200},
         universal_gray_cat={3800,1100},
         universal_gray_cat_chance={4100,1000},universal_gray_cat_speed={4100,1300},
-        universal_mole_companion={3000,1100},
-        universal_mole_damage={2600,1350},universal_mole_speed={3000,1350},universal_mole_attack_speed={3400,1350},
-        universal_mole_claw={2600,1600},universal_mole_extra={3000,1600},
-        universal_mole_burrow={3400,1600},universal_mole_burrow_speed={3100,1850},
+        -- 두더지는 첫 구매가 26~78코인인 초반 자동화다. 연구판 끝까지 찾아가야 하는
+        -- 인상을 없애려고 해금과 세 기본 강화를 중앙 루트 바로 오른쪽에 먼저 모은다.
+        -- 발톱·추가 동료·땅굴 같은 후속 개조만 아래·오른쪽으로 퍼진다.
+        universal_mole_companion={2300,1000},
+        universal_mole_damage={2300,1250},universal_mole_speed={2600,1100},universal_mole_attack_speed={2900,1250},
+        universal_mole_claw={2300,1500},universal_mole_extra={2600,1500},
+        universal_mole_burrow={2900,1500},universal_mole_burrow_speed={2900,1750},
         universal_view_2={3700,1850},
         universal_bomb_monkey={5000,1550},universal_bomb_interval={5350,1400},universal_bomb_fuse={5350,1700},
         universal_bomb_radius={5700,1400},universal_bomb_damage={5700,1700},universal_bomb_extra={6050,1550},
