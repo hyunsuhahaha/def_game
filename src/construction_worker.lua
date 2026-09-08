@@ -39,6 +39,19 @@ end
 
 function Builder.update(mode,game,dt,held,tx,ty)
     local c=mode.construction;if not c then return end
+    c.contactDust=c.contactDust or {}
+    for i=#c.contactDust,1,-1 do
+        local p=c.contactDust[i];p.age=p.age+dt
+        if p.age>=.65 then table.remove(c.contactDust,i)end
+    end
+    local function contact(load,impact)
+        for i=-3,3 do
+            if #c.contactDust>=112 then table.remove(c.contactDust,1)end
+            local s=load.halfLength*i/3
+            c.contactDust[#c.contactDust+1]={x=load.x-load.ny*s-load.nx*load.stats.radius*.65,
+                y=load.y+load.nx*s-load.ny*load.stats.radius*.65,age=0,scale=load.stats.radius/(impact and 65 or 110)}
+        end
+    end
     for i=#c.flyingTrees,1,-1 do
         local tree=c.flyingTrees[i]
         tree.t=math.min(tree.duration,tree.t+dt)
@@ -81,7 +94,7 @@ function Builder.update(mode,game,dt,held,tx,ty)
         local groundDt=math.max(0,load.age-.4)-math.max(0,oldAge-.4)
         if groundDt>0 then
             if oldAge<=.4 then
-                game.world:spawnFallImpact({x=load.x,y=load.y,rushMaxHp=80,fallDir=load.nx<0 and -1 or 1,fallReach=load.halfLength},game)
+                contact(load,true)
             end
             -- Build momentum instead of instantly shooting off at full speed.
             local ramp=math.min(1,(load.age-.4)/.7)
@@ -89,6 +102,9 @@ function Builder.update(mode,game,dt,held,tx,ty)
             local ax,ay=load.x,load.y
             load.x,load.y=Maps.constrain(game.world,ax+load.nx*distance,ay+load.ny*distance,load.stats.radius)
             load.travelled=load.travelled+distance;load.roll=load.travelled/load.stats.radius
+            if load.travelled-(load.lastDust or 0)>=load.stats.radius*.9 then
+                contact(load,false);load.lastDust=load.travelled
+            end
             local function overlaps(target,override)
                 local x,y=target.x-ax,target.y-ay
                 local along=x*load.nx+y*load.ny
