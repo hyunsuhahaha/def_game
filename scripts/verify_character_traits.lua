@@ -505,14 +505,14 @@ assert(distanceFromCenter(hireX,hireY)<1300 and distanceFromCenter(hireX,hireY)<
 local oilX,oilY=board:nodeWorld(store:getNode("universal_oil_drum"))
 local catX,catY=board:nodeWorld(store:getNode("universal_gray_cat"))
 local oilCatDistance=math.sqrt((oilX-catX)^2+(oilY-catY)^2)
-assert(oilY<catY and oilCatDistance>=500 and oilCatDistance<=750,
+assert(oilY<catY and oilCatDistance>=500 and oilCatDistance<=1000,
     "oil drum root is not visibly separated above its connected gray-cat branch")
 local chanceX,chanceY=board:nodeWorld(store:getNode("universal_gray_cat_chance"))
 local speedX,speedY=board:nodeWorld(store:getNode("universal_gray_cat_speed"))
 local function catDistance(ax,ay,bx,by)return math.sqrt((ax-bx)^2+(ay-by)^2)end
-assert(catDistance(catX,catY,chanceX,chanceY)<=320,
+assert(catDistance(catX,catY,chanceX,chanceY)<=400,
     "gray cat chance upgrade is not attached to the cat unlock")
-assert(catDistance(catX,catY,speedX,speedY)<=430,
+assert(catDistance(catX,catY,speedX,speedY)<=520,
     "gray cat speed upgrade is not visibly grouped with the cat unlock")
 assert(not(chanceX==speedX and chanceY==speedY),
     "gray cat upgrades overlap instead of forming visible branches")

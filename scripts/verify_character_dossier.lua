@@ -31,7 +31,8 @@ assert(dossier:find("활성 나무 0그루 달성 시 0.86초 승급·6그루 �
 assert(dossier:find("인게임 XP·레벨업·강화 3택 없음 · 목재는 점수와 정산만",1,true),"dossier score-mode growth summary is stale")
 assert(dossier:find("없음 · 멧돼지·다람쥐 등 일반 몬스터 비활성",1,true),"dossier score-mode monster rule is stale")
 assert(dossier:find("재생 단계 제한 및 목표 단계 가격 노드는 표의 고정 가격",1,true),"dossier research-price rule is stale")
-assert(dossier:find("중앙 루트의 상·하·좌·우 분기 · 꽁초 즉시 타격은 기본 적용 · 방향별 동일 단계 간격 · 기준 간격의 85~115% 줌 · 화면 해상도별 한글 폰트 재래스터",1,true),
+assert(dossier:find("기존 노드 그래프·휠 확대/축소·드래그 유지",1,true)
+    and dossier:find("다중 효과 연구는 다음 구매 효과와 연구 누적 전후 수치 표시",1,true),
     "dossier research-board summary is stale")
 assert(dossier:find("소량은 1개씩·대량은 묶음 단위로 코인 변환",1,true)and dossier:find("약 4초 상한",1,true),
     "dossier result-screen summary is stale")

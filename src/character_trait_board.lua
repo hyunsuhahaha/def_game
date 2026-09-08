@@ -210,7 +210,10 @@ function CharacterTraitBoard:buySelected()
     if not id then return end
     local box
     for _,b in ipairs(self.nodeBoxes) do if b.id==id then box=b; break end end
+    local preview=require("src.research_preview").describe(self.store:getNode(id),self.store:getLevel(id))
+    local wasMaster=self.store.data.jobMasterFire
     local ok,message=self.store:buy(id)
+    if ok and preview and (wasMaster or not self.store.data.jobMasterFire)then message="강화 완료 · "..preview end
     self.message,self.messageTime=message,2.5
     self.messageKind=ok and "ok" or "blocked"
     if ok and box then self:burst(box,box.node); self.blockedNode=nil
@@ -329,13 +332,13 @@ function CharacterTraitBoard:wheelmoved(_,delta)
 end
 
 function CharacterTraitBoard:nodeWorld(node)
-    -- 기록전 연구는 수가 적어 한 화면에 전부 읽혀야 한다. 저장 데이터의 좌표를
-    -- 바꾸지 않고 화면에서만 뿌리->가지 방향의 고정 배치를 사용한다.
+    -- 기존 연속 그래프와 자유 줌을 유지한다. 좌표만 조정하며 노드 ID·선행 조건·
+    -- 저장된 구매 단계에는 영향을 주지 않는다.
     local scoreLayout={
         fire_score_prewarm={1100,850},
         -- 대시 해금은 초반 상시 흡연 옆에 두되, 거리 상승은 폭죽 해금까지 진행한
         -- 약 5단계 지점에서 열리는 별도 후속 노드로 오른쪽에 내린다.
-        fire_score_dash_unlock={2150,1100},fire_score_dash_distance={2150,1600},
+        fire_score_dash_unlock={1800,1350},fire_score_dash_distance={1800,1600},
         fire_score_filter={750,650},
         -- 초반 목재 흡수 범위를 기존 시야 노드 자리에 끼우고, 시야 노드는 같은
         -- 갈래의 왼쪽 빈 자리로 옮긴다. 둘 다 남아 있으며 연결 순서만 늘어난다.
@@ -367,7 +370,7 @@ function CharacterTraitBoard:nodeWorld(node)
         fire_score_rocket_radius={1400,1850},fire_score_rocket_damage={1800,1850},
         fire_score_rocket_speed={1250,2100},fire_score_rocket_ignite={1650,2100},
         fire_score_rocket_cooldown={2050,2100},
-        fire_score_view_3={800,2450},fire_score_yard_6={1100,2300},
+        fire_score_view_3={450,2450},fire_score_yard_6={1100,2300},
         fire_score_rocket_twin={1650,2350},
         -- 폭죽 졸업과 화염방사기는 폭죽 줄 아래로 새 층을 쌓는다. 도끼가 원숭이로
         -- 졸업한 뒤 폭죽으로 넘어갔듯, 폭죽도 원숭이로 졸업하고 화염방사기로 넘어간다.
@@ -385,19 +388,20 @@ function CharacterTraitBoard:nodeWorld(node)
         fire_score_popper_extra={2600,2700},
         -- 공용 연구는 흡연자 갈래와 같은 좌표를 쓰고 있었다(각자 다른 탭이었으므로).
         -- 한 판으로 합치면서 흡연자 오른쪽으로 통째로 옮긴다.
-        universal_yard={2300,750},universal_robot_start={2600,850},universal_robot_motor={3000,850},
-        universal_yard_3={3400,250},universal_stride_3={3700,1450},
+        universal_yard={2300,450},universal_robot_start={1900,550},universal_robot_motor={1900,250},
+        universal_yard_3={3700,400},universal_stride_3={3700,1450},
         -- 이동속도는 선행 없는 루트라 공용 갈래 입구 옆에 둔다.
         universal_stride={2600,550},
         -- 드럼통 강화는 설비/고양이 선을 가로지르지 않도록 우측 상단에 독립 배치한다.
         -- 두 줄의 동일 간격 구조라 범위 계열과 지속 계열이 한눈에 구분된다.
-        universal_oil_drum={3800,425},
-        universal_oil_interval={4200,250},universal_oil_radius={4600,250},
-        universal_oil_splash_count={5000,250},universal_oil_ignition_radius={5400,250},
-        universal_oil_duration={4200,650},universal_oil_burn_duration={4600,650},universal_oil_damage={5000,650},
-        universal_view_4={4900,900},universal_yard_5={4700,1200},
-        universal_gray_cat={3800,1100},
-        universal_gray_cat_chance={4100,1000},universal_gray_cat_speed={4100,1300},
+        universal_oil_drum={2200,100},
+        universal_oil_interval={2550,-100},universal_oil_radius={2950,-100},
+        universal_oil_splash_count={3350,-100},universal_oil_ignition_radius={3750,-100},
+        universal_oil_duration={2550,300},universal_oil_burn_duration={2950,300},universal_oil_damage={3350,300},
+        universal_view_4={4250,300},universal_yard_5={4250,700},
+        universal_gray_cat={2800,800},
+        universal_gray_cat_chance={3150,800},universal_gray_cat_speed={3150,1150},
+        universal_wildfire={4250,-100},universal_capacity_9={6050,1950},
         -- 두더지는 첫 구매가 26~78코인인 초반 자동화다. 연구판 끝까지 찾아가야 하는
         -- 인상을 없애려고 해금과 세 기본 강화를 중앙 루트 바로 오른쪽에 먼저 모은다.
         -- 발톱·추가 동료·땅굴 같은 후속 개조만 아래·오른쪽으로 퍼진다.
@@ -433,20 +437,41 @@ end
 function CharacterTraitBoard:drawConnection(bounds, from, to, active, available, color)
     local x1,y1=self:nodePosition(bounds,from)
     local x2,y2=self:nodePosition(bounds,to)
+    local points={x1,y1,x2,y2}
+    if self.selectedJob~="builder"then
+        if not self.connectionRoutes then
+            self.connectionRoutes=require("src.research_connections").new(self:nodesFor(self.selectedJob),function(n)return self:nodeWorld(n)end)
+        end
+        points={}
+        for _,p in ipairs(self.connectionRoutes:path(from.id,to.id))do
+            points[#points+1]=bounds.x+bounds.w/2+(p[1]-self.panX)*self.zoom
+            points[#points+1]=bounds.y+bounds.h/2+(p[2]-self.panY)*self.zoom
+        end
+    end
     local rr,gg,bb=.28,.57,.36
     local locked=not active and not available
     local z=self.zoom or .8
     love.graphics.setLineWidth(math.max(1,(active and 13 or 10)*z))
     if locked then love.graphics.setColor(.34,.35,.34,.30) else love.graphics.setColor(rr,gg,bb,active and .18 or .10) end
-    love.graphics.line(x1,y1,x2,y2)
+    love.graphics.line(unpack(points))
     love.graphics.setLineWidth(math.max(1,(active and 7 or 5)*z))
     if locked then love.graphics.setColor(.31,.32,.31,.72) else love.graphics.setColor(rr,gg,bb,active and 1 or .72) end
-    love.graphics.line(x1,y1,x2,y2)
-    love.graphics.setLineWidth(1); love.graphics.setColor(.92,.96,.89,active and .42 or .08);love.graphics.line(x1,y1-1,x2,y2-1)
+    love.graphics.line(unpack(points))
+    love.graphics.setLineWidth(1); love.graphics.setColor(.92,.96,.89,active and .42 or .08);love.graphics.line(unpack(points))
     if active then
         local travel=(self.time*.72 + (to.x or 0)*.7 + (to.y or 0)*.3)%1
-        love.graphics.setColor(.78,1,1,.96)
-        love.graphics.circle("fill",x1+(x2-x1)*travel,y1+(y2-y1)*travel,math.max(1,5*z))
+        local length=0;local lengths={}
+        for i=1,#points-2,2 do local d=math.sqrt((points[i+2]-points[i])^2+(points[i+3]-points[i+1])^2);lengths[i]=d;length=length+d end
+        local remaining=length*travel
+        for i=1,#points-2,2 do
+            if remaining<=lengths[i]then
+                local t=remaining/math.max(.001,lengths[i])
+                love.graphics.setColor(.78,1,1,.96)
+                love.graphics.circle("fill",points[i]+(points[i+2]-points[i])*t,points[i+1]+(points[i+3]-points[i+1])*t,math.max(1,5*z))
+                break
+            end
+            remaining=remaining-lengths[i]
+        end
     end
     love.graphics.setLineWidth(1)
 end
@@ -662,12 +687,19 @@ function CharacterTraitBoard:draw()
     local nodes=self:nodesFor(self.selectedJob)
     local focus=self.store:getNode(self.selectedNodeId) or nodes[1]
     local infoW=math.min(760*textScale,w-72*textScale);local infoX=(w-infoW)/2
+    local level=self.store:getLevel(focus.id);local ok,reason,cost=self.store:status(focus.id)
+    local preview=require("src.research_preview").describe(focus,level)
+    local description=preview and ("다음 단계: "..preview)or focus.desc
+    local descriptionW=infoW-244*textScale
+    infoH=math.max(infoH,wrappedHeight(fonts.micro or fonts.small,description,descriptionW)+66*textScale)
+    graphY=infoY+infoH+10*textScale
     love.graphics.setColor(.94,.95,.91,.98);love.graphics.rectangle("fill",infoX,infoY,infoW,infoH,3,3)
     love.graphics.setColor(.27,.29,.26,.82);love.graphics.setLineWidth(2);love.graphics.rectangle("line",infoX+.5,infoY+.5,infoW-1,infoH-1,3,3);love.graphics.setLineWidth(1)
-    local level=self.store:getLevel(focus.id);local ok,reason,cost=self.store:status(focus.id)
     love.graphics.setFont(fonts.body);love.graphics.setColor(.15,.16,.14);love.graphics.print(focus.name,infoX+22*textScale,infoY+11*textScale)
-    love.graphics.setFont(fonts.micro or fonts.small);love.graphics.setColor(.34,.36,.33);love.graphics.print(focus.desc,infoX+22*textScale,infoY+39*textScale)
-    love.graphics.setColor(.23,.55,.31);love.graphics.print("단계 "..level.." / "..focus.max,infoX+22*textScale,infoY+64*textScale)
+    love.graphics.setFont(fonts.micro or fonts.small);love.graphics.setColor(.34,.36,.33)
+    -- Reserve the action column: long descriptions must not run behind Buy.
+    love.graphics.printf(description,infoX+22*textScale,infoY+37*textScale,descriptionW,"left")
+    love.graphics.setColor(.23,.55,.31);love.graphics.print("단계 "..level.." / "..focus.max,infoX+22*textScale,infoY+infoH-24*textScale)
     local actionW=190*textScale;local actionX=infoX+infoW-actionW-16*textScale
     if level>=focus.max then
         self.buyButtonBox=nil;love.graphics.setColor(.35,.39,.34);love.graphics.printf("연구 완료",actionX,infoY+57*textScale,actionW,"center")
@@ -748,11 +780,12 @@ function CharacterTraitBoard:draw()
     love.graphics.setFont(fonts.micro or fonts.small);love.graphics.setColor(.94,.95,.91,.88)
     love.graphics.printf("◆ 구매 가능     ·     클릭  강화 선택     ·     드래그  트리 이동     ·     휠  확대/축소",0,helpY+(footerH-fonts.small:getHeight())/2,w,"center")
     if self.messageTime>0 then
-        local width=math.min(520,w*.46)
-        local messageY=helpY-48
-        love.graphics.setColor(.94,.95,.91,.98); love.graphics.rectangle("fill",w/2-width/2,messageY,width,38,3,3)
+        local width=math.min(740,w-60*textScale)
+        local messageH=math.max(38,wrappedHeight(fonts.body,self.message,width-24)+20)
+        local messageY=helpY-messageH-10
+        love.graphics.setColor(.94,.95,.91,.98); love.graphics.rectangle("fill",w/2-width/2,messageY,width,messageH,3,3)
         local success=self.messageKind=="ok"
-        love.graphics.setColor(success and {.24,.58,.32,1} or {.72,.28,.20,1}); love.graphics.rectangle("fill",w/2-width/2,messageY,4,38,2,2)
+        love.graphics.setColor(success and {.24,.58,.32,1} or {.72,.28,.20,1}); love.graphics.rectangle("fill",w/2-width/2,messageY,4,messageH,2,2)
         love.graphics.setFont(fonts.body); love.graphics.printf(self.message,w/2-width/2+12,messageY+10,width-24,"center")
     end
 end
