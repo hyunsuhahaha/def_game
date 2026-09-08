@@ -16,9 +16,9 @@ for path in paths:
     path.write_text(json.dumps([op for op in commands if op['op'] in ('draw','rectangle','ellipse','line')]),encoding='utf-8')
 frames,renderer,count=replay(paths,size=(1280,900))
 views=[frame.resize((1075,756),Image.Resampling.NEAREST) for frame in frames]
-views[2].save(OUT/'job-master-runtime-v1.png')
-views[0].save(OUT/'job-master-motion-v1.gif',save_all=True,append_images=views[1:],duration=100,loop=0)
-frames[2].crop((240,260,900,690)).resize((1320,860),Image.Resampling.NEAREST).save(OUT/'job-master-pixels-v1.png')
+views[2].save(OUT/'job-master-runtime-v2.png')
+views[0].save(OUT/'job-master-motion-v2.gif',save_all=True,append_images=views[1:],duration=100,loop=0)
+frames[2].crop((200,180,650,790)).resize((900,1220),Image.Resampling.NEAREST).save(OUT/'job-master-pixels-v2.png')
 render_ui(OUT/'job-master-research.json',(1280,720)).save(OUT/'job-master-research-v1.png')
 for path in (ROOT/'assets/construction').glob('*.png'):
     im=Image.open(path).convert('RGBA')
@@ -27,4 +27,6 @@ for path in (ROOT/'assets/construction').glob('*.png'):
     assert len(im.getcolors(im.width*im.height))>=16,path
 sheet=Image.open(ROOT/'assets/construction/concrete-pipe-roll-atlas-v1.png')
 assert len({sheet.crop((i*192,0,(i+1)*192,192)).tobytes() for i in range(12)})==12
+tracks=Image.open(ROOT/'assets/construction/crane-tracks-atlas-v1.png')
+assert len({tracks.crop((i*448,0,(i+1)*448,128)).tobytes() for i in range(6)})==6
 print('JOB_MASTER_RENDER_OK GPU='+renderer+' actual=.84 enlarged=2x solid-alpha=hard motion=12frames window=none')

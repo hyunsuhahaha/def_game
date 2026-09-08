@@ -132,6 +132,7 @@ function Camera:update(dt, target, world)
         if focus.time<=0 then self.cinematic=nil;focus=nil end
     end
     local targetX,targetY=focus and focus.x or target.x,focus and focus.y or target.y
+    if not focus then targetY=targetY+(target.cameraOffsetY or 0)end
     local desiredZoom=self.zoom
     if focus then
         local edge=math.min(1,(focus.duration-focus.time)/.28,focus.time/.38)

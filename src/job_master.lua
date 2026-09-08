@@ -10,11 +10,14 @@ function Master.setup(mode,game)
     mode.jobMaster={actor=game.player}
     local world=game.world
     local actor=Player.new(game.player.x+140,game.player.y,world.images.workerWalk,world.images.workerActions,world.images.workerRepair)
-    actor:setClearcutSprite(game.clearcutSprites.developer,"builder")
+    actor.clearcutJob="builder"
+    actor.cameraOffsetY=-250
+    actor.movementMargin=160
     game.player=actor;mode.controlledJob="builder"
     Builder.setup(mode,game)
+    actor.construction=mode.construction
     actor.speed=mode.construction.stats.moveSpeed
-    game:setNotice("흡연자 잡 마스터 자동 전투 · 건설업자 WASD 이동 / 좌클릭 크레인 자재 투하","food")
+    game:setNotice("흡연자 잡 마스터 자동 전투 · WASD 크레인 직접 이동 / 마우스 조준 · 좌클릭 자재 투하","food")
 end
 
 function Master.prepare(mode,game,dt)

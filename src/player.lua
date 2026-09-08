@@ -130,7 +130,7 @@ function Player:update(dt, world, game)
     if self.isMoving then
         dx, dy = dx / len, dy / len
         if dx ~= 0 then self.facing = dx < 0 and -1 or 1 end
-        self.x,self.y=require("src.clearcut_maps").constrain(world,self.x+dx*self.speed*dt,self.y+dy*self.speed*dt,75)
+        self.x,self.y=require("src.clearcut_maps").constrain(world,self.x+dx*self.speed*dt,self.y+dy*self.speed*dt,self.movementMargin or 75)
         self.walkClock = self.walkClock + dt * 9
     end
     if self.repairingWall then
@@ -172,6 +172,9 @@ function Player:update(dt, world, game)
 end
 
 function Player:draw()
+    if self.construction then
+        return require("src.construction_art").drawCrane(self.construction,self)
+    end
     local pulse = self.isMoving and math.sin(self.walkClock * math.pi) or 0
     local drawX,drawY=self:autoAxeRenderPosition()
     if self.axeHolding and not self.hideAxeRange then

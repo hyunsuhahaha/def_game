@@ -8758,7 +8758,7 @@ end
 function ClearcutMode:drawScoreMeleeToggle(fonts,w,h)
     if self.construction then
         love.graphics.setFont(fonts.small);love.graphics.setColor(1,.82,.45)
-        love.graphics.print("건설업자 · 좌클릭 자재 투하 / 흡연자 잡 마스터 자동 전투",18,h-42)
+        love.graphics.print("WASD 크레인 이동 · 마우스 조준 · 좌클릭 자재 투하 / 잡 마스터 자동 전투",18,h-42)
         return
     end
     if not(self.scoreAttack and self.job=="fire")then return end

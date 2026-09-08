@@ -49,6 +49,7 @@ baseline.player:setClearcutSprite(sprites.fire,"fire");original:setup(baseline)
 local game=newGame();game:startClearcutScoreAttack(1,false)
 local mode=game.clearcut;local operator=game.player
 assert(mode.jobMaster.actor~=operator and operator.clearcutJob=="builder","builder did not take player control")
+assert(operator.construction==mode.construction and not operator.clearcutSprite,"a human still represents the crane")
 for key,value in pairs(original.permanentTraits)do
     assert(mode.permanentTraits[key]==value,"master ability was changed: "..key)
 end
@@ -62,6 +63,21 @@ assert(#board:nodesFor("all")==#Builder.nodes,"builder research not reachable on
 assert(store:buy("builder_damage") and store:getLevel("builder_damage")==1)
 game:retryClearcut();mode=game.clearcut;operator=game.player
 assert(mode.construction.stats.damage==1200 and mode.jobMaster,"retry lost builder growth or master")
+
+-- Real Player input moves the machine itself, not an invisible remote worker.
+local keyboard=love.keyboard.isDown
+local ox,oy=operator.x,operator.y
+for _,key in ipairs({"w","a","s","d"})do
+    operator.x,operator.y=ox,oy
+    love.keyboard.isDown=function(...)for _,k in ipairs({...})do if k==key then return true end end return false end
+    operator:update(.1,game.world,game)
+    Builder.update(mode,game,0,false,ox+800,oy)
+    local dx,dy=operator.x-ox,operator.y-oy
+    assert((key=="w" and dy<0)or(key=="s" and dy>0)or(key=="a" and dx<0)or(key=="d" and dx>0),"crane WASD failed: "..key)
+    assert(mode.construction.towerX==operator.x and mode.construction.towerY==operator.y,"crane detached from input position")
+end
+love.keyboard.isDown=keyboard;operator.x,operator.y=ox,oy
+assert(operator.cameraOffsetY==-250 and operator.movementMargin==160,"large crane framing/boundary clearance missing")
 
 -- Full update: autonomous original weapon attacks without mouse input, while
 -- the operator remains untouched and the shared forest is updated just once.
@@ -79,8 +95,8 @@ assert(master.scoreAxeEquipped~=true and mode.flameStream,"master did not use it
 for direction=0,7 do
     local a=direction*math.pi/4;local nx,ny=math.cos(a),math.sin(a)
     operator.x,operator.y=game.world.width/2,game.world.height/2
-    local near={kind="tree",rushTree=true,active=true,x=operator.x+nx*160,y=operator.y+ny*160,rushHp=10000,rushMaxHp=10000,treeVariant=1}
-    local far={kind="tree",rushTree=true,active=true,x=operator.x+nx*380,y=operator.y+ny*380,rushHp=10000,rushMaxHp=10000,treeVariant=1}
+    local near={kind="tree",rushTree=true,active=true,x=operator.x+nx*320,y=operator.y+ny*320,rushHp=10000,rushMaxHp=10000,treeVariant=1}
+    local far={kind="tree",rushTree=true,active=true,x=operator.x+nx*540,y=operator.y+ny*540,rushHp=10000,rushMaxHp=10000,treeVariant=1}
     local missed={kind="tree",rushTree=true,active=true,x=near.x-ny*130,y=near.y+nx*130,rushHp=10000,rushMaxHp=10000,treeVariant=1}
     game.world.nodes={near,far,missed};mode.enemies={}
     mode.construction.loads={};mode.construction.cooldown=0
@@ -95,7 +111,7 @@ for direction=0,7 do
     assert(#mode.construction.loads==0,"material leaked after reaching its range or boundary")
 end
 operator.x,operator.y=game.world.width/2,game.world.height/2
-local boss={x=operator.x+180,y=operator.y,hp=20000,scoreWorldTree=true,def={radius=50}}
+local boss={x=operator.x+320,y=operator.y,hp=20000,scoreWorldTree=true,def={radius=50}}
 game.world.nodes={};mode.enemies={boss};mode.construction.cooldown=0
 Builder.update(mode,game,1,true,operator.x+600,operator.y)
 assert(boss.hp==18800,"construction material cannot damage world tree")

@@ -89,13 +89,73 @@ def pipe(frame):
         d.rectangle((x,y,x+1,y+1),fill=CONCRETE[5+i%5])
     return im
 
+def tower_v2():
+    """Taller native-grid mast, wider double truss and crawler mounting."""
+    im=Image.new('RGBA',(448,896));d=ImageDraw.Draw(im)
+    plate(im,(76,798,372,861),STEEL)
+    for x in (112,336):beam(im,(224,703),(x,818),22,STEEL)
+    for y in range(210,771,70):
+        beam(im,(154,y),(294,y+70),9);beam(im,(294,y),(154,y+70),9)
+        beam(im,(151,y),(297,y),12)
+    for x in (150,298):beam(im,(x,177),(x,800),19)
+    for x in (195,226):plate(im,(x,217,x+5,789),STEEL)
+    for y in range(227,788,17):beam(im,(198,y),(228,y),3,STEEL)
+    plate(im,(107,157,338,206),STEEL)
+    beam(im,(148,166),(220,30),9);beam(im,(301,166),(220,30),9)
+    plate(im,(259,225,404,323),GOLD);plate(im,(270,237,392,286),GLASS)
+    d.polygon([(275,241),(330,241),(275,278)],fill=GLASS[13])
+    beam(im,(329,238),(329,286),5)
+    plate(im,(274,296,390,313),STEEL)
+    for x in range(280,386,10):d.line([(x,298),(x,310)],fill=STEEL[1],width=3)
+    for y in (356,636):
+        plate(im,(126,y,322,y+19),STEEL)
+        for x in range(136,319,23):beam(im,(x,y-24),(x,y),2,STEEL)
+        beam(im,(131,y-24),(319,y-24),3,STEEL)
+    for y in range(215,790,70):
+        for x in (150,298):
+            d.ellipse((x-5,y-5,x+5,y+5),fill=STEEL[2])
+            d.ellipse((x-2,y-3,x+1,y),fill=STEEL[15])
+    plate(im,(120,816,328,846),GOLD)
+    for x in range(126,310,28):d.polygon([(x,819),(x+11,819),(x+24,843),(x+13,843)],fill=STEEL[0])
+    return im
+
+def boom_v2():
+    im=Image.new('RGBA',(1152,144))
+    for x in range(18,1100,64):
+        beam(im,(x,40),(x+64,102),7);beam(im,(x,102),(x+64,40),7)
+        beam(im,(x,40),(x,102),7)
+    beam(im,(8,35),(1137,35),14);beam(im,(8,106),(1137,106),14)
+    for x in (24,85,146):plate(im,(x,49,x+53,92),CONCRETE)
+    plate(im,(606,108,660,132),STEEL)
+    return im
+
+def crawler(frame):
+    im=Image.new('RGBA',(448,128));d=ImageDraw.Draw(im)
+    for x in (18,252):
+        d.rounded_rectangle((x,20,x+177,117),radius=29,fill=STEEL[0])
+        d.rounded_rectangle((x+7,28,x+170,109),radius=24,fill=STEEL[7])
+        for cx in range(x+33,x+159,31):
+            d.ellipse((cx-18,49,cx+18,89),fill=STEEL[2])
+            d.ellipse((cx-9,58,cx+9,80),fill=STEEL[11])
+            d.rectangle((cx-3,63,cx+3,75),fill=GOLD[8])
+        for t in range(12):
+            xx=x+18+(t*14+frame*2)%144
+            plate(im,(xx,23,xx+7,35),STEEL);plate(im,(xx,101,xx+7,113),STEEL)
+    plate(im,(168,40,280,87),GOLD)
+    return im
+
 def build():
     OUT.mkdir(parents=True,exist_ok=True)
     tower().save(OUT/'tower-crane-pixel-v1.png')
     boom().save(OUT/'tower-jib-pixel-v1.png')
+    tower_v2().save(OUT/'tower-crane-pixel-v2.png')
+    boom_v2().save(OUT/'tower-jib-pixel-v2.png')
+    treads=Image.new('RGBA',(448*6,128))
+    for i in range(6):treads.paste(crawler(i),(i*448,0))
+    treads.save(OUT/'crane-tracks-atlas-v1.png')
     sheet=Image.new('RGBA',(192*12,192))
     for i in range(12):sheet.paste(pipe(i),(i*192,0))
     sheet.save(OUT/'concrete-pipe-roll-atlas-v1.png')
-    print('CONSTRUCTION_ASSETS_OK native mast=256x576 jib=768x96 pipe=12x192x192')
+    print('CONSTRUCTION_ASSETS_OK native mast=448x896 jib=1152x144 tracks=6x448x128 pipe=12x192x192')
 
 if __name__=='__main__':build()

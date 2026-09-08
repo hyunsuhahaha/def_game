@@ -11,7 +11,7 @@ Builder.nodes={
     {id="builder_payload",name="동시 자재 투하 증가",desc="한 번의 크레인 작업에서 나란히 굴리는 자재가 1개 증가합니다.",effect="payload",value=1,max=2,costs={180000,350000},wx=1900,wy=1200,icon="split",requires={{"builder_radius",2},{"builder_interval",3}}},
     {id="builder_boss",name="세계수 철거 피해 상승",desc="세계수에 주는 자재 충돌 피해가 단계마다 50% 증가합니다.",effect="boss",value=.5,max=4,costs={70000,120000,200000,320000},wx=2300,wy=850,icon="fist",requires={{"builder_range",2}}},
     {id="builder_capacity",name="건설 현장 허용량 상승",desc="현장의 나무 허용량이 단계마다 15그루 증가합니다.",effect="capacity",value=15,max=4,costs={45000,80000,140000,240000},wx=2300,wy=1200,icon="map",requires={{"builder_payload",1}}},
-    {id="builder_move",name="건설업자 이동속도 상승",desc="건설업자의 이동속도가 단계마다 8% 증가합니다.",effect="move",value=.08,max=4,costs={20000,35000,60000,100000},wx=1100,wy=1550,icon="road",requires={{"builder_interval",1}}},
+    {id="builder_move",name="크레인 이동속도 상승",desc="크레인 본체의 이동속도가 단계마다 8% 증가합니다.",effect="move",value=.08,max=4,costs={20000,35000,60000,100000},wx=1100,wy=1550,icon="road",requires={{"builder_interval",1}}},
     {id="builder_final",name="철거 자재 피해 두 배",desc="모든 건설자재의 충돌 피해가 2배가 됩니다.",effect="final",value=1,max=1,costs={600000},wx=2300,wy=1550,icon="capstone",capstone=true,requires={{"builder_damage",5},{"builder_boss",4},{"builder_payload",2}}},
 }
 for _,node in ipairs(Builder.nodes)do
@@ -32,7 +32,7 @@ end
 
 function Builder.setup(mode,game)
     mode.construction={stats=Builder.stats(game.characterTraits),loads={},cooldown=0,
-        towerX=game.player.x-210,towerY=game.player.y+170,clock=0}
+        towerX=game.player.x,towerY=game.player.y,clock=0,launchDistance=280,dropHeight=320}
     mode.scoreTreeAllowance=mode.scoreTreeAllowance+mode.construction.stats.capacity
     mode.scoreBaseAllowance=mode.scoreTreeAllowance
 end
@@ -41,6 +41,7 @@ function Builder.update(mode,game,dt,held,tx,ty)
     local c=mode.construction;if not c then return end
     c.clock=c.clock+dt;c.cooldown=math.max(0,c.cooldown-dt)
     local actor=game.player;actor.speed=c.stats.moveSpeed
+    c.towerX,c.towerY=actor.x,actor.y
     c.controlX,c.controlY=actor.x,actor.y
     if held==nil then held=love.mouse.isDown(1)end
     if not tx then tx,ty=game.camera:screenToWorld(love.mouse.getPosition())end
@@ -51,8 +52,8 @@ function Builder.update(mode,game,dt,held,tx,ty)
         dx,dy=dx/distance,dy/distance;actor.facing=dx<0 and-1 or 1
         for lane=1,c.stats.payload do
             local offset=(lane-(c.stats.payload+1)/2)*c.stats.radius*2.1
-            local x,y=Maps.constrain(game.world,actor.x+dx*65-dy*offset,actor.y+dy*65+dx*offset,c.stats.radius)
-            c.loads[#c.loads+1]={x=x,y=y,nx=dx,ny=dy,age=0,height=160,roll=0,
+            local x,y=Maps.constrain(game.world,actor.x+dx*c.launchDistance-dy*offset,actor.y+dy*c.launchDistance+dx*offset,c.stats.radius)
+            c.loads[#c.loads+1]={x=x,y=y,nx=dx,ny=dy,age=0,height=c.dropHeight,roll=0,
                 travelled=0,hit={},stats=c.stats}
         end
         c.cooldown=c.stats.interval;c.action=0
@@ -63,7 +64,7 @@ function Builder.update(mode,game,dt,held,tx,ty)
     end
     for index=#c.loads,1,-1 do
         local load=c.loads[index];local oldAge=load.age;load.age=load.age+dt
-        load.height=160*(1-math.min(1,load.age/.4)^2)
+        load.height=c.dropHeight*(1-math.min(1,load.age/.4)^2)
         -- Damage starts on ground contact. Sweep the full travelled segment so
         -- fast material cannot tunnel through a tree between rendered frames.
         local groundDt=math.max(0,load.age-.4)-math.max(0,oldAge-.4)
