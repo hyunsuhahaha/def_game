@@ -12,7 +12,13 @@ end
 assert(dossier:find('let mode = "traits"',1,true),"dossier does not open on permanent traits")
 assert(dossier:find('<h1 class="masthead-title" id="masthead-title">영구 연구 기록부</h1>',1,true),"dossier still uses the character personnel-file framing")
 assert(dossier:find('traits: { label: "영구 연구"',1,true),"permanent research dossier mode is missing")
-assert(dossier:find('const ORDER = ["fire","universal"]',1,true),"dossier still exposes archived character selection tabs")
+assert(dossier:find('const ORDER = ["fire","universal","builder"]',1,true),"dossier active research groups are stale")
+for _,node in ipairs(require("src.construction_worker").nodes)do
+    local from=assert(dossier:find('id:"'..node.id..'"',1,true),"missing construction node: "..node.id)
+    local line=dossier:sub(from):match("[^\n]+")
+    assert(line:find('name:"'..node.name..'"',1,true) and line:find('max:'..node.max,1,true)
+        and line:find('costs:['..table.concat(node.costs,",")..']',1,true),"construction dossier differs: "..node.id)
+end
 assert(dossier:find('label: "무기·전투"',1,true)and dossier:find('label: "동료·설비"',1,true),
     "active research groups are not presented without character classes")
 assert(dossier:find('document.getElementById("score-mode-summary").hidden = false',1,true),

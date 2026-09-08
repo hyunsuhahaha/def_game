@@ -401,6 +401,8 @@
 
   <div class="modeswitch" id="modeswitch"></div>
   <section class="score-mode-summary" id="score-mode-summary" hidden aria-label="벌목 기록 모드 현재 규칙">
+    <div class="score-rule"><span class="score-rule-label">잡 마스터</span><span class="score-rule-value">흡연자 무기·전투와 동료·설비의 모든 노드 만렙 → 능력·수치 그대로 자동 전투 → 건설업자 새 연구망 해금. 코인·재생 단계·기존 연구 유지.</span></div>
+    <div class="score-rule"><span class="score-rule-label">건설업자 기본 공격</span><span class="score-rule-value">WASD 이동 · 좌클릭 크레인 투하 · 콘크리트 관 지상 굴림. 기본 피해 900 / 주기 1.35초 / 반경 42 / 거리 1100. 자재 하나가 경로의 각 대상을 한 번씩 타격.</span></div>
     <div class="score-rule"><span class="score-rule-label">종료 조건</span><span class="score-rule-value">활성 나무 12그루 · 로비 영구 연구로 확장</span></div>
     <div class="score-rule"><span class="score-rule-label">재생 단계 승급</span><span class="score-rule-value">활성 나무 0그루 달성 또는 40초 뒤 세계수 처치 · 0.86초 연출 · 6그루 순차 발아 · 다음 단계 영구 해금</span></div>
     <div class="score-rule"><span class="score-rule-label">몬스터 투입</span><span class="score-rule-value">없음 · 멧돼지·다람쥐 등 일반 몬스터 비활성</span></div>
@@ -808,7 +810,24 @@ const TRAITS = {
 
 // 기존 캐릭터별 연구 데이터는 저장 호환과 향후 재사용을 위해 TRAITS에 보존한다.
 // 현재 문서와 실제 플레이에는 캐릭터 선택이 없으므로 활성 연구 그룹만 노출한다.
-const ORDER = ["fire","universal"];
+TRAITS.builder = {
+  label: "건설업자", accent: "#b37a22",
+  tagline: "흡연자 잡 마스터 이후 새로 육성하는 타워크레인 조종사.",
+  doctrine: "완성된 흡연자는 능력 그대로 자동 전투하고, 건설업자는 크레인으로 콘크리트 관을 내려놓아 나무를 연속 파괴한다. 연구 코인과 재생 단계는 공유하며 전용 연구는 0부터 시작한다.",
+  nodes: [
+    {id:"builder_damage",name:"건설자재 피해 상승",short:"자재 피해 +300",desc:"굴러가는 자재의 피해가 단계마다 300 증가합니다.",max:5,costs:[20000,30000,45000,65000,90000],targetTier:12},
+    {id:"builder_speed",name:"자재 굴림 속도 상승",short:"굴림 속도 +120",desc:"자재의 굴림 속도가 단계마다 120 증가합니다.",max:4,costs:[18000,30000,50000,80000],targetTier:12,requires:[["builder_damage",1]]},
+    {id:"builder_interval",name:"크레인 작업속도 상승",short:"투하 주기 -0.12초",desc:"자재 투하 주기가 단계마다 0.12초 짧아집니다.",max:5,costs:[22000,38000,60000,95000,140000],targetTier:12,requires:[["builder_damage",1]]},
+    {id:"builder_radius",name:"콘크리트 관 크기 상승",short:"자재 반경 +10",desc:"자재의 크기와 실제 충돌 반경이 단계마다 10 증가합니다.",max:4,costs:[35000,60000,95000,145000],targetTier:12,requires:[["builder_speed",2]]},
+    {id:"builder_range",name:"자재 굴림 거리 상승",short:"굴림 거리 +200",desc:"자재가 굴러가는 최대 거리가 단계마다 200 증가합니다.",max:4,costs:[30000,55000,90000,140000],targetTier:12,requires:[["builder_speed",1]]},
+    {id:"builder_payload",name:"동시 자재 투하 증가",short:"동시 투하 +1",desc:"한 번의 크레인 작업에서 나란히 굴리는 자재가 1개 증가합니다.",max:2,costs:[180000,350000],targetTier:12,requires:[["builder_radius",2],["builder_interval",3]]},
+    {id:"builder_boss",name:"세계수 철거 피해 상승",short:"세계수 피해 +50%",desc:"세계수에 주는 자재 충돌 피해가 단계마다 50% 증가합니다.",max:4,costs:[70000,120000,200000,320000],targetTier:12,requires:[["builder_range",2]]},
+    {id:"builder_capacity",name:"건설 현장 허용량 상승",short:"허용량 +15",desc:"현장의 나무 허용량이 단계마다 15그루 증가합니다.",max:4,costs:[45000,80000,140000,240000],targetTier:12,requires:[["builder_payload",1]]},
+    {id:"builder_move",name:"건설업자 이동속도 상승",short:"이동속도 +8%",desc:"건설업자의 이동속도가 단계마다 8% 증가합니다.",max:4,costs:[20000,35000,60000,100000],targetTier:12,requires:[["builder_interval",1]]},
+    {id:"builder_final",name:"철거 자재 피해 두 배",short:"자재 피해 ×2",desc:"모든 건설자재의 충돌 피해가 2배가 됩니다.",max:1,costs:[600000],targetTier:12,requires:[["builder_damage",5],["builder_boss",4],["builder_payload",2]],capstone:true},
+  ]
+};
+const ORDER = ["fire","universal","builder"];
 const MODE_META = {
   traits: { label: "영구 연구", sub: "연구 코인 구매", masthead: "무기·전투 / 동료·설비 — 현재 플레이에 적용되는 영구 연구", stamp: "연구 코인 결재 완료", data: TRAITS },
 };

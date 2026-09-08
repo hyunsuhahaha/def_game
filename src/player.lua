@@ -119,7 +119,7 @@ function Player:update(dt, world, game)
         end
     end
     local dx, dy = 0, 0
-    if not(game.clearcut and game.clearcut.smokerDash)then
+    if not(game.clearcut and game.clearcut.smokerDash and not game.clearcut.construction)then
         if love.keyboard.isDown("a", "left") then dx = dx - 1 end
         if love.keyboard.isDown("d", "right") then dx = dx + 1 end
         if love.keyboard.isDown("w", "up") then dy = dy - 1 end

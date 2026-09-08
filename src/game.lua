@@ -230,6 +230,7 @@ function Game:setScoreTierChoice(tier)
     self.scoreTierChoice=math.max(1,math.min(self.scoreTierMax or 1,math.floor(tier or 1)))
 end
 function Game:startClearcutScoreAttack(startTier,tutorialMode)
+    if self.characterTraits then self.characterTraits:completeJobMaster()end
     local unlocked=math.max(1,self.characterTraits and self.characterTraits:getRegenTier()or 1)
     startTier=math.max(1,math.min(unlocked,math.floor(startTier or unlocked)))
     self:resetRun()
@@ -256,6 +257,7 @@ function Game:startClearcutScoreAttack(startTier,tutorialMode)
     self.player:setClearcutSprite(avatar or fireSprite,"fire")
     self.clearcut:setup(self)
     ClearcutMode.ScoreTutorial.prepareWorld(self.clearcut,self)
+    require("src.job_master").setup(self.clearcut,self)
     self:consumeTestNextRunLevels()
     self:enableClearcutPerspective()
     self.mode="playing"

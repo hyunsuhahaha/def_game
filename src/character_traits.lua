@@ -504,6 +504,8 @@ local byId = {}
 for job, group in pairs(jobs) do
     for _, node in ipairs(group.nodes) do node.job = job; byId[node.id] = node end
 end
+jobs.builder={name="건설업자",nodes=require("src.construction_worker").nodes}
+for _,node in ipairs(jobs.builder.nodes)do byId[node.id]=node end
 local orderedIds = {}
 for id in pairs(byId) do orderedIds[#orderedIds+1] = id end
 table.sort(orderedIds)
@@ -514,7 +516,7 @@ local storyJobs = {"physical", "fire", "toxic", "developer", "miner", "philosoph
 
 local function defaults()
     local data = {currency=0, regenTier=1, levels={}, storySeen={},equipmentConfigured=false,
-        playerWeapons={1,2},monkeyWeapons={2},lobbyItems={},scoreRunsCompleted=0,scoreTutorialSeen=false}
+        playerWeapons={1,2},monkeyWeapons={2},lobbyItems={},scoreRunsCompleted=0,scoreTutorialSeen=false,jobMasterFire=false}
     for id in pairs(byId) do data.levels[id] = 0 end
     for _, job in ipairs(storyJobs) do data.storySeen[job] = false end
     return data
@@ -546,6 +548,7 @@ function CharacterTraits.decode(text)
             elseif key:match("^"..base.."_%d+$")then seenSplitFlame[base]=true end
         end
         if key == "currency" then data.currency = number
+        elseif key == "job_master_fire" then data.jobMasterFire=number>0
         elseif key == "regenTier" then data.regenTier = math.max(1,number)
         elseif key == "score_runs_completed" then data.scoreRunsCompleted=number
         elseif key == "score_tutorial_seen" then data.scoreTutorialSeen=number>0
@@ -593,7 +596,7 @@ function CharacterTraits.decode(text)
 end
 
 function CharacterTraits.encode(data)
-    local lines = {"version=7", "currency=" .. math.floor(data.currency or 0),"regenTier="..math.max(1,math.floor(data.regenTier or 1)),
+    local lines = {"version=8", "job_master_fire="..(data.jobMasterFire and 1 or 0), "currency=" .. math.floor(data.currency or 0),"regenTier="..math.max(1,math.floor(data.regenTier or 1)),
         "score_runs_completed="..math.max(0,math.floor(data.scoreRunsCompleted or 0)),
         "score_tutorial_seen="..(data.scoreTutorialSeen and 1 or 0),
         "equipment_configured="..(data.equipmentConfigured and 1 or 0),
@@ -640,6 +643,24 @@ end
 function CharacterTraits:getNode(id) return byId[id] end
 function CharacterTraits:getLevel(id) return self.data.levels[id] or 0 end
 function CharacterTraits:getRegenTier()return math.max(1,math.floor(self.data.regenTier or 1))end
+function CharacterTraits:jobMasterProgress()
+    local owned,total=0,0
+    for _,job in ipairs({"fire","universal"})do
+        for _,node in ipairs(self:getScoreAttackNodes(job))do
+            owned=owned+math.min(node.max,self:getLevel(node.id));total=total+node.max
+        end
+    end
+    return owned,total
+end
+function CharacterTraits:completeJobMaster()
+    if self.data.jobMasterFire then return false end
+    local owned,total=self:jobMasterProgress()
+    if total==0 or owned<total then return false end
+    self.data.jobMasterFire=true
+    self:save()
+    return true
+end
+function CharacterTraits:activeScoreJob()return self.data.jobMasterFire and "builder" or "fire" end
 function CharacterTraits:recordScoreRunCompleted()
     self.data.scoreRunsCompleted=math.max(0,math.floor(self.data.scoreRunsCompleted or 0))+1
     self:save()
@@ -686,6 +707,7 @@ end
 function CharacterTraits:status(id)
     local node = byId[id]
     if not node then return false, "존재하지 않는 특성" end
+    if node.job=="builder" and not self.data.jobMasterFire then return false,"흡연자 잡 마스터 필요"end
     local level = self:getLevel(id)
     if level >= node.max then return false, "최고 단계" end
     -- 코인만으로는 못 여는 문. 노가다로 전부 사고 나면 목표가 사라지므로, 후반 노드는
@@ -754,6 +776,9 @@ function CharacterTraits:buy(id)
     self.data.currency = self.data.currency - cost
     self.data.levels[id] = self:getLevel(id) + 1
     self._scoreRanks = nil
+    if self:completeJobMaster()then
+        return true,"흡연자 잡 마스터! 능력 그대로 자동 전투 · 건설업자 연구 해금"
+    end
     self:save()
     return true, byId[id].name .. " " .. self:getLevel(id) .. "단계 해금"
 end
@@ -920,7 +945,7 @@ end
 -- 인크리멘탈에서 다음에 살 것이 안 보이면 다시 켤 이유가 사라진다.
 function CharacterTraits:nextGoal()
     local best
-    for _,job in ipairs({"fire","universal"})do
+    for _,job in ipairs(self.data.jobMasterFire and {"builder"} or {"fire","universal"})do
         for _,node in ipairs(self:getScoreAttackNodes(job))do
             local level=self:getLevel(node.id)
             if level<node.max then

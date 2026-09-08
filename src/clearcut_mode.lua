@@ -1760,6 +1760,7 @@ function ClearcutMode:update(dt, game)
     if not self.scoreTutorialRun and not self.defenseMode and self:updateScoreTreeGrowth(dt,game)then return end
     if not self.scoreTutorialRun and not self.defenseMode then self:updateScoreWorldTree(dt,game)end
     self:updateWorldTreeLumber(dt)
+    require("src.job_master").prepare(self,game,dt)
     self:updateMoleCompanion(dt,game)
     self:updateOilDrums(dt,game)
     ClearcutMode.PoppingMachine.update(self,dt,game)
@@ -1810,6 +1811,7 @@ function ClearcutMode:update(dt, game)
     if self.permanentTraits.hpRegen and self.permanentTraits.hpRegen > 0 then
         self.hp = math.min(self.maxHp, self.hp + self.permanentTraits.hpRegen * dt)
     end
+    require("src.job_master").restore(self,game)
     ClearcutMode.ScoreTutorial.update(self,game,dt)
     if self.scoreTutorialComplete then
         self.scoreTutorialComplete=false
@@ -3979,6 +3981,7 @@ function ClearcutMode:updateSmokeRing(dt, game)
 end
 
 function ClearcutMode:activateSmokerDash(game)
+    if self.construction and game.player~=self.jobMaster.actor then return false end
     if self.job~="fire"or self.dead or(self.permanentTraits.scoreDashUnlock or 0)<=0
         or self.smokerDash or(self.smokerDashCooldown or 0)>0 then return false end
     local dx,dy=0,0
@@ -3986,6 +3989,9 @@ function ClearcutMode:activateSmokerDash(game)
     if love.keyboard.isDown("d","right")then dx=dx+1 end
     if love.keyboard.isDown("w","up")then dy=dy-1 end
     if love.keyboard.isDown("s","down")then dy=dy+1 end
+    if self.jobMaster and self.jobMaster.target then
+        dx,dy=self.jobMaster.target.x-game.player.x,self.jobMaster.target.y-game.player.y
+    end
     local length=math.sqrt(dx*dx+dy*dy)
     if length<.01 then dx,dy,length=game.player.facing or 1,0,1 end
     dx,dy=dx/length,dy/length
@@ -4122,6 +4128,7 @@ function ClearcutMode:tickSmokerReload(dt, game)
 end
 
 function ClearcutMode:updateHeldAxe(dt, game, heldOverride)
+    if self.jobMaster then heldOverride=self.jobMaster.target~=nil end
     if self.scoreAttack and self.job=="fire" then
         local held=heldOverride
         if held==nil then held=love.mouse.isDown(1)end
@@ -4173,6 +4180,7 @@ function ClearcutMode:scoreMeleeToggleRect(screenW,screenH)
 end
 
 function ClearcutMode:scoreMeleeToggleAt(x,y)
+    if self.construction then return false end
     if not(self.scoreAttack and self.job=="fire")then return false end
     local box=self:scoreMeleeToggleRect(love.graphics.getWidth(),love.graphics.getHeight())
     return x>=box.x and x<=box.x+box.w and y>=box.y and y<=box.y+box.h
@@ -4208,6 +4216,7 @@ function ClearcutMode:scoreMeleeTargetAtAim(game)
     local range=ClearcutMode.SCORE_AXE_RANGE
     local axeArea=(self.permanentTraits.scoreAxeArea or 0)+ScoreOperations.weaponArea(self)
     local tx,ty=game.camera:screenToWorld(love.mouse.getPosition())
+    if self.jobMaster and self.jobMaster.target then tx,ty=self.jobMaster.target.x,self.jobMaster.target.y end
     local reach=82+axeArea
     if self:findAxeOilDrum(game,tx,ty,range,reach)then return true end
     local worldTree=self.scoreWorldTree
@@ -4419,6 +4428,7 @@ end
 function ClearcutMode:aimPoint(game, maxRange)
     game.player.axeHolding = false
     local tx, ty = game.camera:screenToWorld(love.mouse.getPosition())
+    if self.jobMaster and self.jobMaster.target then tx,ty=self.jobMaster.target.x,self.jobMaster.target.y end
     local dx, dy = tx - game.player.x, ty - game.player.y
     local dist = math.sqrt(dx*dx + dy*dy)
     if dist > maxRange and dist > 0 then
@@ -7925,6 +7935,7 @@ end
 -- Shared by the real world depth queue and headless renderer tests.
 ClearcutMode.drawEnemy = ForestArt.drawBody
 function ClearcutMode:queueWorldActors(queue,t)
+    require("src.job_master").queue(self,queue,t)
     ClearcutMode.DefenseMode.queue(self,queue,self.mapWorld)
     local groundTime=self.smokerGroundTime
     BossEntrance.queue(self,queue)
@@ -8075,6 +8086,9 @@ function ClearcutMode:drawThrownTrees(game)
 end
 
 function ClearcutMode:drawHeldSmoker(game,t)
+    if self.jobMaster and game.player~=self.jobMaster.actor then
+        game=setmetatable({player=self.jobMaster.actor},{__index=game})
+    end
     SmokeRingArt.drawCharge(self,game,t)
     if self.scoreAttack and self:scoreWeaponId()=="axe"and(self.permanentTraits.scoreAlwaysSmoking or 0)<=0 then
         return
@@ -8106,7 +8120,7 @@ end
 
 function ClearcutMode:queueProjectedOverlay(game,t)
     local queue=game.world.billboardQueue;if not queue then return end
-    local player=game.player
+    local player=self.jobMaster and self.jobMaster.actor or game.player
     queueUpright(queue,player.x,player.y,function()
         local px,py=player.x+14,player.y-34
         if self.job=="fire" then self:drawHeldSmoker(game,t)
@@ -8742,6 +8756,11 @@ local function drawOffscreenIndicators(self, game, fonts, w, h, t)
 end
 
 function ClearcutMode:drawScoreMeleeToggle(fonts,w,h)
+    if self.construction then
+        love.graphics.setFont(fonts.small);love.graphics.setColor(1,.82,.45)
+        love.graphics.print("건설업자 · 좌클릭 자재 투하 / 흡연자 잡 마스터 자동 전투",18,h-42)
+        return
+    end
     if not(self.scoreAttack and self.job=="fire")then return end
     local box=self:scoreMeleeToggleRect(w,h)
     local enabled=self.scoreMeleeEnabled~=false
@@ -8893,7 +8912,7 @@ function ClearcutMode:drawHUD(game,fonts)
         love.graphics.setColor(ready and {.94,.76,.28,1} or {.72,.65,.52,1})
         love.graphics.printf(text,w/2-146,h-45,292,"center")
     end
-    if self.job=="fire"and(self.permanentTraits.scoreDashUnlock or 0)>0 then
+    if not self.construction and self.job=="fire"and(self.permanentTraits.scoreDashUnlock or 0)>0 then
         local ready=(self.smokerDashCooldown or 0)<=0 and not self.smokerDash
         local icon=ClearcutMode.icons.dash
         local cx,cy=w/2,h-31
@@ -8904,7 +8923,7 @@ function ClearcutMode:drawHUD(game,fonts)
         love.graphics.setColor(1,1,1,1)
     end
     self:drawScoreMeleeToggle(fonts,w,h)
-    if self.job=="fire"then
+    if self.job=="fire"and not self.construction then
         -- 보루 잔량: 화면 오른쪽 가장자리에 남은 개비 수만큼 아이콘을 하나씩 세로로 쌓아 보여준다.
         -- 배경 패널 없이 아이콘만 떠 있게 해서 화면을 가리지 않는다.
         local ammoMax=self.cartonSize or 20

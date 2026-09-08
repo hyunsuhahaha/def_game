@@ -131,6 +131,7 @@ end
 
 function CharacterTraitBoard:nodesFor(job)
     if self.activeDevelopmentMode=="score_attack"then
+        if self.store.data.jobMasterFire then return self.store:getScoreAttackNodes("builder")end
         local merged={}
         for _,group in ipairs(scoreAttackGroups)do
             for _,node in ipairs(self.store:getScoreAttackNodes(group))do merged[#merged+1]=node end
@@ -164,7 +165,7 @@ function CharacterTraitBoard:fitResearchTree()
     for _,node in ipairs(nodes)do local x,y=self:nodeWorld(node);minX,maxX=math.min(minX,x),math.max(maxX,x);minY,maxY=math.min(minY,y),math.max(maxY,y)end
     -- 합친 연구판의 정중앙은 흡연자 갈래와 공용 갈래 사이의 빈 곳이라, 열자마자
     -- 어느 쪽 트리도 제대로 안 보인다. 진행이 시작되는 뿌리 노드에 시점을 맞춘다.
-    local root=self.store:getNode("fire_score_prewarm")
+    local root=self.store:getNode(self.store.data.jobMasterFire and "builder_damage" or "fire_score_prewarm")
     if root then self.panX,self.panY=self:nodeWorld(root)
     else self.panX,self.panY=(minX+maxX)/2,(minY+maxY)/2 end
     -- 연구판을 한 판으로 합치면서 내용이 화면보다 훨씬 커졌다(1280x720에서 가로 64%,
@@ -175,6 +176,10 @@ function CharacterTraitBoard:fitResearchTree()
     -- Reset returns to the authored reference spacing. Zoom stays a readability
     -- adjustment upward; downward it may pull back far enough to see the whole tree.
     self.referenceZoom=clamp((self.viewport.w/1748)*.80,.56,.80)
+    if self.store.data.jobMasterFire then
+        self.panX,self.panY=self.contentCX,self.contentCY
+        self.referenceZoom=math.min(self.referenceZoom,self.viewport.w/(self.contentW+360),self.viewport.h/(self.contentH+320))
+    end
     self.zoom=self.referenceZoom
     self.panVX,self.panVY,self.viewInitialized=0,0,true
     self:clampCamera()
@@ -603,6 +608,11 @@ function CharacterTraitBoard:drawUnlockFx()
 end
 
 function CharacterTraitBoard:draw()
+    local currentJob=self.store:activeScoreJob()
+    if self.boardJob~=currentJob then
+        self.boardJob=currentJob;self.selectedNodeId=self:nodesFor(self.selectedJob)[1].id
+        self.viewInitialized=false
+    end
     local w,h=love.graphics.getDimensions()
     local textScale=clamp(math.min(w/1280,h/720),1,1.42)
     local fonts={
@@ -630,9 +640,12 @@ function CharacterTraitBoard:draw()
     Frontend.button(self.backBox,"← 돌아가기",fonts.small,{accent=STRUCTURE})
     local titleX=184*textScale
     love.graphics.setFont(fonts.title); love.graphics.setColor(.18,.19,.17); love.graphics.print("강화하기",titleX,titleY)
-    love.graphics.setFont(fonts.small); love.graphics.setColor(.38,.40,.37); love.graphics.print("중앙 장비에서 여러 갈래로 연구를 확장합니다",titleX,subtitleY)
-    love.graphics.setFont(fonts.small);love.graphics.setColor(.38,.40,.37);love.graphics.printf("연구 코인",w-250*textScale,20*textScale,118*textScale,"right")
-    love.graphics.setFont(fonts.big);love.graphics.setColor(.24,.54,.32);love.graphics.printf(tostring(self.store.data.currency),w-126*textScale,16*textScale,100*textScale,"right")
+    local owned,total=self.store:jobMasterProgress()
+    local subtitle=self.store.data.jobMasterFire and "건설업자 연구 · 흡연자 잡 마스터 자동 전투"
+        or string.format("흡연자 잡 마스터 %d / %d · 모든 노드 만렙 시 건설업자 해금",owned,total)
+    love.graphics.setFont(fonts.small); love.graphics.setColor(.38,.40,.37); love.graphics.print(subtitle,titleX,subtitleY)
+    love.graphics.setFont(fonts.small);love.graphics.setColor(.38,.40,.37);love.graphics.printf("연구 코인",w-410*textScale,20*textScale,118*textScale,"right")
+    love.graphics.setFont(fonts.big);love.graphics.setColor(.24,.54,.32);love.graphics.printf(tostring(self.store.data.currency),w-280*textScale,16*textScale,254*textScale,"right")
 
     self.tabBoxes={}
     if #jobOrder>1 then
