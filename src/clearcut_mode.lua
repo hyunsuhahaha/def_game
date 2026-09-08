@@ -1486,7 +1486,7 @@ function ClearcutMode:spawnScoreTree(game)
     -- 보낼 수 있는 바닥 장식과 달리 나무는 벌목 대상이라, 뒤로 밀면 클릭은 되는데
     -- 안 보이는 나무가 생긴다.
     local guard=self:worldTreeGuard()
-    for _=1,90 do
+    for attempt=1,90 do
         local zoning=self:levelOf("forest_zoning")
         local margin=130+zoning*35
         local px,py
@@ -1494,8 +1494,9 @@ function ClearcutMode:spawnScoreTree(game)
             local radius=math.max(180,520-zoning*70);local angle=love.math.random()*math.pi*2;local distance=love.math.random()*radius
             px=math.max(margin,math.min(w-margin,game.player.x+math.cos(angle)*distance))
             py=math.max(margin,math.min(h-margin,game.player.y+math.sin(angle)*distance))
+        elseif world.upland then px,py=require("src.upland").sampleTree(world,(self.totalTreesSpawned or 0)+1,attempt)
         else px=love.math.random(margin,w-margin);py=love.math.random(margin,h-margin)end
-        if Maps.treeSpace(world,px,py)and not ForestScenery.isSceneryPocket(px,py,w,h)
+        if Maps.treeSpace(world,px,py)and (world.upland or not ForestScenery.isSceneryPocket(px,py,w,h))
             and not ClearcutMode.worldTreeGuardHits(guard,px,py)then
             local separated=true
             local pressure=math.max(1,self:scoreTreeSpawnRate()/math.max(.01,self.treeSpawnRate or .55))
@@ -1591,7 +1592,12 @@ function ClearcutMode:advanceScoreRegenTier(game,reseed,reason)
     end
     self.scoreTierClearLatch=true
     self.scoreRegenTier=(self.scoreRegenTier or 1)+1
+    local enteringUpland=self.scoreRegenTier==require("src.upland").START_TIER and not game.world.upland
     require("src.clearcut_maps").configureScoreTier(game.world,self.scoreRegenTier)
+    if enteringUpland then
+        require("src.upland").clusterTrees(game.world,game.world.nodes)
+        ForestScenery.generate(game.world,self.stage);require("src.clearcut_maps").filterScenery(game.world)
+    end
     self.scoreHighestRegenTier=math.max(self.scoreHighestRegenTier or 1,self.scoreRegenTier)
     if game.characterTraits and game.characterTraits.unlockRegenTier then game.characterTraits:unlockRegenTier(self.scoreRegenTier)end
     -- 시간 압력과 1초 벌목률 표본은 같은 시간축을 쓰므로 함께 초기화한다.
@@ -1672,6 +1678,7 @@ function ClearcutMode:generateForest(game, target)
         end
     end
     self.initialTrees, self.remainingTrees = #game.world.nodes, #game.world.nodes
+    if game.world.upland then require("src.upland").clusterTrees(game.world,game.world.nodes)end
     ForestFloor.generate(game.world,self.stage)
     ForestLighting.generate(game.world,self.stage)
     ForestScenery.generate(game.world,self.stage)

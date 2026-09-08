@@ -121,7 +121,7 @@ function Camera:update(dt, target, world)
         -- Preserve the normal tilted ground and upright combat billboard pass.
         local b=world.playBounds or {x=0,y=0,w=world.width,h=world.height}
         local pitch=clamp(self.pitch or .76,.72,1)
-        self.perspective=true;self.pitch=pitch;self.userZoom=1
+        self.perspective=true;self.pitch=pitch
         self.x,self.y=b.x+b.w/2,b.y+b.h/2-40/pitch
         self.zoom=math.min((w-48)/(b.w+64),(h-112)/(b.h*pitch+120))
         if world.lakeside then
@@ -139,6 +139,13 @@ function Camera:update(dt, target, world)
             self.zoom=(self.lakeZoom or tz)+(tz-(self.lakeZoom or tz))*blend
             self.lakeX,self.lakeY,self.lakeZoom=self.x,self.y,self.zoom
         else self.lakeX,self.lakeY,self.lakeZoom=nil,nil,nil end
+        local zoomFactor=self.userZoom or 1
+        self.zoom=self.zoom*zoomFactor
+        if zoomFactor>1 then
+            local blend=math.min(1,(zoomFactor-1)*2)
+            self.x=self.x+(target.x-self.x)*blend
+            self.y=self.y+(target.y-self.y)*blend
+        end
         self:syncRender(true)
         return
     end

@@ -140,6 +140,7 @@ local function draw(prop,player)
 end
 
 function Scenery.drawGround(world)
+    if world.upland then return end
     for _,prop in ipairs(world.forestScenery and world.forestScenery.ground or {}) do
         if Maps.canPlant(world,prop.x,prop.y) then draw(prop) end
     end
@@ -156,6 +157,7 @@ local function sortY(world,prop)
 end
 
 function Scenery.queue(world,queue,player)
+    if world.upland then return end
     for _,entry in ipairs(world.forestScenery and world.forestScenery.actors or {}) do
         local prop=entry
         if Maps.canPlant(world,prop.x,prop.y) and (prop.kind~="fern" or Maps.insideGroundPlants(world,prop.x,prop.y,{left=135,right=135,top=220,bottom=120})) then

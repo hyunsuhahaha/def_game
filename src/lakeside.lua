@@ -11,7 +11,7 @@ function Lake.bounds(world,tier)
 end
 function Lake.configure(world,tier)
     local previous=world.lakeside and world.playBounds
-    world.lakeside=true;world.northBackdrop=false
+    world.lakeside=true;world.upland=false;world.northBackdrop=false
     world.cameraTopReveal=0;world.playBounds=Lake.bounds(world,tier)
     local b=world.playBounds
     world.cameraBounds={x=b.x-world.width*.12,y=b.y-world.height*.25,

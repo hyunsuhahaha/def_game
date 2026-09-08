@@ -108,6 +108,7 @@ local function drawPatch(patch,player)
 end
 
 function Understory.queue(world,queue,player)
+    if world.upland then return end
     local data=world and world.forestUnderstory
     if not data then return end
     for _,entry in ipairs(data.patches) do

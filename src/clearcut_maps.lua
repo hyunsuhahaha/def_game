@@ -89,7 +89,11 @@ function Maps.configureStage(world,stage)
 end
 function Maps.configureScoreTier(world,tier)
     tier=math.max(1,tier or 1)
-    if world.clearcutMap=="forest" then require("src.lakeside").configure(world,tier);return end
+    if world.clearcutMap=="forest" then
+        if tier>=require("src.upland").START_TIER then require("src.upland").configure(world,tier)
+        else require("src.lakeside").configure(world,tier)end
+        return
+    end
     local kind=world.clearcutMap=="island" and "island" or "normal"
     local start=stageSizes[kind][1]
     local scale=world.clearcutMapScale or 1
@@ -178,6 +182,7 @@ function Maps.canPlant(world,x,y)
     return true
 end
 function Maps.treeSpace(world,x,y)
+    if world.upland then return require("src.upland").isTreeZone(world,x,y)end
     local dx,dy=x-world.width/2,y-world.height/2
     local island=world.clearcutMap=="island"
     if island and (dx/180)^2+((dy-65)/205)^2<1 then return false end
@@ -223,7 +228,8 @@ function Maps.constrain(world,x,y,margin)
     return x,y
 end
 function Maps.configure(world,id)
-    world.lakeside=false;world.lakeOpening=nil
+    world.uplandBaseSize=nil
+    world.lakeside=false;world.upland=false;world.lakeOpening=nil
     local def=Maps.get(id);world.clearcutMap=def.id
     local scale=world.clearcutMapScale or 1
     world.width,world.height=math.floor(3200*scale+.5),math.floor(2000*scale+.5)
@@ -265,6 +271,7 @@ end
 local shader
 function Maps.drawGround(world,time)
     if world.lakeside then return require("src.lakeside").drawGround(world)end
+    if world.upland then return require("src.upland").drawGround(world)end
     local def=Maps.get(world.clearcutMap)
     if def.id=="forest" then return false end
     if not shader then shader=love.graphics.newShader("assets/shaders/clearcut-terrain.glsl") end

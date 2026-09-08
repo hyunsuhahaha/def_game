@@ -114,6 +114,7 @@ local function drawTreeEvidence(world,catalog,render,player,actorSource)
     end end
 end
 function Floor.drawGround(world,player,actorSource)
+    if world.upland then return end
     local data=world and world.forestFloor;if not data then return end
     local catalog=catalogFor(data.biome);local render=ensureArt(data.biome)
     for _,prop in ipairs(data.macro)do drawDecal(catalog,render,prop,player,actorSource)end
