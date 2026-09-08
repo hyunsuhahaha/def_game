@@ -120,7 +120,7 @@ function Camera:update(dt, target, world)
         self.perspective=true
         self.pitch=clamp(self.pitch or .76,.72,1)
         self.userZoom=clamp(self.userZoom or 1,.90,1.10)
-        self.zoom=(world.stageZoom or .84)*.85*self.userZoom
+        self.zoom=(world.stageZoom or .84)/1.4*self.userZoom
         self.x,self.y=target.x,target.y
         self:syncRender(true)
         return

@@ -3,7 +3,7 @@ local camera,world=game.camera,game.world
 camera.craneOverview=true
 camera.userZoom=1
 camera:update(0,game.player,world)
-assert(math.abs(camera.zoom/(world.stageZoom or .84)-.85)<.001)
+assert(math.abs((world.stageZoom or .84)/camera.zoom-1.4)<.001)
 game.player.x=game.player.x+400;game.player.y=game.player.y+150
 camera:update(.016,game.player,world)
 assert(camera.x==game.player.x and camera.y==game.player.y,"crane camera must follow operator")
