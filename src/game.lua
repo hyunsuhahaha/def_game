@@ -26,7 +26,7 @@ local AchievementBoard = require("src.achievement_board")
 local BuildInfo = require("src.build_info")
 local resourceLabels = {wood = "목재", stone = "돌", ore = "광석", food = "식량"}
 local VIEW_PITCH_MIN,VIEW_PITCH_MAX=.72,1
-local SCORE_TIER_MAX=10
+local SCORE_TIER_MAX=15
 
 local Game = {}
 Game.__index = Game

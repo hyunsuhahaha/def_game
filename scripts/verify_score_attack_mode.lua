@@ -258,10 +258,10 @@ game:startClearcutScoreAttack()
 assert(game.clearcut.scoreRegenTier==2 and math.abs(game.clearcut:scoreTreeSpawnRate()-(.14*1.75))<.001,"next run did not start from the permanently unlocked tier")
 
 game:openScoreTierSelect()
-assert(game.mode=="score_tier_select"and game.scoreTierChoice==10 and game.scoreTierMax==10,
+assert(game.mode=="score_tier_select"and game.scoreTierChoice==15 and game.scoreTierMax==15,
     "score entry did not expose every authored regeneration tier")
 game:startClearcutScoreAttack(game.scoreTierChoice)
-assert(game.clearcut.scoreStartingRegenTier==10 and Traits:getRegenTier()==2,
+assert(game.clearcut.scoreStartingRegenTier==15 and Traits:getRegenTier()==2,
     "uncleared regeneration tier was blocked or changed saved progress")
 game:setScoreTierChoice(1);game:startClearcutScoreAttack(game.scoreTierChoice)
 assert(game.clearcut.scoreStartingRegenTier==1 and game.clearcut.scoreRegenTier==1 and Traits:getRegenTier()==2,
