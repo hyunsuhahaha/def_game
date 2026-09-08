@@ -15,8 +15,17 @@ for tier=1,5 do
     x,y=Maps.constrain(world,w*2,h*2,75)
     assert(x<=b.x+b.w-75 and y<=b.y+b.h-75,"lake allows movement")
     local q={};Lake.queue(world,q)
+    local fixture=require("scripts.forest_render_fixture")
+    fixture.reset()
     for _,p in ipairs(q)do
         if not world.lakeOpening then assert(not Maps.insidePlayable(world,p.x,p.y,0),"closed grove in playable field")end
+        p.draw()
+    end
+    for _,op in ipairs(fixture.commands)do
+        if op.op=="draw"then
+            assert(op.file=="assets/scenery/forest/fern-pixel-v1.png"or op.file=="assets/scenery/forest/rock-pixel-v1.png","non-harvestable boundary looks like a target tree")
+            assert(math.abs(op.args[4])*op.quad[3]<=65,"boundary prop dominates target silhouette")
+        end
     end
     local oldZoom=camera.renderZoom
     camera:update(.016,game.player,world)

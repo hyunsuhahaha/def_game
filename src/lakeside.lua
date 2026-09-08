@@ -1,6 +1,7 @@
 -- One fixed lakeshore. Tier changes open inland space, never stretch the art.
 local Lake={}
 local image,shader
+local boundaryArt={}
 function Lake.bounds(world,tier)
     local growth=math.min(1,math.max(0,(tier-1)/4))
     local tail=tier>5 and 1-.82^(tier-5)or 0
@@ -45,8 +46,8 @@ end
 function Lake.queue(world,queue)
     if not world.lakeside then return end
     local b,fx=world.playBounds,world.lakeOpening
-    -- Stable world-grid groves fill unopened ground, not a moving rectangular
-    -- wall. Newly unlocked groves fade away without changing combat trees.
+    -- Never reuse harvestable tree silhouettes for non-interactive boundaries.
+    -- Sparse low props identify closed land without looking like objectives.
     local seed=7319
     local function random()seed=(seed*16807)%2147483647;return(seed-1)/2147483646 end
     for row=0,math.ceil(world.height/145)do for col=0,math.ceil(world.width/155)do
@@ -55,12 +56,18 @@ function Lake.queue(world,queue)
         local y=row*145+(random()-.5)*130
         local current=inside(b,x,y)
         local alpha=not current and 1 or(fx and not inside(fx.from,x,y)and 1-fx.t/fx.duration or 0)
-        if alpha>0 and hash%5~=0 and x>=-70 and x<=world.width and y>=-80 and y<=world.height then
-            local tree=world.images.treeVariants[hash%#world.images.treeVariants+1]
-            local scale=.70+(hash%5)*.045
+        if alpha>0 and hash%3==0 and x>=-70 and x<=world.width and y>=-80 and y<=world.height then
+            local kind=hash%2==0 and "fern"or "rock"
+            local def=require("src.forest_scenery").catalog[kind]
+            if not boundaryArt[kind]then
+                boundaryArt[kind]=love.graphics.newImage(def.file)
+                boundaryArt[kind]:setFilter("nearest","nearest")
+            end
+            local prop=boundaryArt[kind]
+            local scale=def.width/prop:getWidth()*(.45+(hash%5)*.035)
             queue[#queue+1]={x=x,y=y,anchorY=y,draw=function()
-                love.graphics.setColor(.91,.96,.86,alpha)
-                love.graphics.draw(tree,x,y,0,scale,scale,tree:getWidth()/2,tree:getHeight()*.91)
+                love.graphics.setColor(.84,.89,.80,alpha)
+                love.graphics.draw(prop,x,y,0,scale,scale,prop:getWidth()/2,prop:getHeight()*def.foot)
             end}
         end
     end end
